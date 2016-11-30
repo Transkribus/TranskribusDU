@@ -6,7 +6,7 @@ Created on 23 Nov 2016
 @author: meunier
 '''
 
-from read.xml_formats.PageXml import PageXml
+from xml_formats.PageXml import PageXml
 
 
 def test_custom():
