@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd">
+    <Metadata>
+        <Creator>prov=University of Rostock/Institute of Mathematics/CITlab/Gundram Leifert/gundram.leifert@uni-rostock.de:name=Bozen.sprnn:alvermann_train.dict::(v=1.0.1)
+prov=University of Rostock/Institute of Mathematics/CITlab/Tobias Gruening/tobias.gruening@uni-rostock.de:name=de.uro.citlab.module.baseline2polygon.B2PSeamMultiOriented(v=1.0.0)
+prov=University of Rostock/Institute of Mathematics/CITlab/Gundram Leifert/gundram.leifert@uni-rostock.de:name=StAZH_v1.sprnn:StAZH_v1.dict::(v=1.0.1)
+prov=University of Rostock/Institute of Mathematics/CITlab/Tobias Gruening/tobias.gruening@uni-rostock.de:name=de.uro.citlab.module.baseline2polygon.B2PSeamMultiOriented(v=1.0.0)
+prov=University of Rostock/Institute of Mathematics/CITlab/Gundram Leifert/gundram.leifert@uni-rostock.de:name=meganet_hist_01_crx.sprnn:deutscheNachnamen.dict::(v=1.0.1)
+prov=University of Rostock/Institute of Mathematics/CITlab/Tobias Gruening/tobias.gruening@uni-rostock.de:name=de.uro.citlab.module.baseline2polygon.B2PSeamMultiOriented(v=1.0.0)
+prov=University of Rostock/Institute of Mathematics/CITlab/Gundram Leifert/gundram.leifert@uni-rostock.de:name=meganet_hist_01_crx.sprnn:deutsch.dict::(v=1.0.1)
+prov=University of Rostock/Institute of Mathematics/CITlab/Tobias Gruening/tobias.gruening@uni-rostock.de:name=de.uro.citlab.module.baseline2polygon.B2PSeamMultiOriented(v=1.0.0)
+NCSR LayoutAnalysis, v0.2 (16_02_2015)
+NCSR LineSegmentationTool, v0.3.0 (17_3_2015)</Creator>
+        <Created>2016-09-12T04:37:30</Created>
+        <LastChange>2016-11-02T14:14:53.255+01:00</LastChange>
+    </Metadata>
+    <Page imageFilename="M_Otterskirchen_012_0006.jpg" imageWidth="2006" imageHeight="3226">
+        <ReadingOrder>
+            <OrderedGroup id="ro_1478092492746" caption="Regions reading order">
+                <RegionRefIndexed index="0" regionRef="region_1478081532946_17"/>
+                <RegionRefIndexed index="1" regionRef="region_1478081540614_18"/>
+                <RegionRefIndexed index="2" regionRef="region_1478081545042_19"/>
+            </OrderedGroup>
+        </ReadingOrder>
+        <TextRegion type="other" id="region_1478081532946_17" custom="readingOrder {index:0;} structure {type:other;}">
+            <Coords points="2,29 505,26 453,3179 2,3179"/>
+        </TextRegion>
+        <TextRegion type="other" id="region_1478081540614_18" custom="readingOrder {index:1;} structure {type:other;}">
+            <Coords points="510,40 1787,38 1760,3168 452,3180"/>
+        </TextRegion>
+        <TextRegion type="other" id="region_1478081545042_19" custom="readingOrder {index:2;} structure {type:other;}">
+            <Coords points="1795,40 1988,40 1988,3171 1762,3163"/>
+        </TextRegion>
+        <SeparatorRegion id="Separator_1478092398418_12" custom="readingOrder {index:3;}">
+            <Coords points="501,28 489,29 445,3177 460,3172"/>
+        </SeparatorRegion>
+        <SeparatorRegion id="Separator_1478092485665_13" custom="readingOrder {index:4;}">
+            <Coords points="1797,40 1765,40 1765,3166 1797,3166"/>
+        </SeparatorRegion>
+    </Page>
+</PcGts>

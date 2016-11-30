@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd">
+    <Metadata>
+        <Creator>NCSR LayoutAnalysis, v0.2 (16_02_2015)
+NCSR LineSegmentationTool, v0.3.0 (17_3_2015)</Creator>
+        <Created>2016-09-12T04:36:51</Created>
+        <LastChange>2016-11-02T14:12:10.647+01:00</LastChange>
+    </Metadata>
+    <Page imageFilename="M_Otterskirchen_012_0003.jpg" imageWidth="2010" imageHeight="3193">
+        <ReadingOrder>
+            <OrderedGroup id="ro_1478092330448" caption="Regions reading order">
+                <RegionRefIndexed index="0" regionRef="region_1478081324944_10"/>
+                <RegionRefIndexed index="1" regionRef="region_1478081314152_8"/>
+                <RegionRefIndexed index="2" regionRef="region_1478081318801_9"/>
+            </OrderedGroup>
+        </ReadingOrder>
+        <TextRegion type="other" id="region_1478081324944_10" custom="readingOrder {index:0;} structure {type:other;}">
+            <Coords points="5,5 157,5 157,3182 5,3182"/>
+        </TextRegion>
+        <TextRegion type="other" id="region_1478081314152_8" custom="readingOrder {index:1;} structure {type:other;}">
+            <Coords points="165,5 1454,5 1454,3182 165,3182"/>
+        </TextRegion>
+        <TextRegion type="other" id="region_1478081318801_9" custom="readingOrder {index:2;}">
+            <Coords points="1448,13 2004,13 2004,3174 1448,3174"/>
+        </TextRegion>
+        <SeparatorRegion id="Separator_1478092324113_6" custom="readingOrder {index:3;}">
+            <Coords points="165,6 168,6 168,3186 165,3186"/>
+        </SeparatorRegion>
+        <SeparatorRegion id="Separator_1478092327983_7" custom="readingOrder {index:4;}">
+            <Coords points="1464,12 1454,12 1454,3189 1464,3189"/>
+        </SeparatorRegion>
+    </Page>
+</PcGts>

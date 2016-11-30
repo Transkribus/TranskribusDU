@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd">
+    <Metadata>
+        <Creator>prov=University of Rostock/Institute of Mathematics/CITlab/Gundram Leifert/gundram.leifert@uni-rostock.de:name=meganet_hist_01_crx.sprnn:deutsch.dict::(v=1.0.1)
+prov=University of Rostock/Institute of Mathematics/CITlab/Tobias Gruening/tobias.gruening@uni-rostock.de:name=de.uro.citlab.module.baseline2polygon.B2PSeamMultiOriented(v=1.0.0)
+NCSR LayoutAnalysis, v0.2 (16_02_2015)
+NCSR LineSegmentationTool, v0.3.0 (17_3_2015)</Creator>
+        <Created>2016-09-12T04:32:07</Created>
+        <LastChange>2016-11-02T14:11:01.962+01:00</LastChange>
+    </Metadata>
+    <Page imageFilename="M_Otterskirchen_012_0001.jpg" imageWidth="2015" imageHeight="3193">
+        <ReadingOrder>
+            <OrderedGroup id="ro_1478092261476" caption="Regions reading order">
+                <RegionRefIndexed index="0" regionRef="region_1478081083751_2"/>
+                <RegionRefIndexed index="1" regionRef="region_1478081092693_3"/>
+                <RegionRefIndexed index="2" regionRef="region_1478081100104_4"/>
+            </OrderedGroup>
+        </ReadingOrder>
+        <TextRegion type="other" id="region_1478081083751_2" custom="readingOrder {index:0;} structure {type:other;}">
+            <Coords points="179,13 10,13 10,3184 179,3184"/>
+        </TextRegion>
+        <TextRegion type="other" id="region_1478081092693_3" custom="readingOrder {index:1;} structure {type:other;}">
+            <Coords points="179,2 1467,2 1467,3163 179,3163"/>
+        </TextRegion>
+        <TextRegion type="other" id="region_1478081100104_4" custom="readingOrder {index:2;} structure {type:other;}">
+            <Coords points="1470,0 2010,0 2010,3176 1470,3176"/>
+        </TextRegion>
+        <SeparatorRegion id="Separator_1478092249337_1" custom="readingOrder {index:3;}">
+            <Coords points="174,3 168,3 168,3189 174,3189"/>
+        </SeparatorRegion>
+        <SeparatorRegion id="Separator_1478092253508_2" custom="readingOrder {index:4;}">
+            <Coords points="1454,6 1470,6 1470,3183 1454,3183"/>
+        </SeparatorRegion>
+    </Page>
+</PcGts>

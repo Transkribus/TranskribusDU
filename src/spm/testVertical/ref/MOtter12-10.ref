@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DOCUMENT>
+  <METADATA>
+    <PROCESS name="ContentAnalyzor" cmd="../convertor/Page2DS.py" cmd_arg="{'log': False, 'pattern': 'M_Otter_012/page/*.xml', 'zlib': False, 'reftag': ['SeparatorRegion'], 'input': '-', 'debug': False, 'output': 'ref/MOtter12-10.ref', 'ref': True, 'verbose': False}">
+      <VERSION value="$Revision: 1.1 $">
+        <COMMENT/>
+      </VERSION>
+      <CREATIONDATE>Wed Nov  2 15:30:03 2016</CREATIONDATE>
+    </PROCESS>
+  </METADATA>
+  <PAGE number="1" imageFilename="M_Otterskirchen_012_0000.jpg" width="494.88" height="766.32"/>
+  <PAGE number="2" imageFilename="M_Otterskirchen_012_0001.jpg" width="483.6" height="766.32">
+    <SeparatorRegion points="41.76,0.72,40.32,0.72,40.32,765.36,41.76,765.36" x="40.32" y="0.72" height="764.64" width="1.44"/>
+    <SeparatorRegion points="348.96,1.44,352.8,1.44,352.8,763.92,348.96,763.92" x="348.96" y="1.44" height="762.48" width="3.84"/>
+  </PAGE>
+  <PAGE number="3" imageFilename="M_Otterskirchen_012_0002.jpg" width="481.2" height="766.32">
+    <SeparatorRegion points="125.52,4.32,126.96,4.32,126.96,761.04,125.52,761.04" x="125.52" y="4.32" height="756.72" width="1.44"/>
+    <SeparatorRegion points="435.84,2.88,435.84,2.88,435.84,761.04,435.84,761.04" x="435.84" y="2.88" height="758.16" width="0.0"/>
+    <SeparatorRegion points="5.76,5.04,5.76,5.04,5.76,762.48,5.76,762.48" x="5.76" y="5.04" height="757.44" width="0.0"/>
+  </PAGE>
+  <PAGE number="4" imageFilename="M_Otterskirchen_012_0003.jpg" width="482.4" height="766.32">
+    <SeparatorRegion points="39.6,1.44,40.32,1.44,40.32,764.64,39.6,764.64" x="39.6" y="1.44" height="763.2" width="0.72"/>
+    <SeparatorRegion points="351.36,2.88,348.96,2.88,348.96,765.36,351.36,765.36" x="348.96" y="2.88" height="762.48" width="2.4"/>
+  </PAGE>
+  <PAGE number="5" imageFilename="M_Otterskirchen_012_0004.jpg" width="481.2" height="770.88">
+    <SeparatorRegion points="127.68,5.04,130.8,5.04,130.8,763.92,127.68,763.92" x="127.68" y="5.04" height="758.88" width="3.12"/>
+    <SeparatorRegion points="440.88,2.16,436.56,2.16,436.56,762.48,440.88,762.48" x="436.56" y="2.16" height="760.32" width="4.32"/>
+  </PAGE>
+  <PAGE number="6" imageFilename="M_Otterskirchen_012_0005.jpg" width="482.16" height="770.88">
+    <SeparatorRegion points="41.76,0.72,43.2,0.72,43.2,764.64,41.76,764.64" x="41.76" y="0.72" height="763.92" width="1.44"/>
+    <SeparatorRegion points="351.36,1.44,357.36,1.44,357.36,763.92,351.36,763.92" x="351.36" y="1.44" height="762.48" width="6.0"/>
+  </PAGE>
+  <PAGE number="7" imageFilename="M_Otterskirchen_012_0006.jpg" width="481.44" height="774.24">
+    <SeparatorRegion points="120.24,6.72,117.36,6.96,106.8,762.48,110.4,761.28" x="106.8" y="6.72" height="755.76" width="13.44"/>
+    <SeparatorRegion points="431.28,9.6,423.6,9.6,423.6,759.84,431.28,759.84" x="423.6" y="9.6" height="750.24" width="7.68"/>
+  </PAGE>
+  <PAGE number="8" imageFilename="M_Otterskirchen_012_0007.jpg" width="488.4" height="774.24">
+    <SeparatorRegion points="51.36,7.44,54.24,7.44,54.24,771.84,51.36,771.84" x="51.36" y="7.44" height="764.4" width="2.88"/>
+    <SeparatorRegion points="360.96,4.32,365.76,5.28,376.08,770.4,372.72,770.64" x="360.96" y="4.32" height="766.32" width="15.12"/>
+  </PAGE>
+  <PAGE number="9" imageFilename="M_Otterskirchen_012_0008.jpg" width="492.24" height="774.24">
+    <SeparatorRegion points="126.0,12.72,129.12,12.72,129.12,765.12,126.0,765.12" x="126.0" y="12.72" height="752.4" width="3.12"/>
+    <SeparatorRegion points="439.44,6.0,441.12,6.0,441.12,771.12,439.44,771.12" x="439.44" y="6.0" height="765.12" width="1.68"/>
+  </PAGE>
+  <PAGE number="10" imageFilename="M_Otterskirchen_012_0009.jpg" width="491.52" height="774.24">
+    <SeparatorRegion points="53.52,9.6,56.64,9.6,56.64,771.12,53.52,771.12" x="53.52" y="9.6" height="761.52" width="3.12"/>
+    <SeparatorRegion points="369.36,4.08,371.52,5.04,372.72,769.2,368.64,771.36" x="368.64" y="4.08" height="767.28" width="4.08"/>
+  </PAGE>
+</DOCUMENT>

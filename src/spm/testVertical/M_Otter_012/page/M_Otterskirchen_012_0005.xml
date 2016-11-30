@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd">
+    <Metadata>
+        <Creator>NCSR LayoutAnalysis, v0.2 (16_02_2015)
+NCSR LineSegmentationTool, v0.3.0 (17_3_2015)</Creator>
+        <Created>2016-09-12T04:37:15</Created>
+        <LastChange>2016-11-02T14:13:00.845+01:00</LastChange>
+    </Metadata>
+    <Page imageFilename="M_Otterskirchen_012_0005.jpg" imageWidth="2009" imageHeight="3212">
+        <ReadingOrder>
+            <OrderedGroup id="ro_1478092380649" caption="Regions reading order">
+                <RegionRefIndexed index="0" regionRef="region_1478081436375_14"/>
+                <RegionRefIndexed index="1" regionRef="region_1478081440801_15"/>
+                <RegionRefIndexed index="2" regionRef="region_1478081448655_16"/>
+            </OrderedGroup>
+        </ReadingOrder>
+        <TextRegion type="other" id="region_1478081436375_14" custom="readingOrder {index:0;} structure {type:other;}">
+            <Coords points="5,18 181,18 181,3184 5,3184"/>
+        </TextRegion>
+        <TextRegion type="other" id="region_1478081440801_15" custom="readingOrder {index:1;} structure {type:other;}">
+            <Coords points="176,5 1465,16 1465,3201 176,3190"/>
+        </TextRegion>
+        <TextRegion type="other" id="region_1478081448655_16" custom="readingOrder {index:2;} structure {type:other;}">
+            <Coords points="1459,5 2004,5 2004,3174 1481,3171"/>
+        </TextRegion>
+        <SeparatorRegion id="Separator_1478092372948_10" custom="readingOrder {index:3;}">
+            <Coords points="174,3 180,3 180,3186 174,3186"/>
+        </SeparatorRegion>
+        <SeparatorRegion id="Separator_1478092377456_11" custom="readingOrder {index:4;}">
+            <Coords points="1464,6 1489,6 1489,3183 1464,3183"/>
+        </SeparatorRegion>
+    </Page>
+</PcGts>

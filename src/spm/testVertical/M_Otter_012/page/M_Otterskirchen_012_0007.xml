@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd">
+    <Metadata>
+        <Creator>NCSR LayoutAnalysis, v0.2 (16_02_2015)
+NCSR LineSegmentationTool, v0.3.0 (17_3_2015)</Creator>
+        <Created>2016-09-12T04:37:47</Created>
+        <LastChange>2016-11-02T14:15:54.563+01:00</LastChange>
+    </Metadata>
+    <Page imageFilename="M_Otterskirchen_012_0007.jpg" imageWidth="2035" imageHeight="3226">
+        <ReadingOrder>
+            <OrderedGroup id="ro_1478092554429" caption="Regions reading order">
+                <RegionRefIndexed index="0" regionRef="region_1478081767253_25"/>
+                <RegionRefIndexed index="1" regionRef="region_1478081744127_24"/>
+                <RegionRefIndexed index="2" regionRef="region_1478081661511_20"/>
+            </OrderedGroup>
+        </ReadingOrder>
+        <TextRegion type="other" id="region_1478081767253_25" custom="readingOrder {index:0;} structure {type:other;}">
+            <Coords points="5,27 219,21 241,3217 5,3217"/>
+        </TextRegion>
+        <TextRegion type="other" id="region_1478081744127_24" custom="readingOrder {index:1;} structure {type:other;}">
+            <Coords points="211,27 1518,27 1560,3215 241,3217"/>
+        </TextRegion>
+        <TextRegion type="other" id="region_1478081661511_20" custom="readingOrder {index:2;} structure {type:other;}">
+            <Coords points="1528,21 2020,19 2020,3204 1555,3207"/>
+        </TextRegion>
+        <SeparatorRegion id="Separator_1478092507106_14" custom="readingOrder {index:3;}">
+            <Coords points="214,31 226,31 226,3216 214,3216"/>
+        </SeparatorRegion>
+        <SeparatorRegion id="Separator_1478092513965_15" custom="readingOrder {index:4;}">
+            <Coords points="1504,18 1524,22 1567,3210 1553,3211"/>
+        </SeparatorRegion>
+    </Page>
+</PcGts>
