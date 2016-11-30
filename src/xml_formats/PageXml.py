@@ -101,6 +101,23 @@ class PageXml:
     parse_custom_attr = classmethod(parse_custom_attr)
     
 
+    def makeText(cls, nd):
+        """
+        build the text of a sub-tree by considering that textual nodes are tokens to be concatenated, with a space as separator
+        """
+        ctxt = nd.doc.xpathNewContext()
+        ctxt.setContextNode(nd)
+        lnText = ctxt.xpathEval('.//text()')
+        s = None
+        for ntext in lnText:
+            stext = ntext.content.strip()
+            try:
+                if stext: s = s + " " + stext
+            except TypeError:
+                s = stext
+        ctxt.xpathFreeContext()
+        return s
+    makeText = classmethod(makeText)
 
 
     def addPrefix(cls, sPrefix, nd, sAttr="id"):
