@@ -58,7 +58,22 @@ class PageXml:
     getSchemaFilename = classmethod(getSchemaFilename)
     
     
-    # ---  PageXml -------------------------------------            
+    # ---  Xml stuff -------------------------------------
+    #TODO :   test it!!!            
+    def getChildByName(cls, elt, sChildName):
+        """
+        look for all child elements having that name in PageXml namespace!!!
+            Example: lNd = PageXMl.getChildByName(elt, "Baseline")
+        return a DOM node
+        """
+        ctxt = elt.doc.xpathNewContext()
+        ctxt.xpathRegisterNs("pc", cls.NS_PAGE_XML)  
+        ctxt.setContextNode(elt)
+        lNd = ctxt.xpathEvalExpr(".//pc:%s"%sChildName)
+        ctxt.xpathFreeContext()
+        return lNd
+    getChildByName = classmethod(getChildByName)
+        
     def parse_custom_attr(cls, s):
         """
         The custom attribute contains data in a CSS style syntax.
@@ -163,7 +178,51 @@ class PageXml:
         return ret
     rmPrefix = classmethod(rmPrefix)
 
+    # ---  Geometry -------------------------------------            
+    def getPointList(cls, data):
+        """
+        get either an XML node of a PageXml object
+              , or the content of a points attribute
+        
+        return the list of (x,y) of the polygone of the object - ( it is a list of int tuples)
+        """
+        try:
+            lsPair = data.split(' ')
+        except:
+            ctxt = data.doc.xpathNewContext()
+            ctxt.xpathRegisterNs("pc", cls.NS_PAGE_XML)  
+            ctxt.setContextNode(data)
+            lndPoints = ctxt.xpathEval("(.//@points)[1]")  #no need to collect all @points below!
+            sPoints = lndPoints[0].getContent()
+            lsPair = sPoints.split(' ')
+            ctxt.xpathFreeContext()
+        lXY = list()
+        for sPair in lsPair:
+            (sx,sy) = sPair.split(',')
+            lXY.append( (int(sx), int(sy)) )
+        return lXY
+    getPointList = classmethod(getPointList)
 
+
+    def setPoints(cls, nd, lXY):
+        """
+        set the points attribute of that node to reflect the lXY values
+        if nd is None, only returns the string that should be set to the @points attribute
+        return the content of the @points attribute
+        """
+        sPairs = " ".join( ["%d,%d"%(int(x), int(y)) for x,y in lXY] )
+        if nd: nd.setProp("points", sPairs)
+        return sPairs
+    setPoints = classmethod(setPoints)
+
+    def getPointsFromBB(cls, x1,y1,x2,y2):
+        """
+        get the polyline of this bounding box
+        return a list of int tuples
+        """
+        return [ (x1,y1), (x2,y1), (x2,y2), (x1,y2), (x1,y1) ]
+    getPointsFromBB = classmethod(getPointsFromBB)
+        
 # ---  Multi-page PageXml -------------------------------------            
             
 class MultiPageXml(PageXml):          
