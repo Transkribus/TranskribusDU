@@ -28,8 +28,11 @@
 
 import libxml2
 
+from common.trace import traceln
+
 from Graph import Graph
 from Block import Block
+from Edge  import Edge
 
 from xml_formats.PageXml import PageXml
 from util.Polygon import Polygon
@@ -46,17 +49,6 @@ class Graph_MultiPageXml(Graph):
     def __init__(self, lNode = [], lEdge = []):
         Graph.__init__(self, lNode, lEdge)
 
-    def setConfig(self):
-        """
-        Configure this Graph
-        """
-        self._sEltName = "TextRegion"   #Name of Xml element that should map to a node
-     
-    def selectNodeNodes(self, doc, ctxt):
-        """
-        Select all node of interest
-        """
-        
     def parseFile(self, sFilename):
         """
         Load that document as a CRF Graph
@@ -71,54 +63,61 @@ class Graph_MultiPageXml(Graph):
         sxpBlock    = ".//pc:TextRegion"
         sxpTextual  = "./pc:TextEquiv"             #CAUTION redundant TextEquiv nodes! 
         
-        self.lNode = self.getPageXmlBlocks(doc, dNS, sxpPage, sxpBlock, sxpTextual)
+        #load the block of each page, keeping the list of blocks of previous page
+        lPrevPageNode = None
+
+        for (pnum, lPageNode) in self.iter_PageXmlBlocks(doc, dNS, sxpPage, sxpBlock, sxpTextual):
         
-        #TODO the edges!!
-        self.lEdge = []
+            self.lNode.extend(lPageNode)
+            
+            lPageEdge = Edge.computeEdges(lPrevPageNode, lPageNode)
+            
+            self.lEdge.extend(lPageEdge)
+            traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
+            
+            lPrevPageNode = lPageNode
+            
+        traceln("\t- %d nodes,  %d edges)"%(len(self.lNode), len(self.lEdge)) )
         
         return self
         
-    def getPageXmlBlocks(self, doc, dNS, sxpPage, sxpBlock, sxpTextual):
+    def iter_PageXmlBlocks(self, doc, dNS, sxpPage, sxpBlock, sxpTextual):
         """
         Parse a Multi-pageXml DOM
+
+        iterator on the DOM, that returns per page:
+            page-num (int), list-of-page-block-objects
         
-        return a CRF Graph Object
         """
-        lNode = []
         
         #--- XPATH contexts
         ctxt = doc.xpathNewContext()
         for ns, nsurl in dNS.items(): ctxt.xpathRegisterNs(ns, nsurl)
-
-
         lNdPage = ctxt.xpathEval(sxpPage)   #all pages
+
         pnum = 0
         for ndPage in lNdPage:
             pnum += 1
+            lNode = []
             ctxt.setContextNode(ndPage)
-            
             lNdBlock = ctxt.xpathEval(sxpBlock) #all relevant nodes of the page
+
             for ndBlock in lNdBlock:
                 ctxt.setContextNode(ndBlock)
-                
                 lNdText = ctxt.xpathEval(sxpTextual)
                 assert len(lNdText) == 1 , "STRANGE; I expected only one useful TextEquiv below this node..."
+                
                 sText = PageXml.makeText(lNdText[0])
                 
                 #now we need to infer the bounding box of that object
                 lXY = PageXml.getPointList(ndBlock)  #the polygon
                 plg = Polygon(lXY)
-                
-#                 #Baseline node
-#                 ndBaseline = PageXml.getChildByName(ndBlock, "Baseline")
-#                 sBaseline_points = ndBaseline.prop("points")
-#                 x, y, w, h = plg.fitRectangleByBaseline( PageXml.getPointList(sBaseline_points) )
                 x1,y1, x2,y2 = plg.fitRectangle()
                 if True:
                     #we reduce a bit this rectangle, to ovoid overlap
                     w,h = x2-x1, y2-y1
-                    dx = max(w * 0.066, 20)
-                    dy = max(h * 0.066, 20)
+                    dx = max(w * 0.066, min(20, w/3))  #we make sure that at least 1/"rd of te width will remain!
+                    dy = max(h * 0.066, min(20, w/3))
                     x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
                 
                 #TODO
@@ -143,11 +142,16 @@ class Graph_MultiPageXml(Graph):
                     #ndCoord = util.xml_utils.addElement(doc, ndTextLine, "Coords")
                     #PageXml.setPoints(ndCoord, PageXml.getPointsFromBB(x1,y1,x2,y2))
                     
-        if TEST_getPageXmlBlock:
-            util.xml_utils.toFile(doc, "TEST_getPageXmlBlock.mpxml", True)
+            yield (pnum, lNode)
             
         ctxt.xpathFreeContext()       
-                
-        return lNode
+        if TEST_getPageXmlBlock:
+            util.xml_utils.toFile(doc, "TEST_getPageXmlBlock.mpxml", True)
         
+        raise StopIteration()        
         
+
+if __name__ == "__main__":
+    import sys
+    grph = Graph_MultiPageXml()
+    grph.parseFile(sys.argv[1])

@@ -337,7 +337,7 @@ class Block:
             #  (they should not overlap horizontally and cannot be vertical neighbors to each other)
             for A in dBlk_Y1[y1]:
                 Ax1,Ay1, Ax2,Ay2 = map(cls.epsilonRound, A.getBB(), [epsilon, epsilon, epsilon, epsilon])
-                A_height = float(A.node.prop("height"))
+                A_height = A.y2 - A.y1   #why were we accessing the DOM?? float(A.node.prop("height"))
                 assert Ay2 >= Ay1
                 lOx1x2 = list() #list of observed overlaps for current block A
                 leftWatermark, rightWatermark = Ax1, Ax2    #optimization to see when block A has been entirely "covered"
