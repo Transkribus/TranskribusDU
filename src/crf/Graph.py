@@ -30,11 +30,6 @@ import numpy as np
 class Graph:
     """
     A graph to be used as a CRF graph with pystruct
-    
-        USAGE:
-        - call parseFile to load the DOM and create the nodes and edges
-        - call parseLabels to get the labels from the nodes (if labelled, otherwise be ready to get KeyError exceptions)
-        - call detachFromDOM before freeing the DOM
     """
     
     def __init__(self, lNode = [], lEdge = []):
