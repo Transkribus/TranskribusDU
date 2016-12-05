@@ -53,7 +53,7 @@ def test_malformed_custom():
     #with pytest.raises(ValueError): PageXml.parseCustomAttr("a { x:1  2}")#should it fail? (or do we allow spaces in names or values?)
     assert PageXml.parseCustomAttr("  a b   {   x y : 1  2  }") == {'a b': {'x y': '1  2'}}
     
-def test_getsetCUstomAttr():
+def test_getsetCustomAttr():
     import libxml2
     sXml = """
             <TextRegion type="page-number" id="p1_region_1471502505726_2" custom="readingOrder {index:9;} structure {type:page-number;}">
