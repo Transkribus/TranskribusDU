@@ -13,7 +13,7 @@ Copyright Xerox 2016
 
 from common.trace import trace, traceln
 
-from Block import Block
+import Block
 
 DEBUG=0
 DEBUG=1
@@ -40,7 +40,7 @@ class Edge:
         lAllEdge = list()
         
         #--- horizontal and vertical neighbors
-        lHEdge, lVEdge = Block.findPageNeighborEdges(lPageBlk, bShortOnly)
+        lHEdge, lVEdge = Block.Block.findPageNeighborEdges(lPageBlk, bShortOnly)
         lAllEdge.extend(lHEdge)
         lAllEdge.extend(lVEdge)
         if DEBUG: 
@@ -49,7 +49,7 @@ class Edge:
         
         #--- overlap with previous page
         if lPrevPageEdgeBlk:
-            lConseqOverEdge = Block.findConsecPageOverlapEdges(lPrevPageEdgeBlk, lPageBlk)
+            lConseqOverEdge = Block.Block.findConsecPageOverlapEdges(lPrevPageEdgeBlk, lPageBlk)
             lAllEdge.extend(lConseqOverEdge) 
             
         return lAllEdge
