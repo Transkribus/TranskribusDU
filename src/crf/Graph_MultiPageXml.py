@@ -4,7 +4,7 @@
     Computing the graph for a MultiPageXml document
     
 
-    Copyright Xerox(C) 2016 H. Déjean, JL. Meunier
+    Copyright Xerox(C) 2016 JL. Meunier
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,11 +44,21 @@ TEST_getPageXmlBlock = None
 class Graph_MultiPageXml(Graph):
     '''
     Computing the graph for a MultiPageXml document
+
+        USAGE:
+        - call parseFile to load the DOM and create the nodes and edges
+        - call parseLabels to get the labels from the nodes (if labelled, otherwise be ready to get KeyError exceptions)
+        - call detachFromDOM before freeing the DOM
     '''
+    #Namespace, of PageXml, at least
+    dNS = {"pc":PageXml.NS_PAGE_XML}
+    
+    #TASK SPECIFIC STUFF TO BE DEFINED IN A SUB-CLASS
+    sxpPage     = None
+    sxpNode     = None
+    sxpTextual  = None    #CAUTION redundant TextEquiv nodes! 
 
-    def __init__(self, lNode = [], lEdge = []):
-        Graph.__init__(self, lNode, lEdge)
-
+    # --- Graph building --------------------------------------------------------
     def parseFile(self, sFilename):
         """
         Load that document as a CRF Graph
@@ -58,15 +68,11 @@ class Graph_MultiPageXml(Graph):
     
         doc = libxml2.parseFile(sFilename)
         
-        dNS = {"pc":PageXml.NS_PAGE_XML}
-        sxpPage     = "//pc:Page"
-        sxpBlock    = ".//pc:TextRegion"
-        sxpTextual  = "./pc:TextEquiv"             #CAUTION redundant TextEquiv nodes! 
         
         #load the block of each page, keeping the list of blocks of previous page
         lPrevPageNode = None
 
-        for (pnum, lPageNode) in self.iter_PageXmlBlocks(doc, dNS, sxpPage, sxpBlock, sxpTextual):
+        for (pnum, lPageNode) in self._iter_PageXml_Nodes(doc, self.dNS, self.sxpPage, self.sxpNode, self.sxpTextual):
         
             self.lNode.extend(lPageNode)
             
@@ -80,8 +86,22 @@ class Graph_MultiPageXml(Graph):
         traceln("\t- %d nodes,  %d edges)"%(len(self.lNode), len(self.lEdge)) )
         
         return self
-        
-    def iter_PageXmlBlocks(self, doc, dNS, sxpPage, sxpBlock, sxpTextual):
+
+    # --- transformers --------------------------------------------------------
+    def getNodeTransformer(self):
+        """
+        Obtain the transformer that prodcues features for each
+        """
+        raise Exception("Method must be overridden")
+
+    def getEdgeTransformer(self):
+        """
+        Obtain the transformer that prodcues features for each
+        """
+        raise Exception("Method must be overridden")
+    
+    # ---------------------------------------------------------------------------------------------------------        
+    def _iter_PageXml_Nodes(self, doc, dNS, sxpPage, sxpNode, sxpTextual):
         """
         Parse a Multi-pageXml DOM
 
@@ -100,7 +120,7 @@ class Graph_MultiPageXml(Graph):
             pnum += 1
             lNode = []
             ctxt.setContextNode(ndPage)
-            lNdBlock = ctxt.xpathEval(sxpBlock) #all relevant nodes of the page
+            lNdBlock = ctxt.xpathEval(sxpNode) #all relevant nodes of the page
 
             for ndBlock in lNdBlock:
                 ctxt.setContextNode(ndBlock)

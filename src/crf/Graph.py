@@ -4,7 +4,7 @@
     Computing the graph for a document
     
 
-    Copyright Xerox(C) 2016 H. Déjean, JL. Meunier
+    Copyright Xerox(C) 2016 JL. Meunier
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,21 +25,63 @@
     under grant agreement No 674943.
     
 """
-
-
-from Edge import Edge, CrossPageEdge, HorizontalEdge, VerticalEdge
-from Block import Block
+import numpy as np
 
 class Graph:
+    """
+    A graph to be used as a CRF graph with pystruct
+    
+        USAGE:
+        - call parseFile to load the DOM and create the nodes and edges
+        - call parseLabels to get the labels from the nodes (if labelled, otherwise be ready to get KeyError exceptions)
+        - call detachFromDOM before freeing the DOM
+    """
+    
     def __init__(self, lNode = [], lEdge = []):
         self.lNode = lNode
         self.lEdge = lEdge
         
-        
+    # --- Graph building --------------------------------------------------------
     def parseFile(self, sFilename):
         """
-        Load that document as a CRF Graph
+        Load that document as a CRF Graph.
         """
         raise Exception("Method must be overridden")
     
-    
+    def detachFromDOM(self):
+        """
+        Detach the graph from the DOM node, which can then be freed
+        """
+        for nd in self.lNode: nd.detachFromDOM()
+
+    # --- transformers --------------------------------------------------------
+    def getNodeTransformer(self):
+        """
+        Obtain the transformer that prodcues features for each
+        """
+        raise Exception("Method must be overridden")
+
+    def getEdgeTransformer(self):
+        """
+        Obtain the transformer that prodcues features for each
+        """
+        raise Exception("Method must be overridden")
+
+    # --- Numpy matrices --------------------------------------------------------
+    def indexNodes_and_BuildEdgeMatrix(self):
+        """
+        - add an index attribute to nodes
+        - build an edge matrix on this basis
+        - return the edge matrix (a 2-columns matrix)
+        """
+        for i, nd in enumerate(self.lNode):
+            nd.index = i
+
+        edges = np.empty( (self.len(self.lEdge), 2) , dtype=np.int32)
+        for i, edge in enumerate(self.lEdge):
+            edges[i,0] = edge.A.index
+            edges[i,1] = edge.B.index
+        return edges
+    indexNodes_and_BuildEdgeMatrix = classmethod(indexNodes_and_BuildEdgeMatrix)
+
+        
