@@ -11,6 +11,7 @@ Various utilities to deal with PageXml format
 import os
 
 import libxml2
+from ipaddress import AddressValueError
 
 class PageXml:
     '''
@@ -25,6 +26,8 @@ class PageXml:
 
     #XML schema loaded once for all
     cachedValidationContext = None  
+    
+    sCUSTOM_ATTR = "custom"
 
     # ---  Schema -------------------------------------            
 
@@ -73,14 +76,45 @@ class PageXml:
         ctxt.xpathFreeContext()
         return lNd
     getChildByName = classmethod(getChildByName)
+    
+    def getCustomAttr(cls, nd, sAttrName, sSubAttrName=None):
+        """
+        Read the custom attribute, parse it, and extract the 1st or 1st and 2nd key value
+        e.g. getCustomAttr(nd, "structure", "type")     -->  "catch-word"
+        e.g. getCustomAttr(nd, "structure")             -->  {'type':'catch-word', "toto", "tutu"} 
+        return a dictionary if no 2nd key provided, or a string if 1st and 2nd key provided
+        Raise KeyError is one of the attribute does not exist
+        """
+        ddic = cls.parseCustomAttr( nd.prop( cls.sCUSTOM_ATTR) )
         
-    def parse_custom_attr(cls, s):
+        #First key
+        dic2 = ddic[sAttrName]
+        if sSubAttrName:
+            return dic2[sSubAttrName]
+        else:
+            return dic2
+    getCustomAttr = classmethod(getCustomAttr)
+
+    def setCustomAttr(cls, nd, sAttrName, sSubAttrName, sVal):
+        """
+        Change the custom attribute by setting the value of the 1st+2nd key in the DOM
+        return the value
+        Raise KeyError is one of the attribute does not exist
+        """
+        ddic = cls.parseCustomAttr( nd.prop(cls.sCUSTOM_ATTR) )
+        ddic[sAttrName][sSubAttrName] = str(sVal)
+        sddic = cls.formatCustomAttr(ddic)
+        nd.setProp(cls.sCUSTOM_ATTR,sddic)
+        return sVal
+    setCustomAttr = classmethod(setCustomAttr)
+    
+    def parseCustomAttr(cls, s):
         """
         The custom attribute contains data in a CSS style syntax.
         We parse this syntax here and return a dictionary of dictionary
         
         Example:
-        parse_custom_attr( "readingOrder {index:4;} structure {type:catch-word;}" )
+        parseCustomAttr( "readingOrder {index:4;} structure {type:catch-word;}" )
             --> { 'readingOrder': { 'index':'4' }, 'structure':{'type':'catch-word'} }
         """
         dic = dict()
@@ -113,9 +147,26 @@ class PageXml:
                 for name in lName:
                     dic[name.strip()] = dicValForName
         return dic
-    parse_custom_attr = classmethod(parse_custom_attr)
+    parseCustomAttr = classmethod(parseCustomAttr)
     
-
+    def formatCustomAttr(cls, ddic):
+        """
+        Format a dictionary of dictionary of string in the "custom attribute" syntax 
+        e.g. custom="readingOrder {index:1;} structure {type:heading;}"
+        """
+        s = ""
+        for k1, d2 in ddic.items():
+            if s: s += " "
+            s += "%s"%k1
+            s2 = ""
+            for k2, v2 in d2.items():
+                if s2: s2 += " "
+                s2 += "%s:%s;"%(k2,v2)
+            s += " {%s}"%s2
+        return s
+    formatCustomAttr = classmethod(formatCustomAttr)
+        
+        
     def makeText(cls, nd):
         """
         build the text of a sub-tree by considering that textual nodes are tokens to be concatenated, with a space as separator
