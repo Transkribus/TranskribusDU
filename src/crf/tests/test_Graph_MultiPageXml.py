@@ -12,14 +12,14 @@ import os
 
 import libxml2
 
-import crf.Graph_MultiPageXml as Graph_MultiPageXml
+import crf.Graph_MultiPageXml_TextRegion as Graph_MultiPageXml_TextRegion
 import crf.Edge as Edge
 import xml_formats.PageXml as PageXml
 
 
 def test_RectangleFitting():
     #--- THE TRICK --------------
-    Graph_MultiPageXml.TEST_getPageXmlBlock = True
+    Graph_MultiPageXml_TextRegion.TEST_getPageXmlBlock = True
     
     filename = os.path.join(os.path.dirname(__file__), "7749.mpxml")
     
@@ -30,13 +30,13 @@ def test_RectangleFitting():
     sxpBlock    = ".//pc:TextRegion"
     sxpTextual  = "./pc:TextEquiv"             #CAUTION redundant TextEquiv nodes! 
         
-    obj = Graph_MultiPageXml.Graph_MultiPageXml()
+    obj = Graph_MultiPageXml_TextRegion.Graph_MultiPageXml()
 
     
     #load the block of each page, keeping the list of blocks of previous page
     lPrevPageNode = None
 
-    for (pnum, lPageNode) in obj.iter_PageXmlBlocks(doc, dNS, sxpPage, sxpBlock, sxpTextual):
+    for (pnum, lPageNode) in obj._iter_PageXml_Nodes(doc, dNS, sxpPage, sxpBlock, sxpTextual):
     
         obj.lNode.extend(lPageNode)
         
