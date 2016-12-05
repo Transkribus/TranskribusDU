@@ -2,7 +2,6 @@
 
 """
     Defining the labels of a graph for a PageXml document
-    
 
     Copyright Xerox(C) 2016 JL. Meunier
 
@@ -45,6 +44,11 @@ class Label_PageXml(Label):
             sLabel = self._sOTHER
         cls = self.dClsByLabel[sLabel]        
         return cls
+
+    def setNodeLabel(self, node, cls):
+        domnode = node.node
+        sLabel = self.dLabelByCls[cls]
+        PageXml.setCustomAttr(domnode, self.sCustAttr_STRUCTURE, self.sCustAttr2_TYPE, sLabel)
 
 def test_init():
     #Forcing some TASK SPECIFIC labels

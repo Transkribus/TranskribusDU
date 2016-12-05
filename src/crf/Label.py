@@ -52,7 +52,13 @@ class Label:
         Parse the graph node label and return its class index
         """
         raise Exception("Method must be overridden")
-        
+
+    def setNodeLabel(self, node, cls):
+        """
+        Set the DOM node associated to this graph node to a certain label
+        """        
+        raise Exception("Method must be overridden")
+
     def parseLabels(self, lNode):
         """
         Parse the label of each graph node from teh dataset, and set the node label
