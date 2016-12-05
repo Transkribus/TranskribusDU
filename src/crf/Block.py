@@ -44,6 +44,10 @@ class Block:
         self.cls = cls #the class of the block, in [0, N]
         self.fontsize = 0.0 #new in loader v04
         self.sconf = "" #new in v08
+        
+        #neighbouring relationship
+        self.lNeighbor      = None
+        self.lCPNeighbor    = None
 
     def setFontSize(self, fFontSize):
         self.fontsize = fFontSize
@@ -201,9 +205,7 @@ class Block:
     def __str__(self):
         return "Block page=%d (%f, %f) (%f, %f) '%s'" %(self.pnum, self.x1, self.y1, self.x2, self.y2, self.text)
     
-    # ------------------------------------------------------------------------------------------------------------------------------------        
-    #specific code for the CRF graph
-        
+    # --- Neighboring relationship to build graph-------------------------------------------------------------------------------------        
     def findPageNeighborEdges(cls, lBlk, bShortOnly=False):
         """
         find neighboring edges, horizontal and vertical ones
@@ -219,6 +221,24 @@ class Block:
         return lHEdge, lVEdge
     findPageNeighborEdges = classmethod(findPageNeighborEdges)
     
+    def collectNeighbors(self, lNode, lEdge):
+        """
+        record the lists of same- and cross-page neighbours for each node
+        """
+        for blk in lNode:
+            blk.lNeighbor = list()
+            blk.lCPNeighbor = list()        
+        for edge in lEdge:
+            a, b = edge.A, edge.B
+            if isinstance(edge, Edge.CrossPageEdge):
+                a.lCPNeighbor.append(b)
+                b.lCPNeighbor.append(a)
+            else:
+                a.lNeighbor.append(b)
+                b.lNeighbor.append(a)                
+                assert isinstance(edge, Edge.HorizontalEdge) or isinstance(edge, Edge.VerticalEdge)
+    
+    # ---- Internal stuff ---
     def findConsecPageOverlapEdges(cls, lPrevPageEdgeBlk, lPageBlk, epsilon = 1):
         """
         find block that overlap from a page to the other, and have same orientation
