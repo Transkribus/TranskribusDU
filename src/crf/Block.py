@@ -25,7 +25,7 @@ DEBUG=1
 
 class Block:
         
-    def __init__(self,pnum, (x, y, w, h), text, orientation, cls, domnode=None):
+    def __init__(self,pnum, (x, y, w, h), text, orientation, cls, domnode=None, domid=None):
         """
         pnum is an int
         orientation is an int, usually in [0-3]
@@ -41,6 +41,7 @@ class Block:
             self.orientation = 0
         assert 0 <= self.orientation and self.orientation <= 3
         self.node = domnode
+        self.domid = domid
         self.cls = cls #the class of the block, in [0, N]
         self.fontsize = 0.0 #new in loader v04
         self.sconf = "" #new in v08
@@ -203,7 +204,7 @@ class Block:
     xywhtoxyxy = classmethod(xywhtoxyxy)
 
     def __str__(self):
-        return "Block page=%d (%f, %f) (%f, %f) '%s'" %(self.pnum, self.x1, self.y1, self.x2, self.y2, self.text)
+        return "Block id=%s page=%d (%f, %f) (%f, %f) '%s'" %(self.domid, self.pnum, self.x1, self.y1, self.x2, self.y2, self.text)
     
     # --- Neighboring relationship to build graph-------------------------------------------------------------------------------------        
     def findPageNeighborEdges(cls, lBlk, bShortOnly=False):
