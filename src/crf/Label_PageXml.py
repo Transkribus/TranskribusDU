@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    Defining the labels of a graph for a PageXml document
+    Reading and setting the labels of a PageXml document
 
     Copyright Xerox(C) 2016 JL. Meunier
 
@@ -25,34 +25,61 @@
     
 """
 
-from Label import Label
 from xml_formats.PageXml import PageXml
  
-class Label_PageXml(Label):
+class Label_PageXml:
 
     #where the labels can be found in the data
     sCustAttr_STRUCTURE     = "structure"
     sCustAttr2_TYPE         = "type"
     
-    def parseNodeLabel(self, nd):
+    def __init__(self): 
+        pass
+        
+    def parseDomNodeLabel(self, domnode, defaultCls=None):
         """
-        Parse the graph node label and return its class index
+        Parse and set the graph node label and return its class index
         """
         try:
-            sLabel = PageXml.getCustomAttr(nd.node, self.sCustAttr_STRUCTURE, self.sCustAttr2_TYPE)
+            sLabel = PageXml.getCustomAttr(domnode, self.sCustAttr_STRUCTURE, self.sCustAttr2_TYPE)
         except KeyError:
-            sLabel = self._sOTHER
-        cls = self.dClsByLabel[sLabel]        
-        return cls
+            sLabel = defaultCls
+        return sLabel
 
-    def setNodeLabel(self, node, cls):
-        domnode = node.node
-        sLabel = self.dLabelByCls[cls]
+    def setDomNodeLabel(self, domnode, sLabel):
         PageXml.setCustomAttr(domnode, self.sCustAttr_STRUCTURE, self.sCustAttr2_TYPE, sLabel)
+        return sLabel
 
-def test_init():
-    #Forcing some TASK SPECIFIC labels
-    Label_PageXml._lsLabel = ['catch-word', 'header', 'heading', 'marginalia', 'page-number']
+# --- AUTO-TESTS --------------------------------------------------------------------------------------------
+def test_getset():
+    import libxml2
+    sXml = """
+            <TextRegion type="page-number" id="p1_region_1471502505726_2" custom="readingOrder {index:9;} structure {type:page-number;}">
+                <Coords points="972,43 1039,43 1039,104 972,104"/>
+            </TextRegion>
+            """
+    doc = libxml2.parseMemory(sXml, len(sXml))
+    nd = doc.getRootElement()
     obj = Label_PageXml()
-    assert obj.dLabelByCls['header'] == 2
-    assert obj.dClsByLabel[2] == 'header'
+    assert obj.parseDomNodeLabel(nd) == 'page-number'
+    assert obj.parseDomNodeLabel(nd, "toto") == 'page-number'
+    assert obj.setDomNodeLabel(nd, "index") == 'index'
+    assert obj.parseDomNodeLabel(nd, "toto") == 'index'
+    doc.freeDoc()
+
+def test_getset_default():
+    import libxml2
+    sXml = """
+            <TextRegion type="page-number" id="p1_region_1471502505726_2" custom="readingOrder {index:9;} ">
+                <Coords points="972,43 1039,43 1039,104 972,104"/>
+            </TextRegion>
+            """
+    doc = libxml2.parseMemory(sXml, len(sXml))
+    nd = doc.getRootElement()
+    obj = Label_PageXml()
+    assert obj.parseDomNodeLabel(nd) == None
+    assert obj.parseDomNodeLabel(nd, "toto") == 'toto'
+    assert obj.setDomNodeLabel(nd, "index") == 'index'
+    assert obj.parseDomNodeLabel(nd, "toto") == 'index'
+    doc.freeDoc()
+

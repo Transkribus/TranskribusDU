@@ -33,15 +33,20 @@ class Graph:
     """
     A graph to be used as a CRF graph with pystruct
     """
+    _sOTHER_LABEL = "OTHER"
     
     def __init__(self, lNode = [], lEdge = []):
         self.lNode = lNode
         self.lEdge = lEdge
+        self.doc   = None
+        self.lsLabel        = None #list of labels
+        self.sDefaultLabel  = None #when no annotation, do we set automatically to this label? (e.g."OTHER")
         
     # --- Graph building --------------------------------------------------------
-    def parseFile(self, sFilename):
+    def parseFile(self, sFilename, iVerbose=0):
         """
         Load that document as a CRF Graph.
+        Also set the self.doc variable!
         """
         raise Exception("Method must be overridden")
     
@@ -50,18 +55,71 @@ class Graph:
         Detach the graph from the DOM node, which can then be freed
         """
         for nd in self.lNode: nd.detachFromDOM()
+        self.doc.freeDoc()
+        self.doc = None
 
+    # --- Labels ----------------------------------------------------------
+    def getLabelList(self):
+        return self.lsLabel
+    
+    def setLabelList(self, lsLabel, bOther=True):
+        """set those properties:
+            self.lsLabel    - list of label names
+            dLabelByCls     - dictionary name -> id
+            dClsByLabel     - dictionary id -> name
+            self.nCls       - number of different labels
+        """
+        if bOther: 
+            assert self._sOTHER_LABEL not in lsLabel, "the label for class 'OTHER' conflicts with a task-specific label"
+            self.lsLabel        = [self._sOTHER_LABEL] + lsLabel
+            self.sDefaultLabel  = self._sOTHER_LABEL
+        else:
+            self.lsLabel        = lsLabel
+            self.sDefaultLabel  = None
+         
+        self.dLabelByCls = { i:sLabel for i,sLabel in enumerate(self.lsLabel) }         
+        self.dClsByLabel = { sLabel:i for i,sLabel in enumerate(self.lsLabel) } 
+        self.nCls = len(self.lsLabel)        
+        return self.lsLabel
+
+    def parseDomLabels(self):
+        """
+        Parse the label of the graph from the dataset, and set the node label
+        return the set of observed class (set of integers in N+)
+        """
+        setSeensLabels = set()
+        for nd in self.lNode:
+            sLabel = self.parseDomNodeLabel(nd.node, self.sDefaultLabel)
+            cls = self.dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
+            nd.cls = cls
+            setSeensLabels.add(cls)
+        return setSeensLabels    
+
+#     def parseDomNodeLabel(self, node, defaultLabel=""):
+#         """
+#         Parse the graph Dom node label and return it
+#         if a default label is given, absence of label becomes that one
+#         """
+#         raise Exception("Method must be overridden")
+
+    def setDomNodeLabel(self, node, sLabel):
+        """
+        Set the DOM node associated to this graph node to a certain label
+        """        
+        raise Exception("Method must be overridden")
+    
     # --- Utilities ---------------------------------------------------------
-    def loadDetachedGraphs(cls, lsFilename, bVerbose=False):
+    def loadDetachedGraphs(cls, lsFilename, bLabelled=False, iVerbose=0):
         """
         Load one graph per file, and detach its DOM
         return the list of loaded graphs
         """
         lGraph = []
         for sFilename in lsFilename:
-            if bVerbose: traceln("\t\t%s"%sFilename)
+            if iVerbose: traceln("\t%s"%sFilename)
             g = cls()
-            g.parseFile(sFilename)
+            g.parseFile(sFilename, iVerbose)
+            if bLabelled: g.parseDomLabels()
             g.detachFromDOM()
             lGraph.append(g)
         return lGraph
@@ -77,7 +135,7 @@ class Graph:
         return 3 Numpy matrices
         """
         node_features = node_transformer.transform(self.lNode)
-        edges = self.indexNodes_and_BuildEdgeMatrix(self.lNode, self.lEdge)
+        edges = self._indexNodes_and_BuildEdgeMatrix()
         edge_features = edge_transformer.transform(self.lEdge)
         return (node_features, edges, edge_features)       
     
@@ -97,11 +155,12 @@ class Graph:
         for i, nd in enumerate(self.lNode):
             nd.index = i
 
-        edges = np.empty( (self.len(self.lEdge), 2) , dtype=np.int32)
+        edges = np.empty( (len(self.lEdge), 2) , dtype=np.int32)
         for i, edge in enumerate(self.lEdge):
             edges[i,0] = edge.A.index
             edges[i,1] = edge.B.index
         return edges
-    _indexNodes_and_BuildEdgeMatrix = classmethod(_indexNodes_and_BuildEdgeMatrix)
 
+        
+        
         

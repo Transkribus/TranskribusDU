@@ -33,15 +33,18 @@ from common.trace import traceln
 from Graph import Graph
 from Block import Block
 from Edge  import Edge
+from Label_PageXml import Label_PageXml
 
 from xml_formats.PageXml import PageXml
 from util.Polygon import Polygon
+
+from common.trace import traceln
 
 # from ..xml_formats.PageXml import PageXml 
 
 TEST_getPageXmlBlock = None
 
-class Graph_MultiPageXml(Graph):
+class Graph_MultiPageXml(Graph, Label_PageXml):
     '''
     Computing the graph for a MultiPageXml document
 
@@ -58,30 +61,34 @@ class Graph_MultiPageXml(Graph):
     sxpNode     = None
     sxpTextual  = None    #CAUTION redundant TextEquiv nodes! 
 
+    def __init__(self, lNode = [], lEdge = []):
+        Graph.__init__(self, lNode, lEdge)
+        Label_PageXml.__init__(self)
+        
     # --- Graph building --------------------------------------------------------
-    def parseFile(self, sFilename):
+    def parseFile(self, sFilename, iVerbose=0):
         """
         Load that document as a CRF Graph
         
         Return a CRF Graph object
         """
     
-        doc = libxml2.parseFile(sFilename)
-        
+        self.doc = libxml2.parseFile(sFilename)
+        self.lNode, self.lEdge = list(), list()
         #load the block of each page, keeping the list of blocks of previous page
         lPrevPageNode = None
 
-        for (pnum, lPageNode) in self._iter_PageXml_Nodes(doc, self.dNS, self.sxpPage, self.sxpNode, self.sxpTextual):
+        for (pnum, lPageNode) in self._iter_PageXml_Nodes(self.doc, self.dNS, self.sxpPage, self.sxpNode, self.sxpTextual):
         
             self.lNode.extend(lPageNode)
             
             lPageEdge = Edge.computeEdges(lPrevPageNode, lPageNode)
             
             self.lEdge.extend(lPageEdge)
-            traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
+            if iVerbose>=2: traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
             
             lPrevPageNode = lPageNode
-        traceln("\t- %d nodes,  %d edges)"%(len(self.lNode), len(self.lEdge)) )
+        if iVerbose: traceln("\t- %d nodes,  %d edges)"%(len(self.lNode), len(self.lEdge)) )
         
         return self
 
@@ -111,10 +118,15 @@ class Graph_MultiPageXml(Graph):
 
             for ndBlock in lNdBlock:
                 ctxt.setContextNode(ndBlock)
+                domid = ndBlock.prop("id")
                 lNdText = ctxt.xpathEval(sxpTextual)
                 assert len(lNdText) == 1 , "STRANGE; I expected only one useful TextEquiv below this node..."
                 
                 sText = PageXml.makeText(lNdText[0])
+                if sText==None:
+                    sText = ""
+                    traceln("Warning: no text in node %s"%domid) 
+                    #raise ValueError, "No text in node: %s"%ndBlock 
                 
                 #now we need to infer the bounding box of that object
                 lXY = PageXml.getPointList(ndBlock)  #the polygon
@@ -132,7 +144,9 @@ class Graph_MultiPageXml(Graph):
                 cls = 0
 
                 #and create a Block
-                blk = Block(pnum, (x1, y1, x2-x1, y2-y1), sText, orientation, cls, ndBlock)
+                assert ndBlock
+                blk = Block(pnum, (x1, y1, x2-x1, y2-y1), sText, orientation, cls, ndBlock, domid=domid)
+                assert blk.node
                 
                 lNode.append(blk)
 
