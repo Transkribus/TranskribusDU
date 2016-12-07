@@ -24,122 +24,99 @@
     under grant agreement No 674943.
     
 """
-from sklearn.pipeline import Pipeline, FeatureUnion
 
-from sklearn.preprocessing import StandardScaler
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.grid_search import GridSearchCV
-from sklearn.metrics import confusion_matrix, accuracy_score
-from sklearn.metrics import classification_report
+from crf.Graph_MultiPageXml_TextRegion import Graph_MultiPageXml_TextRegion
+from crf.FeatureExtractors_PageXml_std import FeatureExtractors_PageXml_StandardOnes
 
-from pystruct.learners import OneSlackSSVM
-from pystruct.models import EdgeFeatureGraphCRF
-
-from pystruct.models import ChainCRF
-from pystruct.learners import FrankWolfeSSVM
-
+from crf.Model_SSVM_AD3 import Model_SSVM_AD3
 
 from DU_CRF_Task import DU_CRF_Task
-from crf.Graph_MultiPageXml_TextRegion import Graph_MultiPageXml_TextRegion
-from crf.Label_PageXml import Label_PageXml
 
-from crf.Transformer import SparseToDense
-from crf.Transformer_PageXml import *
-from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
+from common.trace import traceln
  
-class My_Label(Label_PageXml):
+class DU_StAZH_Graph(Graph_MultiPageXml_TextRegion):
+    """
+    Specializing the graph for this particular task
+    """
     #            1            2            3        4                5
-    _lsLabel = ['catch-word', 'header', 'heading', 'marginalia', 'page-number']
+    TASK_LABELS = ['catch-word', 'header', 'heading', 'marginalia', 'page-number']
     
-class DU_StAZH_a(DU_CRF_Task, Graph_MultiPageXml_TextRegion, My_Label):
+    def __init__(self): 
+        Graph_MultiPageXml_TextRegion.__init__(self)
+        self.setLabelList(self.TASK_LABELS, True)  #True means non-annotated node are of class 0 = OTHER
+    
+class DU_StAZH_a(DU_CRF_Task, FeatureExtractors_PageXml_StandardOnes):
+    """
+    We will do a CRF model for a DU task
+    , working on a MultiPageXMl document at TextRegion level
+    , with the labels defined in StAZH_Label class
+    """
 
     n_tfidf_node    = 300
+    t_ngrams_node   = (2,4)
+    b_tfidf_node_lc = True    
     n_tfidf_edge    = 300
-    tNODE_NGRAMS    = (2,4)
-    tEDGE_NGRAMS    = (2,4)
+    t_ngrams_edge    = (2,4)
+    b_tfidf_edge_lc = True    
     
-    #NO __init__
+    def __init__(self): 
+        DU_CRF_Task.__init__(self)
+        FeatureExtractors_PageXml_StandardOnes.__init__(self
+                                                        , self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc
+                                                        , self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc)
     
-    def getTransformers(self):
+    def run(self, sModelName, sModelDir, lsTrnColDir, lsTstColDir):
         """
-        return the node and edge feature extractors, as well as the tfidf extractor
+        Train a model on the tTRN collections and test it using the TST collections
         """
-        tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=self.n_tfidf_node
-                                                                                  , analyzer = 'char', ngram_range=self.tNODE_NGRAMS #(2,6)
-                                                                                  , dtype=np.float64)
+        traceln("-"*50)
+        traceln("Training model '%s' in folder '%s'"%(sModelName, sModelDir))
+        traceln("Train collection(s):", lsTrnColDir)
+        traceln("Test  collection(s):", lsTstColDir)
+        traceln("-"*50)
         
-        node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see clean_transformers method!!!!
-                                    ("text", Pipeline([
-                                                       ('selector', NodeTransformerTextEnclosed()),
-#                                                         ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=self.n_tfidf_node
-#                                                                                   , analyzer = 'char', ngram_range=self.tNODE_NGRAMS #(2,6)
-#                                                                                   , dtype=np.float64)),
-                                                       ('tfidf', tdifNodeTextVectorizer), #we can use it separately from the pipleline once fitted
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                     )
-                                    , 
-                                    ("textlen", Pipeline([
-                                                         ('selector', NodeTransformerTextLen()),
-                                                         ('textlen', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
-                                                         ])
-                                       )
-                                    , ("xywh", Pipeline([
-                                                         ('selector', NodeTransformerXYWH()),
-                                                         ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
-                                                         ])
-                                       )
-                                    , ("1hot", Pipeline([
-                                                         ('1hot', Node1HotFeatures())  #does the 1-hot encoding directly
-                                                         ])
-                                       )
-#                                     , ('ocr' , Pipeline([
-#                                                          ('ocr', NodeOCRFeatures())
-#                                                          ])
-#                                        )
-#                                     , ('pnumre' , Pipeline([
-#                                                          ('pnumre', NodePNumFeatures())
-#                                                          ])
-#                                        )                                          
-#                                     , ("doc_tfidf", Pipeline([
-#                                                          ('zero', Zero2Features()) 
-#                                                          #THIS ONE MUST BE LAST, because it include a placeholder column for the doculent-level tfidf
-#                                                          ])
-#                                        )                                          
-                                      ])
-    
-        lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see clean_transformers method!!!!
-                                      ("boolean", Pipeline([
-#                                                          ('boolean', Edge1HotFeatures(Dodge.DodgePlan.plan_GraphML_Sequence.PageNumberSequenciality()))
-                                                         ('boolean', Edge1HotFeatures(PageNumberSimpleSequenciality()))
-                                                         ])
-                                        )
-                                    , ("numerical", Pipeline([
-                                                         ('selector', EdgeNumericalSelector()),
-                                                         ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
-                                                         ])
-                                        )
-                                    , ("sourcetext", Pipeline([
-                                                       ('selector', EdgeTransformerSourceText()),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.tEDGE_NGRAMS  #(2,6)
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )
-                                    , ("targettext", Pipeline([
-                                                       ('selector', EdgeTransformerTargetText()),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.tEDGE_NGRAMS
-                                                                                 #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )
-                        ]
-                        
-        edge_transformer = FeatureUnion( lEdgeFeature )
-          
-        return node_transformer, edge_transformer, tdifNodeTextVectorizer
+        #list the train and test files
+        ts_trn, lTSFilename_trn = self.listMaxTimestampFile(lsTrnColDir, "*.mpxml")
+        _     , lTSFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*.mpxml")
+        
+        du = DU_StAZH_Graph()
+        
+        traceln("- loading training graphs")
+        lGraph_trn = du.loadDetachedGraphs(lTSFilename_trn, True, 1)  #True because we load the labels as well
+        traceln(" %d graphs loaded"%len(lGraph_trn))
+            
+        traceln("- creating a %s model"%Model_SSVM_AD3)
+        mdl = Model_SSVM_AD3(sModelName, sModelDir)
 
+        mdl.setClassNames(du.getLabelList())
+        traceln("- classes: ", du.getLabelList())
+
+        traceln("- retrieving or creating feature extractors...")
+        try:
+            mdl.loadFittedTransformers(ts_trn)
+        except:
+            mdl.setTranformers(self.getTransformers())
+            mdl.fitTranformers(lGraph_trn)
+            self.clean_transformers(mdl.getTransformers())
+            mdl.saveTransformers()
+        traceln(" done")
+        
+        traceln("- training model...")
+        mdl.train(lGraph_trn, True, ts_trn)
+        traceln(" done")
+        
+        traceln("- loading test graphs")
+        lGraph_tst = self.loadDetachedLabelledGraphs(lTSFilename_tst, True, 1)
+        traceln(" %d graphs loaded"%len(lGraph_trn))
+
+        mdl.test(lGraph_tst)
+
+
+if __name__ == "__main__":
+    
+    sTopDir = "C:\\Local\\meunier\\git\\TranskribusDU\\usecases\\StAZH\\"
+    doer = DU_StAZH_a()
+    doer.run("DU_StAZH_a", "c:\\tmp_READ"
+              , [sTopDir+"trnskrbs_3820\\col"]
+              , [sTopDir+"trnskrbs_3832\\col"])
+    

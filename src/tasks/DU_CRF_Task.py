@@ -24,23 +24,23 @@
     under grant agreement No 674943.
     
 """
+import os
+import glob
 
 class DU_CRF_Task:
 
-    def getTransformers(self):
+    def __init__(self): pass
+    
+    def listMaxTimestampFile(cls, lsDir, sPattern):
         """
-        Return the node and edge Tra,nsformers
+        List the file following the given pattern in the given folders
+        return the timestamp of the most recent one
+        Return a timestamp and a list of filename
         """
-        raise Exception("Method must be overridden")
-
-    def clean_transformers(self, node_transformer, edge_transformer):
-        """
-        the TFIDF transformer are keeping the stop words => huge pickled file!!!
-        
-        Here the fix is a bit rough. There are better ways....
-        JL
-        """
-        node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
-        edge_transformer.transformer_list[2][1].steps[1][1].stop_words_ = None   #is 2nd and 3rd in the union....
-        edge_transformer.transformer_list[3][1].steps[1][1].stop_words_ = None        
-        return node_transformer, edge_transformer
+        lFn, ts = [], None 
+        for sDir in lsDir:
+            lsFilename = sorted(glob.iglob(os.path.join(sDir, sPattern)))  
+            lFn.extend(lsFilename)
+            if lsFilename: ts = max(ts, max([os.path.getmtime(sFilename) for sFilename in lsFilename]))
+        return ts, lFn
+    listMaxTimestampFile = classmethod(listMaxTimestampFile)   
