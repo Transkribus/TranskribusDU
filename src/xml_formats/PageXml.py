@@ -102,7 +102,12 @@ class PageXml:
         Raise KeyError is one of the attribute does not exist
         """
         ddic = cls.parseCustomAttr( nd.prop(cls.sCUSTOM_ATTR) )
-        ddic[sAttrName][sSubAttrName] = str(sVal)
+        try:
+            ddic[sAttrName][sSubAttrName] = str(sVal)
+        except KeyError:
+            ddic[sAttrName] = dict()
+            ddic[sAttrName][sSubAttrName] = str(sVal)
+            
         sddic = cls.formatCustomAttr(ddic)
         nd.setProp(cls.sCUSTOM_ATTR,sddic)
         return sVal
@@ -170,6 +175,7 @@ class PageXml:
     def makeText(cls, nd):
         """
         build the text of a sub-tree by considering that textual nodes are tokens to be concatenated, with a space as separator
+        return None if no textual node found
         """
         ctxt = nd.doc.xpathNewContext()
         ctxt.setContextNode(nd)
