@@ -36,3 +36,10 @@ class Graph_MultiPageXml_TextRegion(Graph_MultiPageXml):
     sxpNode     = ".//pc:TextRegion"
     sxpTextual  = "./pc:TextEquiv"             #CAUTION redundant TextEquiv nodes! 
 
+
+
+if __name__ == "__main__":
+    import sys
+    grph = Graph_MultiPageXml_TextRegion()
+    grph.parseFile(sys.argv[1])
+    print grph

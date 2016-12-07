@@ -27,6 +27,8 @@
 """
 import numpy as np
 
+from common.trace import traceln
+
 class Graph:
     """
     A graph to be used as a CRF graph with pystruct
@@ -49,21 +51,44 @@ class Graph:
         """
         for nd in self.lNode: nd.detachFromDOM()
 
-    # --- transformers --------------------------------------------------------
-    def getNodeTransformer(self):
+    # --- Utilities ---------------------------------------------------------
+    def loadDetachedGraphs(cls, lsFilename, bVerbose=False):
         """
-        Obtain the transformer that prodcues features for each
+        Load one graph per file, and detach its DOM
+        return the list of loaded graphs
         """
-        raise Exception("Method must be overridden")
-
-    def getEdgeTransformer(self):
-        """
-        Obtain the transformer that prodcues features for each
-        """
-        raise Exception("Method must be overridden")
+        lGraph = []
+        for sFilename in lsFilename:
+            if bVerbose: traceln("\t\t%s"%sFilename)
+            g = cls()
+            g.parseFile(sFilename)
+            g.detachFromDOM()
+            lGraph.append(g)
+        return lGraph
+    loadDetachedGraphs = classmethod(loadDetachedGraphs)
 
     # --- Numpy matrices --------------------------------------------------------
-    def indexNodes_and_BuildEdgeMatrix(self):
+    def buildNodeEdgeMatrices(self, node_transformer, edge_transformer):
+        """
+        make 1 node-feature matrix
+         and 1 edge-feature matrix
+         and 1 edge matrix
+         for the graph
+        return 3 Numpy matrices
+        """
+        node_features = node_transformer.transform(self.lNode)
+        edges = self.indexNodes_and_BuildEdgeMatrix(self.lNode, self.lEdge)
+        edge_features = edge_transformer.transform(self.lEdge)
+        return (node_features, edges, edge_features)       
+    
+    def buildLabelMatrix(self):
+        """
+        Return the matrix of labels
+        """
+        Y = np.array( [nd.cls for nd in self.lNode] , dtype=np.uint8)
+        return Y
+    
+    def _indexNodes_and_BuildEdgeMatrix(self):
         """
         - add an index attribute to nodes
         - build an edge matrix on this basis
@@ -77,6 +102,6 @@ class Graph:
             edges[i,0] = edge.A.index
             edges[i,1] = edge.B.index
         return edges
-    indexNodes_and_BuildEdgeMatrix = classmethod(indexNodes_and_BuildEdgeMatrix)
+    _indexNodes_and_BuildEdgeMatrix = classmethod(_indexNodes_and_BuildEdgeMatrix)
 
         

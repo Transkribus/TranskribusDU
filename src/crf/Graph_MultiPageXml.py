@@ -54,7 +54,7 @@ class Graph_MultiPageXml(Graph):
     dNS = {"pc":PageXml.NS_PAGE_XML}
     
     #TASK SPECIFIC STUFF TO BE DEFINED IN A SUB-CLASS
-    sxpPage     = None
+    sxpPage     = "//pc:Page"
     sxpNode     = None
     sxpTextual  = None    #CAUTION redundant TextEquiv nodes! 
 
@@ -67,7 +67,6 @@ class Graph_MultiPageXml(Graph):
         """
     
         doc = libxml2.parseFile(sFilename)
-        
         
         #load the block of each page, keeping the list of blocks of previous page
         lPrevPageNode = None
@@ -82,24 +81,10 @@ class Graph_MultiPageXml(Graph):
             traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
             
             lPrevPageNode = lPageNode
-            
         traceln("\t- %d nodes,  %d edges)"%(len(self.lNode), len(self.lEdge)) )
         
         return self
 
-    # --- transformers --------------------------------------------------------
-    def getNodeTransformer(self):
-        """
-        Obtain the transformer that prodcues features for each
-        """
-        raise Exception("Method must be overridden")
-
-    def getEdgeTransformer(self):
-        """
-        Obtain the transformer that prodcues features for each
-        """
-        raise Exception("Method must be overridden")
-    
     # ---------------------------------------------------------------------------------------------------------        
     def _iter_PageXml_Nodes(self, doc, dNS, sxpPage, sxpNode, sxpTextual):
         """
@@ -109,12 +94,14 @@ class Graph_MultiPageXml(Graph):
             page-num (int), list-of-page-block-objects
         
         """
-        
         #--- XPATH contexts
         ctxt = doc.xpathNewContext()
         for ns, nsurl in dNS.items(): ctxt.xpathRegisterNs(ns, nsurl)
-        lNdPage = ctxt.xpathEval(sxpPage)   #all pages
 
+        assert sxpPage, "CONFIG ERROR: need an xpath expression to enumerate PAGE elements"
+        assert sxpNode, "CONFIG ERROR: need an xpath expression to enumerate elements corresponding to graph nodes"
+        lNdPage = ctxt.xpathEval(sxpPage)   #all pages
+        
         pnum = 0
         for ndPage in lNdPage:
             pnum += 1
@@ -161,7 +148,6 @@ class Graph_MultiPageXml(Graph):
                     ndTextLine.setContent(sText)
                     #ndCoord = util.xml_utils.addElement(doc, ndTextLine, "Coords")
                     #PageXml.setPoints(ndCoord, PageXml.getPointsFromBB(x1,y1,x2,y2))
-                    
             yield (pnum, lNode)
             
         ctxt.xpathFreeContext()       
@@ -170,8 +156,3 @@ class Graph_MultiPageXml(Graph):
         
         raise StopIteration()        
         
-
-if __name__ == "__main__":
-    import sys
-    grph = Graph_MultiPageXml()
-    grph.parseFile(sys.argv[1])
