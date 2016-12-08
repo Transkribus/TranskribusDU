@@ -35,8 +35,22 @@ class FeatureExtractors:
         """
         raise Exception("Method must be overridden")
         
+    def fitTranformers(self, lGraph):
+        """
+        Fit the transformers using the graphs
+        return True 
+        """
+        lAllNode = [nd for g in lGraph for nd in g.lNode]
+        self.node_transformer.fit(lAllNode)
+        del lAllNode #trying to free the memory!
+        
+        lAllEdge = [edge for g in lGraph for edge in g.lEdge]
+        self.edge_transformer.fit(lAllEdge)
+        del lAllEdge
+        
+        return True
 
-    def clean_transformers(self, (node_transformer, edge_transformer)):
+    def clean_transformers(self):
         """
         Some extractors/transfomers keep a large state in memory , taht is not required in "production".
         This method must clean this useless large data

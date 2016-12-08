@@ -33,17 +33,22 @@ class Graph:
     """
     A graph to be used as a CRF graph with pystruct
     """
-    _sOTHER_LABEL = "OTHER"
     
+    #The labels for those graphs
+    _sOTHER_LABEL   = "OTHER"
+    lsLabel         = None #list of labels
+    sDefaultLabel   = None #when no annotation, do we set automatically to this label? (e.g."OTHER")
+    dLabelByCls     = None    
+    dClsByLabel     = None
+    nCls            = None
+            
     def __init__(self, lNode = [], lEdge = []):
         self.lNode = lNode
         self.lEdge = lEdge
         self.doc   = None
-        self.lsLabel        = None #list of labels
-        self.sDefaultLabel  = None #when no annotation, do we set automatically to this label? (e.g."OTHER")
         
     # --- Graph building --------------------------------------------------------
-    def parseFile(self, sFilename, iVerbose=0):
+    def parseXmlFile(self, sFilename, iVerbose=0):
         """
         Load that document as a CRF Graph.
         Also set the self.doc variable!
@@ -59,10 +64,11 @@ class Graph:
         self.doc = None
 
     # --- Labels ----------------------------------------------------------
-    def getLabelList(self):
-        return self.lsLabel
+    def getLabelList(cls):
+        return cls.lsLabel
+    getLabelList = classmethod(getLabelList)
     
-    def setLabelList(self, lsLabel, bOther=True):
+    def setLabelList(cls, lsLabel, bOther=True):
         """set those properties:
             self.lsLabel    - list of label names
             dLabelByCls     - dictionary name -> id
@@ -70,18 +76,19 @@ class Graph:
             self.nCls       - number of different labels
         """
         if bOther: 
-            assert self._sOTHER_LABEL not in lsLabel, "the label for class 'OTHER' conflicts with a task-specific label"
-            self.lsLabel        = [self._sOTHER_LABEL] + lsLabel
-            self.sDefaultLabel  = self._sOTHER_LABEL
+            assert cls._sOTHER_LABEL not in lsLabel, "the label for class 'OTHER' conflicts with a task-specific label"
+            cls.lsLabel        = [cls._sOTHER_LABEL] + lsLabel
+            cls.sDefaultLabel  = cls._sOTHER_LABEL
         else:
-            self.lsLabel        = lsLabel
-            self.sDefaultLabel  = None
+            cls.lsLabel        = lsLabel
+            cls.sDefaultLabel  = None
          
-        self.dLabelByCls = { i:sLabel for i,sLabel in enumerate(self.lsLabel) }         
-        self.dClsByLabel = { sLabel:i for i,sLabel in enumerate(self.lsLabel) } 
-        self.nCls = len(self.lsLabel)        
-        return self.lsLabel
-
+        cls.dLabelByCls = { i:sLabel for i,sLabel in enumerate(cls.lsLabel) }         
+        cls.dClsByLabel = { sLabel:i for i,sLabel in enumerate(cls.lsLabel) } 
+        cls.nCls = len(cls.lsLabel)        
+        return cls.lsLabel
+    setLabelList = classmethod(setLabelList)
+    
     def parseDomLabels(self):
         """
         Parse the label of the graph from the dataset, and set the node label
@@ -95,12 +102,15 @@ class Graph:
             setSeensLabels.add(cls)
         return setSeensLabels    
 
-#     def parseDomNodeLabel(self, node, defaultLabel=""):
-#         """
-#         Parse the graph Dom node label and return it
-#         if a default label is given, absence of label becomes that one
-#         """
-#         raise Exception("Method must be overridden")
+    def setDomLabels(self, Y):
+        """
+        Set the labels of the graph nodes from the Y matrix
+        return the DOM
+        """
+        for i,nd in enumerate(self.lNode):
+            sLabel = self.lsLabel[ Y[i] ]
+            self.setDomNodeLabel(nd.node, sLabel)
+        return self.doc
 
     def setDomNodeLabel(self, node, sLabel):
         """
@@ -109,7 +119,7 @@ class Graph:
         raise Exception("Method must be overridden")
     
     # --- Utilities ---------------------------------------------------------
-    def loadDetachedGraphs(cls, lsFilename, bLabelled=False, iVerbose=0):
+    def loadGraphs(cls, lsFilename, bDetach=False, bLabelled=False, iVerbose=0):
         """
         Load one graph per file, and detach its DOM
         return the list of loaded graphs
@@ -118,12 +128,12 @@ class Graph:
         for sFilename in lsFilename:
             if iVerbose: traceln("\t%s"%sFilename)
             g = cls()
-            g.parseFile(sFilename, iVerbose)
+            g.parseXmlFile(sFilename, iVerbose)
             if bLabelled: g.parseDomLabels()
-            g.detachFromDOM()
+            if bDetach: g.detachFromDOM()
             lGraph.append(g)
         return lGraph
-    loadDetachedGraphs = classmethod(loadDetachedGraphs)
+    loadGraphs = classmethod(loadGraphs)
 
     # --- Numpy matrices --------------------------------------------------------
     def buildNodeEdgeMatrices(self, node_transformer, edge_transformer):

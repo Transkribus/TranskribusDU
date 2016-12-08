@@ -46,10 +46,11 @@ from pystruct.models import EdgeFeatureGraphCRF
 from pystruct.models import ChainCRF
 from pystruct.learners import FrankWolfeSSVM
 
-from common.trace import trace, traceln
+from common.trace import  traceln
 from common.chrono import chronoOn, chronoOff
 
-
+class ModelException(Exception):
+    pass
 
 class Model:
     
@@ -74,11 +75,18 @@ class Model:
     def getTransformerFilename(self):
         return os.path.join(self.sDir, self.sName+"_transf.pkl")
     
+    def load(self):
+        """
+        Load myself from disk
+        return self or raise a ModelException
+        """
+        raise Exception("Method must be overridden")
+        
     def _loadIfFresh(self, sFilename, expiration_timestamp, loadFun):
         """
         Look for the given file
         If it is fresher than given timestamp, attempt to load it using the loading function, and return the data
-        Raise an exception otherwise
+        Raise a ModelException otherwise
         """
         traceln("\t- loading pre-computed data from: %s"%sFilename)
         dat = None
@@ -90,10 +98,10 @@ class Model:
                 dat = loadFun(sFilename)
             else:
                 traceln("\t\t file is rotten, ignoring it.")
-                raise Exception("File %s found but too old."%sFilename)
+                raise ModelException("File %s found but too old."%sFilename)
         else:
             traceln("\t\t no such file : %s"%sFilename)
-            raise Exception("File %s not found."%sFilename)
+            raise ModelException("File %s not found."%sFilename)
         return dat
     
     def gzip_cPickle_dump(cls, sFilename, dat):
@@ -101,25 +109,12 @@ class Model:
                 cPickle.dump( dat, zfd, protocol=2)
     gzip_cPickle_dump = classmethod(gzip_cPickle_dump)
 
-    def gzip_cPickle_load(cls, sFilename, dat):
+    def gzip_cPickle_load(cls, sFilename):
         with gzip.open(sFilename, "rb") as zfd:
                 return cPickle.load(zfd)        
     gzip_cPickle_load = classmethod(gzip_cPickle_load)
     
     # --- TRANSFORMER FITTING ---------------------------------------------------
-    def loadFittedTransformers(self, expiration_timestamp=0):
-        """
-        Look on disk for some already fitted transformers, and load them 
-        If a timestamp is given, ignore any disk data older than it and raises an exception
-        Return True
-        Raise an exception if nothing good can be found on disk
-        """
-        sTransfFile = self.getTransformerFilename()
-
-        dat =  self._loadIfFresh(sTransfFile, expiration_timestamp, self.gzip_cPickle_load)
-        self.node_transformer, self.edge_transformer = dat        
-        return True
-        
     def setTranformers(self, (node_transformer, edge_transformer)):
         """
         Set the type of transformers 
@@ -135,21 +130,6 @@ class Model:
         """
         return self.node_transformer, self.edge_transformer
 
-    def fitTranformers(self, lGraph):
-        """
-        Fit the transformers using the graphs
-        return True 
-        """
-        lAllNode = [nd for g in lGraph for nd in g.lNode]
-        self.node_transformer.fit(lAllNode)
-        del lAllNode #trying to free the memory!
-        
-        lAllEdge = [edge for g in lGraph for edge in g.lEdge]
-        self.edge_transformer.fit(lAllEdge)
-        del lAllEdge
-        
-        return True
-
     def saveTransformers(self):
         """
         Save the transformer on disk
@@ -158,6 +138,19 @@ class Model:
         sTransfFile = self.getTransformerFilename()
         self.gzip_cPickle_dump(sTransfFile, (self.node_transformer, self.edge_transformer))
         return sTransfFile
+        
+    def loadTransformers(self, expiration_timestamp=0):
+        """
+        Look on disk for some already fitted transformers, and load them 
+        If a timestamp is given, ignore any disk data older than it and raises an exception
+        Return True
+        Raise an ModelException if nothing good can be found on disk
+        """
+        sTransfFile = self.getTransformerFilename()
+
+        dat =  self._loadIfFresh(sTransfFile, expiration_timestamp, self.gzip_cPickle_load)
+        self.node_transformer, self.edge_transformer = dat        
+        return True
         
     def transformGraphs(self, lGraph, bLabelled=False):
         """
@@ -178,6 +171,7 @@ class Model:
     def train(self, lGraph, bWarmStart=True, expiration_timestamp=None):
         """
         Return a model trained using the given labelled graphs.
+        The train method is expected to save the model into self.getModelFilename(), at least at end of training
         If bWarmStart==True, The model is loaded from the disk, if any, and if fresher than given timestamp, and training restarts
         """
         raise Exception("Method must be overridden")
@@ -189,6 +183,13 @@ class Model:
         """
         raise Exception("Method must be overridden")
 
+    def predict(self, graph):
+        """
+        predict the class of each node of the graph
+        return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
+        """
+        raise Exception("Method must be overridden")
+            
     def computeClassWeight(cls, lY):
         Y = np.hstack(lY)
         Y_unique = np.unique(Y)
@@ -210,10 +211,23 @@ class Model:
                 setSeenCls = setSeenCls.union( np.unique(_Y).tolist() )
             lsSeenClassName = [ cls for (i, cls) in enumerate(lsClassName) if i in setSeenCls]
             
+        traceln("Line=True class, column=Prediction")
         a = confusion_matrix(Y, Y_pred)
-        traceln(a)
+#not nice because of formatting of numbers possibly different per line
+#         if lsClassName:
+#             #Let's show the class names
+#             s1 = ""
+#             for sLabel, aLine in zip(lsSeenClassName, a):
+#                 s1 += "%20s %s\n"%(sLabel, aLine)
+#         else:
+#             s1 = str(a)
         s1 = str(a)
-        
+        if lsClassName:
+            lsLine = s1.split("\n")    
+            assert len(lsLine)==len(lsSeenClassName)
+            s1 = "\n".join( ["%20s  %s"%(sLabel, sLine) for (sLabel, sLine) in zip(lsSeenClassName, lsLine)])    
+        traceln(s1)
+
         if lsClassName:
             s2 = classification_report(Y, Y_pred, target_names=lsSeenClassName)
         else:

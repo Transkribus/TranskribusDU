@@ -47,10 +47,6 @@ class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
         self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc = n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc
 
-    def getTransformers(self):
-        """
-        return the node and edge feature extractors, as well as the tfidf extractor
-        """
         tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=self.n_tfidf_node
                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
                                                                                   , dtype=np.float64)
@@ -128,19 +124,27 @@ class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
         edge_transformer = FeatureUnion( lEdgeFeature )
           
         #return node_transformer, edge_transformer, tdifNodeTextVectorizer
-        return node_transformer, edge_transformer
+        self.node_transformer = node_transformer
+        self.edge_transformer = edge_transformer
+        self.tfidfNodeTextVectorizer = tdifNodeTextVectorizer
+        
+    def getTransformers(self):
+        """
+        return the node and edge feature extractors, as well as the tfidf extractor
+        """
+        return self.node_transformer, self.edge_transformer
 
-    def clean_transformers(self, (node_transformer, edge_transformer)):
+    def clean_transformers(self):
         """
         the TFIDF transformers are keeping the stop words => huge pickled file!!!
         
         Here the fix is a bit rough. There are better ways....
         JL
         """
-        node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
-        edge_transformer.transformer_list[2][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
-        edge_transformer.transformer_list[3][1].steps[1][1].stop_words_ = None        
-        return node_transformer, edge_transformer
+        self.node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
+        self.edge_transformer.transformer_list[2][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
+        self.edge_transformer.transformer_list[3][1].steps[1][1].stop_words_ = None        
+        return self.node_transformer, self.edge_transformer
         
 
     

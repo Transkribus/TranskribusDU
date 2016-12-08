@@ -66,7 +66,7 @@ class Graph_MultiPageXml(Graph, Label_PageXml):
         Label_PageXml.__init__(self)
         
     # --- Graph building --------------------------------------------------------
-    def parseFile(self, sFilename, iVerbose=0):
+    def parseXmlFile(self, sFilename, iVerbose=0):
         """
         Load that document as a CRF Graph
         
@@ -92,6 +92,13 @@ class Graph_MultiPageXml(Graph, Label_PageXml):
         
         return self
 
+    #Need to force the inheritance
+#     def setDomNodeLabel(self, node, sLabel):
+#         """
+#         Set the DOM node associated to this graph node to a certain label
+#         """        
+    setDomNodeLabel = Label_PageXml.setDomNodeLabel
+    
     # ---------------------------------------------------------------------------------------------------------        
     def _iter_PageXml_Nodes(self, doc, dNS, sxpPage, sxpNode, sxpTextual):
         """
@@ -112,6 +119,8 @@ class Graph_MultiPageXml(Graph, Label_PageXml):
         pnum = 0
         for ndPage in lNdPage:
             pnum += 1
+            bEven = (pnum%2==0)
+            iPageWidth = int( ndPage.prop("imageWidth") )
             lNode = []
             ctxt.setContextNode(ndPage)
             lNdBlock = ctxt.xpathEval(sxpNode) #all relevant nodes of the page
@@ -148,6 +157,13 @@ class Graph_MultiPageXml(Graph, Label_PageXml):
                 blk = Block(pnum, (x1, y1, x2-x1, y2-y1), sText, orientation, cls, ndBlock, domid=domid)
                 assert blk.node
                 
+                #little hack to have a xx attribute that reflect a x on the page with origin on binding
+                if bEven:
+                    blk.xb1 = iPageWidth - x2
+                    blk.xb2 = iPageWidth - x1
+                else:
+                    blk.xb1 = x1
+                    blk.xb2 = x2
                 lNode.append(blk)
 
                 if TEST_getPageXmlBlock:

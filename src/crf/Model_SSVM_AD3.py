@@ -54,7 +54,17 @@ class Model_SSVM_AD3(Model):
         """
         Model.__init__(self, sName, sModelDir)
         self.ssvm = None
-        
+
+    def load(self, expiration_timestamp=None):
+        """
+        Load myself from disk
+        If an expiration timestamp is given, the mdeol stored on disk must be fresher than timestamp
+        return self or raise a ModelException
+        """
+        self.ssvm = self._loadIfFresh(self.getModelFilename(), expiration_timestamp, lambda x: SaveLogger(x).load())
+        self.loadTransformers(expiration_timestamp)
+        return self
+    
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
     def train(self, lGraph, bWarmStart=True, expiration_timestamp=None):
         """
@@ -65,7 +75,9 @@ class Model_SSVM_AD3(Model):
         """
         traceln("\t- computing features on training set")
         lX, lY = self.transformGraphs(lGraph, True)
+        traceln("\t done")
 
+        traceln("\t- retrieving or creating feature extractors...")
         self.ssvm = None
         sModelFN = self.getModelFilename()
         if bWarmStart:
@@ -91,26 +103,39 @@ class Model_SSVM_AD3(Model):
                                 , logger=SaveLogger(sModelFN, save_every=self.solver_save_every)
                                 , max_iter=self.solver_max_iter                                        
                                 , show_loss_every=10, verbose=1)
+            bWarmStart = False
         chronoOn()
-        traceln("\t - fitting graph-based model")
-        traceln("\t - solver parameters:"
+        traceln("\t - training graph-based model")
+        traceln("\t\t solver parameters:"
                     , " inference_cache=",self.solver_inference_cache
                     , " C=",self.solver_C, " tol=",self.solver_tol, " n_jobs=",self.solver_njobs)
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
-        traceln("\t [%.1fs] - Fitting done (graph-based model is now trained) \n"%chronoOff())
+        traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
 
-    def test(self, lGraph):
+    def test(self, lGraph, lsClassName=None):
         """
         Test the model using those graphs and report results on stderr
         Return the textual report
         """
         traceln("\t- computing features on test set")
         lX, lY = self.transformGraphs(lGraph, True)
+        traceln("\t done")
 
+        traceln("\t- predicting on test set")
         lY_pred = self.ssvm.predict(lX) 
+        traceln("\t done")
         Y_flat = np.hstack(lY)
         Y_pred_flat = np.hstack(lY_pred)
         del lX, lY, lY_pred
-        return self.test_report(Y_flat, Y_pred_flat)
+        return self.test_report(Y_flat, Y_pred_flat, lsClassName)
+
+    def predict(self, graph):
+        """
+        predict the class of each node of the graph
+        return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
+        """
+        [X] = self.transformGraphs([graph])
+        [Y] = self.ssvm.predict([X])
+        return Y
         
 # --- AUTO-TESTS ------------------------------------------------------------------

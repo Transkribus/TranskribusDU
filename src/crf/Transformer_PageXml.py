@@ -90,8 +90,9 @@ class NodeTransformerXYWH(Transformer):
     def transform(self, lNode):
 #         a = np.empty( ( len(lNode), 5 ) , dtype=np.float64)
 #         for i, blk in enumerate(lNode): a[i, :] = [blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1, blk.fontsize]        #--- 2 3 4 5 6 
-        a = np.empty( ( len(lNode), 4 ) , dtype=np.float64)
-        for i, blk in enumerate(lNode): a[i, :] = [blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1] 
+        a = np.empty( ( len(lNode), 2+4 ) , dtype=np.float64)
+        for i, blk in enumerate(lNode): 
+            a[i, :] = [blk.xb1, blk.xb2, blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1] 
         return a
 
 #------------------------------------------------------------------------------------------------------
@@ -102,7 +103,7 @@ class Node1HotFeatures(Transformer):
     def transform(self, lNode):
         #We allocate TWO more columns to store in it the tfidf and idf computed at document level.
         #a = np.zeros( ( len(lNode), 10 ) , dtype=np.float64)  # 4 possible orientations: 0, 1, 2, 3
-        a = np.zeros( ( len(lNode), 6 ) , dtype=np.float64)  # 4 possible orientations: 0, 1, 2, 3
+        a = np.zeros( ( len(lNode), 7 ) , dtype=np.float64)  # 4 possible orientations: 0, 1, 2, 3
         
         for i, blk in enumerate(lNode): 
             s = blk.text
@@ -112,6 +113,8 @@ class Node1HotFeatures(Transformer):
             if s.islower(): a[i, 3] = 1.0
             if s.istitle(): a[i, 4] = 1.0 
             if s.isupper(): a[i, 5] = 1.0
+            if blk.pnum%2 == 0: a[i, 5] = 1.0 #odd/even page number
+            
             #a[i,blk.orientation] = 1.0   
             
         return a
