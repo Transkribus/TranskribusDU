@@ -68,8 +68,6 @@ class Model:
         self.node_transformer   = None
         self.edge_transformer   = None
         
-        self.lsClassName        = None  #for test reports
-                
     # --- Utilities -------------------------------------------------------------
     def getModelFilename(self):
         return os.path.join(self.sDir, self.sName+"_model.pkl")
@@ -184,6 +182,13 @@ class Model:
         """
         raise Exception("Method must be overridden")
 
+    def test(self, lGraph, lsClassName=None):
+        """
+        Test the model using those graphs and report results on stderr
+        Return the textual report
+        """
+        raise Exception("Method must be overridden")
+
     def computeClassWeight(cls, lY):
         Y = np.hstack(lY)
         Y_unique = np.unique(Y)
@@ -192,32 +197,35 @@ class Model:
         return class_weights
     computeClassWeight = classmethod(computeClassWeight)
 
-    def setClassNames(self, lsClassName):
-        """
-        Test reports are easier to read with good class names instead of integers
-        """
-        self.lsClassName = lsClassName
-        return lsClassName
-    
-    def test_report(self, Y, Y_pred):
+    def test_report(self, Y, Y_pred, lsClassName=None):
         """
         compute the confusion matrix and classification report.
-        Print them on stderr and return them
+        Print them on stderr and return the accuracy global score and the report
         """
-        s1 = confusion_matrix(Y, Y_pred)
-        traceln(s1)
         
-        if self.lsClassName:
-            s2 = classification_report(Y, Y_pred, target_names=self.lsClassName)
+        #we need to include all clasname that appear in the dataset or in the predicted labels (well... I guess so!)
+        if lsClassName:
+            setSeenCls = set()
+            for _Y in [Y, Y_pred]:
+                setSeenCls = setSeenCls.union( np.unique(_Y).tolist() )
+            lsSeenClassName = [ cls for (i, cls) in enumerate(lsClassName) if i in setSeenCls]
+            
+        a = confusion_matrix(Y, Y_pred)
+        traceln(a)
+        s1 = str(a)
+        
+        if lsClassName:
+            s2 = classification_report(Y, Y_pred, target_names=lsSeenClassName)
         else:
             s2 = classification_report(Y, Y_pred)
         traceln(s2)
         
-        s3 = "(unweighted) Accuracy score = %.2f"%accuracy_score(Y, Y_pred) 
+        fScore = accuracy_score(Y, Y_pred)
+        s3 = "(unweighted) Accuracy score = %.2f"% fScore
         traceln(s3)
         
-        return "\n\n".join([s1,s2,s3])
-        
+        return fScore, "\n\n".join([s1,s2,s3])
+    test_report = classmethod(test_report)    
 
 # --- AUTO-TESTS ------------------------------------------------------------------
 def test_computeClassWeight():
@@ -227,3 +235,14 @@ def test_computeClassWeight():
     ref_cw = 11.0/3.0*np.array([2/11.0, 3/11.0, 6/11.0])
     assert ((cw - ref_cw) <0.1).all()
     
+def test_test_report():
+    lsClassName = ['OTHER', 'catch-word', 'header', 'heading', 'marginalia', 'page-number']
+    Y = np.array([0,  2, 3, 2, 5], dtype=np.int32)
+    f, _ = Model.test_report(Y, np.array([0,  2, 3, 2, 5], dtype=np.int32), None)
+    assert f == 1.0
+    f, _ = Model.test_report(Y, np.array([0,  2, 3, 2, 5], dtype=np.int32), lsClassName)
+    assert f == 1.0
+    f, _ = Model.test_report(Y, np.array([0,  2, 3, 2, 2], dtype=np.int32), lsClassName)
+    assert f == 0.8
+    f, _ = Model.test_report(Y, np.array([0,  2, 3, 2, 4], dtype=np.int32), lsClassName)
+    assert f == 0.8    
