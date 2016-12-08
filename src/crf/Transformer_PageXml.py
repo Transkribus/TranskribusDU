@@ -90,9 +90,21 @@ class NodeTransformerXYWH(Transformer):
     def transform(self, lNode):
 #         a = np.empty( ( len(lNode), 5 ) , dtype=np.float64)
 #         for i, blk in enumerate(lNode): a[i, :] = [blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1, blk.fontsize]        #--- 2 3 4 5 6 
-        a = np.empty( ( len(lNode), 2+4 ) , dtype=np.float64)
+        a = np.empty( ( len(lNode), 2+4+2+4 ) , dtype=np.float64)
         for i, blk in enumerate(lNode): 
-            a[i, :] = [blk.xb1, blk.xb2, blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1] 
+            page = blk.page
+            x1,y1,x2,y2 = blk.x1, blk.y1, blk.x2, blk.y2
+            w,h = float(page.w), float(page.h)
+            #Normalize by page with and height
+            xn1, yn1, xn2, yn2 = x1/w, y1/h, x2/w, y2/h
+            #generate X-from-binding
+            if page.bEven:
+                xb1, xb2    = w - x2    , h - x1
+                xnb1, xnb2  = 1.0 - xn2 , 1.0 - xn1
+            else:
+                xb1, xb2    = x1    , x2
+                xnb1, xnb2  = xn1   , xn2
+            a[i, :] = [xb1, xb2     , x1, y2, x2-x1, y2-y1   , xnb1, xnb2   , xn1, yn2, xn2-xn1, yn2-yn1] 
         return a
 
 #------------------------------------------------------------------------------------------------------

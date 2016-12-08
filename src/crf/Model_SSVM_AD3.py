@@ -109,6 +109,7 @@ class Model_SSVM_AD3(Model):
         traceln("\t\t solver parameters:"
                     , " inference_cache=",self.solver_inference_cache
                     , " C=",self.solver_C, " tol=",self.solver_tol, " n_jobs=",self.solver_njobs)
+        traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
 
@@ -119,6 +120,7 @@ class Model_SSVM_AD3(Model):
         """
         traceln("\t- computing features on test set")
         lX, lY = self.transformGraphs(lGraph, True)
+        traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         traceln("\t done")
 
         traceln("\t- predicting on test set")
@@ -135,6 +137,7 @@ class Model_SSVM_AD3(Model):
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
         """
         [X] = self.transformGraphs([graph])
+        traceln("\t  #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
         [Y] = self.ssvm.predict([X])
         return Y
         

@@ -151,6 +151,7 @@ class DU_StAZH_a(DU_CRF_Task):
         
         traceln("- loading collection as graphs")
         for sFilename in lFilename:
+            if sFilename.endswith("_du"+sMPXMLExtension): continue #:)
             [g] = DU_StAZH_Graph.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
             Y = mdl.predict(g)
             doc = g.setDomLabels(Y)
@@ -173,7 +174,7 @@ if __name__ == "__main__":
                         , [sTopDir+"trnskrbs_3820\\col"]
                         , [sTopDir+"trnskrbs_3832\\col"])
     
-    if False:
+    if True:
         doer = DU_StAZH_a()
         doer.test("DU_StAZH_a", "c:\\tmp_READ"
                         , [sTopDir+"trnskrbs_3832\\col"])

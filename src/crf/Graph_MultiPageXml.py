@@ -31,6 +31,7 @@ import libxml2
 from common.trace import traceln
 
 from Graph import Graph
+from Page import Page
 from Block import Block
 from Edge  import Edge
 from Label_PageXml import Label_PageXml
@@ -120,7 +121,9 @@ class Graph_MultiPageXml(Graph, Label_PageXml):
         for ndPage in lNdPage:
             pnum += 1
             bEven = (pnum%2==0)
-            iPageWidth = int( ndPage.prop("imageWidth") )
+            iPageWidth  = int( ndPage.prop("imageWidth") )
+            iPageHeight = int( ndPage.prop("imageHeight") )
+            page = Page(pnum, iPageWidth, iPageHeight, cls=None, domnode=ndPage, domid=ndPage.prop("id"))
             lNode = []
             ctxt.setContextNode(ndPage)
             lNdBlock = ctxt.xpathEval(sxpNode) #all relevant nodes of the page
@@ -157,13 +160,9 @@ class Graph_MultiPageXml(Graph, Label_PageXml):
                 blk = Block(pnum, (x1, y1, x2-x1, y2-y1), sText, orientation, cls, ndBlock, domid=domid)
                 assert blk.node
                 
-                #little hack to have a xx attribute that reflect a x on the page with origin on binding
-                if bEven:
-                    blk.xb1 = iPageWidth - x2
-                    blk.xb2 = iPageWidth - x1
-                else:
-                    blk.xb1 = x1
-                    blk.xb2 = x2
+                #link it to its page
+                blk.page = page
+
                 lNode.append(blk)
 
                 if TEST_getPageXmlBlock:
