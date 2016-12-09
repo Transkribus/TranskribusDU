@@ -109,7 +109,8 @@ class Graph:
         """
         for i,nd in enumerate(self.lNode):
             sLabel = self.lsLabel[ Y[i] ]
-            self.setDomNodeLabel(nd.node, sLabel)
+            if sLabel != self.sDefaultLabel:
+                self.setDomNodeLabel(nd.node, sLabel)
         return self.doc
 
     def setDomNodeLabel(self, node, sLabel):

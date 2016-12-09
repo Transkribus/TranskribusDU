@@ -338,11 +338,39 @@ class MultiPageXml(PageXml):
         
         if not( os.path.exists(sToDir) and os.path.isdir(sToDir)): raise ValueError("%s is not a folder"%sToDir)
         
+        for pnum, newDoc in cls.iter_splitMultiPageXml(doc, bInPlace):
+            #dump the new XML into a file in target folder
+            name = sFilenamePattern%pnum
+            sFilename = os.path.join(sToDir, name)
+            newDoc.saveFormatFileEnc(sFilename, "UTF-8", bIndent)
+            lXmlFilename.append(sFilename)
+
+        return lXmlFilename
+    splitMultiPageXml = classmethod(splitMultiPageXml)
+
+
+    def iter_splitMultiPageXml(cls, doc, bInPlace=True):
+        """
+        iterator that splits a multipage PageXml into multiple PageXml DOM
+        
+        Take a MultiPageXMl DOM
+        
+        Yield a tupe (<pnum>, DOM)  for each PageXMl of each page. pnum is an integer in [1, ...]
+        
+        those DOMs are automatically freed at end of iteration
+        
+        if bInPlace, the input doc is split in-place, to this function modifies the input doc, which must no longer be used by the caller.
+        
+        PROBLEM: 
+            We have redundant declaration of the default namespace. 
+            I don't know how to clean them, ax xmllint does with its --nsclean option.
+        
+        yield DOMs
+        """
         rootNd = doc.getRootElement()
         
         ctxt = doc.xpathNewContext()
         ctxt.xpathRegisterNs("a", cls.NS_PAGE_XML)
-
         ctxt.setContextNode(rootNd)
         
         lMetadataNd = ctxt.xpathEval("/a:PcGts/a:Metadata")
@@ -390,11 +418,7 @@ class MultiPageXml(PageXml):
             
             newRootNd.reconciliateNs(newDoc)
             
-            #dump the new XML into a file in target folder
-            name = sFilenamePattern%pnum
-            sFilename = os.path.join(sToDir, name)
-            newDoc.saveFormatFileEnc(sFilename, "UTF-8", bIndent)
-            lXmlFilename.append(sFilename)
+            yield pnum, newDoc
 
             lDocToBeFreed.append(newDoc)
 #             newDoc.freeDoc()
@@ -402,6 +426,6 @@ class MultiPageXml(PageXml):
         ctxt.xpathFreeContext()
         for doc in lDocToBeFreed: doc.freeDoc()
            
-        return lXmlFilename
-    splitMultiPageXml = classmethod(splitMultiPageXml)
+        raise StopIteration
+    iter_splitMultiPageXml = classmethod(iter_splitMultiPageXml)
 
