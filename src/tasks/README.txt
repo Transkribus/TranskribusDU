@@ -1,4 +1,6 @@
 
+SEE https://read02.uibk.ac.at/wiki/index.php/Document_Understanding/First_CRF_Experiment
+
 #Convenience variable, pointing to my source directories
 srcDU=/c/Local/meunier/git/TranskribusDU/src
 srcTR=/c/Local/meunier/git/TranskribusPyClient/src
