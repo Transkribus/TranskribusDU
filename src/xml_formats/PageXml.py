@@ -28,6 +28,8 @@ class PageXml:
     cachedValidationContext = None  
     
     sCUSTOM_ATTR = "custom"
+    
+    sEXT = ".pxml"
 
     # ---  Schema -------------------------------------            
 
@@ -284,6 +286,7 @@ class PageXml:
             
 class MultiPageXml(PageXml):          
     XSL_SCHEMA_FILENAME = "multipagecontent.xsd"
+    sEXT = ".mpxml"
     
     def makeMultiPageXml(cls, lsXmlDocFilename):
         """

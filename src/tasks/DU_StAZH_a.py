@@ -24,11 +24,23 @@
     under grant agreement No 674943.
     
 """
+import sys, os
+import glob
+from optparse import OptionParser
+
+try: #to ease the use without proper Python installation
+    import TranskribusDU_version
+except ImportError:
+    sys.path.append( os.path.dirname(os.path.dirname( os.path.abspath(sys.argv[0]) )) )
+    import TranskribusDU_version
+
+from tasks import sCOL, _checkFindColDir, _exit
 
 from crf.Graph_MultiPageXml_TextRegion import Graph_MultiPageXml_TextRegion
 from crf.FeatureExtractors_PageXml_std import FeatureExtractors_PageXml_StandardOnes
 from crf.Model import ModelException
 from crf.Model_SSVM_AD3 import Model_SSVM_AD3
+from xml_formats.PageXml import MultiPageXml
 
 from DU_CRF_Task import DU_CRF_Task
 
@@ -61,128 +73,54 @@ class DU_StAZH_a(DU_CRF_Task):
         traceln("- classes: ", DU_StAZH_Graph.getLabelList())
         return DU_StAZH_Graph
 
-    def train_test(self, sModelName, sModelDir, lsTrnColDir, lsTstColDir):
-        """
-        Train a model on the tTRN collections and test it using the TST collections
-        """
-        traceln("-"*50)
-        traceln("Training model '%s' in folder '%s'"%(sModelName, sModelDir))
-        traceln("Train collection(s):", lsTrnColDir)
-        traceln("Test  collection(s):", lsTstColDir)
-        traceln("-"*50)
-        
-        #list the train and test files
-        ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, "*.mpxml")
-        _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*.mpxml")
-        
-        DU_StAZH_Graph = self.getGraphClass()
-        
-        traceln("- loading training graphs")
-        lGraph_trn = DU_StAZH_Graph.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
-        traceln(" %d graphs loaded"%len(lGraph_trn))
-            
-        traceln("- creating a %s model"%Model_SSVM_AD3)
-        mdl = Model_SSVM_AD3(sModelName, sModelDir)
-
-        traceln("- retrieving or creating feature extractors...")
-        try:
-            mdl.loadTransformers(ts_trn)
-        except ModelException:
-            fe = FeatureExtractors_PageXml_StandardOnes(self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc
-                                                        , self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc)         
-            fe.fitTranformers(lGraph_trn)
-            fe.clean_transformers()
-            mdl.setTranformers(fe.getTransformers())
-            mdl.saveTransformers()
-        traceln(" done")
-        
-        traceln("- training model...")
-        mdl.train(lGraph_trn, True, ts_trn)
-        traceln(" done")
-        
-        traceln("- loading test graphs")
-        lGraph_tst = DU_StAZH_Graph.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-        traceln(" %d graphs loaded"%len(lGraph_tst))
-
-        fScore, sReport = mdl.test(lGraph_tst, DU_StAZH_Graph.getLabelList())
-        
-        return
-
-    def test(self, sModelName, sModelDir, lsTstColDir):
-        traceln("-"*50)
-        traceln("Trained model '%s' in folder '%s'"%(sModelName, sModelDir))
-        traceln("Test  collection(s):", lsTstColDir)
-        traceln("-"*50)
-        
-        #list the train and test files
-        _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*.mpxml")
-        
-        traceln("- loading a %s model"%Model_SSVM_AD3)
-        mdl = Model_SSVM_AD3(sModelName, sModelDir)
-        mdl.load()
-        traceln(" done")
-        
-        DU_StAZH_Graph = self.getGraphClass()
-        
-        traceln("- loading test graphs")
-        lGraph_tst = DU_StAZH_Graph.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-        traceln(" %d graphs loaded"%len(lGraph_tst))
-
-        fScore, sReport = mdl.test(lGraph_tst, DU_StAZH_Graph.getLabelList())
-        
-        return
-
-    def predict(self, sModelName, sModelDir, lsColDir):
-        traceln("-"*50)
-        traceln("Trained model '%s' in folder '%s'"%(sModelName, sModelDir))
-        traceln("Collection(s):", lsColDir)
-        traceln("-"*50)
-        
-        #list the train and test files
-        sMPXMLExtension = ".mpxml"
-        _     , lFilename = self.listMaxTimestampFile(lsColDir, "*"+sMPXMLExtension)
-        
-        traceln("- loading a %s model"%Model_SSVM_AD3)
-        mdl = Model_SSVM_AD3(sModelName, sModelDir)
-        mdl.load()
-        traceln(" done")
-        
-        DU_StAZH_Graph = self.getGraphClass()
-        
-        traceln("- loading collection as graphs")
-        for sFilename in lFilename:
-            if sFilename.endswith("_du"+sMPXMLExtension): continue #:)
-            [g] = DU_StAZH_Graph.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
-            Y = mdl.predict(g)
-            doc = g.setDomLabels(Y)
-            sDUFilename = sFilename[:-len(sMPXMLExtension)]+"_du"+sMPXMLExtension
-            doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
-            doc.freeDoc()
-            del Y, g
-            traceln("\t done")
-        traceln(" done")
-
-        return
 
 
 if __name__ == "__main__":
+
+    version = "v.01"
+    usage, description, parser = DU_CRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
+
+    # --- 
+    #parse the command line
+    (options, args) = parser.parse_args()
+    # --- 
+#     try:    sDir = args.pop(0)
+#     except: _exit(usage, 1)
+#     sColDir = _checkFindColDir(sDir)
+#     
+#     sTopDir = "C:\\Local\\meunier\\git\\TranskribusDU\\usecases\\StAZH\\"
+#     if False:
+#         doer = DU_StAZH_a()
+#         doer.train_test("DU_StAZH_a", "c:\\tmp_READ"
+#                         , [sTopDir+"trnskrbs_3820\\col"]
+#                         , [sTopDir+"trnskrbs_3832\\col"])
+#     
+#     if True:
+#         doer = DU_StAZH_a()
+#         doer.test("DU_StAZH_a", "c:\\tmp_READ"
+#                         , [sTopDir+"trnskrbs_3832\\col"])
+#     
+#     if True:
+#         doer = DU_StAZH_a()
+#         doer.predict("DU_StAZH_a", "c:\\tmp_READ"
+# #                         , [sTopDir+"trnskrbs_3829\\col"])
+#                         , [sTopDir+"trnskrbs_3989\\col"])
+#                                 
+    try:
+        sModelName, sModelDir = args
+    except Exception as e:
+        _exit(usage, 1, e)
+        
+    doer = DU_StAZH_a()
     
-    sTopDir = "C:\\Local\\meunier\\git\\TranskribusDU\\usecases\\StAZH\\"
-    if False:
-        doer = DU_StAZH_a()
-        doer.train_test("DU_StAZH_a", "c:\\tmp_READ"
-                        , [sTopDir+"trnskrbs_3820\\col"]
-                        , [sTopDir+"trnskrbs_3832\\col"])
+    #Add the "col" subdir if needed
+    lTrn, lTst, lRun = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun]]
+
+    if lTrn:
+        doer.train_test(sModelName, sModelDir, lTrn, lTst)
+    elif lTst:
+        doer.test(sModelName, sModelDir, lTst)
     
-    if True:
-        doer = DU_StAZH_a()
-        doer.test("DU_StAZH_a", "c:\\tmp_READ"
-                        , [sTopDir+"trnskrbs_3832\\col"])
+    if lRun:
+        doer.predict(sModelName, sModelDir, lRun)
     
-    if True:
-        doer = DU_StAZH_a()
-        doer.predict("DU_StAZH_a", "c:\\tmp_READ"
-#                         , [sTopDir+"trnskrbs_3829\\col"])
-                        , [sTopDir+"trnskrbs_3989\\col"])
-                                
-                                
