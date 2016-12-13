@@ -108,3 +108,4 @@ if __name__ == "__main__":
     If no exception raised, then OK!!
     """
     test_main()
+    print "OK, test completed successfully."
