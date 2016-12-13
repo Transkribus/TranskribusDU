@@ -11,6 +11,7 @@ Various utilities to deal with PageXml format
 import os
 
 import libxml2
+from ipaddress import AddressValueError
 
 class PageXml:
     '''
@@ -25,6 +26,10 @@ class PageXml:
 
     #XML schema loaded once for all
     cachedValidationContext = None  
+    
+    sCUSTOM_ATTR = "custom"
+    
+    sEXT = ".pxml"
 
     # ---  Schema -------------------------------------            
 
@@ -58,14 +63,65 @@ class PageXml:
     getSchemaFilename = classmethod(getSchemaFilename)
     
     
-    # ---  PageXml -------------------------------------            
-    def parse_custom_attr(cls, s):
+    # ---  Xml stuff -------------------------------------
+    #TODO :   test it!!!            
+    def getChildByName(cls, elt, sChildName):
+        """
+        look for all child elements having that name in PageXml namespace!!!
+            Example: lNd = PageXMl.getChildByName(elt, "Baseline")
+        return a DOM node
+        """
+        ctxt = elt.doc.xpathNewContext()
+        ctxt.xpathRegisterNs("pc", cls.NS_PAGE_XML)  
+        ctxt.setContextNode(elt)
+        lNd = ctxt.xpathEvalExpr(".//pc:%s"%sChildName)
+        ctxt.xpathFreeContext()
+        return lNd
+    getChildByName = classmethod(getChildByName)
+    
+    def getCustomAttr(cls, nd, sAttrName, sSubAttrName=None):
+        """
+        Read the custom attribute, parse it, and extract the 1st or 1st and 2nd key value
+        e.g. getCustomAttr(nd, "structure", "type")     -->  "catch-word"
+        e.g. getCustomAttr(nd, "structure")             -->  {'type':'catch-word', "toto", "tutu"} 
+        return a dictionary if no 2nd key provided, or a string if 1st and 2nd key provided
+        Raise KeyError is one of the attribute does not exist
+        """
+        ddic = cls.parseCustomAttr( nd.prop( cls.sCUSTOM_ATTR) )
+        
+        #First key
+        dic2 = ddic[sAttrName]
+        if sSubAttrName:
+            return dic2[sSubAttrName]
+        else:
+            return dic2
+    getCustomAttr = classmethod(getCustomAttr)
+
+    def setCustomAttr(cls, nd, sAttrName, sSubAttrName, sVal):
+        """
+        Change the custom attribute by setting the value of the 1st+2nd key in the DOM
+        return the value
+        Raise KeyError is one of the attribute does not exist
+        """
+        ddic = cls.parseCustomAttr( nd.prop(cls.sCUSTOM_ATTR) )
+        try:
+            ddic[sAttrName][sSubAttrName] = str(sVal)
+        except KeyError:
+            ddic[sAttrName] = dict()
+            ddic[sAttrName][sSubAttrName] = str(sVal)
+            
+        sddic = cls.formatCustomAttr(ddic)
+        nd.setProp(cls.sCUSTOM_ATTR,sddic)
+        return sVal
+    setCustomAttr = classmethod(setCustomAttr)
+    
+    def parseCustomAttr(cls, s):
         """
         The custom attribute contains data in a CSS style syntax.
         We parse this syntax here and return a dictionary of dictionary
         
         Example:
-        parse_custom_attr( "readingOrder {index:4;} structure {type:catch-word;}" )
+        parseCustomAttr( "readingOrder {index:4;} structure {type:catch-word;}" )
             --> { 'readingOrder': { 'index':'4' }, 'structure':{'type':'catch-word'} }
         """
         dic = dict()
@@ -98,9 +154,44 @@ class PageXml:
                 for name in lName:
                     dic[name.strip()] = dicValForName
         return dic
-    parse_custom_attr = classmethod(parse_custom_attr)
+    parseCustomAttr = classmethod(parseCustomAttr)
     
-
+    def formatCustomAttr(cls, ddic):
+        """
+        Format a dictionary of dictionary of string in the "custom attribute" syntax 
+        e.g. custom="readingOrder {index:1;} structure {type:heading;}"
+        """
+        s = ""
+        for k1, d2 in ddic.items():
+            if s: s += " "
+            s += "%s"%k1
+            s2 = ""
+            for k2, v2 in d2.items():
+                if s2: s2 += " "
+                s2 += "%s:%s;"%(k2,v2)
+            s += " {%s}"%s2
+        return s
+    formatCustomAttr = classmethod(formatCustomAttr)
+        
+        
+    def makeText(cls, nd):
+        """
+        build the text of a sub-tree by considering that textual nodes are tokens to be concatenated, with a space as separator
+        return None if no textual node found
+        """
+        ctxt = nd.doc.xpathNewContext()
+        ctxt.setContextNode(nd)
+        lnText = ctxt.xpathEval('.//text()')
+        s = None
+        for ntext in lnText:
+            stext = ntext.content.strip()
+            try:
+                if stext: s = s + " " + stext
+            except TypeError:
+                s = stext
+        ctxt.xpathFreeContext()
+        return s
+    makeText = classmethod(makeText)
 
 
     def addPrefix(cls, sPrefix, nd, sAttr="id"):
@@ -146,11 +237,56 @@ class PageXml:
         return ret
     rmPrefix = classmethod(rmPrefix)
 
+    # ---  Geometry -------------------------------------            
+    def getPointList(cls, data):
+        """
+        get either an XML node of a PageXml object
+              , or the content of a points attribute
+        
+        return the list of (x,y) of the polygone of the object - ( it is a list of int tuples)
+        """
+        try:
+            lsPair = data.split(' ')
+        except:
+            ctxt = data.doc.xpathNewContext()
+            ctxt.xpathRegisterNs("pc", cls.NS_PAGE_XML)  
+            ctxt.setContextNode(data)
+            lndPoints = ctxt.xpathEval("(.//@points)[1]")  #no need to collect all @points below!
+            sPoints = lndPoints[0].getContent()
+            lsPair = sPoints.split(' ')
+            ctxt.xpathFreeContext()
+        lXY = list()
+        for sPair in lsPair:
+            (sx,sy) = sPair.split(',')
+            lXY.append( (int(sx), int(sy)) )
+        return lXY
+    getPointList = classmethod(getPointList)
 
+
+    def setPoints(cls, nd, lXY):
+        """
+        set the points attribute of that node to reflect the lXY values
+        if nd is None, only returns the string that should be set to the @points attribute
+        return the content of the @points attribute
+        """
+        sPairs = " ".join( ["%d,%d"%(int(x), int(y)) for x,y in lXY] )
+        if nd: nd.setProp("points", sPairs)
+        return sPairs
+    setPoints = classmethod(setPoints)
+
+    def getPointsFromBB(cls, x1,y1,x2,y2):
+        """
+        get the polyline of this bounding box
+        return a list of int tuples
+        """
+        return [ (x1,y1), (x2,y1), (x2,y2), (x1,y2), (x1,y1) ]
+    getPointsFromBB = classmethod(getPointsFromBB)
+        
 # ---  Multi-page PageXml -------------------------------------            
             
 class MultiPageXml(PageXml):          
     XSL_SCHEMA_FILENAME = "multipagecontent.xsd"
+    sEXT = ".mpxml"
     
     def makeMultiPageXml(cls, lsXmlDocFilename):
         """
@@ -205,11 +341,39 @@ class MultiPageXml(PageXml):
         
         if not( os.path.exists(sToDir) and os.path.isdir(sToDir)): raise ValueError("%s is not a folder"%sToDir)
         
+        for pnum, newDoc in cls.iter_splitMultiPageXml(doc, bInPlace):
+            #dump the new XML into a file in target folder
+            name = sFilenamePattern%pnum
+            sFilename = os.path.join(sToDir, name)
+            newDoc.saveFormatFileEnc(sFilename, "UTF-8", bIndent)
+            lXmlFilename.append(sFilename)
+
+        return lXmlFilename
+    splitMultiPageXml = classmethod(splitMultiPageXml)
+
+
+    def iter_splitMultiPageXml(cls, doc, bInPlace=True):
+        """
+        iterator that splits a multipage PageXml into multiple PageXml DOM
+        
+        Take a MultiPageXMl DOM
+        
+        Yield a tupe (<pnum>, DOM)  for each PageXMl of each page. pnum is an integer in [1, ...]
+        
+        those DOMs are automatically freed at end of iteration
+        
+        if bInPlace, the input doc is split in-place, to this function modifies the input doc, which must no longer be used by the caller.
+        
+        PROBLEM: 
+            We have redundant declaration of the default namespace. 
+            I don't know how to clean them, ax xmllint does with its --nsclean option.
+        
+        yield DOMs
+        """
         rootNd = doc.getRootElement()
         
         ctxt = doc.xpathNewContext()
         ctxt.xpathRegisterNs("a", cls.NS_PAGE_XML)
-
         ctxt.setContextNode(rootNd)
         
         lMetadataNd = ctxt.xpathEval("/a:PcGts/a:Metadata")
@@ -257,11 +421,7 @@ class MultiPageXml(PageXml):
             
             newRootNd.reconciliateNs(newDoc)
             
-            #dump the new XML into a file in target folder
-            name = sFilenamePattern%pnum
-            sFilename = os.path.join(sToDir, name)
-            newDoc.saveFormatFileEnc(sFilename, "UTF-8", bIndent)
-            lXmlFilename.append(sFilename)
+            yield pnum, newDoc
 
             lDocToBeFreed.append(newDoc)
 #             newDoc.freeDoc()
@@ -269,6 +429,6 @@ class MultiPageXml(PageXml):
         ctxt.xpathFreeContext()
         for doc in lDocToBeFreed: doc.freeDoc()
            
-        return lXmlFilename
-    splitMultiPageXml = classmethod(splitMultiPageXml)
+        raise StopIteration
+    iter_splitMultiPageXml = classmethod(iter_splitMultiPageXml)
 

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # A simple chronometer
 #
@@ -16,37 +17,37 @@ class Chrono:
 	...
 	print "elapsed time: %.1fs" % c.off()
 	"""
-	
+
 	def __init__(self, nbDigit=1):
 		self.t0 = None
 		self.nbDigit = nbDigit
-		
+
 	def on(self):
 		self.t0 = time.time()
 		return self
-	
+
 	def get(self):
 		t = time.time()
-		return round(t - self.t0, self.nbDigit)		
+		return round(t - self.t0, self.nbDigit)        
 	
 	def off(self):
 		t = time.time()
 		return round(t - self.t0, self.nbDigit)
-		
-		
+
 #--- obsolete interface
 
-lChrono = []
+ltChrono = []
 #Start a chronometer, you can start several of them
-def chronoOn():
-    global lChrono
+def chronoOn(name=None):
+    global ltChrono
     c = Chrono().on()
-    lChrono.append(c)
+    ltChrono.append((c,name))
 
 #stop the last started chronometer and returns its value in second
-def chronoOff(vCheck=None):
-    global lChrono
-    c = lChrono.pop()
+def chronoOff(expected_name=None):
+    global ltChrono
+    c,name = ltChrono.pop()
+    assert name == expected_name, "INTERNAL ERROR: chronoOn and chronoOff calls not properly nested"
     return c.off()
 
 

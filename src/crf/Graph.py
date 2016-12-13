@@ -1,442 +1,177 @@
-# coding: utf8
+# -*- coding: utf-8 -*-
 
-'''
-This code is about the graph we build - edges and nodes   (nodes are called Blocks)
+"""
+    Computing the graph for a document
+    
 
-JL Meunier
-March 3rd, 2016
+    Copyright Xerox(C) 2016 JL. Meunier
 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-Copyright Xerox 2016
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-'''
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    
+    
+    Developed  for the EU project READ. The READ project has received funding 
+    from the European Union�s Horizon 2020 research and innovation programme 
+    under grant agreement No 674943.
+    
+"""
+import numpy as np
 
+from common.trace import traceln
 
-import sys, os.path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))))
-
-import collections, types
-
-from common.trace import trace, traceln
-
-DEBUG=0
-DEBUG=1
-
-
-class Edge:
-        
-    def __init__(self, A, B):
-        """
-        An edge from A to B
-        """
-        self.A = A
-        self.B = B
-       
- 
-    # ------------------------------------------------------------------------------------------------------------------------------------        
-    #specific code for the CRF graph
-    def computeEdges(cls, lPrevPageEdgeBlk, lPageBlk, bShortOnly=False):
-        """
-        we will compute the edge between those nodes, some being on previous "page", some on "current" page.
-        
-        if bShortOnly, we filter intra-page edge and keep only "short" ones
-        """
-        lAllEdge = list()
-        
-        #--- horizontal and vertical neighbors
-        lHEdge, lVEdge = Block.findPageNeighborEdges(lPageBlk, bShortOnly)
-        lAllEdge.extend(lHEdge)
-        lAllEdge.extend(lVEdge)
-        if DEBUG: 
-            cls.dbgStorePolyLine("neighbors", lHEdge)
-            cls.dbgStorePolyLine("neighbors", lVEdge)
-        
-        #--- overlap with previous page
-        if lPrevPageEdgeBlk:
-            lConseqOverEdge = Block.findConsecPageOverlapEdges(lPrevPageEdgeBlk, lPageBlk)
-            lAllEdge.extend(lConseqOverEdge) 
+class Graph:
+    """
+    A graph to be used as a CRF graph with pystruct
+    """
+    
+    #The labels for those graphs
+    _sOTHER_LABEL   = "OTHER"
+    lsLabel         = None #list of labels
+    sDefaultLabel   = None #when no annotation, do we set automatically to this label? (e.g."OTHER")
+    dLabelByCls     = None    
+    dClsByLabel     = None
+    nCls            = None
             
-        return lAllEdge
-    computeEdges = classmethod(computeEdges)
-
-    def dbgStorePolyLine(cls, sAttr, lEdge):
-        """
-        Store a polyline in the given attribute
-        """
-        for e in lEdge:
-            xA, yA = e.A.getCenter()
-            xB, yB = e.B.getCenter()
-            ndA = e.A.node
-            sPolyLine = "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f"%(xA,yA,xB,yB,xA,yA)
-            if ndA.hasProp(sAttr):
-                ndA.setProp(sAttr, ndA.prop(sAttr) + "," + sPolyLine)
-            else:
-                ndA.setProp(sAttr,                         sPolyLine)
-        return
-    dbgStorePolyLine = classmethod(dbgStorePolyLine)
-    
-class HorizontalEdge(Edge): pass    
-    
-class VerticalEdge(Edge): pass    
-
-class CrossPageEdge(Edge): pass    
-
-class VirtualEdge(Edge): pass    
-    
-    
-#--------------   BLOCK -----------------    
-
-class Block:
+    def __init__(self, lNode = [], lEdge = []):
+        self.lNode = lNode
+        self.lEdge = lEdge
+        self.doc   = None
         
-    def __init__(self,pnum, (x, y, w, h), text, orientation, cls, domnode=None):
+    # --- Graph building --------------------------------------------------------
+    def parseXmlFile(self, sFilename, iVerbose=0):
         """
-        pnum is an int
-        orientation is an int, usually in [0-3]
-        cls is the node label, is an int in N+
+        Load that document as a CRF Graph.
+        Also set the self.doc variable!
         """
-        self.pnum = int(pnum)
-        self.setBB(self.xywhtoxyxy(x, y, w, h))
-        self.text = text
-        try:
-            self.orientation = int(orientation)
-        except TypeError:
-            assert orientation == None
-            self.orientation = 0
-        assert 0 <= self.orientation and self.orientation <= 3
-        self.node = domnode
-        self.cls = cls #the class of the block, in [0, N]
-        self.fontsize = 0.0 #new in loader v04
-        self.sconf = "" #new in v08
-
-    def setFontSize(self, fFontSize):
-        self.fontsize = fFontSize
+        raise Exception("Method must be overridden")
     
-    def detachFromDOM(self): self.node = None
+    def detachFromDOM(self):
+        """
+        Detach the graph from the DOM node, which can then be freed
+        """
+        for nd in self.lNode: nd.detachFromDOM()
+        self.doc.freeDoc()
+        self.doc = None
+
+    # --- Labels ----------------------------------------------------------
+    def getLabelList(cls):
+        return cls.lsLabel
+    getLabelList = classmethod(getLabelList)
     
-    ##Bounding box methods: getter/setter + geometrical stuff
-    def getBB(self):
-        return self.x1, self.y1, self.x2, self.y2
-    def setBB(self, (x1, y1, x2, y2)):
-        self.x1, self.y1, self.x2, self.y2 = x1, y1, x2, y2
- 
-    def getWidthHeight(self):
-        return self.x2-self.x1, self.y2-self.y1
-    def getCenter(self):
-        """return the (x,y) of the geometric center of the image"""
-        return (self.x1+self.x2)/2, (self.y1+self.y2)/2
-    def area(self):
-        return(self.x2-self.x1) * (self.y2-self.y1)
-
-
-    def setThickBox(self, f):
-        """make the box border thicker """
-        self.x1 = self.x1 - f
-        self.x2 = self.x2 + f
-        self.y1 = self.y1 - f
-        self.y2 = self.y2 + f
-        
-    def equalGeo(self, tb):
-        """ Return True if both objects are geometrically identical
-        accepts also a tule (x1,y1,x2,y2)
+    def setLabelList(cls, lsLabel, bOther=True):
+        """set those properties:
+            self.lsLabel    - list of label names
+            dLabelByCls     - dictionary name -> id
+            dClsByLabel     - dictionary id -> name
+            self.nCls       - number of different labels
         """
-        try:
-            return tb and self.x1 == tb.x1 and self.y1 == tb.y1 and self.x2 == tb.x2 and self.y2 == tb.y2
-        except AttributeError:
-            (x1, y1, x2, y2) = tb
-            return tb and self.x1 == x1 and self.y1 == y1 and self.x2 == x2 and self.y2 == y2
-            
-    def overlap(self, b, epsilon=0):
-        """
-        Return True if the two objects overlap each other, at epsilon-precision (opverlap of at each epsilon)
-        """
-        #Any horizontal overlap?
-        return (min(self.x2, b.x2) - max(self.x1, b.x1)) >= epsilon or (min(self.y2, b.y2) - max(self.y1, b.y1)) >= epsilon
-#         a = self
-#         w = min(a.x2, b.x2) - max(a.x1, b.x1)
-#         if w >= epsilon:
-#             #any vertical overlap?
-#             h = min(a.y2, b.y2) - max(a.y1, b.y1)
-#             if h >= epsilon:
-#                 #ok, overlap or inclusion of one text box into the other
-#                 return True
-#         return False
-
-    def significantOverlap(self, b, fThreshold=0.25):
-        """
-        The significance of an overlap is the ratio of the area of overlap divided by the area of union
-        Return the percentage of overlap if above threshold or 0.0   (which is False)
-        """
-        #any overlap?
-        ovr = 0.0
-        a = self
-        #Any horizontal overlap?
-        w = min(a.x2, b.x2) - max(a.x1, b.x1)
-        if w > 0:
-            #any vertical overlap?
-            h = min(a.y2, b.y2) - max(a.y1, b.y1)
-            if h > 0:
-                #ok, overlap or inclusion of one text box into the other
-                ovArea = h * w
-                aArea = (a.x2-a.x1) * (a.y2-a.y1)
-                bArea = (b.x2-b.x1) * (b.y2-b.y1)
-                unionArea = aArea + bArea - ovArea
-#                 if self.text == "S2.0":
-#                     print self.text, b.text, float(ovArea)/unionArea 
-                ovr = float(ovArea)/unionArea
-            else:
-                return 0.0
+        if bOther: 
+            assert cls._sOTHER_LABEL not in lsLabel, "the label for class 'OTHER' conflicts with a task-specific label"
+            cls.lsLabel        = [cls._sOTHER_LABEL] + lsLabel
+            cls.sDefaultLabel  = cls._sOTHER_LABEL
         else:
-            return 0.0
-        
-        if ovr >= fThreshold:
-            return ovr
-        else:
-            return 0.0       
-
-    def fitIn(self, (x1, y1, x2, y2)):
-        """
-        return true if this object fits in the given bounding box
-        """
-        return self.x1>=x1 and self.x2<=x2 and self.y1>=y1 and self.y2<=y2
-
-
-    def getXOverlap(self, tb):
-        """
-        return a positive value is there is an overlap on the X axis
-        """
-        return min(self.x2, tb.x2) - max(self.x1, tb.x1)
-
-    def getYOverlap(self, tb):
-        """
-        return a positive value is there is an overlap on the Y axis
-        """
-        return min(self.y2, tb.y2) - max(self.y1, tb.y1)
-
-    def getXYOverlap(self, tb):
-        """
-        Return the horizontal and vertical distances between the closest corners of the object.
-        if both value are negative, the objects overlap each other.
-        return (x-distance, y-distance)
-        """
-        return min(self.x2, tb.x2) - max(self.x1, tb.x1), min(self.y2, tb.y2) - max(self.y1, tb.y1)
+            cls.lsLabel        = lsLabel
+            cls.sDefaultLabel  = None
+         
+        cls.dLabelByCls = { i:sLabel for i,sLabel in enumerate(cls.lsLabel) }         
+        cls.dClsByLabel = { sLabel:i for i,sLabel in enumerate(cls.lsLabel) } 
+        cls.nCls = len(cls.lsLabel)        
+        return cls.lsLabel
+    setLabelList = classmethod(setLabelList)
     
-    #-- Comparison methods
-    def cmpX1(tb1, tb2):
-        return cmp(tb1.x1, tb2.x1)
-    cmpX1 = staticmethod(cmpX1)
+    def parseDomLabels(self):
+        """
+        Parse the label of the graph from the dataset, and set the node label
+        return the set of observed class (set of integers in N+)
+        """
+        setSeensLabels = set()
+        for nd in self.lNode:
+            sLabel = self.parseDomNodeLabel(nd.node, self.sDefaultLabel)
+            cls = self.dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
+            nd.cls = cls
+            setSeensLabels.add(cls)
+        return setSeensLabels    
 
-    def cmpX1Y1(tb1, tb2):
-        ret = cmp(tb1.x1, tb2.x1)
-        if ret == 0:
-            ret = cmp(tb1.y1, tb2.y1)
-        return ret
-    cmpX1Y1 = staticmethod(cmpX1Y1)
-                 
-    # -- utility to convert from x,y,width,height to (x1,y1, x2,y2)
-    def xywhtoxyxy(cls, x, y, w, h):
+    def setDomLabels(self, Y):
         """
-        convert from x,y,width,height to (x1,y1, x2,y2)
-        accepts string
-        convert to float
+        Set the labels of the graph nodes from the Y matrix
+        return the DOM
         """
-        x1 = float(x)
-        y1 = float(y)
-        #we must accept 0 width or 0 height blocks
-        if w < 0:
-            traceln("WARNING: negative width textbox - x taken as right-x")
-            x2 = x1
-            x1 = x2 + w
-        else:
-            x2 = x1+w            
-        if h < 0:
-            traceln("WARNING: negative height textbox - y taken as bottom-y")
-            y2 = y1
-            y1 = y2+h
-        else:
-            y2 = y1+h
-        return x1, y1, x2, y2
-    xywhtoxyxy = classmethod(xywhtoxyxy)
+        for i,nd in enumerate(self.lNode):
+            sLabel = self.lsLabel[ Y[i] ]
+            if sLabel != self.sDefaultLabel:
+                self.setDomNodeLabel(nd.node, sLabel)
+        return self.doc
 
-    def __str__(self):
-        return "Block page=%d (%f, %f) (%f, %f) '%s'" %(self.pnum, self.x1, self.y1, self.x2, self.y2, self.text)
+    def setDomNodeLabel(self, node, sLabel):
+        """
+        Set the DOM node associated to this graph node to a certain label
+        """        
+        raise Exception("Method must be overridden")
     
-    # ------------------------------------------------------------------------------------------------------------------------------------        
-    #specific code for the CRF graph
-        
-    def findPageNeighborEdges(cls, lBlk, bShortOnly=False):
+    # --- Utilities ---------------------------------------------------------
+    def loadGraphs(cls, lsFilename, bDetach=False, bLabelled=False, iVerbose=0):
         """
-        find neighboring edges, horizontal and vertical ones
+        Load one graph per file, and detach its DOM
+        return the list of loaded graphs
         """
-        #look for vertical neighbors
-        lVEdge = cls._findVerticalNeighborEdges(lBlk, VerticalEdge, bShortOnly)
-        
-        #look for horizontal neighbors
-        for blk in lBlk: blk.rotateMinus90deg()          #rotate by 90 degrees and look for vertical neighbors :-)
-        lHEdge = cls._findVerticalNeighborEdges(lBlk, HorizontalEdge, bShortOnly)
-        for blk in lBlk: blk.rotatePlus90deg()         #restore orientation :-)
-        
-        return lHEdge, lVEdge
-    findPageNeighborEdges = classmethod(findPageNeighborEdges)
-    
-    def findConsecPageOverlapEdges(cls, lPrevPageEdgeBlk, lPageBlk, epsilon = 1):
-        """
-        find block that overlap from a page to the other, and have same orientation
-        """
-        
-        #N^2 brute force
-        lEdge = list()
-        for prevBlk in lPrevPageEdgeBlk:
-            orient = prevBlk.orientation
-            for blk in lPageBlk:
-                if orient == blk.orientation and prevBlk.significantOverlap(blk): lEdge.append( CrossPageEdge(prevBlk, blk) ) 
-        
-#         #maybe faster on LAAARGE bnumber of blocks but complicated and in practice no quantified time advantage... :-/
-#         
-#         """
-#         we will sort the blocks by their value x1 - y1
-#         
-#         considering block A, lets say A.x2 - A.y2 = alpha
-#         
-#         considering block B, if B.x1 - B.y1 > alpha, then B cannot overlap A 
-#         (just take a paper and draw a line at 45° from A botton-right corner!)
-#         """
-#         import time
-#         t0 = time.time()
-#         
-#         lEdge = list()
-#         
-#         dBlk_by_alpha = collections.defaultdict(list)   # x1-y1 --> [ list of block having that x1-y1 ]
-#         for blk in lPageBlk:
-#             rx1 =  cls.epsilonRound(blk.x1, epsilon)
-#             ry1 =  cls.epsilonRound(blk.y1, epsilon)
-#             #rx1, ry1 = blk.x1, blk.y1
-#             #OK assert abs(ry1-b.y1) < epsilon
-#             dBlk_by_alpha[rx1 - ry1].append(blk)
-#         lAlpha = dBlk_by_alpha.keys(); lAlpha.sort() #increasing alphas
-#         
-#         for prevBlk in lPrevPageEdgeBlk:
-#             prevBlkAlpha = prevBlk.x2 - prevBlk.y2  #alpha value of bottom-right corner
-#             for alpha in lAlpha:
-#                 if alpha > prevBlkAlpha:
-#                     for blk in dBlk_by_alpha[alpha]:
-#                         if prevBlk.overlap(blk): 
-#                             print  "PB ----------"
-#                             print prevBlk.getXOverlap(blk), prevBlk.getYOverlap(blk)
-#                             print prevBlk, " -- ", prevBlk.x2 - prevBlk.y2, prevBlkAlpha
-#                             print blk    , " -- ",     blk.x1 -     blk.y1, alpha
-#                             print 
-#                     break
-#                 for Blk in dBlk_by_alpha[alpha]:
-#                     if prevBlk.overlap(Blk): lEdge.append( (prevBlk, Blk) )
-#         timeAlgo = time.time() - t0
-#         
-#         cls.checkThisAlgo(timeAlgo, lEdge, lPrevPageEdgeBlk, lPageBlk, epsilon)
-        
-        return lEdge 
-    findConsecPageOverlapEdges = classmethod(findConsecPageOverlapEdges)
-    
-    # ------------------------------------------------------------------------------------------------------------------------------------        
-    def rotateMinus90deg(self):
-        #assert self.x1 < self.x2 and self.y1 < self.y2
-        self.x1, self.y1,  self.x2, self.y2 = -self.y2, self.x1,  -self.y1, self.x2
-        #assert self.x1 < self.x2 and self.y1 < self.y2        
+        lGraph = []
+        for sFilename in lsFilename:
+            if iVerbose: traceln("\t%s"%sFilename)
+            g = cls()
+            g.parseXmlFile(sFilename, iVerbose)
+            if bLabelled: g.parseDomLabels()
+            if bDetach: g.detachFromDOM()
+            lGraph.append(g)
+        return lGraph
+    loadGraphs = classmethod(loadGraphs)
 
-    def rotatePlus90deg(self):
-        self.x1, self.y1,  self.x2, self.y2 = self.y1, -self.x2,  self.y2, -self.x1
-
-    def epsilonRound(cls, f, epsilon): 
-        return int(round(f / epsilon, 0)*epsilon)
-    epsilonRound = classmethod(epsilonRound)
-    
-    def XXOverlap(cls, (Ax1,Ax2), (Bx1, Bx2)): #overlap if the max is smaller than the min
-        return max(Ax1, Bx1), min(Ax2, Bx2)
-    XXOverlap = classmethod(XXOverlap)
-
-    def _findVerticalNeighborEdges(cls, lBlk, EdgeClass, bShortOnly=False, epsilon = 2):
+    # --- Numpy matrices --------------------------------------------------------
+    def buildNodeEdgeMatrices(self, node_transformer, edge_transformer):
         """
-        any dimension smaller than 5 is zero, we assume that no block are narrower than this value
-        
-        ASSUMTION: BLOCKS DO NOT OVERLAP EACH OTHER!!!
-        
-        return a list of pair of block
-        
+        make 1 node-feature matrix
+         and 1 edge-feature matrix
+         and 1 edge matrix
+         for the graph
+        return 3 Numpy matrices
         """
-        assert type(epsilon) == types.IntType
-        
-        if not lBlk: return []
-        
-        #look for vertical neighbors
-        lVEdge = list()
-        
-        #index along the y axis based on y1 and y2
-        dBlk_Y1 = collections.defaultdict(list)     # y1 --> [ list of block having that y1 ]
-        setY2 = set()                               # set of (unique) y2
-        for blk in lBlk:
-            ry1 =  cls.epsilonRound(blk.y1, epsilon)
-            ry2 =  cls.epsilonRound(blk.y2, epsilon)
-            #OK assert abs(ry1-b.y1) < epsilon
-            dBlk_Y1[ry1].append(blk)
-            setY2.add(ry2)
-        
-        #lY1 and lY2 are sorted list of unique values
-        lY1 = dBlk_Y1.keys(); lY1.sort(); n1 = len(lY1)
-        lY2 = list(setY2) 
-        lY2.sort(); 
-                
-        di1_by_y2 = dict() #smallest index i1 of Y1 so that lY1[i1] >= Y2, where Y2 is in lY2, if no y1 fit, set it to n1
-        i1, y1 = 0, lY1[0]
-        for y2 in lY2:
-            while y1 < y2 and i1 < n1-1:
-                i1 += 1
-                y1 = lY1[i1]
-            di1_by_y2[y2] = i1
-        
-        for i1,y1 in enumerate(lY1):
-            #start with the block(s) with lowest y1
-            #  (they should not overlap horizontally and cannot be vertical neighbors to each other)
-            for A in dBlk_Y1[y1]:
-                Ax1,Ay1, Ax2,Ay2 = map(cls.epsilonRound, A.getBB(), [epsilon, epsilon, epsilon, epsilon])
-                A_height = float(A.node.prop("height"))
-                assert Ay2 >= Ay1
-                lOx1x2 = list() #list of observed overlaps for current block A
-                leftWatermark, rightWatermark = Ax1, Ax2    #optimization to see when block A has been entirely "covered"
-                jstart = di1_by_y2[Ay2]                 #index of y1 in lY1 of next block below A (because its y1 is larger than A.y2)
-                jstart = jstart - 1                     #because some block overlap each other, we try the previous index (if it is not the current index)
-                jstart = max(jstart, i1+1)              # but for sure we want the next group of y1          
-                for j1 in range(jstart, n1):            #take in turn all Y1 below A
-                    By1 = lY1[j1]
-                    for B in dBlk_Y1[By1]:          #all block starting at that y1
-                        Bx1,By1, Bx2,_ = map(cls.epsilonRound, B.getBB(), [epsilon, epsilon, epsilon, epsilon])
-                        ovABx1, ovABx2 = cls.XXOverlap( (Ax1,Ax2), (Bx1, Bx2) )
-                        if ovABx1 < ovABx2: #overlap
-                            #we now check if that B block is not partially hidden by a previous overlapping block
-                            bHidden = False
-                            for ovOx1, ovOx2 in lOx1x2:
-                                oox1, oox2 = cls.XXOverlap( (ovABx1, ovABx2), (ovOx1, ovOx2) )
-                                if oox1 < oox2:
-                                    bHidden = True  
-                                    break
-                            if not bHidden: 
-                                if bShortOnly:
-                                    #we need to measure how far this block is from A
-                                    #we use the height attribute (not changed by the rotation)
-                                    if abs(B.y1 - A.y2) < A_height: 
-                                        lVEdge.append( EdgeClass(A, B) )
-                                else:
-                                    lVEdge.append( EdgeClass(A, B) )
-                                
-                            lOx1x2.append( (ovABx1, ovABx2) ) #an hidden object may hide another one
-                            #optimization to see when block A has been entirely "covered"
-                            #(it does not account for all cases, but is fast and covers many common situations)
-                            if Bx1 < Ax1: leftWatermark =  max(leftWatermark, Bx2)
-                            if Ax2 < Bx2: rightWatermark = min(rightWatermark, Bx1)
-                            if leftWatermark >= rightWatermark: break #nothing else below is visible anymore
-                    if leftWatermark >= rightWatermark: break #nothing else below is visible anymore
-                            
-        return lVEdge
-    _findVerticalNeighborEdges = classmethod(_findVerticalNeighborEdges)
+        node_features = node_transformer.transform(self.lNode)
+        edges = self._indexNodes_and_BuildEdgeMatrix()
+        edge_features = edge_transformer.transform(self.lEdge)
+        return (node_features, edges, edge_features)       
     
+    def buildLabelMatrix(self):
+        """
+        Return the matrix of labels
+        """
+        Y = np.array( [nd.cls for nd in self.lNode] , dtype=np.uint8)
+        return Y
     
-    
-    
-    
+    def _indexNodes_and_BuildEdgeMatrix(self):
+        """
+        - add an index attribute to nodes
+        - build an edge matrix on this basis
+        - return the edge matrix (a 2-columns matrix)
+        """
+        for i, nd in enumerate(self.lNode):
+            nd.index = i
+
+        edges = np.empty( (len(self.lEdge), 2) , dtype=np.int32)
+        for i, edge in enumerate(self.lEdge):
+            edges[i,0] = edge.A.index
+            edges[i,1] = edge.B.index
+        return edges
+
+        
+        
+        

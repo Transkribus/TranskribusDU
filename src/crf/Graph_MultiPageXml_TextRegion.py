@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 
 """
-    Computing the graph for a document
-    
+    Computing the graph for a MultiPageXml document, at TextRegion level
 
-    Copyright Xerox(C) 2016 H. Déjean, JL. Meunier
+    Copyright Xerox(C) 2016 JL. Meunier
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,25 +25,22 @@
     
 """
 
+from Graph_MultiPageXml import Graph_MultiPageXml
 
-class CRF_Graph:
+class Graph_MultiPageXml_TextRegion(Graph_MultiPageXml):
     '''
-    Computing the graph for a document
+    Computing the graph for a MultiPageXml document at TextRegion level
     '''
-    version = "1"
 
-    def __init__(self, params):
-        '''
-        Constructor
-        '''
-        pass
+    #TASK SPECIFIC
+    sxpNode     = ".//pc:TextRegion"
+    sxpTextual  = "./pc:TextEquiv"             #CAUTION redundant TextEquiv nodes! 
 
-    def load(self, sDir, sFilePattern):
-        """
-        Process all these files and for each:
-        - generate 3 numpy matrices: node-features, edges, edge-features
-        - generate 1 pickle file containing metadata
-        
-        return the list of process filenames
-        """
-        raise Exception("Please specialise this method.")        
+    def __init__(self, lNode = [], lEdge = []):
+        Graph_MultiPageXml.__init__(self, lNode, lEdge)
+
+if __name__ == "__main__":
+    import sys
+    grph = Graph_MultiPageXml_TextRegion()
+    grph.parseXmlFile(sys.argv[1], 1)
+    print grph #just to show some result from the __main__
