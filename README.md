@@ -3,8 +3,6 @@ Document Understanding tools
 
 ### Requirements, installation & testing
 
-[Python] needs to be installed.
-
 #### Python and Pip
 
 * Install the latest release of [Python] 2.7.x
@@ -15,8 +13,9 @@ Document Understanding tools
 * pip install pystruct
 * pip install https://github.com/andre-martins/AD3/archive/master.zip
 * download from [LIBXML2]
-* pip install libxml2_python-2.9.3‑cp27‑none‑win_amd64.whl (see [LIBXML2])
-* pip install  cvxopt-1.1.9-cp36‑cp36m‑win_amd64.whl  (see [CVXOPT])
+* pip install libxml2_python-2.9.3‑cp27‑none‑win_amd64.whl
+* download from [CVXOPT]
+* pip install  cvxopt-1.1.9-cp36‑cp36m‑win_amd64.whl  
 
 ### Usage
  * see use-cases
@@ -26,7 +25,6 @@ Document Understanding tools
 Related discussion: <https://read02.uibk.ac.at/wiki/index.php/Document_Understanding>
 
 
-### Links
 
 [Python]: <https://www.python.org>
 [Pip]: <https://pip.pypa.io/en/stable/installing/>
