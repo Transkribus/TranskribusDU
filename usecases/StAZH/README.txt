@@ -13,7 +13,7 @@ srcTR=/c/Local/meunier/git/TranskribusPyClient/src
   > ./python.sh $srcTR/TranskribusCommands/Transkribus_do_createCollec.py READDU_JL_TRN
   --> 3820
 #Adding some annotated document to it
-  > ./python.sh $srcTR/TranskribusCommands/do_addDocToCollec.py 3571 3820 7749 7750
+  > ./python.sh $srcTR/TranskribusCommands/do_addDocToCollec.py 3820 7749 7750
 #Downloading the XML on my machine
   > ./python.sh $srcTR/TranskribusCommands/Transkribus_downloader.py 3820 --noimage
   - Done, see in .\trnskrbs_3820
@@ -30,7 +30,7 @@ srcTR=/c/Local/meunier/git/TranskribusPyClient/src
 #again with a test collection - also annotated to compute some performance score of the model
   > ./python.sh $srcTR/TranskribusCommands/Transkribus_do_createCollec.py READDU_JL_TST
 -->3832
-  > ./python.sh $srcTR/TranskribusCommands/do_addDocToCollec.py 3571 3820 8251
+  > ./python.sh $srcTR/TranskribusCommands/do_addDocToCollec.py 3820 8251
   > ./python.sh $srcTR/TranskribusCommands/Transkribus_downloader.py 3832
 - Done, see in .\trnskrbs_3832
 
