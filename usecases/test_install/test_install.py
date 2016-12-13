@@ -90,7 +90,9 @@ def test_main():
         lDir = _checkFindColDir( [sTranskribusTestDir])
 
         doer.train_test(sModelName, sModelDir, lDir, lDir)
-        doer.predict(sModelName, sModelDir, lDir)
+        if False:
+            #you can also test the prediction, but it will generate a file "7749_du.mpxml" in trnskrbs_3820/col
+            doer.predict(sModelName, sModelDir, lDir)
     finally:
         #Hack to clean
         mdl = DU_CRF_Task.ModelClass(sModelName, sModelDir) 
