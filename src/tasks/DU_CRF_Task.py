@@ -30,7 +30,6 @@ from optparse import OptionParser
 
 from common.trace import traceln
 
-from crf.Graph_MultiPageXml_TextRegion import Graph_MultiPageXml_TextRegion
 from crf.FeatureExtractors_PageXml_std import FeatureExtractors_PageXml_StandardOnes
 from crf.Model import ModelException
 from crf.Model_SSVM_AD3 import Model_SSVM_AD3
@@ -38,9 +37,22 @@ from xml_formats.PageXml import MultiPageXml
 
 
 class DU_CRF_Task:
+    
+    ModelClass = Model_SSVM_AD3
 
-    def __init__(self): pass
-
+    def __init__(self, bPageConstraint=False): 
+        """
+        bPageConstraint: Do we predict under some logical constraints or not?
+        """
+        self.bPageConstraint = bPageConstraint
+        self.config_kwargs = {}
+    
+    def configureLearner(self, **kwargs):
+        """
+        To configure the SSVM learner
+        """
+        self.config_kwargs = kwargs
+        
     #----------------------------------------------------------------------------------------------------------    
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
         usage = "%s <model-name> <model-directory> [--trn <col-dir>]+ [--tst <col-dir>]+ [--prd <col-dir>]+"%sys_argv0
@@ -86,8 +98,10 @@ class DU_CRF_Task:
         lGraph_trn = DU_GraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
         traceln(" %d graphs loaded"%len(lGraph_trn))
             
-        traceln("- creating a %s model"%Model_SSVM_AD3)
-        mdl = Model_SSVM_AD3(sModelName, sModelDir)
+        traceln("- creating a %s model"%self.ModelClass)
+        mdl = self.ModelClass(sModelName, sModelDir)
+        mdl.configureLearner(**self.config_kwargs)
+        print self.config_kwargs
 
         traceln("- retrieving or creating feature extractors...")
         try:
@@ -124,8 +138,8 @@ class DU_CRF_Task:
         #list the train and test files
         _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*[0-9]"+MultiPageXml.sEXT)
         
-        traceln("- loading a %s model"%Model_SSVM_AD3)
-        mdl = Model_SSVM_AD3(sModelName, sModelDir)
+        traceln("- loading a %s model"%self.ModelClass)
+        mdl = self.ModelClass(sModelName, sModelDir)
         mdl.load()
         traceln(" done")
         
@@ -148,8 +162,8 @@ class DU_CRF_Task:
         #list the train and test files
         _     , lFilename = self.listMaxTimestampFile(lsColDir, "*[0-9]"+MultiPageXml.sEXT)
         
-        traceln("- loading a %s model"%Model_SSVM_AD3)
-        mdl = Model_SSVM_AD3(sModelName, sModelDir)
+        traceln("- loading a %s model"%self.ModelClass)
+        mdl = self.ModelClass(sModelName, sModelDir)
         mdl.load()
         traceln(" done")
         
@@ -160,7 +174,13 @@ class DU_CRF_Task:
         for sFilename in lFilename:
             if sFilename.endswith(du_postfix): continue #:)
             [g] = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
-            Y = mdl.predict(g)
+            
+            if self.bPageConstraint:
+                constraints = g.instanciatePageConstraints()
+                Y = mdl.predict(g, constraints=constraints)
+            else:
+                Y = mdl.predict(g)
+                
             doc = g.setDomLabels(Y)
             sDUFilename = sFilename[:-len(MultiPageXml.sEXT)]+du_postfix
             doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML

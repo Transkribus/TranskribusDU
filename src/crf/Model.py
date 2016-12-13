@@ -68,6 +68,12 @@ class Model:
 
         self.node_transformer   = None
         self.edge_transformer   = None
+    
+    def configureLearner(self, **kwargs):
+        """
+        TO configure the learner
+        """
+        raise Exception("Method must be overridden")
         
     # --- Utilities -------------------------------------------------------------
     def getModelFilename(self):

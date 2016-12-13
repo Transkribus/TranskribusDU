@@ -54,6 +54,14 @@ class Model_SSVM_AD3(Model):
         """
         Model.__init__(self, sName, sModelDir)
         self.ssvm = None
+        
+    def configureLearner(self, inference_cache=None, C=None, tol=None, njobs=None, save_every=None, max_iter=None):
+        if None != inference_cache  : self.solver_inference_cache   = inference_cache
+        if None != C                : self.solver_C                 = C
+        if None != tol              : self.solver_tol               = tol
+        if None != njobs            : self.solver_njobs             = njobs
+        if None != save_every       : self.solver_save_every        = save_every
+        if None != max_iter         : self.solver_max_iter          = max_iter
 
     def load(self, expiration_timestamp=None):
         """
@@ -131,14 +139,18 @@ class Model_SSVM_AD3(Model):
         del lX, lY, lY_pred
         return self.test_report(Y_flat, Y_pred_flat, lsClassName)
 
-    def predict(self, graph):
+    def predict(self, graph, constraints=None):
         """
         predict the class of each node of the graph
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
         """
         [X] = self.transformGraphs([graph])
         traceln("\t  #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
-        [Y] = self.ssvm.predict([X])
+        if constraints:
+            [Y] = self.ssvm.predict([X], constraints=constraints)
+        else:
+            [Y] = self.ssvm.predict([X])
+            
         return Y
         
 # --- AUTO-TESTS ------------------------------------------------------------------

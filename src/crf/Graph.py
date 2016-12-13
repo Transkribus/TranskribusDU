@@ -119,6 +119,33 @@ class Graph:
         """        
         raise Exception("Method must be overridden")
     
+    # --- Constraints -----------------------------------------------------------
+    def setPageConstraint(cls, lPageConstraintDef):
+        """
+        We get the definition of the constraint per page
+        The constraints must be a list of tuples like ( <operator>, <states>, <negated> )
+            where:
+            - operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
+            - states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
+            - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
+        """
+        self._lPageConstraintDef = lPageConstraintDef
+    setPageConstraint = classmethod(setPageConstraint)
+    
+    def instanciatePageConstraints(self):
+        """
+        Instanciate for this particular graph the defined constraints
+        return a list of tuples like ( <operator>, <unaries>, <states>, <negated> )
+            where:
+            - operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
+            - unaries is a list of the index of the unaries involved in this constraint
+            - states is a list of unary states, 1 per involved unary. If the states are all the same, you can pass it directly as a scalar value.
+            - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
+        """
+        
+        pass
+        todo
+
     # --- Utilities ---------------------------------------------------------
     def loadGraphs(cls, lsFilename, bDetach=False, bLabelled=False, iVerbose=0):
         """
