@@ -1,3 +1,6 @@
+########################################################################################################################################
+  DU_StAZH_b
+########################################################################################################################################
 
 SEE https://read02.uibk.ac.at/wiki/index.php/Document_Understanding/First_CRF_Experiment
 
@@ -149,3 +152,59 @@ avg / total       0.95      0.88      0.90       370
   ./python.sh $srcTR/TranskribusCommands/Transkribus_downloader.py 3829 --noimage
   ./python.sh $srcDU/tasks/DU_StAZH_a.py ./mdl-StAZH_a MyModel --run trnskrbs_3829
   ./python.sh $srcTR/TranskribusCommands/Transkribus_transcriptUploader.py ./trnskrbs_3829 3829
+  
+  
+  
+  ########################################################################################################################################
+  DU_StAZH_b
+  ########################################################################################################################################
+  $ ./python.sh $srcDU/tasks/DU_StAZH_b.py --trn trnskrbs_3820 mdl-StAZH_b trn3820
+  
+  $ ./python.sh $srcDU/tasks/DU_StAZH_b.py mdl-StAZH_b trn3820 --tst trnskrbs_3832
+
+  $ ./python.sh $srcDU/tasks/DU_StAZH_b.py mdl-StAZH_b trn3820 --tst trnskrbs_3829
+
+
+coiba /c/tmp_READ/tuto
+$ ./python.sh $srcDU/tasks/DU_StAZH_b.py mdl-StAZH_b trn3820 --tst trnskrbs_3832
+               OTHER  [[21  1  2  0  1]
+              header   [ 0  6  2  0  0]
+             heading   [ 0  0  1  0  0]
+          marginalia   [ 0  0  0 15  0]
+         page-number   [ 0  0  0  0  9]]
+             precision    recall  f1-score   support
+
+      OTHER       1.00      0.84      0.91        25
+     header       0.86      0.75      0.80         8
+    heading       0.20      1.00      0.33         1
+ marginalia       1.00      1.00      1.00        15
+page-number       0.90      1.00      0.95         9
+
+avg / total       0.95      0.90      0.92        58
+
+(unweighted) Accuracy score = 0.90
+
+
+$ ./python.sh $srcDU/tasks/DU_StAZH_b.py mdl-StAZH_b trn3820 --tst trnskrbs_3829
+               OTHER  [[179  10   9   6   5   6]
+          catch-word   [  0   0   0   0   0   0]
+              header   [  0   0  40   3   0   0]
+             heading   [  0   0   0   2   0   0]
+          marginalia   [  0   0   0   0  62   0]
+         page-number   [  0   2   0   0   2  44]]
+C:\Anaconda2\lib\site-packages\sklearn\metrics\classification.py:1076: UndefinedMetricWarning: Recall and F-score are ill-defined and being set to 0.0 in labels with no true samples.
+  'recall', 'true', average, warn_for)
+             precision    recall  f1-score   support
+
+      OTHER       1.00      0.83      0.91       215
+ catch-word       0.00      0.00      0.00         0
+     header       0.82      0.93      0.87        43
+    heading       0.18      1.00      0.31         2
+ marginalia       0.90      1.00      0.95        62
+page-number       0.88      0.92      0.90        48
+
+avg / total       0.94      0.88      0.91       370
+
+(unweighted) Accuracy score = 0.88
+  
+  

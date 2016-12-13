@@ -182,16 +182,20 @@ class Model:
         """
         raise Exception("Method must be overridden")
 
-    def test(self, lGraph, lsClassName=None):
+    def test(self, lGraph, lsClassName=None, lConstraints=[]):
         """
         Test the model using those graphs and report results on stderr
+        lConstraints may contain a list of logical constraints per graph.
+        This list has the form: [(logical-operator, indices, state, negated), ...]
+        
         Return the textual report
         """
         raise Exception("Method must be overridden")
 
-    def predict(self, graph):
+    def predict(self, graph, constraints=None):
         """
         predict the class of each node of the graph
+        constraints may contain a list of logical constraints of the form: [(logical-operator, indices, state, negated), ...]
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
         """
         raise Exception("Method must be overridden")

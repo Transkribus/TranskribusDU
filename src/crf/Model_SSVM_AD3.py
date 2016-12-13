@@ -121,7 +121,7 @@ class Model_SSVM_AD3(Model):
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
 
-    def test(self, lGraph, lsClassName=None):
+    def test(self, lGraph, lsClassName=None, lConstraints=[]):
         """
         Test the model using those graphs and report results on stderr
         Return the textual report
@@ -132,7 +132,11 @@ class Model_SSVM_AD3(Model):
         traceln("\t done")
 
         traceln("\t- predicting on test set")
-        lY_pred = self.ssvm.predict(lX) 
+        if lConstraints:
+            lY_pred = self.ssvm.predict(lX, constraints=lConstraints)
+        else:
+            lY_pred = self.ssvm.predict(lX)
+             
         traceln("\t done")
         Y_flat = np.hstack(lY)
         Y_pred_flat = np.hstack(lY_pred)
@@ -147,7 +151,7 @@ class Model_SSVM_AD3(Model):
         [X] = self.transformGraphs([graph])
         traceln("\t  #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
         if constraints:
-            [Y] = self.ssvm.predict([X], constraints=constraints)
+            [Y] = self.ssvm.predict([X], constraints=[constraints])
         else:
             [Y] = self.ssvm.predict([X])
             

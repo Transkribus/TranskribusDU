@@ -149,11 +149,17 @@ class DU_CRF_Task:
         lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
         traceln(" %d graphs loaded"%len(lGraph_tst))
 
-        fScore, sReport = mdl.test(lGraph_tst, DU_GraphClass.getLabelList())
-        
+        if self.bPageConstraint:
+            lConstraints = [g.instanciatePageConstraints() for g in lGraph_tst]
+            fScore, sReport = mdl.test(lGraph_tst, DU_GraphClass.getLabelList(), lConstraints=lConstraints)
+        else:
+            fScore, sReport = mdl.test(lGraph_tst, DU_GraphClass.getLabelList())
         return fScore, sReport
 
     def predict(self, sModelName, sModelDir, lsColDir):
+        """
+        Return the list of produced files
+        """
         traceln("-"*50)
         traceln("Trained model '%s' in folder '%s'"%(sModelName, sModelDir))
         traceln("Collection(s):", lsColDir)
@@ -171,14 +177,17 @@ class DU_CRF_Task:
         
         traceln("- loading collection as graphs")
         du_postfix = "_du"+MultiPageXml.sEXT
+        lsOutputFilename = []
         for sFilename in lFilename:
             if sFilename.endswith(du_postfix): continue #:)
             [g] = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
             
             if self.bPageConstraint:
+                traceln("\t- prediction with logical constraints: %s"%sFilename)
                 constraints = g.instanciatePageConstraints()
                 Y = mdl.predict(g, constraints=constraints)
             else:
+                traceln("\t- prediction : %s"%sFilename)
                 Y = mdl.predict(g)
                 
             doc = g.setDomLabels(Y)
@@ -187,9 +196,10 @@ class DU_CRF_Task:
             doc.freeDoc()
             del Y, g
             traceln("\t done")
+            lsOutputFilename.append(sDUFilename)
         traceln(" done")
 
-        return
+        return lsOutputFilename
 
     #----------------------------------------------------------------------------------------------------------    
     def listMaxTimestampFile(cls, lsDir, sPattern):

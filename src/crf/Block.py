@@ -50,6 +50,9 @@ class Block:
         self.lNeighbor      = None
         self.lCPNeighbor    = None
 
+        #container
+        self.page = None
+
     def setFontSize(self, fFontSize):
         self.fontsize = fFontSize
     

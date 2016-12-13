@@ -25,6 +25,8 @@
     under grant agreement No 674943.
     
 """
+import collections
+
 import numpy as np
 
 from common.trace import traceln
@@ -123,13 +125,13 @@ class Graph:
     def setPageConstraint(cls, lPageConstraintDef):
         """
         We get the definition of the constraint per page
-        The constraints must be a list of tuples like ( <operator>, <states>, <negated> )
+        The constraints must be a list of tuples like ( <operator>, <label>, <negated> )
             where:
             - operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
             - states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
             - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
         """
-        self._lPageConstraintDef = lPageConstraintDef
+        cls._lPageConstraintDef = lPageConstraintDef
     setPageConstraint = classmethod(setPageConstraint)
     
     def instanciatePageConstraints(self):
@@ -142,10 +144,12 @@ class Graph:
             - states is a list of unary states, 1 per involved unary. If the states are all the same, you can pass it directly as a scalar value.
             - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
         """
-        
-        pass
-        todo
-
+        lUnaries = self.getNodeIndexByPage()
+        lRet = [ (op, unaries, self.dClsByLabel[label], neg) for unaries in lUnaries for (op, label, neg) in self._lPageConstraintDef]
+#         for (op, unaries, cls, neg) in lRet:
+#             print [self.lNode[i].domid for i in unaries]
+        return lRet
+    
     # --- Utilities ---------------------------------------------------------
     def loadGraphs(cls, lsFilename, bDetach=False, bLabelled=False, iVerbose=0):
         """
@@ -199,6 +203,31 @@ class Graph:
             edges[i,1] = edge.B.index
         return edges
 
+    def getNodeIndexByPage(self):
+        """
+        return a list of list of index
+        Both lists are sorted (by page number and by index)
+        empty pages are skipped (and _not_ reflected as empty list)
+        """
+        if not self.lNode: raise ValueError("Empty graph")
+        try:
+            self.lNode[0].index
+        except AttributeError:
+            for i, nd in enumerate(self.lNode):
+                nd.index = i
+
+        dlIndexByPage = collections.defaultdict(list)
+        for nd in self.lNode:
+            dlIndexByPage[nd.pnum].append(nd.index)
         
+        llIndexByPage = []
+        for pnum in sorted(dlIndexByPage.keys()):
+            llIndexByPage.append( sorted(dlIndexByPage[pnum]) )
+        return llIndexByPage
+            
+        
+        
+        
+
         
         
