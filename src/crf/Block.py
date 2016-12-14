@@ -375,20 +375,21 @@ class Block:
                         ovABx1, ovABx2 = cls.XXOverlap( (Ax1,Ax2), (Bx1, Bx2) )
                         if ovABx1 < ovABx2: #overlap
                             #we now check if that B block is not partially hidden by a previous overlapping block
-                            bHidden = False
+                            bVisible = True
                             for ovOx1, ovOx2 in lOx1x2:
                                 oox1, oox2 = cls.XXOverlap( (ovABx1, ovABx2), (ovOx1, ovOx2) )
                                 if oox1 < oox2:
-                                    bHidden = True  
+                                    bVisible = False  
                                     break
-                            if not bHidden: 
+                            if bVisible : 
+                                length = abs(B.y1 - A.y2)
                                 if bShortOnly:
                                     #we need to measure how far this block is from A
                                     #we use the height attribute (not changed by the rotation)
-                                    if abs(B.y1 - A.y2) < A_height: 
-                                        lVEdge.append( EdgeClass(A, B) )
+                                    if length < A_height: 
+                                        lVEdge.append( EdgeClass(A, B, length) )
                                 else:
-                                    lVEdge.append( EdgeClass(A, B) )
+                                    lVEdge.append( EdgeClass(A, B, length) )
                                 
                             lOx1x2.append( (ovABx1, ovABx2) ) #an hidden object may hide another one
                             #optimization to see when block A has been entirely "covered"

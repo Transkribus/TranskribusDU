@@ -11,8 +11,6 @@ Copyright Xerox 2016
 
 '''
 
-from common.trace import trace, traceln
-
 import Block
 
 DEBUG=0
@@ -27,7 +25,6 @@ class Edge:
         """
         self.A = A
         self.B = B
-       
  
     # ------------------------------------------------------------------------------------------------------------------------------------        
     #specific code for the CRF graph
@@ -70,10 +67,15 @@ class Edge:
                 ndA.setProp(sAttr,                         sPolyLine)
         return
     dbgStorePolyLine = classmethod(dbgStorePolyLine)
+
+class SamePageEdge(Edge):
+    def __init__(self, A, B, length):
+        Edge.__init__(self, A, B)
+        self.length = length
+
+class HorizontalEdge(SamePageEdge): pass
     
-class HorizontalEdge(Edge): pass    
-    
-class VerticalEdge(Edge): pass    
+class VerticalEdge(SamePageEdge): pass    
 
 class CrossPageEdge(Edge): pass    
 
