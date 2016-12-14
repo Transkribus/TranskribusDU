@@ -3,7 +3,7 @@
 
     BASELINE class 
     
-    Hervé Déjean
+    Hervï¿½ Dï¿½jean
     cpy Xerox 2016
     READ project 
 
@@ -107,7 +107,7 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
             
             
         """
-        from read.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
      
         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
             lR=sequenceOfFeatures()
