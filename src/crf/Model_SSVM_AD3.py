@@ -85,7 +85,7 @@ class Model_SSVM_AD3(Model):
         lX, lY = self.transformGraphs(lGraph, True)
         traceln("\t done")
 
-        traceln("\t- retrieving or creating feature extractors...")
+        traceln("\t- retrieving or creating model...")
         self.ssvm = None
         sModelFN = self.getModelFilename()
         if bWarmStart:
