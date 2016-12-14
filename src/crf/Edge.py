@@ -16,7 +16,7 @@ import Block
 DEBUG=0
 DEBUG=1
 
-
+# --- Edge CLASSE -----------------------------------------
 class Edge:
         
     def __init__(self, A, B):
@@ -68,17 +68,20 @@ class Edge:
         return
     dbgStorePolyLine = classmethod(dbgStorePolyLine)
 
+
+    
+    # --- Edge SUB-CLASSES ------------------------------------
 class SamePageEdge(Edge):
     def __init__(self, A, B, length):
         Edge.__init__(self, A, B)
         self.length = length
 
-class HorizontalEdge(SamePageEdge): pass
-    
-class VerticalEdge(SamePageEdge): pass    
-
 class CrossPageEdge(Edge): pass    
 
 class VirtualEdge(Edge): pass    
-    
-    
+
+# --- SamePageEdge SUB-CLASSES ----------------------------
+class HorizontalEdge(SamePageEdge): pass
+
+class VerticalEdge(SamePageEdge): pass    
+
