@@ -31,6 +31,8 @@ import numpy as np
 
 from common.trace import traceln
 
+import Edge
+
 class Graph:
     """
     A graph to be used as a CRF graph with pystruct
@@ -56,6 +58,27 @@ class Graph:
         Also set the self.doc variable!
         """
         raise Exception("Method must be overridden")
+
+    def collectNeighbors(self):
+        """
+        record the lists of hotizontal-, vertical- and cross-page neighbours for each node
+        """
+        for blk in self.lNode:
+            blk.lHNeighbor = list()
+            blk.lVNeighbor = list()
+            blk.lCPNeighbor = list()        
+        for edge in self.lEdge:
+            a, b = edge.A, edge.B
+            if isinstance(edge, Edge.CrossPageEdge):
+                a.lCPNeighbor.append(b)
+                b.lCPNeighbor.append(a)
+            elif isinstance(edge, Edge.HorizontalEdge):
+                a.lHNeighbor.append(b)
+                b.lHNeighbor.append(a)
+            else:
+                assert  isinstance(edge, Edge.VerticalEdge)
+                a.lVNeighbor.append(b)
+                b.lVNeighbor.append(a)
     
     def detachFromDOM(self):
         """
@@ -161,6 +184,7 @@ class Graph:
             if iVerbose: traceln("\t%s"%sFilename)
             g = cls()
             g.parseXmlFile(sFilename, iVerbose)
+            g.collectNeighbors()            
             if bLabelled: g.parseDomLabels()
             if bDetach: g.detachFromDOM()
             lGraph.append(g)
