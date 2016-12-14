@@ -1080,9 +1080,8 @@ class Component:
 				sRpt += "<td>%s</td>\n" % s
 			sRpt += """<td><a href="http://%s/v/%s/%s" target="dla_pdf">%s</a>\n""" % (sHttpHost, sCollec, self.getBasename(filename), filename)
 			if os.path.exists(self.getHtmRunFileName(filename)):
-				#sRpt += """ &nbsp; <a href="../%s" target="dodge_diff">diff</a>""" % (self.getHtmRunFileName(filename))
 				sRpt += """ &nbsp; <a href="../%s">diff</a>""" % (self.getHtmRunFileName(filename))
-			sRpt += """ &nbsp; <a href="http://%s/x/%s/%s" target="dodge_xml">xml</a>""" % (sHttpHost, sCollec, self.getBasename(filename))
+			sRpt += """ &nbsp; <a href="http://%s/x/%s/%s">xml</a>""" % (sHttpHost, sCollec, self.getBasename(filename))
 			sRpt += """</td>""" 
 			sRpt += "<tr>\n"
 		sRpt += "</table>"

@@ -93,7 +93,6 @@ class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
     
         lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see clean_transformers method!!!!
                                       ("boolean", Pipeline([
-#                                                          ('boolean', Edge1HotFeatures(Dodge.DodgePlan.plan_GraphML_Sequence.PageNumberSequenciality()))
                                                          ('boolean', Edge1HotFeatures(PageNumberSimpleSequenciality()))
                                                          ])
                                         )
