@@ -174,7 +174,7 @@ class Graph:
         return lRet
     
     # --- Utilities ---------------------------------------------------------
-    def loadGraphs(cls, lsFilename, bDetach=False, bLabelled=False, iVerbose=0):
+    def loadGraphs(cls, lsFilename, bNeighbourhood=True, bDetach=False, bLabelled=False, iVerbose=0):
         """
         Load one graph per file, and detach its DOM
         return the list of loaded graphs
@@ -184,7 +184,7 @@ class Graph:
             if iVerbose: traceln("\t%s"%sFilename)
             g = cls()
             g.parseXmlFile(sFilename, iVerbose)
-            g.collectNeighbors()            
+            if bNeighbourhood: g.collectNeighbors()            
             if bLabelled: g.parseDomLabels()
             if bDetach: g.detachFromDOM()
             lGraph.append(g)

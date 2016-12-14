@@ -14,7 +14,7 @@ Copyright Xerox 2016
 
 import collections, types
 
-from common.trace import trace, traceln
+from common.trace import traceln
 
 import Edge
 # from Edge import CrossPageEdge, HorizontalEdge, VerticalEdge
@@ -47,7 +47,8 @@ class Block:
         self.sconf = "" #new in v08
         
         #neighbouring relationship
-        self.lNeighbor      = None
+        self.lHNeighbor     = None
+        self.lVNeighbor     = None
         self.lCPNeighbor    = None
 
         #container
@@ -225,23 +226,6 @@ class Block:
         return lHEdge, lVEdge
     findPageNeighborEdges = classmethod(findPageNeighborEdges)
     
-    def collectNeighbors(self, lNode, lEdge):
-        """
-        record the lists of same- and cross-page neighbours for each node
-        """
-        for blk in lNode:
-            blk.lNeighbor = list()
-            blk.lCPNeighbor = list()        
-        for edge in lEdge:
-            a, b = edge.A, edge.B
-            if isinstance(edge, Edge.CrossPageEdge):
-                a.lCPNeighbor.append(b)
-                b.lCPNeighbor.append(a)
-            else:
-                a.lNeighbor.append(b)
-                b.lNeighbor.append(a)                
-                assert isinstance(edge, Edge.HorizontalEdge) or isinstance(edge, Edge.VerticalEdge)
-    
     # ---- Internal stuff ---
     def findConsecPageOverlapEdges(cls, lPrevPageEdgeBlk, lPageBlk, epsilon = 1):
         """
@@ -381,7 +365,7 @@ class Block:
                                 if oox1 < oox2:
                                     bVisible = False  
                                     break
-                            if bVisible : 
+                            if bVisible: 
                                 length = abs(B.y1 - A.y2)
                                 if bShortOnly:
                                     #we need to measure how far this block is from A
