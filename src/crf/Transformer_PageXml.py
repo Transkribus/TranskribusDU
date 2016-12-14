@@ -99,7 +99,7 @@ class NodeTransformerXYWH(Transformer):
             xn1, yn1, xn2, yn2 = x1/w, y1/h, x2/w, y2/h
             #generate X-from-binding
             if page.bEven:
-                xb1, xb2    = w - x2    , h - x1
+                xb1, xb2    = w - x2    , w - x1
                 xnb1, xnb2  = 1.0 - xn2 , 1.0 - xn1
             else:
                 xb1, xb2    = x1    , x2
