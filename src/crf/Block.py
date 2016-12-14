@@ -63,6 +63,11 @@ class Block:
         """
         self.node = None
     
+    def getText(self, iTruncate=None):
+        if iTruncate:
+            return self.text[:min(len(self.text), iTruncate)]
+        else:
+            return self.text
     ##Bounding box methods: getter/setter + geometrical stuff
     def getBB(self):
         return self.x1, self.y1, self.x2, self.y2

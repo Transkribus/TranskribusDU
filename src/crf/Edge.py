@@ -25,7 +25,14 @@ class Edge:
         """
         self.A = A
         self.B = B
- 
+        
+    def __str__(self):
+        n = 15  #show only the n leading characters of each node
+        if True:
+            return "Edge %s p%d-p%d %s --> %s" %(self.__class__, self.A.pnum, self.B.pnum, self.A.getText(n), self.B.getText(n))
+        else:
+            return "Edge %s p%d-p%d %s -->\n\t %s" %(self.__class__, self.A.pnum, self.B.pnum, self.A, self.B)
+
     # ------------------------------------------------------------------------------------------------------------------------------------        
     #specific code for the CRF graph
     def computeEdges(cls, lPrevPageEdgeBlk, lPageBlk, bShortOnly=False):

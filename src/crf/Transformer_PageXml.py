@@ -129,7 +129,8 @@ class NodeTransformerNeighbors(Transformer):
             #number of horizontal/vertical/crosspage neighbors occuring after this block
             #better to give direct info
             a[i,0:3] = a[i,0:3] - a[i,3:6]
-            
+        
+        #_debug(lNode, a)
         return a
 
 #------------------------------------------------------------------------------------------------------
@@ -299,7 +300,7 @@ class EdgeBooleanFeatures(Transformer):
                 a[i, 4] = 1.0
             if abs(A.y2-B.y2) <= fEPSILON:
                 a[i, 5] = 1.0       
-            
+        #_debug(lEdge, a)
         return a
 
 #------------------------------------------------------------------------------------------------------
@@ -356,6 +357,11 @@ class EdgeNumericalSelector(Transformer):
         return a  
 
 # -----------------------------------------------------------------------------------------------------------------------------    
+def _debug(lO, a):
+    for i,o in enumerate(lO):
+        print o
+        print a[i]
+        print
                 
 def lcs_length(a,na, b,nb):
     """
