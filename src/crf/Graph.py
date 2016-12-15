@@ -45,7 +45,8 @@ class Graph:
     dLabelByCls     = None    
     dClsByLabel     = None
     nCls            = None
-            
+    _lPageConstraintDef = None  #optionnal page-level constraints
+                
     def __init__(self, lNode = [], lEdge = []):
         self.lNode = lNode
         self.lEdge = lEdge
@@ -157,6 +158,10 @@ class Graph:
         cls._lPageConstraintDef = lPageConstraintDef
     setPageConstraint = classmethod(setPageConstraint)
     
+    def getPageConstraint(cls):
+        return cls._lPageConstraintDef
+    getPageConstraint = classmethod(getPageConstraint)
+
     def instanciatePageConstraints(self):
         """
         Instanciate for this particular graph the defined constraints
