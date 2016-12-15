@@ -41,12 +41,12 @@ from Model import Model
 
 class Model_SSVM_AD3(Model):
     #default values for the solver
-    solver_C                = .1 
-    solver_njobs            = 4
-    solver_inference_cache  = 50
-    solver_tol              = .1
-    solver_save_every       = 50     #save every 50 iterations,for warm start
-    solver_max_iter         = 1000
+    C                = .1 
+    njobs            = 4
+    inference_cache  = 50
+    tol              = .1
+    save_every       = 50     #save every 50 iterations,for warm start
+    max_iter         = 1000
     
     def __init__(self, sName, sModelDir):
         """
@@ -56,12 +56,12 @@ class Model_SSVM_AD3(Model):
         self.ssvm = None
         
     def configureLearner(self, inference_cache=None, C=None, tol=None, njobs=None, save_every=None, max_iter=None):
-        if None != inference_cache  : self.solver_inference_cache   = inference_cache
-        if None != C                : self.solver_C                 = C
-        if None != tol              : self.solver_tol               = tol
-        if None != njobs            : self.solver_njobs             = njobs
-        if None != save_every       : self.solver_save_every        = save_every
-        if None != max_iter         : self.solver_max_iter          = max_iter
+        if None != inference_cache  : self.inference_cache   = inference_cache
+        if None != C                : self.C                 = C
+        if None != tol              : self.tol               = tol
+        if None != njobs            : self.njobs             = njobs
+        if None != save_every       : self.save_every        = save_every
+        if None != max_iter         : self.max_iter          = max_iter
 
     def load(self, expiration_timestamp=None):
         """
@@ -107,16 +107,16 @@ class Model_SSVM_AD3(Model):
             crf = EdgeFeatureGraphCRF(inference_method='ad3', class_weight=clsWeights)
     
             self.ssvm = OneSlackSSVM(crf
-                                , inference_cache=self.solver_inference_cache, C=self.solver_C, tol=self.solver_tol, n_jobs=self.solver_njobs
-                                , logger=SaveLogger(sModelFN, save_every=self.solver_save_every)
-                                , max_iter=self.solver_max_iter                                        
+                                , inference_cache=self.inference_cache, C=self.C, tol=self.tol, n_jobs=self.njobs
+                                , logger=SaveLogger(sModelFN, save_every=self.save_every)
+                                , max_iter=self.max_iter                                        
                                 , show_loss_every=10, verbose=1)
             bWarmStart = False
         chronoOn()
         traceln("\t - training graph-based model")
         traceln("\t\t solver parameters:"
-                    , " inference_cache=",self.solver_inference_cache
-                    , " C=",self.solver_C, " tol=",self.solver_tol, " n_jobs=",self.solver_njobs)
+                    , " inference_cache=",self.inference_cache
+                    , " C=",self.C, " tol=",self.tol, " n_jobs=",self.njobs)
         traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
