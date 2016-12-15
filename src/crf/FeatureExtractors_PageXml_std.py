@@ -40,8 +40,8 @@ from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 from FeatureExtractors import FeatureExtractors
 
 class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
-    def __init__(self, n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
-                     , n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc): 
+    def __init__(self, n_tfidf_node=None, t_ngrams_node=None, b_tfidf_node_lc=None
+                     , n_tfidf_edge=None, t_ngrams_edge=None, b_tfidf_edge_lc=None): 
         FeatureExtractors.__init__(self)
         
         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
