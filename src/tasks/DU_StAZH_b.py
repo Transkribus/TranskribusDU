@@ -25,7 +25,6 @@
     
 """
 import sys, os
-import glob
 from optparse import OptionParser
 
 try: #to ease the use without proper Python installation
@@ -34,13 +33,10 @@ except ImportError:
     sys.path.append( os.path.dirname(os.path.dirname( os.path.abspath(sys.argv[0]) )) )
     import TranskribusDU_version
 
-from tasks import sCOL, _checkFindColDir, _exit
+from tasks import _checkFindColDir, _exit
 
 from crf.Graph_MultiPageXml_TextRegion import Graph_MultiPageXml_TextRegion
-from crf.FeatureExtractors_PageXml_std import FeatureExtractors_PageXml_StandardOnes
 from crf.Model import ModelException
-from crf.Model_SSVM_AD3 import Model_SSVM_AD3
-from xml_formats.PageXml import MultiPageXml
 
 from DU_CRF_Task import DU_CRF_Task
 
@@ -52,6 +48,10 @@ class DU_StAZH_b(DU_CRF_Task):
     , working on a MultiPageXMl document at TextRegion level
     , with the below labels 
     """
+    
+    #=== CONFIGURATION ====================================================================
+    Metadata_Creator = "XRCE Document Understanding CRF-based + constraints - v0.1"
+    Metadata_Comments = None
 
     #  0=OTHER        1            2            3        4                5
     TASK_LABELS = ['catch-word', 'header', 'heading', 'marginalia', 'page-number']
@@ -83,7 +83,7 @@ class DU_StAZH_b(DU_CRF_Task):
                      , 'inference_cache'  : 50
                      , 'tol'              : .1
                      , 'save_every'       : 50     #save every 50 iterations,for warm start
-                     , 'max_iter'         : 60
+                     , 'max_iter'         : 1000
                      }
     
     def getGraphClass(self):
@@ -94,6 +94,7 @@ class DU_StAZH_b(DU_CRF_Task):
         DU_StAZH_Graph.setPageConstraint(self.lCONSTRAINT_PER_PAGE)
         return DU_StAZH_Graph
 
+    #=== END OF CONFIGURATION =======================
 
 
 if __name__ == "__main__":

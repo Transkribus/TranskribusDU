@@ -37,8 +37,24 @@ from xml_formats.PageXml import MultiPageXml
 
 
 class DU_CRF_Task:
+    """
+USAGE:
+- Sub-class this class and specialise:
+    - ModelClass (class): set the learner+inference methods. As of Dec 2016, only Model_SSVM_AD3 is available. So do not change...
+    - sMetadata_Creator (string): will appear in the metadata of the MultiPageXml or PageXml XML files 
+    - sMetadata_Comments (string): idem
+    - getGraphClass (method): return the Graph class, making sure it defines the labels relevant to the tasks
+                                , and optionally the constraints
+- create an instance of the sub-class    
+
+See DU_StAZH_b.py
+
+    """
     
     ModelClass = Model_SSVM_AD3
+    
+    sMetadata_Creator = "XRCE Document Understanding CRF-based - v0.1"
+    sMetadata_Comments = None
 
     def __init__(self, dFeatureConfig={}, dLearnerConfig={}): 
         """
@@ -46,15 +62,18 @@ class DU_CRF_Task:
         """
         self.config_extractor_kwargs = dFeatureConfig
         self.config_learner_kwargs = dLearnerConfig
+
+    def getGraphClass(self):
+        raise Exception("Method must be overridden")
     
-    #----------------------------------------------------------------------------------------------------------    
+    #---  WHAT IS BELOW IS GENERIC  -------------------------------
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
         usage = "%s <model-name> <model-directory> [--trn <col-dir>]+ [--tst <col-dir>]+ [--prd <col-dir>]+"%sys_argv0
         description = """ 
-    Train or test the given model or predict using the given model.
-    The data is given as a list of DS directories.
-    The model is loaded from or saved to the model directory. The model parameters are taken from a Python module named after the model.
-    """
+        Train or test the given model or predict using the given model.
+        The data is given as a list of DS directories.
+        The model is loaded from or saved to the model directory. The model parameters are taken from a Python module named after the model.
+        """
     
         #prepare for the parsing of the command line
         parser = OptionParser(usage=usage, version=version)
@@ -177,7 +196,7 @@ class DU_CRF_Task:
         if lPageConstraint: 
             for dat in lPageConstraint: traceln("\t\t%s"%str(dat))
         
-        traceln("- loading collection as graphs")
+        traceln("- loading collection as graphs, and processing each in turn. (%d files)"%len(lFilename))
         du_postfix = "_du"+MultiPageXml.sEXT
         lsOutputFilename = []
         for sFilename in lFilename:
@@ -193,6 +212,7 @@ class DU_CRF_Task:
                 Y = mdl.predict(g)
                 
             doc = g.setDomLabels(Y)
+            MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
             sDUFilename = sFilename[:-len(MultiPageXml.sEXT)]+du_postfix
             doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
             doc.freeDoc()

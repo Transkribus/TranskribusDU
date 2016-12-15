@@ -90,7 +90,6 @@ class PageXml:
     def getMetadata(cls, doc=None, domNd=None):
         """
         Parse the metadata of the PageXml DOM or of the given Metadata node
-        input is a PageXml DOM
         return a Metadata object
         """
         _, ndCreator, ndCreated, ndLastChange, ndComments = cls._getMetadataNodes(doc, domNd)
@@ -117,7 +116,11 @@ class PageXml:
         """
         ndMetadata, ndCreator, ndCreated, ndLastChange, ndComments = cls._getMetadataNodes(doc, domNd)
         ndCreator.setContent(Creator)
-        ndLastChange.setContent(datetime.datetime.utcnow().isoformat())
+        #The schema seems to call for GMT date&time  (IMU)
+        #ISO 8601 says:  "If the time is in UTC, add a Z directly after the time without a space. Z is the zone designator for the zero UTC offset."
+        #Python seems to break the standard unless one specifies properly a timezone by sub-classing tzinfo. But too complex stuff
+        #So, I simply add a 'Z' 
+        ndLastChange.setContent(datetime.datetime.utcnow().isoformat()+"Z") 
         if Comments != None:
             if not ndComments: #we need to add one!
                 ndComments = ndMetadata.newChild(None, cls.sCOMMENTS_ELT, Comments)
@@ -426,7 +429,7 @@ class MultiPageXml(PageXml):
         
         if not( os.path.exists(sToDir) and os.path.isdir(sToDir)): raise ValueError("%s is not a folder"%sToDir)
         
-        for pnum, newDoc in cls.iter_splitMultiPageXml(doc, bInPlace):
+        for pnum, newDoc in cls._iter_splitMultiPageXml(doc, bInPlace):
             #dump the new XML into a file in target folder
             name = sFilenamePattern%pnum
             sFilename = os.path.join(sToDir, name)
@@ -436,8 +439,49 @@ class MultiPageXml(PageXml):
         return lXmlFilename
     splitMultiPageXml = classmethod(splitMultiPageXml)
 
+    # ---  Metadata  -------------------------------------
+    def getMetadata(cls, doc=None, lDomNd=None):
+        """
+        Parse the metadata of the MultiPageXml DOM or of the given Metadata nodes
+        return a list of Metadata object
+        """
+        lDomNd = cls._getMetadataNodeList(doc, lDomNd)
+        return [PageXml.getMetadata(None, domNd) for domNd in lDomNd]
+    getMetadata = classmethod(getMetadata)
 
-    def iter_splitMultiPageXml(cls, doc, bInPlace=True):
+    def setMetadata(cls, doc, lDomNd, Creator, Comments=None):
+        """
+        Pass EITHER a DOM or a Metadata DOM node list!! (and pass None for the other)
+        Set the metadata of the PageXml DOM or of the given Metadata node
+        
+        Update the Created and LastChange fields.
+        Either update the Comments fields or delete it.
+        
+        You MUST indicate the Creator (a string)
+        You MAY give a Comments (a string)
+        The Created field is kept unchanged
+        The LastChange field is automatically set.
+        The Comments field is either updated or deleted.
+        return the Metadata DOM node
+        """
+        lDomNd = cls._getMetadataNodeList(doc, lDomNd)
+        return [PageXml.setMetadata(None, domNd, Creator, Comments) for domNd in lDomNd]
+    setMetadata = classmethod(setMetadata)        
+
+    # ---  Internal  ------------------------------
+    def _getMetadataNodeList(cls, doc=None, lDomNd=None):
+        """
+        Return the list of Metadata node
+        return a non-empty list of DOM nodes 
+        """
+        assert bool(doc) != bool(lDomNd), "Internal error: pass either a DOM or a Metadata node list"  #XOR
+        if doc:
+            lDomNd = cls.getChildByName(doc.getRootElement(), cls.sMETADATA_ELT)
+            if not lDomNd: raise ValueError("PageXml should have at least one %s node"%cls.sMETADATA_ELT)
+        return lDomNd
+    _getMetadataNodeList = classmethod(_getMetadataNodeList)
+    
+    def _iter_splitMultiPageXml(cls, doc, bInPlace=True):
         """
         iterator that splits a multipage PageXml into multiple PageXml DOM
         
@@ -515,7 +559,7 @@ class MultiPageXml(PageXml):
         for doc in lDocToBeFreed: doc.freeDoc()
            
         raise StopIteration
-    iter_splitMultiPageXml = classmethod(iter_splitMultiPageXml)
+    _iter_splitMultiPageXml = classmethod(_iter_splitMultiPageXml)
 
 # ---  Metadata of PageXml  --------------------------------            
 class Metadata:

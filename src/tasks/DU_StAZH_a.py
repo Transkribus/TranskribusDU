@@ -25,7 +25,6 @@
     
 """
 import sys, os
-import glob
 from optparse import OptionParser
 
 try: #to ease the use without proper Python installation
@@ -34,13 +33,10 @@ except ImportError:
     sys.path.append( os.path.dirname(os.path.dirname( os.path.abspath(sys.argv[0]) )) )
     import TranskribusDU_version
 
-from tasks import sCOL, _checkFindColDir, _exit
+from tasks import _checkFindColDir, _exit
 
 from crf.Graph_MultiPageXml_TextRegion import Graph_MultiPageXml_TextRegion
-from crf.FeatureExtractors_PageXml_std import FeatureExtractors_PageXml_StandardOnes
 from crf.Model import ModelException
-from crf.Model_SSVM_AD3 import Model_SSVM_AD3
-from xml_formats.PageXml import MultiPageXml
 
 from DU_CRF_Task import DU_CRF_Task
 
@@ -53,9 +49,26 @@ class DU_StAZH_a(DU_CRF_Task):
     , with the below labels 
     """
 
+    #=== CONFIGURATION ====================================================================
+    Metadata_Creator = "XRCE Document Understanding CRF-based + constraints - v0.1"
+    Metadata_Comments = None
+
     #  0=OTHER        1            2            3        4                5
     TASK_LABELS = ['catch-word', 'header', 'heading', 'marginalia', 'page-number']
 
+    """
+    The constraints must be a list of tuples like ( <operator>, <unaries>, <states>, <negated> )
+    where:
+    - operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
+    - states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
+    - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
+    """
+    lCONSTRAINT_PER_PAGE = [
+           ('ATMOSTONE', 'catch-word', False)   #0 or 1 catch_word per page
+         , ('ATMOSTONE', 'heading', False)      #0 or 1 heading pare page
+         , ('ATMOSTONE', 'page-number', False)  #0 or 1 page number per page
+         ]
+    
     featureExtractorConfig = { 
                         'n_tfidf_node'    : 500
                       , 't_ngrams_node'   : (2,4)
@@ -70,15 +83,18 @@ class DU_StAZH_a(DU_CRF_Task):
                      , 'inference_cache'  : 50
                      , 'tol'              : .1
                      , 'save_every'       : 50     #save every 50 iterations,for warm start
-                     , 'max_iter'         : 60
+                     , 'max_iter'         : 1000
                      }
     
     def getGraphClass(self):
         DU_StAZH_Graph = Graph_MultiPageXml_TextRegion
         DU_StAZH_Graph.setLabelList(self.TASK_LABELS, True)  #True means non-annotated node are of class 0 = OTHER
         traceln("- classes: ", DU_StAZH_Graph.getLabelList())
+        
+        DU_StAZH_Graph.setPageConstraint(self.lCONSTRAINT_PER_PAGE)
         return DU_StAZH_Graph
 
+    #=== END OF CONFIGURATION =============================================================
 
 
 if __name__ == "__main__":
