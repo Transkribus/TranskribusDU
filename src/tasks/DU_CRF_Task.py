@@ -40,19 +40,13 @@ class DU_CRF_Task:
     
     ModelClass = Model_SSVM_AD3
 
-    def __init__(self, bPageConstraint=False): 
+    def __init__(self, dFeatureConfig={}, dLearnerConfig={}): 
         """
         bPageConstraint: Do we predict under some logical constraints or not?
         """
-        self.bPageConstraint = bPageConstraint
-        self.config_kwargs = {}
+        self.config_extractor_kwargs = dFeatureConfig
+        self.config_learner_kwargs = dLearnerConfig
     
-    def configureLearner(self, **kwargs):
-        """
-        To configure the SSVM learner
-        """
-        self.config_kwargs = kwargs
-        
     #----------------------------------------------------------------------------------------------------------    
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
         usage = "%s <model-name> <model-directory> [--trn <col-dir>]+ [--tst <col-dir>]+ [--prd <col-dir>]+"%sys_argv0
@@ -100,15 +94,15 @@ class DU_CRF_Task:
             
         traceln("- creating a %s model"%self.ModelClass)
         mdl = self.ModelClass(sModelName, sModelDir)
-        mdl.configureLearner(**self.config_kwargs)
-        print self.config_kwargs
+        mdl.configureLearner(**self.config_learner_kwargs)
+        mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
+        traceln("\t - configuration: ", self.config_learner_kwargs )
 
         traceln("- retrieving or creating feature extractors...")
         try:
             mdl.loadTransformers(ts_trn)
         except ModelException:
-            fe = FeatureExtractors_PageXml_StandardOnes(self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc
-                                                        , self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc)         
+            fe = FeatureExtractors_PageXml_StandardOnes(**self.config_extractor_kwargs)         
             fe.fitTranformers(lGraph_trn)
             fe.clean_transformers()
             mdl.setTranformers(fe.getTransformers())
@@ -145,11 +139,15 @@ class DU_CRF_Task:
         
         DU_GraphClass = self.getGraphClass()
         
+        lPageConstraint = DU_GraphClass.getPageConstraint()
+        if lPageConstraint: 
+            for dat in lPageConstraint: traceln("\t\t%s"%str(dat))
+            
         traceln("- loading test graphs")
         lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
         traceln(" %d graphs loaded"%len(lGraph_tst))
 
-        if self.bPageConstraint:
+        if lPageConstraint:
             lConstraints = [g.instanciatePageConstraints() for g in lGraph_tst]
             fScore, sReport = mdl.test(lGraph_tst, DU_GraphClass.getLabelList(), lConstraints=lConstraints)
         else:
@@ -174,6 +172,10 @@ class DU_CRF_Task:
         traceln(" done")
         
         DU_GraphClass = self.getGraphClass()
+
+        lPageConstraint = DU_GraphClass.getPageConstraint()
+        if lPageConstraint: 
+            for dat in lPageConstraint: traceln("\t\t%s"%str(dat))
         
         traceln("- loading collection as graphs")
         du_postfix = "_du"+MultiPageXml.sEXT
@@ -182,7 +184,7 @@ class DU_CRF_Task:
             if sFilename.endswith(du_postfix): continue #:)
             [g] = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
             
-            if self.bPageConstraint:
+            if lPageConstraint:
                 traceln("\t- prediction with logical constraints: %s"%sFilename)
                 constraints = g.instanciatePageConstraints()
                 Y = mdl.predict(g, constraints=constraints)

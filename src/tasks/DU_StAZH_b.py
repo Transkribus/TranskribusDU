@@ -69,16 +69,22 @@ class DU_StAZH_b(DU_CRF_Task):
          , ('ATMOSTONE', 'page-number', False)  #0 or 1 page number per page
          ]
     
-    n_tfidf_node    = 500
-    t_ngrams_node   = (2,4)
-    b_tfidf_node_lc = False    
-    n_tfidf_edge    = 250
-    t_ngrams_edge    = (2,4)
-    b_tfidf_edge_lc = False    
+    featureExtractorConfig = { 
+                        'n_tfidf_node'    : 500
+                      , 't_ngrams_node'   : (2,4)
+                      , 'b_tfidf_node_lc' : False    
+                      , 'n_tfidf_edge'    : 250
+                      , 't_ngrams_edge'   : (2,4)
+                      , 'b_tfidf_edge_lc' : False    
+                      }
 
-    
-    def __init__(self): 
-        DU_CRF_Task.__init__(self, True)    #True because we want to enforce some constraint at page-level
+    learnerConfig = { 'C'                 : .1 
+                     , 'njobs'            : 4
+                     , 'inference_cache'  : 50
+                     , 'tol'              : .1
+                     , 'save_every'       : 50     #save every 50 iterations,for warm start
+                     , 'max_iter'         : 60
+                     }
     
     def getGraphClass(self):
         DU_StAZH_Graph = Graph_MultiPageXml_TextRegion
@@ -99,35 +105,14 @@ if __name__ == "__main__":
     #parse the command line
     (options, args) = parser.parse_args()
     # --- 
-#     try:    sDir = args.pop(0)
-#     except: _exit(usage, 1)
-#     sColDir = _checkFindColDir(sDir)
-#     
-#     sTopDir = "C:\\Local\\meunier\\git\\TranskribusDU\\usecases\\StAZH\\"
-#     if False:
-#         doer = DU_StAZH_a()
-#         doer.train_test("DU_StAZH_a", "c:\\tmp_READ"
-#                         , [sTopDir+"trnskrbs_3820\\col"]
-#                         , [sTopDir+"trnskrbs_3832\\col"])
-#     
-#     if True:
-#         doer = DU_StAZH_a()
-#         doer.test("DU_StAZH_a", "c:\\tmp_READ"
-#                         , [sTopDir+"trnskrbs_3832\\col"])
-#     
-#     if True:
-#         doer = DU_StAZH_a()
-#         doer.predict("DU_StAZH_a", "c:\\tmp_READ"
-# #                         , [sTopDir+"trnskrbs_3829\\col"])
-#                         , [sTopDir+"trnskrbs_3989\\col"])
-#                                 
     try:
         sModelName, sModelDir = args
     except Exception as e:
         _exit(usage, 1, e)
         
-    doer = DU_StAZH_b()
-    
+    doer = DU_StAZH_b(dFeatureConfig=DU_StAZH_b.featureExtractorConfig
+                      , dLearnerConfig=DU_StAZH_b.learnerConfig)
+
     #Add the "col" subdir if needed
     lTrn, lTst, lRun = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun]]
 
@@ -138,5 +123,5 @@ if __name__ == "__main__":
     
     if lRun:
         lsOutputFilename = doer.predict(sModelName, sModelDir, lRun)
-        #traceln("Done, see in:\n  %s"%lsOutputFilename)
+        traceln("Done, see in:\n  %s"%lsOutputFilename)
     
