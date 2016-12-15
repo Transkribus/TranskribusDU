@@ -9,9 +9,11 @@ Various utilities to deal with PageXml format
 @author: meunier
 '''
 import os
+import datetime
 
 import libxml2
 from ipaddress import AddressValueError
+from sympy.physics.secondquant import Creator
 
 class PageXml:
     '''
@@ -27,6 +29,12 @@ class PageXml:
     #XML schema loaded once for all
     cachedValidationContext = None  
     
+    sMETADATA_ELT   = "Metadata"
+    sCREATOR_ELT        = "Creator"
+    sCREATED_ELT        = "Created"
+    sLAST_CHANGE_ELT    = "LastChange"
+    sCOMMENTS_ELT       = "Comments"
+
     sCUSTOM_ATTR = "custom"
     
     sEXT = ".pxml"
@@ -62,9 +70,62 @@ class PageXml:
         return filename
     getSchemaFilename = classmethod(getSchemaFilename)
     
+    # ---  Metadata  -------------------------------------
+    """
+    <complexType name="MetadataType">
+        <sequence>
+            <element name="Creator" type="string"></element>
+            <element name="Created" type="dateTime">
+                <annotation>
+                    <documentation>The timestamp has to be in UTC (Coordinated Universal Time) and not local time.</documentation></annotation></element>
+            <element name="LastChange" type="dateTime">
+                <annotation>
+                    <documentation>The timestamp has to be in UTC (Coordinated Universal Time) and not local time.</documentation></annotation></element>
+            <element name="Comments" type="string" minOccurs="0"
+                maxOccurs="1"></element>
+        </sequence>
+    </complexType>
+    """
+    
+    def getMetadata(cls, doc=None, domNd=None):
+        """
+        Parse the metadata of the PageXml DOM or of the given Metadata node
+        input is a PageXml DOM
+        return a Metadata object
+        """
+        _, ndCreator, ndCreated, ndLastChange, ndComments = cls._getMetadataNodes(doc, domNd)
+        return Metadata(ndCreator.getContent()
+                        , ndCreated.getContent()
+                        , ndLastChange.getContent()
+                        , None if not ndComments else ndComments.getContent())
+    getMetadata = classmethod(getMetadata)
+
+    def setMetadata(cls, doc, domNd, Creator, Comments=None):
+        """
+        Pass EITHER a DOM or a Metadat DOM node!! (and pass None for the other)
+        Set the metadata of the PageXml DOM or of the given Metadata node
+        
+        Update the Created and LastChange fields.
+        Either update the Comments fields or delete it.
+        
+        You MUST indicate the Creator (a string)
+        You MAY give a Comments (a string)
+        The Created field is kept unchanged
+        The LastChange field is automatically set.
+        The Comments field is either updated or deleted.
+        return the Metadata DOM node
+        """
+        ndMetadata, ndCreator, ndCreated, ndLastChange, ndComments = cls._getMetadataNodes(doc, domNd)
+        ndCreator.setContent(Creator)
+        ndLastChange.setContent(datetime.datetime.utcnow().isoformat())
+        if Comments != None:
+            if not ndComments: #we need to add one!
+                ndComments = ndMetadata.newChild(None, cls.sCOMMENTS_ELT, Comments)
+            ndComments.setContent(Comments)
+        return ndMetadata
+    setMetadata = classmethod(setMetadata)        
     
     # ---  Xml stuff -------------------------------------
-    #TODO :   test it!!!            
     def getChildByName(cls, elt, sChildName):
         """
         look for all child elements having that name in PageXml namespace!!!
@@ -74,7 +135,7 @@ class PageXml:
         ctxt = elt.doc.xpathNewContext()
         ctxt.xpathRegisterNs("pc", cls.NS_PAGE_XML)  
         ctxt.setContextNode(elt)
-        lNd = ctxt.xpathEvalExpr(".//pc:%s"%sChildName)
+        lNd = ctxt.xpathEval(".//pc:%s"%sChildName)
         ctxt.xpathFreeContext()
         return lNd
     getChildByName = classmethod(getChildByName)
@@ -236,6 +297,30 @@ class PageXml:
         ctxt.xpathFreeContext()   
         return ret
     rmPrefix = classmethod(rmPrefix)
+
+    def _getMetadataNodes(cls, doc=None, domNd=None):
+        """
+        Parse the metadata of the PageXml DOM or of the given Metadata node
+        return a 4-tuple:
+            DOM nodes of Metadata, Creator, Created, Last_Change, Comments (or None if no COmments)
+        """
+        assert bool(doc) != bool(domNd), "Internal error: pass either a DOM or a Metadata node"  #XOR
+        if doc:
+            lNd = cls.getChildByName(doc.getRootElement(), cls.sMETADATA_ELT)
+            if len(lNd) != 1: raise ValueError("PageXml should have exactly one %s node"%cls.sMETADATA_ELT)
+            domNd = lNd[0]
+            assert domNd.name == cls.sMETADATA_ELT
+        nd1 = domNd.firstElementChild()
+        if nd1.name != cls.sCREATOR_ELT: raise ValueError("PageXMl mal-formed Metadata: Creator element must be 1st element")
+        nd2 = nd1.nextElementSibling()
+        if nd2.name != cls.sCREATED_ELT: raise ValueError("PageXMl mal-formed Metadata: Created element must be 2nd element")
+        nd3 = nd2.nextElementSibling()
+        if nd3.name != cls.sLAST_CHANGE_ELT: raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
+        nd4 = nd3.nextElementSibling()
+        if nd4:
+            if nd4.name != cls.sCOMMENTS_ELT: raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
+        return domNd, nd1, nd2, nd3, nd4
+    _getMetadataNodes = classmethod(_getMetadataNodes)
 
     # ---  Geometry -------------------------------------            
     def getPointList(cls, data):
@@ -432,3 +517,30 @@ class MultiPageXml(PageXml):
         raise StopIteration
     iter_splitMultiPageXml = classmethod(iter_splitMultiPageXml)
 
+# ---  Metadata of PageXml  --------------------------------            
+class Metadata:
+    
+    """
+    <complexType name="MetadataType">
+        <sequence>
+            <element name="Creator" type="string"></element>
+            <element name="Created" type="dateTime">
+                <annotation>
+                    <documentation>The timestamp has to be in UTC (Coordinated Universal Time) and not local time.</documentation></annotation></element>
+            <element name="LastChange" type="dateTime">
+                <annotation>
+                    <documentation>The timestamp has to be in UTC (Coordinated Universal Time) and not local time.</documentation></annotation></element>
+            <element name="Comments" type="string" minOccurs="0"
+                maxOccurs="1"></element>
+        </sequence>
+    </complexType>
+    """
+    
+    def __init__(self, Creator, Created, LastChange, Comments=None):
+        self.Creator    = Creator           # a string
+        self.Created    = Created           # a string
+        self.LastChange = LastChange        # a string
+        self.Comments   = Comments          #None or a string
+        
+    
+    
