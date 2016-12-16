@@ -48,9 +48,16 @@ class DS2PageXMLConvertor(Component):
         self.dpi = 300
 
         self.xrce_id=10000        
+        
+        self.storagePath = ''
+        
         self.dTagNameMapping = {'PAGE':'Page','TEXT':'TextLine', 'BLOCK':'TextRegion','GRAPHELT':'LineDrawingRegion'} 
 
         self.pageXmlNS = None
+    
+    def setDPI(self,v): self.dpi=v
+    
+    def setStoragePath(self,p): self.storagePath=p
 
     def getCoord(self,DSObject):
         """
@@ -143,7 +150,10 @@ class DS2PageXMLConvertor(Component):
             write on disc the list of dom 
         """
         for i,(doc,img) in enumerate(lListIfDoc):
-            self.outputFileName = os.path.dirname(self.inputFileName)+os.sep+img[:-3]+"_%.4d"%(i+1) + ".xml"
+            if self.storagePath == "":
+                self.outputFileName = os.path.dirname(self.inputFileName)+os.sep+img[:-3]+"_%.4d"%(i+1) + ".xml"
+            else:
+                self.outputFile = self.storagePath + os.sep+img[:-3]+"_%.4d"%(i+1) + ".xml"
             print "output: %s" % self.outputFileName
             try:self.writeDom(doc, bIndent=True)
             except IOError:return -1            
