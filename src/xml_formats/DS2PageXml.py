@@ -64,6 +64,13 @@ class DS2PageXMLConvertor(Component):
             return self.BB2Polylines(DSObject.getX(), DSObject.getY(),DSObject.getHeight(), DSObject.getWidth())
         
     def BB2Polylines(self,x,y,h,w):
+        """
+            convert BB values to polylines coords
+        """
+        # schema does not support neg int
+        if x <0: x = abs(x)  
+        if y <0: y = abs(y)
+        
         lx= map(lambda x:1.0*x*self.dpi/72.0, ( x,y, x+w,y, x+w,y+h, x,y+h, x,y))
         myPoints = ' '.join(["%d,%d"%(xa,ya) for xa,ya  in zip(lx[0::2], lx[1::2])])
         return myPoints    
@@ -130,7 +137,18 @@ class DS2PageXMLConvertor(Component):
             self.convertDSObject(DSObject,pageXmlPageNODE)
         
         # get table elements
-        
+    
+    def storePageXmlSetofFiles(self,lListIfDoc):
+        """
+            write on disc the list of dom 
+        """
+        for i,(doc,img) in enumerate(lListIfDoc):
+            self.outputFileName = os.path.dirname(self.inputFileName)+os.sep+img[:3]+"_%.4d"%(i+1) + ".xml"
+            print "output: %s" % self.outputFileName
+            try:self.writeDom(doc, bIndent=True)
+            except IOError:return -1            
+        return 0
+    
     def run(self,domDoc):
         """
             conversion
@@ -139,19 +157,18 @@ class DS2PageXMLConvertor(Component):
         ODoc.loadFromDom(domDoc)
         lPageXmlDoc=[]
         lPages= ODoc.getPages()   
-        for inumpage,page in enumerate(lPages[:1]):
+        for page in lPages:
             pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='XRCE', filename = page.getAttribute('imageFilename'), imgW = int(round(page.getWidth(),0)), imgH = int(round(page.getHeight(),0)))
             self.pageXmlNS = pageXmlDoc.getRootElement().ns()
             self.convertDSPage(page,pageNode)
             #store pageXml
-            lPageXmlDoc.append(pageXmlDoc)
+            lPageXmlDoc.append((pageXmlDoc,page.getAttribute('imageFilename')))
 #             print pageXmlDoc.serialize('UTF-8', 1)
             res= PageXml.validate(pageXmlDoc.doc)
             print "document is valid:", res 
-            self.outputFileName = os.path.dirname(self.inputFileName)+os.sep+os.path.basename(page.getAttribute('imageFilename'))+"_%.4d"%(inumpage+1) + ".xml"
-            print "output:[%s]",self.outputFileName
-            self.writeDom(pageXmlDoc, bIndent=True)
         
+        return lPageXmlDoc
+    
 if __name__ == "__main__":
     
     

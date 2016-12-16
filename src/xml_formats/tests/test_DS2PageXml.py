@@ -15,11 +15,9 @@ def test_DS2PageXmlConversion():
     conv= DS2PageXMLConvertor()
     conv.inputFileName = filename
     doc = conv.loadDom(filename)
-    pageXml = conv.run(doc)
-#     conv.outputFileName = outputDir+os.sep+ filename[:len(".ds.xml")].xml
-#     print "output files"
-#     conv.writeDom(pageXml,bIndent=True)
-    
+    lPageXmlDocs = conv.run(doc)
+    res= conv.storePageXmlSetofFiles(lPageXmlDocs)
+    print 'test:', True if res == 0  else False
     
 if __name__ == "__main__":
 #     test_setMetadata()
