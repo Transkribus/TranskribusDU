@@ -14,7 +14,7 @@ Copyright Xerox 2016
 
 import collections, types
 
-from common.trace import trace, traceln
+from common.trace import traceln
 
 import Edge
 # from Edge import CrossPageEdge, HorizontalEdge, VerticalEdge
@@ -47,8 +47,12 @@ class Block:
         self.sconf = "" #new in v08
         
         #neighbouring relationship
-        self.lNeighbor      = None
+        self.lHNeighbor     = None
+        self.lVNeighbor     = None
         self.lCPNeighbor    = None
+
+        #container
+        self.page = None
 
     def setFontSize(self, fFontSize):
         self.fontsize = fFontSize
@@ -59,6 +63,11 @@ class Block:
         """
         self.node = None
     
+    def getText(self, iTruncate=None):
+        if iTruncate:
+            return self.text[:min(len(self.text), iTruncate)]
+        else:
+            return self.text
     ##Bounding box methods: getter/setter + geometrical stuff
     def getBB(self):
         return self.x1, self.y1, self.x2, self.y2
@@ -222,23 +231,6 @@ class Block:
         return lHEdge, lVEdge
     findPageNeighborEdges = classmethod(findPageNeighborEdges)
     
-    def collectNeighbors(self, lNode, lEdge):
-        """
-        record the lists of same- and cross-page neighbours for each node
-        """
-        for blk in lNode:
-            blk.lNeighbor = list()
-            blk.lCPNeighbor = list()        
-        for edge in lEdge:
-            a, b = edge.A, edge.B
-            if isinstance(edge, Edge.CrossPageEdge):
-                a.lCPNeighbor.append(b)
-                b.lCPNeighbor.append(a)
-            else:
-                a.lNeighbor.append(b)
-                b.lNeighbor.append(a)                
-                assert isinstance(edge, Edge.HorizontalEdge) or isinstance(edge, Edge.VerticalEdge)
-    
     # ---- Internal stuff ---
     def findConsecPageOverlapEdges(cls, lPrevPageEdgeBlk, lPageBlk, epsilon = 1):
         """
@@ -372,20 +364,21 @@ class Block:
                         ovABx1, ovABx2 = cls.XXOverlap( (Ax1,Ax2), (Bx1, Bx2) )
                         if ovABx1 < ovABx2: #overlap
                             #we now check if that B block is not partially hidden by a previous overlapping block
-                            bHidden = False
+                            bVisible = True
                             for ovOx1, ovOx2 in lOx1x2:
                                 oox1, oox2 = cls.XXOverlap( (ovABx1, ovABx2), (ovOx1, ovOx2) )
                                 if oox1 < oox2:
-                                    bHidden = True  
+                                    bVisible = False  
                                     break
-                            if not bHidden: 
+                            if bVisible: 
+                                length = abs(B.y1 - A.y2)
                                 if bShortOnly:
                                     #we need to measure how far this block is from A
                                     #we use the height attribute (not changed by the rotation)
-                                    if abs(B.y1 - A.y2) < A_height: 
-                                        lVEdge.append( EdgeClass(A, B) )
+                                    if length < A_height: 
+                                        lVEdge.append( EdgeClass(A, B, length) )
                                 else:
-                                    lVEdge.append( EdgeClass(A, B) )
+                                    lVEdge.append( EdgeClass(A, B, length) )
                                 
                             lOx1x2.append( (ovABx1, ovABx2) ) #an hidden object may hide another one
                             #optimization to see when block A has been entirely "covered"

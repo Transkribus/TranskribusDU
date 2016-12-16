@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    First DU task for StAZH
+    Second DU task for StAZH, use of constraints
     
     Copyright Xerox(C) 2016 JL. Meunier
 
@@ -42,13 +42,13 @@ from DU_CRF_Task import DU_CRF_Task
 
 from common.trace import traceln
  
-class DU_StAZH_a(DU_CRF_Task):
+class DU_StAZH_b(DU_CRF_Task):
     """
     We will do a CRF model for a DU task
     , working on a MultiPageXMl document at TextRegion level
     , with the below labels 
     """
-
+    
     #=== CONFIGURATION ====================================================================
     Metadata_Creator = "XRCE Document Understanding CRF-based + constraints - v0.1"
     Metadata_Comments = None
@@ -77,7 +77,7 @@ class DU_StAZH_a(DU_CRF_Task):
                       , 't_ngrams_edge'   : (2,4)
                       , 'b_tfidf_edge_lc' : False    
                       }
-    
+
     learnerConfig = { 'C'                 : .1 
                      , 'njobs'            : 4
                      , 'inference_cache'  : 50
@@ -94,7 +94,7 @@ class DU_StAZH_a(DU_CRF_Task):
         DU_StAZH_Graph.setPageConstraint(self.lCONSTRAINT_PER_PAGE)
         return DU_StAZH_Graph
 
-    #=== END OF CONFIGURATION =============================================================
+    #=== END OF CONFIGURATION =======================
 
 
 if __name__ == "__main__":
@@ -111,9 +111,9 @@ if __name__ == "__main__":
     except Exception as e:
         _exit(usage, 1, e)
         
-    doer = DU_StAZH_a(dFeatureConfig=DU_StAZH_a.featureExtractorConfig
-                      , dLearnerConfig=DU_StAZH_a.learnerConfig)
-    
+    doer = DU_StAZH_b(dFeatureConfig=DU_StAZH_b.featureExtractorConfig
+                      , dLearnerConfig=DU_StAZH_b.learnerConfig)
+
     #Add the "col" subdir if needed
     lTrn, lTst, lRun = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun]]
 

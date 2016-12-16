@@ -11,14 +11,12 @@ Copyright Xerox 2016
 
 '''
 
-from common.trace import trace, traceln
-
 import Block
 
 DEBUG=0
 DEBUG=1
 
-
+# --- Edge CLASSE -----------------------------------------
 class Edge:
         
     def __init__(self, A, B):
@@ -27,8 +25,14 @@ class Edge:
         """
         self.A = A
         self.B = B
-       
- 
+        
+    def __str__(self):
+        n = 15  #show only the n leading characters of each node
+        if True:
+            return "Edge %s p%d-p%d %s --> %s" %(self.__class__, self.A.pnum, self.B.pnum, self.A.getText(n), self.B.getText(n))
+        else:
+            return "Edge %s p%d-p%d %s -->\n\t %s" %(self.__class__, self.A.pnum, self.B.pnum, self.A, self.B)
+
     # ------------------------------------------------------------------------------------------------------------------------------------        
     #specific code for the CRF graph
     def computeEdges(cls, lPrevPageEdgeBlk, lPageBlk, bShortOnly=False):
@@ -70,13 +74,21 @@ class Edge:
                 ndA.setProp(sAttr,                         sPolyLine)
         return
     dbgStorePolyLine = classmethod(dbgStorePolyLine)
+
+
     
-class HorizontalEdge(Edge): pass    
-    
-class VerticalEdge(Edge): pass    
+    # --- Edge SUB-CLASSES ------------------------------------
+class SamePageEdge(Edge):
+    def __init__(self, A, B, length):
+        Edge.__init__(self, A, B)
+        self.length = length
 
 class CrossPageEdge(Edge): pass    
 
 class VirtualEdge(Edge): pass    
-    
-    
+
+# --- SamePageEdge SUB-CLASSES ----------------------------
+class HorizontalEdge(SamePageEdge): pass
+
+class VerticalEdge(SamePageEdge): pass    
+

@@ -25,7 +25,7 @@
     
 """
 import os
-import cPickle, gzip
+import cPickle, gzip, json
 
 import numpy as np
 
@@ -71,7 +71,7 @@ class Model:
     
     def configureLearner(self, **kwargs):
         """
-        TO configure the learner
+        To configure the learner: pass a dictionary using the ** argument-passing method
         """
         raise Exception("Method must be overridden")
         
@@ -80,6 +80,8 @@ class Model:
         return os.path.join(self.sDir, self.sName+"_model.pkl")
     def getTransformerFilename(self):
         return os.path.join(self.sDir, self.sName+"_transf.pkl")
+    def getConfigurationFilename(self):
+        return os.path.join(self.sDir, self.sName+"_config.json")
     
     def load(self):
         """
@@ -145,6 +147,16 @@ class Model:
         self.gzip_cPickle_dump(sTransfFile, (self.node_transformer, self.edge_transformer))
         return sTransfFile
         
+    def saveConfiguration(self, config_data):
+        """
+        Save the configuration on disk
+        return the filename
+        """
+        sConfigFile = self.getConfigurationFilename()
+        with open(sConfigFile, "wb") as fd:
+            json.dump(config_data, fd, indent=4, sort_keys=True)
+        return sConfigFile
+        
     def loadTransformers(self, expiration_timestamp=0):
         """
         Look on disk for some already fitted transformers, and load them 
@@ -182,16 +194,20 @@ class Model:
         """
         raise Exception("Method must be overridden")
 
-    def test(self, lGraph, lsClassName=None):
+    def test(self, lGraph, lsClassName=None, lConstraints=[]):
         """
         Test the model using those graphs and report results on stderr
+        lConstraints may contain a list of logical constraints per graph.
+        This list has the form: [(logical-operator, indices, state, negated), ...]
+        
         Return the textual report
         """
         raise Exception("Method must be overridden")
 
-    def predict(self, graph):
+    def predict(self, graph, constraints=None):
         """
         predict the class of each node of the graph
+        constraints may contain a list of logical constraints of the form: [(logical-operator, indices, state, negated), ...]
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
         """
         raise Exception("Method must be overridden")

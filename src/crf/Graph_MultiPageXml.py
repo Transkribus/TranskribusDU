@@ -39,8 +39,6 @@ from Label_PageXml import Label_PageXml
 from xml_formats.PageXml import PageXml
 from util.Polygon import Polygon
 
-from common.trace import traceln
-
 # from ..xml_formats.PageXml import PageXml 
 
 TEST_getPageXmlBlock = None
@@ -118,12 +116,12 @@ class Graph_MultiPageXml(Graph, Label_PageXml):
         lNdPage = ctxt.xpathEval(sxpPage)   #all pages
         
         pnum = 0
+        pagecnt = len(lNdPage)
         for ndPage in lNdPage:
             pnum += 1
-            bEven = (pnum%2==0)
             iPageWidth  = int( ndPage.prop("imageWidth") )
             iPageHeight = int( ndPage.prop("imageHeight") )
-            page = Page(pnum, iPageWidth, iPageHeight, cls=None, domnode=ndPage, domid=ndPage.prop("id"))
+            page = Page(pnum, pagecnt, iPageWidth, iPageHeight, cls=None, domnode=ndPage, domid=ndPage.prop("id"))
             lNode = []
             ctxt.setContextNode(ndPage)
             lNdBlock = ctxt.xpathEval(sxpNode) #all relevant nodes of the page

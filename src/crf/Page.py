@@ -14,12 +14,13 @@ Copyright Xerox 2016
 
 class Page:
         
-    def __init__(self, pnum, w, h, cls=None, domnode=None, domid=None):
+    def __init__(self, pnum, pagecnt, w, h, cls=None, domnode=None, domid=None):
         """
         pnum is an int
         cls is the node label, is an int in N+
         """
         self.pnum = int(pnum)
+        self.pagecnt = pagecnt    #part of a document of this number of pages
         self.w = w
         self.h = h
         self.node = domnode
@@ -27,9 +28,6 @@ class Page:
         self.cls = cls #the class of the block, in [0, N]
         
         self.bEven = (pnum%2 == 0)
-#         #neighbouring relationship
-#         self.lNeighbor      = None
-#         self.lCPNeighbor    = None
 
     def detachFromDOM(self): 
         """

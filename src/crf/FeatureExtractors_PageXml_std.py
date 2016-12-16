@@ -33,15 +33,15 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from crf.Transformer import SparseToDense
-from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH, Node1HotFeatures
-from crf.Transformer_PageXml import Edge1HotFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
+from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH, NodeTransformerNeighbors, Node1HotFeatures
+from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
 from FeatureExtractors import FeatureExtractors
 
 class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
-    def __init__(self, n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
-                     , n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc): 
+    def __init__(self, n_tfidf_node=None, t_ngrams_node=None, b_tfidf_node_lc=None
+                     , n_tfidf_edge=None, t_ngrams_edge=None, b_tfidf_edge_lc=None): 
         FeatureExtractors.__init__(self)
         
         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
@@ -72,6 +72,11 @@ class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
                                                          ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
                                                          ])
                                        )
+                                    , ("neighbors", Pipeline([
+                                                         ('selector', NodeTransformerNeighbors()),
+                                                         ('neighbors', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ])
+                                       )
                                     , ("1hot", Pipeline([
                                                          ('1hot', Node1HotFeatures())  #does the 1-hot encoding directly
                                                          ])
@@ -92,9 +97,12 @@ class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
                                       ])
     
         lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see clean_transformers method!!!!
-                                      ("boolean", Pipeline([
-#                                                          ('boolean', Edge1HotFeatures(Dodge.DodgePlan.plan_GraphML_Sequence.PageNumberSequenciality()))
-                                                         ('boolean', Edge1HotFeatures(PageNumberSimpleSequenciality()))
+                                      ("1hot", Pipeline([
+                                                         ('1hot', Edge1HotFeatures(PageNumberSimpleSequenciality()))
+                                                         ])
+                                        )
+                                    , ("boolean", Pipeline([
+                                                         ('boolean', EdgeBooleanFeatures())
                                                          ])
                                         )
                                     , ("numerical", Pipeline([

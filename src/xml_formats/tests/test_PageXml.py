@@ -74,3 +74,76 @@ def test_getsetCustomAttr():
     with pytest.raises(KeyError): PageXml.getCustomAttr(nd, "readingOrder", "axiste_pas")
     with pytest.raises(KeyError): PageXml.getCustomAttr(nd, "axiste_pas_non_plus", "axiste_pas")
     
+def getMetadataTestDOM():
+    import libxml2
+    sXml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd">
+            <Metadata>
+                <Creator>Tilla</Creator>
+                <Created>2016-08-18T13:35:08.252+07:00</Created>
+                <LastChange>2016-12-01T09:53:39.610+01:00</LastChange>
+            </Metadata>
+            <Page imageFilename="MM_1_001_001.jpg" imageWidth="1277" imageHeight="3518" type="other">
+                <ReadingOrder>
+                    <OrderedGroup id="p1_ro_1480582418139" caption="Regions reading order">
+                        <RegionRefIndexed index="0" regionRef="region_1471502505726_2"/>
+                        <RegionRefIndexed index="1" regionRef="region_1471502509664_3"/>
+                        <RegionRefIndexed index="2" regionRef="region_1471502512664_4"/>
+                        <RegionRefIndexed index="3" regionRef="region_1471502516586_5"/>
+                        <RegionRefIndexed index="4" regionRef="region_1471502522320_6"/>
+                        <RegionRefIndexed index="5" regionRef="region_1471502528414_7"/>
+                        <RegionRefIndexed index="6" regionRef="region_1471502534742_8"/>
+                        <RegionRefIndexed index="7" regionRef="region_1471502539352_9"/>
+                        <RegionRefIndexed index="8" regionRef="region_1471502542539_10"/>
+                        <RegionRefIndexed index="9" regionRef="region_1471502547211_11"/>
+                        <RegionRefIndexed index="10" regionRef="region_1471502550274_12"/>
+                        <RegionRefIndexed index="11" regionRef="region_1480582401040_1"/>
+                    </OrderedGroup>
+                </ReadingOrder>
+            </Page>
+        </PcGts>"""
+    doc = libxml2.parseMemory(sXml, len(sXml))
+    return doc
+
+def test_getMetadata():
+    doc = getMetadataTestDOM()
+    nd = doc.getRootElement()
+    
+    md = PageXml.getMetadata(doc)
+    assert md.Creator == "Tilla"
+    assert md.Created == "2016-08-18T13:35:08.252+07:00"
+    assert md.LastChange == "2016-12-01T09:53:39.610+01:00"
+    assert md.Comments == None
+   
+    md = PageXml.getMetadata(None, nd.firstElementChild())
+    assert md.Creator == "Tilla"
+    assert md.Created == "2016-08-18T13:35:08.252+07:00"
+    assert md.LastChange == "2016-12-01T09:53:39.610+01:00"
+    
+def test_setMetadata():
+    import datetime
+    doc = getMetadataTestDOM()
+
+    nd = doc.getRootElement()
+    sutc = datetime.datetime.utcnow().isoformat()
+    PageXml.setMetadata(doc, None, "Tigrette")
+    
+    sutc = datetime.datetime.utcnow().isoformat()
+    md = PageXml.getMetadata(doc)
+    assert md.Creator == "Tigrette"
+    assert md.Created == "2016-08-18T13:35:08.252+07:00"
+    assert md.LastChange.startswith(sutc[:15])
+    assert md.Comments == None
+    print doc
+   
+    sutc = datetime.datetime.utcnow().isoformat()
+    PageXml.setMetadata(doc, None, "Bijoux", "Le chat de Martine")
+    md = PageXml.getMetadata(None, nd.firstElementChild())
+    assert md.Creator == "Bijoux"
+    assert md.Created == "2016-08-18T13:35:08.252+07:00"
+    assert md.LastChange.startswith(sutc[:15])
+    assert md.Comments == "Le chat de Martine"
+    print doc
+    
+if __name__ == "__main__":
+    test_setMetadata()

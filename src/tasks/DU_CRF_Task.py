@@ -37,30 +37,43 @@ from xml_formats.PageXml import MultiPageXml
 
 
 class DU_CRF_Task:
+    """
+USAGE:
+- Sub-class this class and specialise:
+    - ModelClass (class): set the learner+inference methods. As of Dec 2016, only Model_SSVM_AD3 is available. So do not change...
+    - sMetadata_Creator (string): will appear in the metadata of the MultiPageXml or PageXml XML files 
+    - sMetadata_Comments (string): idem
+    - getGraphClass (method): return the Graph class, making sure it defines the labels relevant to the tasks
+                                , and optionally the constraints
+- create an instance of the sub-class    
+
+See DU_StAZH_b.py
+
+    """
     
     ModelClass = Model_SSVM_AD3
+    
+    sMetadata_Creator = "XRCE Document Understanding CRF-based - v0.1"
+    sMetadata_Comments = None
 
-    def __init__(self, bPageConstraint=False): 
+    def __init__(self, dFeatureConfig={}, dLearnerConfig={}): 
         """
         bPageConstraint: Do we predict under some logical constraints or not?
         """
-        self.bPageConstraint = bPageConstraint
-        self.config_kwargs = {}
+        self.config_extractor_kwargs = dFeatureConfig
+        self.config_learner_kwargs = dLearnerConfig
+
+    def getGraphClass(self):
+        raise Exception("Method must be overridden")
     
-    def configureLearner(self, **kwargs):
-        """
-        To configure the SSVM learner
-        """
-        self.config_kwargs = kwargs
-        
-    #----------------------------------------------------------------------------------------------------------    
+    #---  WHAT IS BELOW IS GENERIC  -------------------------------
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
         usage = "%s <model-name> <model-directory> [--trn <col-dir>]+ [--tst <col-dir>]+ [--prd <col-dir>]+"%sys_argv0
         description = """ 
-    Train or test the given model or predict using the given model.
-    The data is given as a list of DS directories.
-    The model is loaded from or saved to the model directory. The model parameters are taken from a Python module named after the model.
-    """
+        Train or test the given model or predict using the given model.
+        The data is given as a list of DS directories.
+        The model is loaded from or saved to the model directory. The model parameters are taken from a Python module named after the model.
+        """
     
         #prepare for the parsing of the command line
         parser = OptionParser(usage=usage, version=version)
@@ -100,15 +113,15 @@ class DU_CRF_Task:
             
         traceln("- creating a %s model"%self.ModelClass)
         mdl = self.ModelClass(sModelName, sModelDir)
-        mdl.configureLearner(**self.config_kwargs)
-        print self.config_kwargs
+        mdl.configureLearner(**self.config_learner_kwargs)
+        mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
+        traceln("\t - configuration: ", self.config_learner_kwargs )
 
         traceln("- retrieving or creating feature extractors...")
         try:
             mdl.loadTransformers(ts_trn)
         except ModelException:
-            fe = FeatureExtractors_PageXml_StandardOnes(self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc
-                                                        , self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc)         
+            fe = FeatureExtractors_PageXml_StandardOnes(**self.config_extractor_kwargs)         
             fe.fitTranformers(lGraph_trn)
             fe.clean_transformers()
             mdl.setTranformers(fe.getTransformers())
@@ -145,15 +158,25 @@ class DU_CRF_Task:
         
         DU_GraphClass = self.getGraphClass()
         
+        lPageConstraint = DU_GraphClass.getPageConstraint()
+        if lPageConstraint: 
+            for dat in lPageConstraint: traceln("\t\t%s"%str(dat))
+            
         traceln("- loading test graphs")
         lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
         traceln(" %d graphs loaded"%len(lGraph_tst))
 
-        fScore, sReport = mdl.test(lGraph_tst, DU_GraphClass.getLabelList())
-        
+        if lPageConstraint:
+            lConstraints = [g.instanciatePageConstraints() for g in lGraph_tst]
+            fScore, sReport = mdl.test(lGraph_tst, DU_GraphClass.getLabelList(), lConstraints=lConstraints)
+        else:
+            fScore, sReport = mdl.test(lGraph_tst, DU_GraphClass.getLabelList())
         return fScore, sReport
 
     def predict(self, sModelName, sModelDir, lsColDir):
+        """
+        Return the list of produced files
+        """
         traceln("-"*50)
         traceln("Trained model '%s' in folder '%s'"%(sModelName, sModelDir))
         traceln("Collection(s):", lsColDir)
@@ -168,28 +191,37 @@ class DU_CRF_Task:
         traceln(" done")
         
         DU_GraphClass = self.getGraphClass()
+
+        lPageConstraint = DU_GraphClass.getPageConstraint()
+        if lPageConstraint: 
+            for dat in lPageConstraint: traceln("\t\t%s"%str(dat))
         
-        traceln("- loading collection as graphs")
+        traceln("- loading collection as graphs, and processing each in turn. (%d files)"%len(lFilename))
         du_postfix = "_du"+MultiPageXml.sEXT
+        lsOutputFilename = []
         for sFilename in lFilename:
             if sFilename.endswith(du_postfix): continue #:)
             [g] = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
             
-            if self.bPageConstraint:
+            if lPageConstraint:
+                traceln("\t- prediction with logical constraints: %s"%sFilename)
                 constraints = g.instanciatePageConstraints()
                 Y = mdl.predict(g, constraints=constraints)
             else:
+                traceln("\t- prediction : %s"%sFilename)
                 Y = mdl.predict(g)
                 
             doc = g.setDomLabels(Y)
+            MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
             sDUFilename = sFilename[:-len(MultiPageXml.sEXT)]+du_postfix
             doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
             doc.freeDoc()
             del Y, g
             traceln("\t done")
+            lsOutputFilename.append(sDUFilename)
         traceln(" done")
 
-        return
+        return lsOutputFilename
 
     #----------------------------------------------------------------------------------------------------------    
     def listMaxTimestampFile(cls, lsDir, sPattern):
