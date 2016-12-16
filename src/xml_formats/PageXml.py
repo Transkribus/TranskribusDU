@@ -418,9 +418,19 @@ class PageXml:
         bValidate = cls.validate(xmlPageDoc)
         assert bValidate, 'new file not validated by schema'
         
-        return xmlPageDoc
+        return xmlPageDoc, pageNode
     
-    
+    @classmethod
+    def createPageXmlNode(cls,nodeName,ns):
+        """
+            create a PageXMl element
+        """
+        node=libxml2.newNode(nodeName)
+        
+        #ns
+        node.setNs(ns)        
+
+        return node
     
        
             
