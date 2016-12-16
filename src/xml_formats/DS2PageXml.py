@@ -145,8 +145,8 @@ class DS2PageXMLConvertor(Component):
         for i,(doc,img) in enumerate(lListIfDoc):
             self.outputFileName = os.path.dirname(self.inputFileName)+os.sep+img[:-3]+"_%.4d"%(i+1) + ".xml"
             print "output: %s" % self.outputFileName
-#             try:self.writeDom(doc, bIndent=True)
-#             except IOError:return -1            
+            try:self.writeDom(doc, bIndent=True)
+            except IOError:return -1            
         return 0
     
     def run(self,domDoc):
