@@ -12,8 +12,7 @@ import os
 import datetime
 
 import libxml2
-from ipaddress import AddressValueError
-from sympy.physics.secondquant import Creator
+
 
 class PageXml:
     '''
@@ -23,6 +22,9 @@ class PageXml:
     #Namespace for PageXml
     NS_PAGE_XML         = "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"
     
+    NS_XSI ="http://www.w3.org/2001/XMLSchema-instance"
+    XSILOCATION ="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd"  
+
     #Schema for Transkribus PageXml
     XSL_SCHEMA_FILENAME = "pagecontent.xsd"
 
@@ -370,6 +372,58 @@ class PageXml:
         return [ (x1,y1), (x2,y1), (x2,y2), (x1,y2), (x1,y1) ]
     getPointsFromBB = classmethod(getPointsFromBB)
         
+        
+        
+    @classmethod
+    # --- Creation -------------------------------------
+    def createPageXmlDocument(cls,creatorName='XRCE',filename=None,imgW=0, imgH=0):
+        """
+            create a new PageXml document
+        """
+        xmlPageDoc = libxml2.newDoc("1.0")
+    
+        xmlPAGERoot = libxml2.newNode('PcGts')
+        xmlPageDoc.setRootElement(xmlPAGERoot)
+        pagens = xmlPAGERoot.newNs(cls.NS_PAGE_XML,None)
+        xmlPAGERoot.setNs(pagens)
+        XSINs = xmlPAGERoot.newNs(cls.NS_XSI, "xsi")
+        xmlPAGERoot.setNsProp(XSINs,"schemaLocation",cls.XSILOCATION)    
+        
+        
+        metadata= libxml2.newNode(cls.sMETADATA_ELT)
+        metadata.setNs(pagens)
+        xmlPAGERoot.addChild(metadata)
+        creator=libxml2.newNode(cls.sCREATOR_ELT)
+        creator.setNs(pagens)
+        creator.addContent(creatorName)
+        created=libxml2.newNode(cls.sCREATED_ELT)
+        created.setNs(pagens)
+        created.addContent(datetime.datetime.now().isoformat())
+        lastChange=libxml2.newNode(cls.sLAST_CHANGE_ELT)
+        lastChange.setNs(pagens)
+        lastChange.setContent(datetime.datetime.utcnow().isoformat()+"Z") 
+        metadata.addChild(creator)
+        metadata.addChild(created)
+        metadata.addChild(lastChange)
+        
+        
+        pageNode= libxml2.newNode('Page')
+        pageNode.setNs(pagens)
+        pageNode.setProp('imageFilename',filename )
+        pageNode.setProp('imageWidth',str(imgW))
+        pageNode.setProp('imageHeight',str(imgH))
+    
+        xmlPAGERoot.addChild(pageNode)
+        
+        bValidate = cls.validate(xmlPageDoc)
+        assert bValidate, 'new file not validated by schema'
+        
+        return xmlPageDoc
+    
+    
+    
+       
+            
 # ---  Multi-page PageXml -------------------------------------            
             
 class MultiPageXml(PageXml):          
