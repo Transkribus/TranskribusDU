@@ -440,6 +440,39 @@ class MultiPageXml(PageXml):
     XSL_SCHEMA_FILENAME = "multipagecontent.xsd"
     sEXT = ".mpxml"
     
+    
+    @classmethod
+    def makeMultiPageXmlMemory(cls,lDom):
+        """
+            create a MultiPageXml from a list of dom PageXml
+        """
+        
+        assert lDom, "ERROR: empty list of DOM PageXml"
+        pnum = 1
+        doc = lDom.pop()
+        rootNd = doc.getRootElement()
+        #Let's addPrefix all IDs with a page number...
+        cls.addPrefix("p%d_"%pnum, rootNd, "id")
+        
+        while lDom:
+            pnum += 1
+            _doc = lDom.pop()
+            _rootNd = _doc.getRootElement()
+            assert _rootNd.name == "PcGts", "Data error: expected a root element named 'PcGts' in %d th dom" %pnum
+
+            ndChild = _rootNd.children
+            sPagePrefix = "p%d_"%pnum
+            while ndChild:
+                if ndChild.type == "element": 
+                    cls.addPrefix(sPagePrefix, ndChild, "id")
+                rootNd.addChild(ndChild.copyNode(1))  #1=recursive copy (properties, namespaces and children when applicable)
+                ndChild = ndChild.next 
+            _doc.freeDoc()
+        
+        return doc
+        
+        
+        
     def makeMultiPageXml(cls, lsXmlDocFilename):
         """
         We concatenate sequence of PageXml files into a multi-page (non-standard) PageXml
