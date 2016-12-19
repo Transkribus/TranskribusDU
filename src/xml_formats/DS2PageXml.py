@@ -168,7 +168,7 @@ class DS2PageXMLConvertor(Component):
         lPageXmlDoc=[]
         lPages= ODoc.getPages()   
         for page in lPages:
-            pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='XRCE', filename = page.getAttribute('imageFilename'), imgW = int(round(page.getWidth(),0)), imgH = int(round(page.getHeight(),0)))
+            pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='XRCE', filename = page.getAttribute('imageFilename'), imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
             self.pageXmlNS = pageXmlDoc.getRootElement().ns()
             self.convertDSPage(page,pageNode)
             #store pageXml
