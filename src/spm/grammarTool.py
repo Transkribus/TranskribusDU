@@ -15,28 +15,12 @@ import sys, os.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 
-# -*- coding: utf-8 -*-
-""" 
-    H. Déjean
-    copyright Xerox 2013
-
-"""
-#Adjustement of the PYTHONPATH to include /.../DS/src
-import sys, os.path
-
 from feature import featureObject, sequenceOfFeatures
 
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
-
-# from StructureInference.sequenceGenerator import sequenceGenerator, Node
-# from StructureInference.signature import *
-# import common.Component as Component
-
-
 """
- class: SEQElement
-     correspond to the sequence objects 
+ class: RULESEQElement
+     correspond to the sequence objects with a specific __eq__: inclusion is used 
 """
 
 class RULESEQElement():
@@ -50,40 +34,21 @@ class RULESEQElement():
         return hash(self.getSetofFeatures())
     
     def __repr__(self):
-#         return str(len(self._node.getContent())) + " " + self._node.getContent().encode('utf-8').strip()[:20]
         try:
             return len(self._node.getContent()) , " [" + self._node.name+self._node.getContent()[:20]+']'
         except AttributeError:
             # no node: use features?
             return str(self.getSetofFeatures())
 
-#     def getNode(self): return self._node
+
     def __eq__(self,other):
         
-#         print 'false', self, other,self.__class__.__name__ , other.__class__.__name__
-#         if (not isinstance(other,RULESEQElement)):# or (self.__class__.__name__ != other.__class__.__name__):
-# #             print 'false', self, other
-#             return False
-#         print 'eq',self.getSetofFeatures(),self.getSetofFeatures().getSequences(),other.getSetofFeatures().getSequences()
         for x in self.getSetofFeatures().getSequences():
-#             print x.__class__.__name__ , other.getSetofFeatures().getSequences()[0].__class__.__name__ , x in other.getSetofFeatures().getSequences()
             if x in other.getSetofFeatures().getSequences():
                 return True
         return False
          
-#     def __eq__(self,other):
-#         if not isinstance(other, SEQElement):
-#             return False
-#         print 'eq',self.getSetofFeatures(),other.getSetofFeatures()
-#         for x in self.getSetofFeatures().getSequences():
-#             if x in other.getSetofFeatures().getSequences():
-#                 return True
-#         return False
-    
-#     def __ne__(self, other):
-#         return not (self == other)      
 
-    # @FIXED
     def setFeatureFunction(self,foo,TH=2):
         """
             select featureFunction that have to be used
@@ -131,7 +96,6 @@ class RULESEQElement():
             return lR
         x= sequenceOfFeatures()
         return x            
-    #@EOFIXED
 
 
 class sequenceGrammar():        
@@ -160,7 +124,9 @@ class sequenceGrammar():
                 elt.addFeature(featurerule)
                 elt.computeSetofFeatures()
                 
-                gramRule = Rule(featurerule.getName() + featurerule.getStringValue(), Production(elt))
+#                 gramRule = Rule(featurerule.getName() + featurerule.getStringValue(), Production(elt))
+                gramRule = Rule(featurerule, Production(elt))
+
                 lrules.append(gramRule)
                 
         mainRuleName='s%d'%level
