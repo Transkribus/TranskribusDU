@@ -13,16 +13,21 @@ import sys, os.path
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
+import libxml2
+import numpy as np
 import common.Component as Component
-from common.trace import traceln
 
 from structuralMining import sequenceMiner
+from feature import featureObject, multiValueFeatureObject 
+
 
 from ObjectModel.xmlDSDocumentClass import XMLDSDocument
 from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
 from ObjectModel.XMLDSTOKENClass import XMLDSTOKENClass
-from ObjectModel.XMLDSPageClass import XMLDSPageClass
-    
+#from ObjectModel.XMLDSPageClass import XMLDSPageClass
+from ObjectModel.singlePageTemplateClass import singlePageTemplateClass
+from ObjectModel.doublePageTemplateClass import doublePageTemplateClass
+from ObjectModel.verticalZonesTemplateClass import verticalZonestemplateClass    
     
 class pageVerticalMiner(Component.Component):
     """
@@ -44,11 +49,15 @@ class pageVerticalMiner(Component.Component):
         Component.Component.__init__(self, "pageVerticalMiner", self.usage, self.version, self.description) 
         
         
+        # TH for comparing numerical features for X
+        self.THNUMERICAL= 20
         # use for evaluation
         self.THCOMP = 10
         self.evalData= None
         
         self.lGridPopulation = {}
+        
+        self.lTemplateClassesNames= [singlePageTemplateClass,doublePageTemplateClass]
         
     def setParams(self, dParams):
         """
@@ -58,10 +67,12 @@ class pageVerticalMiner(Component.Component):
         Component.Component.setParams(self, dParams)
         
 
+        
     
-    def processVerticalZones(self,lPages):
+    
+    def minePageVerticalFeature(self,lPages):
         """
-            get page features for  vertical zones: find regular vertical Blocks/text structure
+            get page features for  vertical zones: find vertical regular vertical Blocks/text structure
             
         """ 
         
@@ -70,7 +81,6 @@ class pageVerticalMiner(Component.Component):
         
         ## COMMUN PROCESSING
         ### DEPENDS ON OBJECT LEVEL !! TEXT/TOKEN!!
-        lGrammars = []
         lVEdge = []
         lLElts=[ [] for i in range(0,len(lPages))]
         for i,page in enumerate(lPages):
@@ -78,172 +88,89 @@ class pageVerticalMiner(Component.Component):
             for e in lElts:
                 e.next=[]
             ## filter elements!!!
-            lElts = filter(lambda x:min(x.getHeight(),x.getWidth()) >10,lElts)
+            lElts = filter(lambda x:min(x.getHeight(),x.getWidth()) > 10,lElts)
+            lElts = filter(lambda x:x.getHeight() > 10,lElts)
+
             lElts.sort(key=lambda x:x.getY())
             lLElts[i]=lElts
             lVEdge = TwoDRel.findVerticalNeighborEdges(lElts)
             for  a,b in lVEdge:
                 a.next.append( b )
-            
 
         ### VerticalZones START
-        for i,page in enumerate(lPages):
+        for i,page, in enumerate(lPages):
+#             print page
             lElts= lLElts[i]
             for elt in lElts:
-#                 elt.setFeatureFunction(elt.getSetOfListedFeatures,10,lFeatureList=['x'],myLevel=XMLDSTOKENClass)
-                elt.setFeatureFunction(elt.getSetOfListedAttributes,20,lFeatureList=['x'],myLevel=XMLDSTEXTClass)
+#                 elt.setFeatureFunction(elt.getSetOfListedAttributes,20,lFeatureList=['width'],myLevel=XMLDSTEXTClass)
+                elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['x','x2'],myLevel=XMLDSTEXTClass)
+   
             seqGen = sequenceMiner()
-            seqGen.bDebug = False
-          
-#             traceln("feature Generation...")
-            seqGen.setMaxSequenceLength(1)
-            seqGen.setTH(0.50)
-            ## select minimal frequency for feature
-            lSortedFeatures = seqGen.featureGeneration(lElts,2)
-#             print page,lSortedFeatures
-              
-#             print 'start mining of %d elements'% len(lElts)
-            linfoHPage, lFeaturedStructure = seqGen.r_prefTree( lSortedFeatures,lElts)
-#             self.tagDom(linfoHPage,page,'LEFTBORDER')
-            if linfoHPage is not None:
-                page.setVX1Info(linfoHPage)
-#             self.parseSequence(linfoHPage, lElts)
-#         ### VerticalZones XC
-#         for i,page in enumerate(lPages):
-#             lElts= lLElts[i]
-#             for elt in lElts:
-#                 elt.resetFeatures()
-# #                 elt.setFeatureFunction(elt.getSetOfListedFeatures,10,lFeatureList=['x'],myLevel=XMLDSTOKENClass)
-#                 elt.setFeatureFunction(elt.getSetOfListedAttributes,10,lFeatureList=['xc'],myLevel=XMLDSTEXTClass)
-#             
-#             seqGen = sequenceMiner()
-#             seqGen.bDebug = False
-#    
-#             seqGen.setMaxSequenceLength(1)
-#             seqGen.setTH(0.50)
-#             ## select minimal frequency for feature
-#             lSortedFeatures = seqGen.featureGeneration(lElts,2)
-#             print page,lSortedFeatures
-#                 
-#             print 'start mining of %d elements'% len(lElts)
-#             linfoHPage, lFeaturedStructure = seqGen.r_prefTree( lSortedFeatures,lElts)
-#             self.tagDom(linfoHPage,page,label="CENTERBORDER") 
-#             if linfoHPage is not None:
-#                 page.setVXCInfo(linfoHPage)    
-# #             self.parseSequence(linfoHPage, lElts)            
-#          
-        ### VerticalZones ENd
-        for i,page in enumerate(lPages):
-            lElts= lLElts[i]
-            for elt in lElts:
-                elt.resetFeatures()
-                elt.setFeatureFunction(elt.getSetOfListedAttributes,20,lFeatureList=['x2'],myLevel=XMLDSTEXTClass)
-                
-            seqGen = sequenceMiner()
-            seqGen.bDebug = self.bDebug
-                
-            seqGen.setMaxSequenceLength(1)
-            seqGen.setTH(0.50)
-            ## select minimal frequency for feature
-            lSortedFeatures = seqGen.featureGeneration(lElts,2)
-#             print page, lSortedFeatures
-                    
-#             print 'start mining of %d elements'% len(lElts)
-            linfoHPage, lFeaturedStructure = seqGen.r_prefTree( lSortedFeatures,lElts)
-#             self.tagDom(linfoHPage,page,'RIGHTBORDER')
-            if linfoHPage is not None:
-                page.setVX2Info(linfoHPage)    
-#                        
-#         ### VerticalZones W
-#         for i,page in enumerate(lPages):
-#             lElts= lLElts[i]
-#             for elt in lElts:
-#                 elt.resetFeatures()
-# #                 elt.setFeatureFunction(elt.getSetOfListedFeatures,10,lFeatureList=['x'],myLevel=XMLDSTOKENClass)
-#                 elt.setFeatureFunction(elt.getSetOfListedAttributes,10,lFeatureList=['width'],myLevel=XMLDSTEXTClass)
-#               
-#             seqGen = sequenceMiner()
-#             seqGen.bDebug = False
-#               
-#             seqGen.setMaxSequenceLength(1)
-#             seqGen.setTH(0.50)
-#             ## select minimal frequency for feature
-#             lSortedFeatures = seqGen.featureGeneration(lElts,2)
-#             print lSortedFeatures
-#                   
-#             print 'start mining of %d elements'% len(lElts)
-#             linfoHPage, lFeaturedStructure = seqGen.r_prefTree( lSortedFeatures,,lElts))
-#             if linfoHPage:
-#                 ## parse; get sequences of elements; take sequences longer than one!
-#                 from feature import featureObject
-#                 lLParsings = self.parseSequence(linfoHPage,featureObject,lElts)
-#                 for gram,lElts, lres in lLParsings:
-#                     self.computeXFromW(linfoHPage,page,lElts)
-#             if linfoHPage is not None:
-# #                 print linfoHPage
-#                 page.setVWInfo(linfoHPage)    
-        
-        ## build zones:
-        ## FIND THE PAGE ZONE FIRST!!
-        ## CREATE BO !
+            foo  = seqGen.featureGeneration(lElts,2)
+            lKleendPlus = self.getKleenePlusFeatures(lElts)
+            page.setVX1Info(lKleendPlus)
+            del seqGen
+
         self.buildVZones(lPages)
+        
+        return lPages
             
-#         return     
-        # now page level using previous features
-        ##  page uses info stored before
-        ## MUST  USE BusObject
-        data = self.processVSegmentation(lPages)
-#         for i,g in enumerate(lGrammars):
-#             print i+1,g
+    def getKleenePlusFeatures(self,lElts):
+        """
+            select KleenePlus elements based on .next (only possible for unigrams)
+        """   
+        dFreqFeatures={}
+        dKleenePlusFeatures = {}
         
-        #  CREATE ZONES AND POLUPATEL THEM
-        
-        ###link inter-page zones
-        
-        ### BUILD LINEGRID PER ZONE
-#         self.populatePageZones()
-#         self.buildLineGrid()
-        
-        return data
-            
+        lKleenePlus=[]
+        for elt in lElts:
+            for fea in elt.getSetofFeatures().getSequences():
+                try:dFreqFeatures[fea] +=1
+                except KeyError:dFreqFeatures[fea] = 1
+                for nextE in elt.next:
+                    if fea in nextE.getSetofFeatures().getSequences():
+                        try:dKleenePlusFeatures[fea].append((elt,nextE))
+                        except KeyError:dKleenePlusFeatures[fea]=[(elt,nextE)]
+        for fea in dFreqFeatures:
+            try:
+                dKleenePlusFeatures[fea]
+                if len(dKleenePlusFeatures[fea]) >= 0.5 *  dFreqFeatures[fea]:
+                    lKleenePlus.append(fea) 
+            except:
+                pass
+        return  lKleenePlus
+    
     def buildVZones(self,lp):
         """
-            REASONING NEEDED !!!!!!!!!!! PYCLIPS ?
-            if X2 = create similar X1!
-            zones 
-                feature  = [x1,x2]
-            
-            full page justification segmentaition : [x11,x12], [x21,x22],....  and x12=x21 
-            
-            x2 : if right-aligned; OK , otherwise ??
-            x1: if left-aliogned OK, otherwise ?? 
-            build W features: invariant to shift!
-            a sequence of w !!
-            
+            store vertical positions in each page
         """
-        from feature import featureObject
-        import itertools
         
-#         print 'BUILD XCUTS'
         for p in lp:
-            #add 0
             p.lf_XCut=[]
-            for lfi in p.getVX1Info() + p.getVX2Info():
-                for fi in lfi:
-                    if fi not in   p.lf_XCut:
-                        p.lf_XCut.append(fi[0])
-            
+            for fi in p.getVX1Info() + p.getVX2Info():
+                if fi not in p.lf_XCut:
+                    p.lf_XCut.append(fi)
+            for graphline in p.getAllNamedObjects('GRAPHELT'):
+                if graphline.getHeight() > graphline.getWidth() and graphline.getHeight() > 50:
+                    # create a feature
+                    f = featureObject()
+                    f.setType(featureObject.NUMERICAL)
+                    f.setTH(self.THNUMERICAL)
+                    f.setName("x")
+                    f.setValue(round(graphline.getX()))
+                    if f not in p.lf_XCut:
+                        p.lf_XCut.append(f)
+                
             p.lf_XCut.sort(key=lambda x:x.getValue())
-#             print p, p.lf_XCut
-            ## alternatives: build verticalZonefeatureObject
+            if self.bDebug :print p,  p.lf_XCut            
         
-        
-    def patternToMV(self,pattern):
+    def patternToMV(self,pattern,TH):
         """
             convert a list of f as multivaluefeature
-            keep mvf as it is 
+            keep mvf as it is
+            
+            important to define the TH  value for multivaluefeature
         """
-        from feature import multiValueFeatureObject 
         
         lmv= []
         for itemset in pattern:
@@ -254,11 +181,147 @@ class pageVerticalMiner(Component.Component):
                 mv = multiValueFeatureObject()
                 name= "multi" #'|'.join(i.getName() for i in itemset)
                 mv.setName(name)
+                mv.setTH(TH)
                 mv.setValue(map(lambda x:x,itemset))
     #             print mv.getValue()
                 lmv.append(mv)
 #             print itemset, mv
         return lmv
+    
+    
+    
+    def processWithTemplate(self,pattern,lPages):
+        """
+            process sequence of pqges with given pattern
+        """
+        
+        
+        ## artifical construction Motter12
+        lPattern= [ [2.0,41.0, 350,477.0] , [2.0,109,445.0,477.0] ]
+        #MF012
+        lPattern= [ [27.0, 361,430.0] , [27.0,86.0,430.0] ]
+        lPattern = [[19,104,277,371,470,],[19,60,104,371,470]]
+        #nn_n0171 (hub)  [['x=295.0', 'x=850.0'], ['x=34.0', 'x=572.0']]
+        lPattern = [ [34.0, 564.0, 738.0], [156.0, 339.0, 846.0] ]
+#         lPattern = [[295,850,],[34,572]]
+        #lib
+#         lPattern = [[28,321],[144,449]]
+        
+        lfPattern= []
+        for itemset in lPattern:
+            fItemset = []
+            for item in itemset:
+                f= featureObject()
+                f.setName("x")
+                f.setType(featureObject.NUMERICAL)
+                f.setValue(item)
+                f.setTH(self.THNUMERICAL)                
+                fItemset.append(f)
+            lfPattern.append(fItemset)
+    
+        pattern = lfPattern
+        
+        print pattern
+        
+        ### in prodf: mytemplate given by page.getVerticalTemplates()
+        mytemplate = verticalZonestemplateClass()
+        mytemplate.setPattern(pattern [0])
+
+        mytemplate2 = verticalZonestemplateClass()
+        mytemplate2.setPattern(pattern [1])
+        # registration provides best matching
+        ## from registration matched: select the final cuts
+        for p in lPages:
+            print p
+            registeredPoints1,lMissing1,score1 = mytemplate.registration(p)
+            registeredPoints2,lMissing2,score2 = mytemplate2.registration(p)
+            print score1>0, score2>0
+            # if score1 == score 2 !!
+            if score1 > 0 and score1 >= score2:
+                lfinalCuts= map(lambda (x,y):y,filter(lambda (x,y): x!= 'EMPTY',registeredPoints1))
+                print registeredPoints1
+                print 'final:',lfinalCuts
+                p.addVSeparator(mytemplate,lfinalCuts)
+                for x in lfinalCuts:
+                    verticalSep  = libxml2.newNode('PAGEBORDER')
+                    verticalSep.setProp('points', '%f,%f,%f,%f'%(x.getValue(),0,x.getValue(),p.getHeight()))
+                    p.getNode().addChild(verticalSep)
+                for x in lMissing1:
+                    verticalSep  = libxml2.newNode('PAGEBORDER')
+                    verticalSep.setProp('points', '%f,%f,%f,%f'%(x.getValue(),0,x.getValue(),p.getHeight()))
+                    p.getNode().addChild(verticalSep)                    
+            elif score2 > 0 and  score2 > score1:
+                lfinalCuts= map(lambda (x,y):y,filter(lambda (x,y): x!= 'EMPTY',registeredPoints2))
+                print registeredPoints2
+                print 'final:',lfinalCuts
+                p.addVSeparator(mytemplate,lfinalCuts)
+                for x in lfinalCuts:
+                    verticalSep  = libxml2.newNode('PAGEBORDER')
+                    verticalSep.setProp('points', '%f,%f,%f,%f'%(x.getValue(),0,x.getValue(),p.getHeight()))
+                    p.getNode().addChild(verticalSep)                    
+                for x in lMissing2:
+                    verticalSep  = libxml2.newNode('PAGEBORDER')
+                    verticalSep.setProp('points', '%f,%f,%f,%f'%(x.getValue(),0,x.getValue(),p.getHeight()))
+                    p.getNode().addChild(verticalSep)                        
+            else:
+                print 'NO REGISTRATION'
+        return
+    
+    
+    def applySetOfPatterns(self,lTemplatesCnd,lPages):
+        """
+            test a set of patterns 
+            stop when the set of pages is covered by TH% 
+        """
+        
+        """
+            interesting mirroed width : [['x=37.0', 'x=126.0', 'x=442.0', 'x=473.0']]   [['x=15.0', 'x=37.0', 'x=376.0', 'x=442.0']] 6.0 
+            working with width directly is too noisy 
+        """
+        lenP = len(lPages)
+        for templateType in lTemplatesCnd.keys():
+            for p,s, mytemplate in lTemplatesCnd[templateType][:5]:
+                ## need to test kleene+: if not discard?
+                parseRes = self.parseWithTemplate(mytemplate,lPages)
+                ## assess and keep if kleeneplus
+                if parseRes:
+                    print mytemplate, parseRes[1]
+                
+            
+    
+    def parseWithTemplate(self,mytemplate,lPages):
+        """
+            parse a set of pages with pattern
+        """
+
+        pattern = mytemplate.getPattern()
+        
+        dMtoSingleFeature= {}
+        PARTIALMATCH_TH = 0.9
+        mvPattern = self.patternToMV(pattern, PARTIALMATCH_TH)
+        for i,pp in enumerate(mvPattern):
+            dMtoSingleFeature[mvPattern[i]] = pattern[i]
+
+        #need to optimize this double call        
+        for p in lPages:
+            p.resetFeatures()
+            p.setFeatureFunction(p.getSetOfMigratedFeatures,TH = self.THNUMERICAL,lFeatureList=p.lf_XCut)        
+            p.computeSetofFeatures()    
+        for p in lPages:
+            lf= p.getSetofFeatures().getSequences()[:]
+            p.resetFeatures()
+            p.setFeatureFunction(p.getSetOfMutliValuedFeatures,TH = PARTIALMATCH_TH, lFeatureList = lf)
+            p.computeSetofFeatures()            
+
+        seqGen = sequenceMiner()
+        
+        
+        parsingRes = seqGen.parseSequence(mvPattern,multiValueFeatureObject,lPages)
+        ##here test if kleenePlus sequence 
+        if parsingRes:
+            self.populateElementWithParsing(mytemplate,parsingRes,dMtoSingleFeature)
+            
+        return parsingRes
     
     def processVSegmentation(self,lPages):
         """
@@ -266,300 +329,387 @@ class pageVerticalMiner(Component.Component):
             Should correspond to column-like zones    
             
         """
-        from ObjectModel.verticalZonesTemplateClass import verticalZonestemplateClass
-        from ObjectModel.doublePageTemplateClass import doublePageTemplateClass
-        from ObjectModel.singlePageTemplate import singlePageTemplateClass
-
-        from feature import featureObject, multiValueFeatureObject
-         
-         
-
+        
+        """
+            generate a n-best candidates for the various templates
+            -singlePage
+                onecol
+                ncols
+                regulargrid
+            -mirroredpage
+                onecol
+                ncols
+                regulargrid
+            
+        """  
+        pageWidth=0.0
         for p in lPages:
             p.resetFeatures()
-            p.setFeatureFunction(p.getSetOfMigratedFeatures,TH=20.0,lFeatureList=p.lf_XCut)
-           
-#         print "\t xxxq \t\tfeature Generation..."
+            p.setFeatureFunction(p.getSetOfMigratedFeatures,TH=self.THNUMERICAL,lFeatureList=p.lf_XCut)
+            pageWidth += p.getWidth()
+        pageWidth /=len(lPages)
+        print pageWidth
         seqGen = sequenceMiner()
         seqGen.bDebug = False
         seqGen.setMaxSequenceLength(2)
-        # used for parsing, not for mining
-        # 
-        seqGen.setSDC(0.3) # related to noise level        
-        # INIIAL
-        ## select minimal frequency for feature
+        ## sdc: depends on the templates: if small is ok: one single template, onepage?? 
+        seqGen.setSDC(0.66) # related to noise level       AND STRUCTURES (if many columns) 
+
         lSortedFeatures = seqGen.featureGeneration(lPages,2)
-#         for f in lSortedFeatures:f.setType(1)
-        ## just need of the longest sequence !!! 
+        if lSortedFeatures == []:
+            print "No template found in this document"
+            return
+        seqGen.bDebug = False
         lmaxSequence = seqGen.generateItemsets(lPages)
-        lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis=0.2)
-        # here iteration on sequencelength
+        lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.1)
         lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
-        ### for sequence >1 support is * by lenght 
-#         lPatterns.sort(key=lambda x:x[1],reverse=True)
-        lNewKleeneSequences = []
-        lNewFeatures = []
-
-        lMainPattners= seqGen.testSubSumingPattern(lPatterns)
-        lMainPattners.sort(key=lambda (x,y):y)
         
+        ## cleaning:         [a,b] [b,a], [a],[a,a]  
+        lPatterns.sort(key=lambda (x,y):y, reverse=True)
+        #filer too short patterns
+        lPatterns  = filter(lambda (p,s):self.getWidth(p) > pageWidth *0.25,lPatterns)
+        if self.bDebug:
+            for p,s in lPatterns:
+                if s > 5: print p,s
+        ### GENERATE SEQUENTIAL RULES
+        lSeqRules = seqGen.generateSequentialRules(lPatterns)
+        ### APPLY RULESSSS setMaxSequenceLength=1 enoigh for tagging?
+        ### or simulate the 'gain' that the rule could bring to some pattern!
+        dPC,dCP = self.getPatternGraph(lSeqRules)
+
+        #select N(3)-best candidates for each pattern
+        llTemplatesCnd = self.analyzeListOfPatterns(lPatterns,dCP,pageWidth)
+        
+        
+        self.applySetOfPatterns(llTemplatesCnd, lPages)
+
         for p in lPages:
-            lf= p.getSetofFeatures().getSequences()[:]
-            p.resetFeatures()
-            p.setFeatureFunction(p.getSetOfMutliValuedFeatures,TH=0.25,lFeatureList=lf)
-            p.computeSetofFeatures()
-#             print p, p.getSetofFeatures()
+            print p
+            for mytemplate in p.getVerticalTemplates():
+                registeredPoints1, lMissing1, score= mytemplate.registration(p)
+                print mytemplate, mytemplate.getParent(),score
         
-        for pattern,supp in lMainPattners[:1]:
-            print 'parsing with... ',pattern,supp
-            ##" convert into multivalFO here to get features 
-            mvPattern = self.patternToMV(pattern)
-            print pattern, mvPattern
-            lParsingRes = self.parseSequence(mvPattern,multiValueFeatureObject,lPages)
-            lns,lnf = seqGen.generateKleeneItemsets(lPages,lParsingRes,featureObject)
-            print "loop0:",lns, lnf
-            if lns != []:
-                lNewKleeneSequences.append(lns) 
-                lNewFeatures.extend(lnf)
-                ## NEED TO STORE PATTERN 
-                ## NEED TO 'recompose'
-                ##   a dict to find mvpattern<->pattern
-#                 p.addVerticalTemplate(pattern)
+        ## final decision: viterbi for asigning a template to an element using registration score
         
-        ## for the moment enough to have a flat structure?
-        i=0
-#         print lNewKleeneSequences
-        if lNewKleeneSequences == []:
-            ## ???relax stuff???
-            pass
-        while i < 1:
-            lnewseq=lNewKleeneSequences.pop(0)
-            lnewFeatures= lNewFeatures
-            print "CURRENT SEQUENCE:",i,lnewseq
-            print "CURRENT FEATURES:",i,lSortedFeatures+ lnewFeatures
-            print "\tinit",lSortedFeatures
-            del seqGen
-            
-            # or iterate on lnewseq and reset if pageObject? 
-            #                       don't touch the sequenceAPI object
-            for p in lPages:
-                p.resetFeatures()
-                p.setFeatureFunction(p.getSetOfMigratedFeatures,TH=20.0,lFeatureList=p.lf_XCut)  
-                p.computeSetofFeatures()          
-            seqGen=sequenceMiner()
-            seqGen.setMaxSequenceLength(4)         
-            seqGen.setSDC(0.8)       
-            seqGen.bDebug=False
-            longestSequence = seqGen.generateItemsets(lnewseq)
-#             print longestSequences
-            #if kleeneStar: replace s0+ by gram+
-            ltmp = lSortedFeatures[:]
-            ltmp.extend(lnewFeatures)
-            lSeq, lMIS= seqGen.generateMSPSData(longestSequence,ltmp,mis=0.2)
-            print '\n',lSeq,'\n'
-            # mine new sequences
-            # new seqGen??
-            lnp=seqGen.beginMiningSequences(lSeq,lSortedFeatures+lNewFeatures,lMIS)
-#             lMainPattners= seqGen.testSubSumingPattern(lnp)
-            print 'new res'
-            for p in lPages:
-                lf= p.getSetofFeatures().getSequences()[:]
-                p.resetFeatures()
-                p.setFeatureFunction(p.getSetOfMutliValuedFeatures,TH=0.5,lFeatureList=lf)
-                p.computeSetofFeatures()
-#                 print p, p.getSetofFeatures()            
-            for p,sup in lnp:
-                if sup > 2 and len(p) > 2:
-                    mvPattern = self.patternToMV(p)
-                    print p,sup, mvPattern
-                    lParsingRes = self.parseSequence(mvPattern,multiValueFeatureObject,lnewseq)
-                    lns,lnf = seqGen.generateKleeneItemsets(lnewseq,lParsingRes,featureObject)
-                    if lns != []:
-                        print p,lns,"\t\t",lnf
-                        lNewKleeneSequences.append(lns) 
-                        lNewFeatures.extend(lnf)     
-                        ## NEED TO STORE p
-                        ## from the final mvpattern: need to go back to get all hierarchical
-#                         p.addVerticalTemplate(p)           
-            i+=1
-        return 
+        
+        # tagging for visualization
+        self.tagDomWithBestTemplate(lPages)
+        
+        
+        return 1 
     
-        ## keep only some 'grammars' with good coverage
-        ## parse and store patterns associated to a page 
-        ##  find a way to score pattern/grammars : just coverage
-        
-        
-#                 # create template: how to automate the mapping!!
-#                 ### if bigrams= create doublepageTemplate then verticaZonetemplate
-#                 ## if hierarchical?? 
-#                 if len(Gram) == 2:
-#                     dpTemplate = doublePageTemplateClass()
-#                     # instantiate left/right page: split Gram ??
-#                 else:
-#                     pageTemplate = singlePageTemplateClass()
-#                     vzTemplate   = verticalZoneTemplateClass()
-#                     pageTemplate.addMainZone(vzTemplate)
-#                     vzTemplate.createFromSeqOfFeatures(Gram)
-#                 ## Gram: can contains several templates: need a doublePageTemple which contains the VerticalTemplates??
-#                 # add lcuts
-#                 # or simply addTemplate
-#                 for p in lFullList:
-# #                     print p,Gram, p.getVerticalModels()
-#                     ### 
-#                     p.addTemplate(pageTemplate)
-        
-        
-        for p in lPages:
-            for model in p.getVerticalTemplates():
-                # kind of registration for non noisy pages
-                # MUST use template now.
-                self.collectVerticalZones(p,model,model)
-            print p.lVSeparator
-        
-        ## need models??? currently use features as model
-        ## create zone objects and populate them
-        for p in lPages:
-            for model in p.getVerticalTemplates():
-                ## creation of the zones and populations with subElements 
-                p.createVerticalZones(model)
-            
-        ## DOM tagging
-        ## no longer grammars but parsed sequences!!
-        self.tagDOMVerticalZones(lPages,lGrammars)            
     
-        
-    def collectVerticalZones(self,page,model,lFeaturedStructure):
-        """
-            match a model against the page to get 'real' values  (not model-values which are 'generic')
-        """
-        if lFeaturedStructure is None:return
-
-        import numpy as np
-        
-        for featurerule in lFeaturedStructure:
-            if type(featurerule).__name__ == 'list':
-                self.collectVerticalZones(page,model,featurerule)
-            else:
-                lElts= featurerule.getNodes()
-                for fea in page.getSetofFeatures().getSequences():
-                    if featurerule == fea:
-                        myValues = fea.getOldValue()
-                        if type(myValues).__name__ == 'list' :
-                            for myfeatureX in lmyValues:
-#                                     x = myfeatureX[0].getValue()
-                                if myfeatureX not in page.lVSeparator:
-                                    page.lVSeparator[str(model)].append(myfeatureX)
-                        else:
-                            if myValues not in page.lVSeparator:
-                                page.lVSeparator[str(model)].append(myValues)                                
-                                    
-    def parseSequence(self,myPattern,myFeatureType,lSeqElements):
-        """
     
-            try 'partial parsing'
-                for a structure (a,b)  ->  try (a,b)  || (a,any)   || (any,b)
-                only for 'flat' n-grams
-           
-               notion of wildcard * match anything  wildCardFeature.__eq__: return True
-               
-               in a grammar: replace iteratively each term by wildwrd and match
-                       then final completion? ???
+    def getWidth(self,pattern):
         """
-        
-        from grammarTool import sequenceGrammar
-        
-        seqGen = sequenceMiner()
-        
-        myGram = sequenceGrammar()
-        lLParsings = []
-        lParsings = myGram.parseSequence(myFeatureType,myPattern, lSeqElements)
-        lFullList=[]
-        lFullObjects = []
-        for x,y,z in lParsings:
-            lFullList.extend(x)
-            lFullObjects.extend(y)
-        lLParsings.append((myPattern,lFullList,lParsings))
-
-        return lLParsings
-        
-
-                    
-    def tagDOMVerticalZones(self,lPages,lFeaturedStructure):
+            return the width of a pattern
         """
-            depends on the feature semantics
-            get feature structure
-            go down to the 'real instances' and a given element; tag it 
+        # if bigramm
+        return min ( (pattern[0][-1].getValue() - pattern[0][0].getValue()), pattern[-1][-1].getValue() - pattern[-1][0].getValue())
+    
+    def analyzeListOfPatterns(self,lPatterns,dCA, pageWidth):
+        """
+            group pattern by family
+            unigram, bigrann,...
+            and by size (# item in itemset)
+            and by  mirrored ([<a>,<B>] [<b>,<a>])
+            
+            family tree: a ; a,b ; a,b,c 
+            shiftedpages! same page but leftright shift  (bozen)
+            
+            need to add kleentest?
+            
+            for each template: keep soltion with length 2,3,4 + elements anyway?
             
             
-            regression = np.polyfit(x, y, 1)
-            http://www.scipy-lectures.org/intro/summary-exercises/optimize-fit.html
-
-            
         """
-        if lFeaturedStructure is None:return
-
-        import numpy as np
-        
-        for featurerule in lFeaturedStructure:
-            if type(featurerule).__name__ == 'list':
-                self.tagDOMVerticalZones(lPages,featurerule)
-            else:
-#                 print featurerule, featurerule.getNodes()
-                import libxml2                
+        lTemplatesTypes={}
+        for pattern,support in filter(lambda (x,y):y>5,lPatterns):
+            ## here first test width of the pattern
+            ## if too narrow, skip it!
+            ### singlepage:
+            if self.getWidth(pattern) < pageWidth * 0.25:
+                continue
+            if len(pattern) == 1:
+                try:
+                    dCA[str(pattern)]
+                    bSkip = True
+                except KeyError:bSkip=False
+                if not bSkip:                
+                    # singlecol
+                    icolMin=2
+                    icolMax=2
+                    template =  self.isVZonePattern(pattern,icolMin,icolMax)
+                    if template:
+                        try:lTemplatesTypes[template.__class__.__name__].append((pattern,support,template))
+                        except KeyError: lTemplatesTypes[template.__class__.__name__] = [(pattern,support,template)]                
                 
-                #### NOW FOR VERTICALZONEFEATURE ONLY
-                # elts = page
-#                 print "\n%s\n"%featurerule
-                lElts= featurerule.getNodes()
-#                 for pelt in lElts:
-                for pelt in lPages:
+                    ## test multicol
+                    icolMin=3
+                    if len(pattern) == 1:
+                        template =  self.isVZonePattern(pattern,icolMin)
+                        if template:
+                            try:lTemplatesTypes[template.__class__.__name__].append((pattern,support,template))
+                            except KeyError: lTemplatesTypes[template.__class__.__name__] = [(pattern,support,template)]              
 
-#                     print pelt.getNumber(), pelt.getSetofFeatures()
-                    for fea in pelt.getSetofFeatures().getSequences():
-                        if featurerule == fea:
-                            lmyValues = fea.getOldValue()
-                            for myfeatureX in [lmyValues]:
-                                lX = []
-                                lY = []
-#                                 print '!!!',myfeatureX, myfeatureX[0].getValue()
-                                for elt in pelt.getAllNamedObjects(XMLDSTEXTClass):
-#                                     if abs(float(elt.getAttribute("x")) - myfeatureX[0].getValue()) < myfeatureX[0].getTH():
-                                    if abs(float(elt.getAttribute("x")) - myfeatureX) < featurerule.getTH():
-
-                                        lX.append(float(elt.getAttribute('x')))
-                                        lY.append(float(elt.getAttribute('y')))
-#                                 print lX, lY
-                                if len(lX) < 3:
-                                    ## missing value:
-                                        ##   [0].getValue()
-                                    b = myfeatureX
-                                    ymax = myfeatureX
-#                                     print pelt, 'MISSING' ,myfeatureX ,b, ymax
-                                else:
-                                    a,b = np.polyfit(lY, lX, 1)
-                                    y0=  b
-                                    ymax = a*pelt.getHeight()+b
-#                                     print pelt, a,b, y0, ymax
-                                    
-                                verticalSep  = libxml2.newNode('PAGEBORDER')
-                                verticalSep.setProp('points', '%f,%f,%f,%f'%(b,0,ymax,pelt.getHeight()))
-    #                             verticalSep.setProp('x',str(fea.getOldValue()))
-    #                             verticalSep.setProp('y',str(y0))
-    #                             verticalSep.setProp('width','2')
-    #                             verticalSep.setProp('height',str(ymax))
-#                                 print pelt.getNumber(),verticalSep
-                                pelt.getNode().addChild(verticalSep)
-#             return
+            #double page
+            if self.isMirroredPattern(pattern):
+                bSkip=False
+                try:
+                    # skip if one of the ancestor is mirrored 
+                    dCA[str(pattern)]
+                    for parent in dCA[str(pattern)]:
+                        if self.isMirroredPattern(parent):
+                            print pattern, 'skipped,',parent
+                            bSkip = True
+                except KeyError:bSkip=False
+                if not bSkip:
+                    template=doublePageTemplateClass()
+                    template.fromPattern(pattern)
+                    try:lTemplatesTypes[template.__class__.__name__].append((pattern,support,template))
+                    except KeyError: lTemplatesTypes[template.__class__.__name__] = [(pattern,support,template)]
+                
+                ## test if translated  a= b(+-)X
+                    # generate only one singlepage : shift done during the registration?? but then issue with parsing?
+                    # ==> better to have a specific template
+                
+                
             
-            
-    def createColumnSequences(self):
-        """
-            create a sequence of line from concatenated columns
-            
-            order: same order ot mirrored
-            take the first 100 pages: since (a,b) -> mirrored
-        """    
+        print '-'*30
+        for classType in  lTemplatesTypes.keys():
+            print classType
+            for t in lTemplatesTypes[classType]:
+                print '\t',t
         
+        return lTemplatesTypes
+        
+    def getPatternGraph(self,lRules):
+        """
+            create an graph which linsk exoannded patterns
+            (a) -> (ab)
+            (abc) -> (abcd)
+           
+           rule = (newPattern,item,i,pattern, fConfidence)
+                   RULE: [['x=19.0', 'x=48.0', 'x=345.0'], ['x=19.0', 'x=126.0', 'x=345.0']] => 'x=464.0'[0] (22.0/19.0 = 0.863636363636)
+
+
+            can be used for  tagging go up unitl no paretn
+        """
+        dParentChild= {}
+        dChildParent= {}
+        for lhs, rhs, itemsetIndex, fullpattern, fConfidence in lRules:
+                try:dParentChild[str(fullpattern)].append(lhs)
+                except KeyError:dParentChild[str(fullpattern)] = [lhs]
+                try:dChildParent[str(lhs)].append(fullpattern)
+                except KeyError:dChildParent[str(lhs)] = [fullpattern]                
+
+        # for bigram: extend to grammy
+        for child in dChildParent.keys():
+            ltmp=[]
+            if len(eval(child)) == 2:
+                for parent in dChildParent[child]:
+                    try:
+                        ltmp.extend(dChildParent[str(parent)])
+                    except KeyError:pass
+            dChildParent[child].extend(ltmp)
+        return dParentChild,  dChildParent
+        
+    def isMirroredPattern(self,pattern):
+        """
+            test if a pattern is mirrored or not
+            [A,B,C] [C,B,A]
+        """
+        if len(pattern) != 2 or len(pattern[0]) != len(pattern[1]) or (pattern[0] == pattern[1]): 
+            return False
+        else:
+            inv1 =  pattern[1][:]
+            inv1.reverse()
+            lcouple1= zip(inv1,inv1[1:])
+            lw1= map(lambda (x,y):abs(y.getValue()-x.getValue()),lcouple1)
+            lcouple0= zip(pattern[0],pattern[0][1:])
+            lw0= map(lambda (x,y):abs(y.getValue()-x.getValue()),lcouple0)
+            final = set(map(lambda (x,y): abs(x-y) < self.THNUMERICAL*2,zip(lw0,lw1)))
+            return  set(final) == set([True])
     
+    def isVZonePattern(self,pattern,iNbCol=3,iNbColMax=None):
+        """
+            is pattern a regular zone pattern:
+                one or two elements, each with the same number of cuts, at least 2
+            return corresponding template class
+        """
+
+        if iNbColMax == None:
+            linterval=range(iNbCol,20)
+        else: 
+            linterval=range(iNbCol,iNbCol+1)
+        if len(pattern) > 2:
+            return None
+        # at least 3 elements
+        if True and len(pattern) == 2 and pattern[0] != pattern[1] and  len(pattern[0])  == len(pattern[1])  and len(pattern[0]) > 2 and len(pattern[0]) in linterval:
+            bitemplate=doublePageTemplateClass()
+            bitemplate.setPattern(pattern)
+            bitemplate.leftPage = verticalZonestemplateClass()
+            bitemplate.leftPage.setType('leftpage')
+            bitemplate.leftPage.setPattern(pattern[0])
+            bitemplate.leftPage.setParent(bitemplate)
+            
+            bitemplate.rightPage = verticalZonestemplateClass()
+            bitemplate.rightPage.setType('rightpage')
+            bitemplate.rightPage.setPattern(pattern[1])
+            bitemplate.rightPage.setParent(bitemplate)
+            
+            #regular grid or not: tested in verticalZonestemplateClass
+            
+            return bitemplate
+        
+        elif len(pattern) == 1 and len(pattern[0]) in linterval:
+            template = singlePageTemplateClass()
+            template.mainZone = verticalZonestemplateClass()
+            template.mainZone.setPattern(pattern[0])
+            return template
+    
+    def populateElementWithParsing(self,template,parsings,dMtoSingleFeature):
+        """
+            using the parsing result: store in each element its vertical template 
+        """
+        def treePopulation(node,lElts):
+            """
+                tree:
+                    terminal node: tuple (tag,(tag,indexstart,indexend))
+                
+            """
+            lOut=[]
+            if type(node[0]).__name__  == 'tuple':
+                    tagX,(tag,start,end) = node[0]
+                    # tag need to be converted in mv -> featreu
+                    subtemplate = template.findTemplatePartFromPattern(dMtoSingleFeature[tag])
+                    lElts[start].addVerticalTemplate(subtemplate) 
+                    ## correct here !!!
+#                     print "xxx",lElts[start],tag,subtemplate, lElts[start].getVerticalTemplates()
+            else:
+                for subtree in node[1::2]:
+                    treePopulation(subtree, lElts)
+                    
+        gram, lFullList, ltrees  = parsings
+        ## each fragment of the parsing
+        for lParsedPages, ktree,ltree in ltrees:
+            treePopulation(ltree, lParsedPages)
+
+    def tagPartialElements(self,lPages,dMtoSingleFeature):
+        """
+            decorate  objects with vertical separators
+        """
+        for page in lPages:
+            # to be sure the features are the correct ones
+            page.resetFeatures()
+            page.setFeatureFunction(page.getSetOfMigratedFeatures,TH = 10.0,lFeatureList=page.lf_XCut)
+#             print page, page.lf_XCut
+            page.computeSetofFeatures()                
+            for template in page.getVerticalTemplates():
+                pattern=template.getPattern()
+#                 lTemplatefeatures = dMtoSingleFeature[mvfeature]
+#                 print '\t', lTemplatefeatures
+#                 for Tempfeature in lTemplatefeatures:
+                for Tempfeature in pattern:
+                    if Tempfeature not in  page.lf_XCut: #getSetofFeatures().getSequences():
+#                         print '\t\tadded:',Tempfeature
+                        page.lf_XCut.append(Tempfeature)
+#             print '\t',page, page.lf_XCut
+
+
+
+    
+    def tagDomWithBestTemplate(self,lPages):
+        """
+            add vertical line sin the DOM
+        """
+        
+        for page in lPages:
+            if page.getNode():
+                best = None
+                bestScore = 0
+                for mytemplate in page.getVerticalTemplates():
+                    registeredPoints1, lMissing1, score= mytemplate.registration(page)
+                    if score > bestScore:
+                        best = mytemplate
+                print page, best
+                if best:
+                    for cut in best.getXCuts():
+                        verticalSep  = libxml2.newNode('CENTERBORDER')
+                        verticalSep.setProp('points', '%f,%f,%f,%f'%(cut.getValue(),0,cut.getValue(),page.getHeight()))
+                        page.getNode().addChild(verticalSep)
+                        
+                        
+    def tagDOMVerticalZones(self,lPages):
+        """
+            decorate dom objects with vertical separators
+            
+            simply use lf_XCut
+        """
+        for page in lPages:
+#             for x in set(page.lf_XCut):
+#                 verticalSep  = libxml2.newNode('PAGEBORDER')
+#                 verticalSep.setProp('points', '%f,%f,%f,%f'%(x.getValue(),0,x.getValue(),page.getHeight()))
+#                 page.getNode().addChild(verticalSep)
+            if True and page.getNode() is not None:
+                page.resetFeatures()
+                page.setFeatureFunction(page.getSetOfMigratedFeatures,TH=10.0,lFeatureList=page.lf_XCut)
+                page.computeSetofFeatures()                
+                for template in page.getVerticalTemplates():
+#                     print page, mvfeature
+                    lfeatures = template.getPattern()
+                    for feature in lfeatures:
+#                         print page, feature, page.getSetofFeatures().getSequences()
+                        ## several fea can match feature: take the best one !(nearest?)
+                        verticalSep  = libxml2.newNode('CENTERBORDER')
+                        verticalSep.setProp('points', '%f,%f,%f,%f'%(feature.getOldValue(),0,feature.getOldValue(),page.getHeight()))
+                         
+                        page.getNode().addChild(verticalSep)
+                        for fea in page.getSetofFeatures().getSequences():
+                            if feature == fea:
+                                verticalSep  = libxml2.newNode('PAGEBORDER')
+                                verticalSep.setProp('points', '%f,%f,%f,%f'%(fea.getOldValue(),0,fea.getOldValue(),page.getHeight()))
+                                lmyValues = fea.getOldValue()
+                                page.getNode().addChild(verticalSep)
+                                for myfeatureX in [lmyValues]:
+                                    lX = []
+                                    lY = []
+    #                                 print '!!!',myfeatureX, myfeatureX[0].getValue()
+                                    for elt in page.getAllNamedObjects(XMLDSTEXTClass):
+    #                                     if abs(float(elt.getAttribute("x")) - myfeatureX[0].getValue()) < myfeatureX[0].getTH():
+                                        if abs(float(elt.getAttribute("x")) - myfeatureX) < feature.getTH():
+     
+                                            lX.append(float(elt.getAttribute('x')))
+                                            lY.append(float(elt.getAttribute('y')))
+    #                                 print lX, lY
+                                    if len(lX) < 3:
+                                        b = myfeatureX
+                                        ymax = myfeatureX
+                                    else:
+                                        a,b = np.polyfit(lY, lX, 1)
+                                        y0=  b
+                                        ymax = a*page.getHeight()+b
+                                         
+                                    verticalSep  = libxml2.newNode('PAGEBORDER')
+                                    verticalSep.setProp('points', '%f,%f,%f,%f'%(b,0,ymax,page.getHeight()))
+        #                             verticalSep.setProp('x',str(fea.getOldValue()))
+        #                             verticalSep.setProp('y',str(y0))
+        #                             verticalSep.setProp('width','2')
+        #                             verticalSep.setProp('height',str(ymax))
+#                                     print page.getNumber(),verticalSep
+                                    page.getNode().addChild(verticalSep)
+    #             return
+            
+            
+    
+    def tagDomAsTable(self,lPages):
+        """
+            create a table object:
+            table zone: page
+            columns: the created vertical zones
+        """
+        
+        
             
     def testCliping(self,lPages):
         """
@@ -616,7 +766,6 @@ class pageVerticalMiner(Component.Component):
             create a run XML file
         """
         
-        import libxml2
         self.evalData = libxml2.newDoc('1.0')
         root = libxml2.newNode('DOCUMENT')
         self.evalData.setRootElement(root)
@@ -638,7 +787,8 @@ class pageVerticalMiner(Component.Component):
         """
             for a set of pages, associate each page with several vertical zones  aka column-like elements
             Populate the vertical zones with page elements (text)
-             
+
+            indicate if bigram page template (mirrored pages)
              
         """
         self.doc= doc
@@ -647,12 +797,21 @@ class pageVerticalMiner(Component.Component):
         
         self.ODoc.loadFromDom(self.doc,listPages=range(self.firstPage,self.lastPage+1))        
         self.lPages= self.ODoc.getPages()   
-        print self.lPages
+        self.cleanInput(self.lPages)
         
+        
+        # first mine page size!!
+        ## if width is not the 'same' , then  initial values are not comparable (x-end-ofpage)
 
-        rundata =self.processVerticalZones(self.lPages)
-    
-        return rundata
+        self.minePageVerticalFeature(self.lPages)
+
+#         self.processVSegmentation(self.lPages)
+
+        self.processWithTemplate(None,self.lPages)
+        
+        self.addTagProcessToMetadata(self.doc)
+        
+        return self.doc 
 
     #--- TESTS -------------------------------------------------------------------------------------------------------------    
     #
@@ -690,7 +849,6 @@ class pageVerticalMiner(Component.Component):
   </PAGE>
 
         """
-        import libxml2
 
         cntOk = cntErr = cntMissed = 0
         RefData = libxml2.parseMemory(srefData.strip("\n"), len(srefData.strip("\n")))
