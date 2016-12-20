@@ -15,6 +15,7 @@
 """
 import sys, os
 import libxml2
+from macpath import basename
 
 try: #to ease the use without proper Python installation
     import TranskribusDU_version
@@ -54,6 +55,16 @@ class DS2PageXMLConvertor(Component):
         self.dTagNameMapping = {'PAGE':'Page','TEXT':'TextLine', 'BLOCK':'TextRegion','GRAPHELT':'LineDrawingRegion'} 
 
         self.pageXmlNS = None
+        
+        self.bMultiPages = False
+        
+    def setParams(self, dParams):
+        """
+        Always call first the Component setParams
+        """
+        Component.setParams(self, dParams)
+        if dParams.has_key("bMultiPage"): self.bMultiPages =  dParams.has_key("bMultiPage")  
+                
     
     def setDPI(self,v): self.dpi=v
     
@@ -145,11 +156,11 @@ class DS2PageXMLConvertor(Component):
         
         # get table elements
     
-    def storePageXmlSetofFiles(self,lListIfDoc):
+    def storePageXmlSetofFiles(self,lListOfDocs):
         """
-            write on disc the list of dom 
+            write on disc the list of dom in the PageXml format
         """
-        for i,(doc,img) in enumerate(lListIfDoc):
+        for i,(doc,img) in enumerate(lListOfDocs):
             if self.storagePath == "":
                 self.outputFileName = os.path.dirname(self.inputFileName)+os.sep+img[:-3]+"_%.4d"%(i+1) + ".xml"
             else:
@@ -159,6 +170,17 @@ class DS2PageXMLConvertor(Component):
             except IOError:return -1            
         return 0
     
+    def storeMultiPageXml(self,lListDocs):
+        """
+            write a multipagePageXml file
+        """
+        from xml_formats.PageXml import MultiPageXml
+        mp = MultiPageXml()
+        newDoc = mp.makeMultiPageXmlMemory(map(lambda (x,y):x,lListDocs))
+        outputFileName = os.path.dirname(self.inputFileName) + os.sep + ".."+os.sep +"col" + os.sep + os.path.basename(self.inputFileName)[:-4] + "_du.mpxml"
+        newDoc.saveFormatFileEnc(outputFileName, "UTF-8",True)
+        print "output: %s" % outputFileName
+        
     def run(self,domDoc):
         """
             conversion
@@ -168,7 +190,8 @@ class DS2PageXMLConvertor(Component):
         lPageXmlDoc=[]
         lPages= ODoc.getPages()   
         for page in lPages:
-            pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='XRCE', filename = page.getAttribute('imageFilename'), imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
+            print page, page.getAttribute('imageFilename')
+            pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='XRCE', filename = os.path.basename(page.getAttribute('imageFilename')), imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
             self.pageXmlNS = pageXmlDoc.getRootElement().ns()
             self.convertDSPage(page,pageNode)
             #store pageXml
@@ -182,20 +205,24 @@ class DS2PageXMLConvertor(Component):
 if __name__ == "__main__":
     
     
-    docM = DS2PageXMLConvertor()
+    docConv = DS2PageXMLConvertor()
 
     #prepare for the parsing of the command line
-    docM.createCommandLineParser()
-        
+    docConv.createCommandLineParser()
+    docConv.add_option("-m", "--multi", dest="bMultiPage", action="store_true", default="False", help="store as multipagePageXml", metavar="B")
+      
     #parse the command line
-    dParams, args = docM.parseCommandLine()
+    dParams, args = docConv.parseCommandLine()
     
     #Now we are back to the normal programmatic mode, we set the componenet parameters
-    docM.setParams(dParams)
+    docConv.setParams(dParams)
     
-    doc = docM.loadDom()
-    docM.run(doc)
-    if doc and docM.getOutputFileName() != "-":
-        docM.writeDom(doc, True)
+    doc = docConv.loadDom()
+    lPageXml = docConv.run(doc)
+    if lPageXml != []:# and docM.getOutputFileName() != "-":
+        if docConv.bMultiPages:
+            docConv.storeMultiPageXml(lPageXml)
+        else:
+            docConv.storePageXmlSetofFiles(lPageXml)
 
     
