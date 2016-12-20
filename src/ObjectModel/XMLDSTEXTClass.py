@@ -1,9 +1,9 @@
-# -*- coding: latin-1 -*-
+# -*- coding: utf-8 -*-
 """
 
     XML object class 
     
-    Hervé Déjean
+    Hervï¿½ Dï¿½jean
     cpy Xerox 2009
     
     a class for object from a XMLDocument
@@ -19,13 +19,13 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
     """
         TEXT (chunk) class
     """
-    name = ds_xml.sTEXT
     def __init__(self,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
         self._domNode = domNode
         
         self.Obaseline=None
+        self.setName(ds_xml.sTEXT)
     
 #     def getX(self): return float(self.getAttribute('x'))
 #     def getY(self): return float(self.getAttribute('y'))
@@ -43,8 +43,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
             attributes x y  id height width  (all!)
             
         """
-        # must be PAGE        
-        self._name = domNode.name
+#         self.setName(domNode.name)
         self.setNode(domNode)
         # get properties
         prop = domNode.properties
@@ -133,7 +132,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
     
     def getSetOfFeaturesXPos(self,TH,lAttr,myObject):
 
-        from feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
      
         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
             lR=sequenceOfFeatures()
@@ -198,7 +197,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
             
             
         """
-        from feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
      
         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
             lR=sequenceOfFeatures()

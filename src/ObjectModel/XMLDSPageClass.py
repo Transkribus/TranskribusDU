@@ -1,21 +1,21 @@
-# -*- coding: latin-1 -*-
+# -*- coding: utf-8 -*-
 """
 
     XML page object class 
     
-    Hervé Déjean
+    Hervï¿½ Dï¿½jean
     cpy Xerox 2009
     
     a class for page object from a XMLDocument
 
 """
 
+from config import ds_xml_def
 from XMLDSObjectClass import XMLDSObjectClass
-from config import ds_xml_def as ds_xml
 from XMLDSLINEClass import XMLDSLINEClass
 from XMLDSTEXTClass import XMLDSTEXTClass
 from XMLDSBASELINEClass import XMLDSBASELINEClass
-
+from XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
 class  XMLDSPageClass(XMLDSObjectClass):
     """
         PAGE class
@@ -24,7 +24,6 @@ class  XMLDSPageClass(XMLDSObjectClass):
         
     """
     orderID = 0
-    name = ds_xml.sPAGE
     def __init__(self,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
@@ -41,7 +40,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
         self._VWInfo = []
         
         self._X1X2 = []
-        self._fXcuts = []
+        self.lf_XCut = []
 
         
         
@@ -78,13 +77,11 @@ class  XMLDSPageClass(XMLDSObjectClass):
     
     def fromDom(self,domNode,lEltNames):
         """
-            if lEltName empty = take all children.
-            
-            if several objects? see old pageClass?
+            load a page from dom 
         """
         
         # must be PAGE        
-        self._name = domNode.name
+        self.setName(domNode.name)
         self.setNode(domNode)
         # get properties
         prop = domNode.properties
@@ -99,28 +96,30 @@ class  XMLDSPageClass(XMLDSObjectClass):
         ctxt.xpathFreeContext()
         for elt in ldomElts:
             if elt.name in lEltNames:
-                if elt.name  == XMLDSLINEClass.name:
+                if elt.name  == ds_xml_def.sLINE_Elt:
                     myObject= XMLDSLINEClass(elt)
-                    # per type?
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(elt)
-                elif elt.name  == XMLDSTEXTClass.name:
+                elif elt.name  == ds_xml_def.sTEXT:
                     myObject= XMLDSTEXTClass(elt)
-                    # per type?
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(elt)
-#                     print myObject,myObject.getObjects()
-                elif elt.name == XMLDSBASELINEClass.name:
+                elif elt.name == "BASELINE":
                     myObject= XMLDSBASELINEClass(elt)
                     self.addObject(myObject)
                     myObject.setPage(self)
-                    myObject.fromDom(elt)                    
+                    myObject.fromDom(elt)       
+                elif elt.name == 'GRAPHELT':
+                    myObject= XMLDSGRAPHLINEClass(elt)
+                    self.addObject(myObject)
+                    myObject.setPage(self)
+                    myObject.fromDom(elt)                                  
                 else:
                     myObject= XMLDSObjectClass()
                     myObject.setNode(elt)
-                    # per type?
+                    myObject.setName(elt.name)
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(elt)
@@ -128,6 +127,31 @@ class  XMLDSPageClass(XMLDSObjectClass):
 
 
 
+
+    #TEMPLATE
+#     def setVerticalTemplates(self,lvm):
+#         self._verticalZoneTemplates = lvm
+        
+    def addVerticalTemplate(self,vm): 
+        #if vm not in self._verticalZoneTemplates:
+        self._verticalZoneTemplates.append(vm)
+        self.lVSeparator[vm]=[]
+        
+    def getVerticalTemplates(self): return self._verticalZoneTemplates
+    
+    #REGISTERED CUTS
+    def addVSeparator(self,template, lcuts):
+        try:
+            self.lVSeparator[template].append(lcuts)
+        except KeyError:
+            self.lVSeparator[template] = [lcuts]
+        
+    def getlVSeparator(self,template): 
+        try:return self.lVSeparator[template]
+        except KeyError: return []  
+    
+    #OBJECTS (from registered cut regions)
+    
     def addVerticalObject(self,Template,o): 
         try:self.lVerticalObjects[Template]
         except KeyError: self.lVerticalObjects[Template]=[]
@@ -143,15 +167,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
         return self.lVerticalObjects[Template]
     
     
-    def setVerticalTemplates(self,lvm):
-        self._verticalZoneTemplates = lvm
-        
-    def addVerticalTemplate(self,vm): 
-        if vm not in self._verticalZoneTemplates:
-            self._verticalZoneTemplates.append(vm)
-        self.lVSeparator[str(vm)]=[]
-        
-    def getVerticalTemplates(self): return self._verticalZoneTemplates
+    
     
     def getVX1Info(self): return self._VX1Info
     def setVX1Info(self,lInfo):
@@ -207,8 +223,33 @@ class  XMLDSPageClass(XMLDSObjectClass):
         
         return minbx,minby,maxby-minby,maxbx-minbx         
          
-           
-         
+    
+    def generateAllNSequences(self,lElts,lengthMax):
+        """
+            generate all sequences of length N from elt.next
+        """
+        lSeq=[]
+        for elt in lElts:
+            lSeq.append([elt])
+        i=0
+        bOK=True
+        lFinal=[]
+        while bOK:
+            seq=lSeq[i]
+            if len(seq) < lengthMax:
+                for nexte in seq[-1].next:
+                    newseq=seq[:]
+                    newseq.append(nexte)
+                    lSeq.append(newseq)
+            else:
+                lFinal.append(seq)
+            if i < len(lSeq)-1:
+                i+=1
+            else:
+                bOK=False
+#         print lFinal
+        return [lFinal]
+            
     #### SEGMENTATION
     
     def createVerticalZones(self,Template):
@@ -218,7 +259,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
         """
         #reinit lVerticalObjects
         self.lVerticalObjects[Template]=[]
-        for lseg in self.lVSeparator[Template]:
+        for lseg in self.getlVSeparator(Template):
             prevCut=0
             for xcut in lseg: 
                 region=XMLDSObjectClass()
@@ -244,7 +285,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
                 -> need to 'migrate' fi into sef level :
             
         """
-        from feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
      
         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
             lR=sequenceOfFeatures()
@@ -279,8 +320,8 @@ class  XMLDSPageClass(XMLDSObjectClass):
         """
             define a multivalued features 
         """
-        from feature import multiValueFeatureObject,sequenceOfFeatures, emptyFeatureObject
-     
+        from spm.feature import multiValueFeatureObject,sequenceOfFeatures, emptyFeatureObject
+
         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
             lR=sequenceOfFeatures()
             for f in self._lBasicFeatures.getSequences():
@@ -310,7 +351,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
             feature.addNode(self)
             feature.setObjectName(self)
             feature.setValue(True)
-            feature.setType(verticalZonefeatureObject.BOOLEAN)
+            feature.setType(multiValueFeatureObject.BOOLEAN)
             lFeatures.append(feature)            
 
         seqOfF = sequenceOfFeatures()
@@ -323,7 +364,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
         """
             
         """
-        from feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
      
         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
             lR=sequenceOfFeatures()
@@ -372,7 +413,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
             features: BB X Y H W
             
         """
-        from feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
      
         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
             lR=sequenceOfFeatures()
@@ -427,7 +468,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
             features: BB X Y H W
             
         """
-        from feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
      
         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
             lR=sequenceOfFeatures()
@@ -488,7 +529,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
             
             
         """
-        from feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
      
         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
             lR=sequenceOfFeatures()

@@ -3,7 +3,7 @@
 
     BASELINE class 
     
-    Herv� D�jean
+    Hervé Déjean
     cpy Xerox 2016
     READ project 
 
@@ -58,14 +58,14 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
             import numpy as np
             a,b = np.polyfit(lX, lY, 1)
             self.setAngle(a)
-            ymax = a * self.getX2() +b
-            ymin = a*self.getX() + b
-            import libxml2
-            verticalSep  = libxml2.newNode('PAGEBORDER')
-            verticalSep.setProp('points', '%f,%f,%f,%f'%(self.getX(),ymin,self.getX2(),ymax))         
-#             print 'p',self.getParent()
-#             print 'pp',self.getParent().getParent() 
-            self.getParent().getNode().addChild(verticalSep)
+#             ymax = a * self.getX2() +b
+#             ymin = a*self.getX() + b
+#             import libxml2
+#             verticalSep  = libxml2.newNode('PAGEBORDER')
+#             verticalSep.setProp('points', '%f,%f,%f,%f'%(self.getX(),ymin,self.getX2(),ymax))         
+# #             print 'p',self.getParent()
+# #             print 'pp',self.getParent().getParent() 
+#             self.getParent().getNode().addChild(verticalSep)
             
     """
         TO simulate 'DS' objects

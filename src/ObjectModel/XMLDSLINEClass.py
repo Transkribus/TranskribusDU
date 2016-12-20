@@ -18,7 +18,7 @@ class  XMLDSLINEClass(XMLDSObjectClass):
     """
         LINE class
     """
-    name = ds_xml.sXY_LINE_Elt
+    name = ds_xml.sLINE_Elt
     def __init__(self,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
@@ -28,7 +28,7 @@ class  XMLDSLINEClass(XMLDSObjectClass):
         """
             only contains TEXT?
         """
-        self._name = domNode.name
+        self.setName(domNode.name)
         self.setNode(domNode)
         # get properties
         prop = domNode.properties
@@ -38,7 +38,7 @@ class  XMLDSLINEClass(XMLDSObjectClass):
             prop = prop.next
             
             
-        ctxt = domNode.doc.dom.xpathNewContext()
+        ctxt = domNode.doc.xpathNewContext()
         ctxt.setContextNode(domNode)
         ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sTEXT))
         ctxt.xpathFreeContext()

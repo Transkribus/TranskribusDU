@@ -3,7 +3,7 @@
 
     object class 
     
-    Hervé Déjean
+    Hervï¿½ Dï¿½jean
     cpy Xerox 2009
     
     a class for object
@@ -33,7 +33,7 @@ class  objectClass(sequenceAPI):
         
         # list of structures
         self._lStructures = []
-        
+    
     def getName(self): return self._name
     def setName(self,n): self._name  = n
     def getParent(self): return self._parent

@@ -44,7 +44,7 @@ class sequenceAPI():
             for fuzzy matching: getSetofDegradedFeatures() ??
         """
         
-        from feature import sequenceOfFeatures
+        from spm.feature import sequenceOfFeatures
         try:
             self._lBasicFeatures
         except AttributeError:
@@ -65,7 +65,7 @@ class sequenceAPI():
         """
             skeleton
         """
-        from feature import sequenceOfFeatures
+        from spm.feature import sequenceOfFeatures
         
         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
             lR=sequenceOfFeatures()
