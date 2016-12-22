@@ -145,5 +145,10 @@ def test_setMetadata():
     assert md.Comments == "Le chat de Martine"
     print doc
     
+def test_CreationPageXmlDocument():
+    doc= PageXml.createPageXmlDocument(creatorName='HerveforTest', filename='hervefortest.jpg', imgW=100, imgH=100)
+    print doc
+    
 if __name__ == "__main__":
-    test_setMetadata()
+#     test_setMetadata()
+    test_CreationPageXmlDocument()

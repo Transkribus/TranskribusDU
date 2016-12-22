@@ -368,8 +368,7 @@ class  featureObject(object):
         return False
        
        
-    def getClassName(self): return self.__class__.__name__
-      
+     
 #     def __repr__(self):  return  "(%s=%s %s)" % (self.getName(),self.getValue(),self.getType())
     
     
@@ -434,6 +433,7 @@ class multiValueFeatureObject(featureObject):
         
         featureObject.__init__(self)
         self._value = []
+        self._TH= 1.0
             
     def getStringValue(self):
         if self.getName() == 'EMPTY':
@@ -443,12 +443,14 @@ class multiValueFeatureObject(featureObject):
         return "|".join(map(lambda x:x.getStringValue(),self.getValue()))
             
     def __eq__(self,other):
+        try: other.getClassName()
+        except AttributeError:return False
         if self.getClassName() == other.getClassName():
             if self.getName() == other.getName():
                 nbCommon = 0
                 for x in self.getValue():
                     if x in other.getValue(): nbCommon +=1
-#                 print self, other, nbCommon,self.getTH() * len(self.getValue()),nbCommon >= ( self.getTH() * len(self.getValue()))
+#                 print self, other, self.getTH() , nbCommon,self.getTH() * len(self.getValue()),nbCommon >= ( self.getTH() * len(self.getValue()))
                 return nbCommon >= ( self.getTH() * len(self.getValue())) #and self.getTH() * len(other.getValue()))
         return False
 class emptyFeatureObject(featureObject):
