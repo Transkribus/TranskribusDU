@@ -18,10 +18,12 @@ class doublePageTemplateClass(templateClass):
     def __init__(self):
         templateClass.__init__(self)
         
+        self.bIsMirrored= True
+
         # will contained other templates for each page
         self.leftPage = None 
         self.rightPage = None        
-
+        
         # getSetofFeatures used for using this template
         self.myInitialFeatures = None
     
@@ -41,12 +43,14 @@ class doublePageTemplateClass(templateClass):
         self.leftPage.setPattern(pattern[0])
         self.leftPage.setParent(self)
         
+        
         self.rightPage = verticalZonestemplateClass()
         self.rightPage.setType('rightpage')
         self.rightPage.setPattern(pattern[1])
         self.rightPage.setParent(self)
     
-    
+        self.rightPage.brother=self.leftPage
+        self.leftPage.brother=self.rightPage
     def setInitialFeatures(self,seqofF): self.myInitialFeatures = seqofF
     
         

@@ -41,7 +41,7 @@ class templateClass(objectClass,sequenceAPI):
         self._templateType = None
         self.parent=None # link to parent template 
         self.pattern = None
-        
+        self.bIsMirrored= False
         
     def __str__(self):return 'template'
     def __repr__(self):return 'template'
@@ -53,7 +53,10 @@ class templateClass(objectClass,sequenceAPI):
     def getType(self): return self._templateType
     
     def getParent(self): return self.parent
-    def setParent(self,p): self.parent= p 
+    def setParent(self,p): self.parent= p
+    
+    def isMirrored(self): return self.bIsMirrored
+     
     def registration(self,object):
         raise "SOFTWARE ERROR: your component must define a testRun method"
 

@@ -32,9 +32,8 @@ class verticalZonestemplateClass(templateClass):
         #list of the zone width
         self.lWidth= []
         
-        # getSetofFeatures used for using this template
-        # in templateClass
-#         self.pattern = None
+        #for mirrored template
+        self.brother=None
     
     def __str__(self): return 'VZTemp:'+ str(self.pattern)
     def __repr__(self): return 'VZTemp:'+ str(self.pattern)
@@ -112,8 +111,8 @@ class verticalZonestemplateClass(templateClass):
         for i  in range(N-1):
 #             for j in range(i,N):
                 transProb[i,i+1]=1.0/(N-i)
-        transProb[:,-1,]=1.0/(N-i)
-        transProb[-1,:]=1.0/(N-i)        
+        transProb[:,-1,]=1.0/(N)
+        transProb[-1,:]=1.0/(N)        
         
         initialProb = np.ones(N)
         initialProb = np.reshape(initialProb,(N,1))
@@ -196,7 +195,7 @@ class verticalZonestemplateClass(templateClass):
         lFinres= filter(lambda (x,y): x!= 'EMPTY',zip(result,pageObject.lf_XCut))
 
         lFinres =  self.selectBestCandidat(lFinres)
-        print lFinres
+#         print lFinres
 #         self.selectBestAnchor(lFinres)
         if len(lFinres) >=  len(self.getXCuts()) * 0.50:
             return lFinres,lMissing,bestScore
