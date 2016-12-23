@@ -35,7 +35,8 @@ except ImportError:
 
 from tasks import _checkFindColDir, _exit
 
-from crf.Graph_MultiPageXml_TextRegion import Graph_MultiPageXml_TextRegion
+from crf.Graph_MultiPageXml import Graph_MultiPageXml
+from crf.NodeType_PageXml   import NodeType_PageXml
 from crf.Model import ModelException
 
 from DU_CRF_Task import DU_CRF_Task
@@ -53,21 +54,6 @@ class DU_StAZH_b(DU_CRF_Task):
     Metadata_Creator = "XRCE Document Understanding CRF-based + constraints - v0.1"
     Metadata_Comments = None
 
-    #  0=OTHER        1            2            3        4                5
-    TASK_LABELS = ['catch-word', 'header', 'heading', 'marginalia', 'page-number']
-
-    """
-    The constraints must be a list of tuples like ( <operator>, <unaries>, <states>, <negated> )
-    where:
-    - operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
-    - states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
-    - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
-    """
-    lCONSTRAINT_PER_PAGE = [
-           ('ATMOSTONE', 'catch-word', False)   #0 or 1 catch_word per page
-         , ('ATMOSTONE', 'heading', False)      #0 or 1 heading pare page
-         , ('ATMOSTONE', 'page-number', False)  #0 or 1 page number per page
-         ]
     
     featureExtractorConfig = { 
                         'n_tfidf_node'    : 500
@@ -83,15 +69,39 @@ class DU_StAZH_b(DU_CRF_Task):
                      , 'inference_cache'  : 50
                      , 'tol'              : .1
                      , 'save_every'       : 50     #save every 50 iterations,for warm start
-                     , 'max_iter'         : 1000
+                     #, 'max_iter'         : 1000
+                     , 'max_iter'         : 10
                      }
     
     def getGraphClass(self):
-        DU_StAZH_Graph = Graph_MultiPageXml_TextRegion
-        DU_StAZH_Graph.setLabelList(self.TASK_LABELS, True)  #True means non-annotated node are of class 0 = OTHER
-        traceln("- classes: ", DU_StAZH_Graph.getLabelList())
         
-        DU_StAZH_Graph.setPageConstraint(self.lCONSTRAINT_PER_PAGE)
+        #we will load data from MultiPageXml XML files
+        DU_StAZH_Graph = Graph_MultiPageXml
+        
+        nt = NodeType_PageXml("TR"                   #some short prefix because labels below are prefixed with it
+                              , ['catch-word', 'header', 'heading', 'marginalia', 'page-number']   #EXACTLY as in GT data!!!!
+                              , []      #no ignored label/ One of those above or nothing, otherwise Exception!!
+                              , True    #no label means OTHER
+                              )
+        nt.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
+                          , "./pc:TextEquiv")       #how to get their text
+                       )
+        DU_StAZH_Graph.addNodeType(nt)
+        
+        traceln("- classes: ", DU_StAZH_Graph.getLabelNameList())
+        
+        """
+        The constraints must be a list of tuples like ( <operator>, <unaries>, <states>, <negated> )
+        where:
+        - operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
+        - states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
+        - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
+        """
+        DU_StAZH_Graph.setPageConstraint( [    ('ATMOSTONE', nt, 'catch-word', False)   #0 or 1 catch_word per page
+                                             , ('ATMOSTONE', nt, 'heading', False)      #0 or 1 heading pare page
+                                             , ('ATMOSTONE', nt, 'page-number', False)  #0 or 1 page number per page
+                                             ] )
+
         return DU_StAZH_Graph
 
     #=== END OF CONFIGURATION =======================

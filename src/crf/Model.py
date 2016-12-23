@@ -262,11 +262,9 @@ class Model:
         """
         raise Exception("Method must be overridden")
 
-    def test(self, lGraph, lsClassName=None, lConstraints=[]):
+    def test(self, lGraph):
         """
         Test the model using those graphs and report results on stderr
-        lConstraints may contain a list of logical constraints per graph.
-        This list has the form: [(logical-operator, indices, state, negated), ...]
         
         if some baseline model(s) were set, they are also tested
         
@@ -274,10 +272,9 @@ class Model:
         """
         raise Exception("Method must be overridden")
 
-    def predict(self, graph, constraints=None):
+    def predict(self, graph):
         """
         predict the class of each node of the graph
-        constraints may contain a list of logical constraints of the form: [(logical-operator, indices, state, negated), ...]
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
         """
         raise Exception("Method must be overridden")
@@ -290,48 +287,6 @@ class Model:
         return class_weights
     computeClassWeight = classmethod(computeClassWeight)
 
-    def test_report(self, Y, Y_pred, lsClassName=None):
-        """
-        compute the confusion matrix and classification report.
-        Print them on stderr and return the accuracy global score and the report
-        """
-        
-        #we need to include all clasname that appear in the dataset or in the predicted labels (well... I guess so!)
-        if lsClassName:
-            setSeenCls = set()
-            for _Y in [Y, Y_pred]:
-                setSeenCls = setSeenCls.union( np.unique(_Y).tolist() )
-            lsSeenClassName = [ cls for (i, cls) in enumerate(lsClassName) if i in setSeenCls]
-            
-        traceln("Line=True class, column=Prediction")
-        a = confusion_matrix(Y, Y_pred)
-#not nice because of formatting of numbers possibly different per line
-#         if lsClassName:
-#             #Let's show the class names
-#             s1 = ""
-#             for sLabel, aLine in zip(lsSeenClassName, a):
-#                 s1 += "%20s %s\n"%(sLabel, aLine)
-#         else:
-#             s1 = str(a)
-        s1 = str(a)
-        if lsClassName:
-            lsLine = s1.split("\n")    
-            assert len(lsLine)==len(lsSeenClassName)
-            s1 = "\n".join( ["%20s  %s"%(sLabel, sLine) for (sLabel, sLine) in zip(lsSeenClassName, lsLine)])    
-        traceln(s1)
-
-        if lsClassName:
-            s2 = classification_report(Y, Y_pred, target_names=lsSeenClassName)
-        else:
-            s2 = classification_report(Y, Y_pred)
-        traceln(s2)
-        
-        fScore = accuracy_score(Y, Y_pred)
-        s3 = "(unweighted) Accuracy score = %.2f"% fScore
-        traceln(s3)
-        
-        return fScore, "\n\n".join([s1,s2,s3])
-    test_report = classmethod(test_report)    
 
 # --- AUTO-TESTS ------------------------------------------------------------------
 def test_computeClassWeight():

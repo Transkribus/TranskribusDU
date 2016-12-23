@@ -67,7 +67,7 @@ class NodeType:
         self.lsXmlIgnoredLabel = lsIgnoredLabel
         self.bIgnoreSome       = (lsIgnoredLabel != "*")
              
-        self.lsLabel        = ["%s_%s"%(self.name, s.strip()) for s in lsLabel]
+        self.lsLabel        = [self.getInternalLabelName(s) for s in lsLabel]
 
         self.dXmlLabel2Label = { sXml :s    for sXml, s in zip(self.lsXmlLabel, self.lsLabel) }
         self.dLabel2XmlLabel = { s    :sXml for sXml, s in zip(self.lsXmlLabel, self.lsLabel) }
@@ -81,6 +81,12 @@ class NodeType:
 
         self.nCls = len(self.lsLabel)        
 
+    def getInternalLabelName(self, sXmlLabel):
+        """
+        return the name seen by the classifier from the user-visible label
+        """
+        return "%s_%s"%(self.name, sXmlLabel.strip())
+    
     def setXpathExpr(self, o):
         """
         set any Xpath related information to extract the nodes from an XML file

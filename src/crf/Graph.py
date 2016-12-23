@@ -127,10 +127,11 @@ class Graph:
         The constraints must be a list of tuples like ( <operator>, <label>, <negated> )
             where:
             - operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
+            - nodeType is the NodeType, which defines the labels
             - states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
             - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
         """
-        cls._lPageConstraintDef = lPageConstraintDef
+        cls._lPageConstraintDef = [ (op, nt.getInternalLabelName(label), neg) for (op, nt, label, neg) in lPageConstraintDef]
     setPageConstraint = classmethod(setPageConstraint)
     
     def getPageConstraint(cls):

@@ -173,9 +173,9 @@ See DU_StAZH_b.py
 
         if lPageConstraint:
             lConstraints = [g.instanciatePageConstraints() for g in lGraph_tst]
-            tstRpt = mdl.test(lGraph_tst, DU_GraphClass.getLabelNameList(), lConstraints=lConstraints)
+            tstRpt = mdl.test(lGraph_tst)
         else:
-            tstRpt = mdl.test(lGraph_tst, DU_GraphClass.getLabelNameList())
+            tstRpt = mdl.test(lGraph_tst)
         return tstRpt
 
     def predict(self, sModelName, sModelDir, lsColDir):

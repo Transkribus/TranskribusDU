@@ -131,26 +131,31 @@ class Model_SSVM_AD3(Model):
         gc.collect()
         return 
             
-    def test(self, lGraph, lsClassName=None, lConstraints=[]):
+    def test(self, lGraph):
         """
         Test the model using those graphs and report results on stderr
         if some baseline model(s) were set, they are also tested
         Return a Report object
         """
+        assert lGraph
+        lLabelName   = lGraph[0].getLabelNameList()
+        bConstraint  = lGraph[0].getPageConstraint()
+        
         traceln("\t- computing features on test set")
         lX, lY = self.transformGraphs(lGraph, True)
         traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         traceln("\t done")
 
         traceln("\t- predicting on test set")
-        if lConstraints:
+        if bConstraint:
+            lConstraints = [g.instanciatePageConstraints() for g in lGraph]
             lY_pred = self.ssvm.predict(lX, constraints=lConstraints)
         else:
             lY_pred = self.ssvm.predict(lX)
              
         traceln("\t done")
         
-        tstRpt = TestReport(self.sName, lY_pred, lY)
+        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName)
         
         #do some garbage collection
         del lX, lY
@@ -158,15 +163,17 @@ class Model_SSVM_AD3(Model):
         
         return tstRpt
 
-    def predict(self, graph, constraints=None):
+    def predict(self, graph):
         """
         predict the class of each node of the graph
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
         """
         [X] = self.transformGraphs([graph])
+        bConstraint  = graph.getPageConstraint()
+        
         traceln("\t  #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
-        if constraints:
-            [Y] = self.ssvm.predict([X], constraints=[constraints])
+        if bConstraint:
+            [Y] = self.ssvm.predict([X], constraints=[graph.instanciatePageConstraints()])
         else:
             [Y] = self.ssvm.predict([X])
             
