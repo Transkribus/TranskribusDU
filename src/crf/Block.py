@@ -25,7 +25,7 @@ DEBUG=1
 
 class Block:
         
-    def __init__(self,pnum, (x, y, w, h), text, orientation, cls, domnode=None, domid=None):
+    def __init__(self,pnum, (x, y, w, h), text, orientation, cls, nodeType, domnode=None, domid=None):
         """
         pnum is an int
         orientation is an int, usually in [0-3]
@@ -43,6 +43,8 @@ class Block:
         self.node = domnode
         self.domid = domid
         self.cls = cls #the class of the block, in [0, N]
+        #Node type
+        self.type = nodeType
         self.fontsize = 0.0 #new in loader v04
         self.sconf = "" #new in v08
         
@@ -53,6 +55,7 @@ class Block:
 
         #container
         self.page = None
+        
 
     def setFontSize(self, fFontSize):
         self.fontsize = fFontSize

@@ -28,6 +28,7 @@
 import collections
 
 import numpy as np
+import libxml2
 
 from common.trace import traceln
 
@@ -38,13 +39,12 @@ class Graph:
     A graph to be used as a CRF graph with pystruct
     """
     
-    #The labels for those graphs
-    _sOTHER_LABEL   = "OTHER"
-    lsLabel         = None #list of labels
-    sDefaultLabel   = None #when no annotation, do we set automatically to this label? (e.g."OTHER")
-    dLabelByCls     = None    
-    dClsByLabel     = None
-    nCls            = None
+    # --- NODE TYPES and LABELS
+    _lNodeType       = []       #the list of node types for this class of graph
+    _dLabelByCls     = None     #dictionary across node types
+    _dClsByLabel     = None     #dictionary across node types
+    
+    #--- CONSTRAINTS
     _lPageConstraintDef = None  #optionnal page-level constraints
                 
     def __init__(self, lNode = [], lEdge = []):
@@ -52,14 +52,173 @@ class Graph:
         self.lEdge = lEdge
         self.doc   = None
         
+    # --- Node Types -------------------------------------------------
+    @classmethod
+    def getNodeTypeList(cls):
+        """
+        Return the list of label set
+        """
+        return cls._lNodeType
+    
+    @classmethod
+    def addNodeType(cls, nodeType):
+        """
+        Add a new node type to this class of graph
+        return the new whole list of labels
+        """
+        #list of labels
+        lsNewLabel = nodeType.getLabelNameList()
+        lsAllLabel = cls.getLabelNameList()
+        
+        for sNewLabel in lsNewLabel:
+            if sNewLabel in lsAllLabel: 
+                raise ValueError("A label must be globally unique (within and across LabelSet(s)): '%s'"%sNewLabel)
+            lsAllLabel.append(sNewLabel)
+            
+        cls._lNodeType.append(nodeType)
+        assert lsAllLabel == cls.getLabelNameList(), "Internal error"
+        
+        #and make convenience data structures
+        cls._dLabelByCls = { i:sLabel for i,sLabel in enumerate(lsAllLabel) }         
+        cls._dClsByLabel = { sLabel:i for i,sLabel in enumerate(lsAllLabel) } 
+        
+        return lsAllLabel
+    
+    # --- Labels ----------------------------------------------------------
+    @classmethod
+    def getLabelNameList(cls):
+        """
+        Return the list of label names for all label sets
+        """
+        return [sLabelName for lblSet in cls._lNodeType for sLabelName in lblSet.getLabelNameList()]
+
+    def parseDomLabels(self):
+        """
+        Parse the label of the graph from the dataset, and set the node label
+        return the set of observed class (set of integers in N+)
+        """
+        setSeensLabels = set()
+        for nd in self.lNode:
+            nodeType = nd.type 
+            #a LabelSet object knows how to parse a DOM node of a Graph object!!
+            sLabel = nodeType.parseDomNodeLabel(nd.node)
+            try:
+                cls = self._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
+            except KeyError:
+                raise ValueError("Page %d, unknown label '%s' in %s"%(nd.pnum, sLabel, str(nd.node)))
+            nd.cls = cls
+            setSeensLabels.add(cls)
+        return setSeensLabels    
+
+    def setDomLabels(self, Y):
+        """
+        Set the labels of the graph nodes from the Y matrix
+        return the DOM
+        """
+        for i,nd in enumerate(self.lNode):
+            sLabel = self._dLabelByCls[ Y[i] ]
+            nd.type.setDomNodeLabel(nd.node, sLabel)
+        return self.doc
+
+    # --- Constraints -----------------------------------------------------------
+    def setPageConstraint(cls, lPageConstraintDef):
+        """
+        We get the definition of the constraint per page
+        The constraints must be a list of tuples like ( <operator>, <label>, <negated> )
+            where:
+            - operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
+            - states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
+            - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
+        """
+        cls._lPageConstraintDef = lPageConstraintDef
+    setPageConstraint = classmethod(setPageConstraint)
+    
+    def getPageConstraint(cls):
+        return cls._lPageConstraintDef
+    getPageConstraint = classmethod(getPageConstraint)
+
+    def instanciatePageConstraints(self):
+        """
+        Instanciate for this particular graph the defined constraints
+        return a list of tuples like ( <operator>, <unaries>, <states>, <negated> )
+            where:
+            - operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
+            - unaries is a list of the index of the unaries involved in this constraint
+            - states is a list of unary states, 1 per involved unary. If the states are all the same, you can pass it directly as a scalar value.
+            - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
+        """
+        lUnaries = self.getNodeIndexByPage()
+        lRet = [ (op, unaries, self._dClsByLabel[label], neg) for unaries in lUnaries for (op, label, neg) in self._lPageConstraintDef]
+#         for (op, unaries, cls, neg) in lRet:
+#             print [self.lNode[i].domid for i in unaries]
+        return lRet
+    
     # --- Graph building --------------------------------------------------------
+    @classmethod
+    def loadGraphs(cls, lsFilename, bNeighbourhood=True, bDetach=False, bLabelled=False, iVerbose=0):
+        """
+        Load one graph per file, and detach its DOM
+        return the list of loaded graphs
+        """
+        lGraph = []
+        for sFilename in lsFilename:
+            if iVerbose: traceln("\t%s"%sFilename)
+            g = cls()
+            g.parseXmlFile(sFilename, iVerbose)
+            if bNeighbourhood: g.collectNeighbors()            
+            if bLabelled: g.parseDomLabels()
+            if bDetach: g.detachFromDOM()
+            lGraph.append(g)
+        return lGraph
+
     def parseXmlFile(self, sFilename, iVerbose=0):
         """
         Load that document as a CRF Graph.
         Also set the self.doc variable!
+        
+        Return a CRF Graph object
         """
-        raise Exception("Method must be overridden")
+    
+        self.doc = libxml2.parseFile(sFilename)
+        self.lNode, self.lEdge = list(), list()
+        #load the block of each page, keeping the list of blocks of previous page
+        lPrevPageNode = None
 
+        for pnum, page, domNdPage in self._iter_Page_DomNode(self.doc):
+            #now that we have the page, let's create the node for each type!
+            lPageNode = list()
+            setPageNdDomId = set() #the set of DOM id
+            # because the node types are supposed to have an empty intersection
+                            
+            lPageNode = [nd for nodeType in self.getNodeTypeList() for nd in nodeType._iter_GraphNode(self.doc, domNdPage, page) ]
+            
+            #check that each node appears once
+            setPageNdDomId = set([nd.domid for nd in lPageNode])
+            assert len(setPageNdDomId) == len(lPageNode), "ERROR: some nodes fit with multiple NodeTypes"
+            
+        
+            self.lNode.extend(lPageNode)
+            
+            lPageEdge = Edge.Edge.computeEdges(lPrevPageNode, lPageNode)
+            
+            self.lEdge.extend(lPageEdge)
+            if iVerbose>=2: traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
+            
+            lPrevPageNode = lPageNode
+        if iVerbose: traceln("\t- %d nodes,  %d edges)"%(len(self.lNode), len(self.lEdge)) )
+        
+        return self
+
+    def _iter_Page_DomNode(self, doc):
+        """
+        Parse a Xml DOM, by page
+
+        iterator on the DOM, that returns per page:
+            page-num (int), page object, page dom node
+        
+        """
+        raise Exception("Must be specialized")
+    
     def collectNeighbors(self):
         """
         record the lists of hotizontal-, vertical- and cross-page neighbours for each node
@@ -89,112 +248,6 @@ class Graph:
         self.doc.freeDoc()
         self.doc = None
 
-    # --- Labels ----------------------------------------------------------
-    def getLabelList(cls):
-        return cls.lsLabel
-    getLabelList = classmethod(getLabelList)
-    
-    def setLabelList(cls, lsLabel, bOther=True):
-        """set those properties:
-            self.lsLabel    - list of label names
-            dLabelByCls     - dictionary name -> id
-            dClsByLabel     - dictionary id -> name
-            self.nCls       - number of different labels
-        """
-        if bOther: 
-            assert cls._sOTHER_LABEL not in lsLabel, "the label for class 'OTHER' conflicts with a task-specific label"
-            cls.lsLabel        = [cls._sOTHER_LABEL] + lsLabel
-            cls.sDefaultLabel  = cls._sOTHER_LABEL
-        else:
-            cls.lsLabel        = lsLabel
-            cls.sDefaultLabel  = None
-         
-        cls.dLabelByCls = { i:sLabel for i,sLabel in enumerate(cls.lsLabel) }         
-        cls.dClsByLabel = { sLabel:i for i,sLabel in enumerate(cls.lsLabel) } 
-        cls.nCls = len(cls.lsLabel)        
-        return cls.lsLabel
-    setLabelList = classmethod(setLabelList)
-    
-    def parseDomLabels(self):
-        """
-        Parse the label of the graph from the dataset, and set the node label
-        return the set of observed class (set of integers in N+)
-        """
-        setSeensLabels = set()
-        for nd in self.lNode:
-            sLabel = self.parseDomNodeLabel(nd.node, self.sDefaultLabel)
-            cls = self.dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
-            nd.cls = cls
-            setSeensLabels.add(cls)
-        return setSeensLabels    
-
-    def setDomLabels(self, Y):
-        """
-        Set the labels of the graph nodes from the Y matrix
-        return the DOM
-        """
-        for i,nd in enumerate(self.lNode):
-            sLabel = self.lsLabel[ Y[i] ]
-            if sLabel != self.sDefaultLabel:
-                self.setDomNodeLabel(nd.node, sLabel)
-        return self.doc
-
-    def setDomNodeLabel(self, node, sLabel):
-        """
-        Set the DOM node associated to this graph node to a certain label
-        """        
-        raise Exception("Method must be overridden")
-    
-    # --- Constraints -----------------------------------------------------------
-    def setPageConstraint(cls, lPageConstraintDef):
-        """
-        We get the definition of the constraint per page
-        The constraints must be a list of tuples like ( <operator>, <label>, <negated> )
-            where:
-            - operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
-            - states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
-            - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
-        """
-        cls._lPageConstraintDef = lPageConstraintDef
-    setPageConstraint = classmethod(setPageConstraint)
-    
-    def getPageConstraint(cls):
-        return cls._lPageConstraintDef
-    getPageConstraint = classmethod(getPageConstraint)
-
-    def instanciatePageConstraints(self):
-        """
-        Instanciate for this particular graph the defined constraints
-        return a list of tuples like ( <operator>, <unaries>, <states>, <negated> )
-            where:
-            - operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
-            - unaries is a list of the index of the unaries involved in this constraint
-            - states is a list of unary states, 1 per involved unary. If the states are all the same, you can pass it directly as a scalar value.
-            - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
-        """
-        lUnaries = self.getNodeIndexByPage()
-        lRet = [ (op, unaries, self.dClsByLabel[label], neg) for unaries in lUnaries for (op, label, neg) in self._lPageConstraintDef]
-#         for (op, unaries, cls, neg) in lRet:
-#             print [self.lNode[i].domid for i in unaries]
-        return lRet
-    
-    # --- Utilities ---------------------------------------------------------
-    def loadGraphs(cls, lsFilename, bNeighbourhood=True, bDetach=False, bLabelled=False, iVerbose=0):
-        """
-        Load one graph per file, and detach its DOM
-        return the list of loaded graphs
-        """
-        lGraph = []
-        for sFilename in lsFilename:
-            if iVerbose: traceln("\t%s"%sFilename)
-            g = cls()
-            g.parseXmlFile(sFilename, iVerbose)
-            if bNeighbourhood: g.collectNeighbors()            
-            if bLabelled: g.parseDomLabels()
-            if bDetach: g.detachFromDOM()
-            lGraph.append(g)
-        return lGraph
-    loadGraphs = classmethod(loadGraphs)
 
     # --- Numpy matrices --------------------------------------------------------
     def buildNodeEdgeMatrices(self, node_transformer, edge_transformer):

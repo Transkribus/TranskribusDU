@@ -26,6 +26,8 @@
 """
 import os
 import cPickle, gzip, json
+import types
+import gc
 
 import numpy as np
 
@@ -49,6 +51,8 @@ from pystruct.learners import FrankWolfeSSVM
 from common.trace import  traceln
 from common.chrono import chronoOn, chronoOff
 
+from TestReport import TestReport
+
 class ModelException(Exception):
     pass
 
@@ -66,9 +70,11 @@ class Model:
             os.mkdir(sModelDir)
         self.sDir = sModelDir
 
-        self.node_transformer   = None
-        self.edge_transformer   = None
-    
+        self._node_transformer   = None
+        self._edge_transformer   = None
+        
+        self._lMdlBaseline       = None  #contains possibly empty list of models
+            
     def configureLearner(self, **kwargs):
         """
         To configure the learner: pass a dictionary using the ** argument-passing method
@@ -128,7 +134,7 @@ class Model:
         Set the type of transformers 
         return True 
         """
-        self.node_transformer, self.edge_transformer = node_transformer, edge_transformer        
+        self._node_transformer, self._edge_transformer = node_transformer, edge_transformer        
         return True
 
     def getTransformers(self):
@@ -136,7 +142,7 @@ class Model:
         return the node and edge transformers.
         This method is useful to clean them before saving them on disk
         """
-        return self.node_transformer, self.edge_transformer
+        return self._node_transformer, self._edge_transformer
 
     def saveTransformers(self):
         """
@@ -144,7 +150,7 @@ class Model:
         return the filename
         """
         sTransfFile = self.getTransformerFilename()
-        self.gzip_cPickle_dump(sTransfFile, (self.node_transformer, self.edge_transformer))
+        self.gzip_cPickle_dump(sTransfFile, (self._node_transformer, self._edge_transformer))
         return sTransfFile
         
     def saveConfiguration(self, config_data):
@@ -167,7 +173,7 @@ class Model:
         sTransfFile = self.getTransformerFilename()
 
         dat =  self._loadIfFresh(sTransfFile, expiration_timestamp, self.gzip_cPickle_load)
-        self.node_transformer, self.edge_transformer = dat        
+        self._node_transformer, self._edge_transformer = dat        
         return True
         
     def transformGraphs(self, lGraph, bLabelled=False):
@@ -178,19 +184,81 @@ class Model:
          - a list of X and a list of Y
          - a list of X
         """
-        lX = [g.buildNodeEdgeMatrices(self.node_transformer, self.edge_transformer) for g in lGraph]
+        lX = [g.buildNodeEdgeMatrices(self._node_transformer, self._edge_transformer) for g in lGraph]
         if bLabelled:
             lY = [g.buildLabelMatrix() for g in lGraph]
             return lX, lY
         else:
             return lX
-                
+
+    # --- TRAIN / TEST / PREDICT BASELINE MODELS ------------------------------------------------
+    
+    def setBaselineModels(self, mdlBaselines):
+        """
+        set one or a list of sklearn model(s):
+        - they MUST be initialized, so that the fit method can be called at train time
+        - they MUST accept the sklearn usual predict method
+        They will be trained with the node features, from all nodes of all training graphs
+        """
+        #the baseline model(s) if any
+        if type(mdlBaselines) in [types.ListType, types.TupleType]:
+            self._lMdlBaseline = mdlBaselines
+        else:
+            self._lMdlBaseline = list(mdlBaselines) if mdlBaselines else []  #singleton or None
+        return
+    
+    def getBaselineModelList(self):
+        """
+        return the list of baseline models
+        """
+        return self._lMdlBaseline
+    
+    def _trainBaselines(self, lX, lY):
+        """
+        Train the baseline models, if any
+        """
+        if self._lMdlBaseline:
+            X_flat = np.vstack( [node_features for (node_features, _, _) in lX] )
+            Y_flat = np.hstack(lY)
+            for mdlBaseline in self._lMdlBaseline:
+                chronoOn()
+                traceln("\t - training baseline model: %s"%str(mdlBaseline))
+                mdlBaseline.fit(X_flat, Y_flat)
+                traceln("\t [%.1fs] done\n"%chronoOff())
+            del X_flat, Y_flat
+        return 
+                  
+    def _testBaselines(self, lX, lY):
+        """
+        test the baseline models, return a test report list
+        """
+        lTstRpt = []
+        if self._lMdlBaseline:
+            X_flat = np.vstack( [node_features for (node_features, _, _) in lX] )
+            Y_flat = np.hstack(lY)
+            lTstRpt = list()
+            for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
+                Y_pred_flat = mdl.predict(X_flat)
+                lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat) )
+                del Y_pred_flat
+            del X_flat, Y_flat
+        return lTstRpt                                                                              
+    
+    def predictBaselines(self, X):
+        """
+        predict with the baseline models, return a list of 1-dim numpy arrays
+        """
+        return [mdl.predict(X) for mdl in self._lMdlBaseline]
+
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
     def train(self, lGraph, bWarmStart=True, expiration_timestamp=None):
         """
         Return a model trained using the given labelled graphs.
         The train method is expected to save the model into self.getModelFilename(), at least at end of training
         If bWarmStart==True, The model is loaded from the disk, if any, and if fresher than given timestamp, and training restarts
+        
+        if some baseline model(s) were set, they are also trained, using the node features
+        
         """
         raise Exception("Method must be overridden")
 
@@ -200,7 +268,9 @@ class Model:
         lConstraints may contain a list of logical constraints per graph.
         This list has the form: [(logical-operator, indices, state, negated), ...]
         
-        Return the textual report
+        if some baseline model(s) were set, they are also tested
+        
+        Return a Report object
         """
         raise Exception("Method must be overridden")
 

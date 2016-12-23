@@ -41,11 +41,11 @@ class FeatureExtractors:
         return True 
         """
         lAllNode = [nd for g in lGraph for nd in g.lNode]
-        self.node_transformer.fit(lAllNode)
+        self._node_transformer.fit(lAllNode)
         del lAllNode #trying to free the memory!
         
         lAllEdge = [edge for g in lGraph for edge in g.lEdge]
-        self.edge_transformer.fit(lAllEdge)
+        self._edge_transformer.fit(lAllEdge)
         del lAllEdge
         
         return True

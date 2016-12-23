@@ -131,17 +131,17 @@ class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
                         
         edge_transformer = FeatureUnion( lEdgeFeature )
           
-        #return node_transformer, edge_transformer, tdifNodeTextVectorizer
-        self.node_transformer = node_transformer
-        self.edge_transformer = edge_transformer
+        #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
+        self._node_transformer = node_transformer
+        self._edge_transformer = edge_transformer
         self.tfidfNodeTextVectorizer = tdifNodeTextVectorizer
         
     def getTransformers(self):
         """
         return the node and edge feature extractors, as well as the tfidf extractor
         """
-        return self.node_transformer, self.edge_transformer
-
+        return self._node_transformer, self._edge_transformer
+    
     def clean_transformers(self):
         """
         the TFIDF transformers are keeping the stop words => huge pickled file!!!
@@ -149,10 +149,9 @@ class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
         Here the fix is a bit rough. There are better ways....
         JL
         """
-        self.node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
-        self.edge_transformer.transformer_list[2][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
-        self.edge_transformer.transformer_list[3][1].steps[1][1].stop_words_ = None        
-        return self.node_transformer, self.edge_transformer
-        
+        self._node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
+        self._edge_transformer.transformer_list[2][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
+        self._edge_transformer.transformer_list[3][1].steps[1][1].stop_words_ = None        
+        return self._node_transformer, self._edge_transformer        
 
     

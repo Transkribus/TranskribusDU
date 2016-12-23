@@ -90,7 +90,8 @@ See DU_StAZH_b.py
     #----------------------------------------------------------------------------------------------------------    
     def train_test(self, sModelName, sModelDir, lsTrnColDir, lsTstColDir):
         """
-        Train a model on the tTRN collections and optionally test it using the TST collections
+        Train a model on the tTRN collections and optionally test it using the TST collections, if not empty
+        if bCmpLogit is True, also test using a logit model
         """
         traceln("-"*50)
         traceln("Training model '%s' in folder '%s'"%(sModelName, sModelDir))
@@ -137,12 +138,16 @@ See DU_StAZH_b.py
             lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
             traceln(" %d graphs loaded"%len(lGraph_tst))
     
-            fScore, sReport = mdl.test(lGraph_tst, DU_GraphClass.getLabelList())
+            fScore, sReport = mdl.test(lGraph_tst, DU_GraphClass.getLabelNameList())
         else:
             fScore, sReport = None, None
+            
         return fScore, sReport
 
     def test(self, sModelName, sModelDir, lsTstColDir):
+        """
+        if bCmpLogit is True, also test using a logit model
+        """
         traceln("-"*50)
         traceln("Trained model '%s' in folder '%s'"%(sModelName, sModelDir))
         traceln("Test  collection(s):", lsTstColDir)
@@ -168,10 +173,10 @@ See DU_StAZH_b.py
 
         if lPageConstraint:
             lConstraints = [g.instanciatePageConstraints() for g in lGraph_tst]
-            fScore, sReport = mdl.test(lGraph_tst, DU_GraphClass.getLabelList(), lConstraints=lConstraints)
+            tstRpt = mdl.test(lGraph_tst, DU_GraphClass.getLabelNameList(), lConstraints=lConstraints)
         else:
-            fScore, sReport = mdl.test(lGraph_tst, DU_GraphClass.getLabelList())
-        return fScore, sReport
+            tstRpt = mdl.test(lGraph_tst, DU_GraphClass.getLabelNameList())
+        return tstRpt
 
     def predict(self, sModelName, sModelDir, lsColDir):
         """

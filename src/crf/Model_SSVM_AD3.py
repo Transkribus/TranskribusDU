@@ -24,6 +24,7 @@
     under grant agreement No 674943.
     
 """
+import gc
 
 import numpy as np
 
@@ -38,6 +39,7 @@ from pystruct.models import EdgeFeatureGraphCRF
 from common.trace import traceln
 from common.chrono import chronoOn, chronoOff
 from Model import Model
+from TestReport import TestReport
 
 class Model_SSVM_AD3(Model):
     #default values for the solver
@@ -120,11 +122,20 @@ class Model_SSVM_AD3(Model):
         traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
-
+        
+        #the baseline model(s) if any
+        self._trainBaselines(lX, lY)
+        
+        #do some garbage collection
+        del lX, lY
+        gc.collect()
+        return 
+            
     def test(self, lGraph, lsClassName=None, lConstraints=[]):
         """
         Test the model using those graphs and report results on stderr
-        Return the textual report
+        if some baseline model(s) were set, they are also tested
+        Return a Report object
         """
         traceln("\t- computing features on test set")
         lX, lY = self.transformGraphs(lGraph, True)
@@ -138,10 +149,14 @@ class Model_SSVM_AD3(Model):
             lY_pred = self.ssvm.predict(lX)
              
         traceln("\t done")
-        Y_flat = np.hstack(lY)
-        Y_pred_flat = np.hstack(lY_pred)
-        del lX, lY, lY_pred
-        return self.test_report(Y_flat, Y_pred_flat, lsClassName)
+        
+        tstRpt = TestReport(self.sName, lY_pred, lY)
+        
+        #do some garbage collection
+        del lX, lY
+        gc.collect()
+        
+        return tstRpt
 
     def predict(self, graph, constraints=None):
         """
