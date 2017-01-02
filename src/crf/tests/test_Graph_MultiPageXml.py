@@ -12,32 +12,43 @@ import os
 
 import libxml2
 
-import crf.Graph_MultiPageXml_TextRegion as Graph_MultiPageXml_TextRegion
+import crf.Graph_MultiPageXml as Graph_MultiPageXml
+from crf.NodeType_PageXml   import NodeType_PageXml
+
 import crf.Edge as Edge
 import xml_formats.PageXml as PageXml
 
 
 def test_RectangleFitting():
-    #--- THE TRICK --------------
-    Graph_MultiPageXml_TextRegion.TEST_getPageXmlBlock = True
     
-    filename = os.path.join(os.path.dirname(__file__), "7749.mpxml")
-    
-    doc = libxml2.parseFile(filename)
-    
-    dNS = {"pc":PageXml.PageXml.NS_PAGE_XML}
-    sxpPage     = "//pc:Page"
-    sxpBlock    = ".//pc:TextRegion"
-    sxpTextual  = "./pc:TextEquiv"             #CAUTION redundant TextEquiv nodes! 
+    nt = NodeType_PageXml("TR"                   #some short prefix because labels below are prefixed with it
+                              , ['catch-word', 'header', 'heading', 'marginalia', 'page-number']   #EXACTLY as in GT data!!!!
+                              , []      #no ignored label/ One of those above or nothing, otherwise Exception!!
+                              , True    #no label means OTHER
+                              )
+    nt.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
+                      , "./pc:TextEquiv")       #how to get their text
+                       )
+    Graph_MultiPageXml.Graph_MultiPageXml.addNodeType(nt)
         
-    obj = Graph_MultiPageXml_TextRegion.Graph_MultiPageXml()
+    print "- classes: ", Graph_MultiPageXml.Graph_MultiPageXml.getLabelNameList()
 
+    obj = Graph_MultiPageXml.Graph_MultiPageXml()
+
+    filename = os.path.join(os.path.dirname(__file__), "7749.mpxml")
+    doc = libxml2.parseFile(filename)
     
     #load the block of each page, keeping the list of blocks of previous page
     lPrevPageNode = None
 
-    for (pnum, lPageNode) in obj._iter_PageXml_Nodes(doc, dNS, sxpPage, sxpBlock, sxpTextual):
-    
+    for pnum, page, domNdPage in obj._iter_Page_DomNode(doc):
+        #now that we have the page, let's create the node for each type!
+        lPageNode = list()
+        setPageNdDomId = set() #the set of DOM id
+        # because the node types are supposed to have an empty intersection
+                        
+        lPageNode = [nd for nodeType in obj.getNodeTypeList() for nd in nodeType._iter_GraphNode(doc, domNdPage, page) ]
+
         obj.lNode.extend(lPageNode)
         
         lPageEdge = Edge.Edge.computeEdges(lPrevPageNode, lPageNode)
