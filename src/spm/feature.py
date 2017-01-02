@@ -278,6 +278,10 @@ class  featureObject(object):
     def setAvailable(self): self._bAvailable = True
     def setNonAvailable(self): self._bAvailable = False
 
+    def getWeight(self): return self._weight
+    def setWeight(self,w): self._weight = w
+    
+
     def matchLCS(self,perc, t1, t2):
         (s1, n1) = t1
         (s2, n2) = t2
