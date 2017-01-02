@@ -13,7 +13,7 @@ srcTR=/c/Local/meunier/git/TranskribusPyClient/src
 #making a TRAINING sandbox collection on Transkribus
 #technically, the train and test collections are only read, but not modified. 
 #So I could work from the original collection, actually. But...
-  > ./python.sh $srcTR/TranskribusCommands/Transkribus_do_createCollec.py READDU_JL_TRN
+  > ./python.sh $srcTR/TranskribusCommands/do_createCollec.py READDU_JL_TRN
   --> 3820
 #Adding some annotated document to it
   > ./python.sh $srcTR/TranskribusCommands/do_addDocToCollec.py 3820 7749 7750
@@ -31,7 +31,7 @@ srcTR=/c/Local/meunier/git/TranskribusPyClient/src
   > ./python.sh $srcDU/tasks/DU_StAZH_a.py --trn trnskrbs_3820 mdl-StAZH_a trn3820
 
 #again with a test collection - also annotated to compute some performance score of the model
-  > ./python.sh $srcTR/TranskribusCommands/Transkribus_do_createCollec.py READDU_JL_TST
+  > ./python.sh $srcTR/TranskribusCommands/do_createCollec.py READDU_JL_TST
 -->3832
   > ./python.sh $srcTR/TranskribusCommands/do_addDocToCollec.py 3820 8251
   > ./python.sh $srcTR/TranskribusCommands/Transkribus_downloader.py 3832
@@ -82,7 +82,7 @@ avg / total       0.95      0.90      0.92        58
 
 #APPLYING the model!!!!!!!!!!!!!!!
 #Now the collection where I'll apply the model
-  > ./python.sh $srcTR/TranskribusCommands/Transkribus_do_createCollec.py READDU_JL_PRD
+  > ./python.sh $srcTR/TranskribusCommands/do_createCollec.py READDU_JL_PRD
 -->3829
 #so here, I copy the documents beause the model will produce a new transcript. 
 #(at this stage, I do not want to impact the "real" document.)
@@ -100,7 +100,7 @@ $ ls trnskrbs_3829/col
 8620_du.mpxml*  8621.mpxml*   8622/           8622_max.ts*    8623_du.mpxml*  8624.mpxml*   trp.json*
 
 #now upload to Transkribus
-  > ./python.sh $srcTR/TranskribusCommands/Transkribus_transcriptUploader.py ./trnskrbs_3829 3829
+  > ./python.sh $srcTR/TranskribusCommands/TranskribusDU_transcriptUploader.py ./trnskrbs_3829 3829
 - DONE, all transcripts were uploaded. See in collection 3829
 
 
@@ -136,22 +136,22 @@ avg / total       0.95      0.88      0.90       370
   srcDU=/c/Local/meunier/git/TranskribusDU/src
   srcTR=/c/Local/meunier/git/TranskribusPyClient/src
 
-  ./python.sh $srcTR/TranskribusCommands/Transkribus_do_createCollec.py READDU_JL_TRN
+  ./python.sh $srcTR/TranskribusCommands/do_createCollec.py READDU_JL_TRN
   ./python.sh $srcTR/TranskribusCommands/do_addDocToCollec.py 3571 3820 7749 7750
   ./python.sh $srcTR/TranskribusCommands/Transkribus_downloader.py 3820 --noimage
   ./python.sh $srcDU/tasks/DU_StAZH_a.py ./mdl-StAZH_a MyModel --trn trnskrbs_3820
 
 
-  ./python.sh $srcTR/TranskribusCommands/Transkribus_do_createCollec.py READDU_JL_TST
+  ./python.sh $srcTR/TranskribusCommands/do_createCollec.py READDU_JL_TST
   ./python.sh $srcTR/TranskribusCommands/do_addDocToCollec.py 3571 3820 8251
   ./python.sh $srcTR/TranskribusCommands/Transkribus_downloader.py 3832
   ./python.sh $srcDU/tasks/DU_StAZH_a.py ./mdl-StAZH_a MyModel --tst trnskrbs_3832
 
-  ./python.sh $srcTR/TranskribusCommands/Transkribus_do_createCollec.py READDU_JL_PRD
+  ./python.sh $srcTR/TranskribusCommands/do_createCollec.py READDU_JL_PRD
   ./python.sh $srcTR/TranskribusCommands/do_copyDocToCollec.py 3571 3829 8251 8252 8564-8566
   ./python.sh $srcTR/TranskribusCommands/Transkribus_downloader.py 3829 --noimage
   ./python.sh $srcDU/tasks/DU_StAZH_a.py ./mdl-StAZH_a MyModel --run trnskrbs_3829
-  ./python.sh $srcTR/TranskribusCommands/Transkribus_transcriptUploader.py ./trnskrbs_3829 3829
+  ./python.sh $srcTR/TranskribusCommands/TranskribusDU_transcriptUploader.py ./trnskrbs_3829 3829
   
   
   
