@@ -128,19 +128,14 @@ def test_main():
     traceln("- loading and predicting")
     doer3 = DU_Test(sModelName, sModelDir, "Predicting")
     doer3.load()
-    doer3.predict(lDir)
+    l = doer3.predict(lDir)
     del doer3
+    traceln(l)
     traceln("DONE")
     
-    
-    
-    #Hack to clean
-    mdl = DU_CRF_Task.ModelClass(sModelName, sModelDir) 
-    os.unlink(mdl.getModelFilename())
-    os.unlink(mdl.getTransformerFilename())
-    os.unlink(mdl.getConfigurationFilename())
-    if os.path.exists(mdl.getBaselineFilename()): os.unlink(mdl.getBaselineFilename())
-    os.rmdir(sModelDir)
+    #cleaning!
+    mdl = DU_Test(sModelName, sModelDir) 
+    mdl.rm()
         
 if __name__ == "__main__":
     """

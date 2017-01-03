@@ -33,15 +33,28 @@ except ImportError:
     sys.path.append( os.path.dirname(os.path.dirname( os.path.abspath(sys.argv[0]) )) )
     import TranskribusDU_version
 
+from common.trace import traceln
 from tasks import _checkFindColDir, _exit
 
 from crf.Graph_MultiPageXml import Graph_MultiPageXml
 from crf.NodeType_PageXml   import NodeType_PageXml
-from crf.Model import ModelException
-
 from DU_CRF_Task import DU_CRF_Task
 
-from common.trace import traceln
+
+# ===============================================================================================================
+#DEFINING THE CLASS OF GRAPH WE USE
+DU_GRAPH = Graph_MultiPageXml
+nt = NodeType_PageXml("TR"                   #some short prefix because labels below are prefixed with it
+                      , ['catch-word', 'header', 'heading', 'marginalia', 'page-number']   #EXACTLY as in GT data!!!!
+                      , []      #no ignored label/ One of those above or nothing, otherwise Exception!!
+                      , True    #no label means OTHER
+                      )
+nt.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
+                  , "./pc:TextEquiv")       #how to get their text
+               )
+DU_GRAPH.addNodeType(nt)
+# ===============================================================================================================
+
  
 class DU_StAZH_a(DU_CRF_Task):
     """
@@ -51,58 +64,31 @@ class DU_StAZH_a(DU_CRF_Task):
     """
 
     #=== CONFIGURATION ====================================================================
-    Metadata_Creator = "XRCE Document Understanding CRF-based + constraints - v0.1"
-    Metadata_Comments = None
-
-    
-    featureExtractorConfig = { 
-                        'n_tfidf_node'    : 500
-                      , 't_ngrams_node'   : (2,4)
-                      , 'b_tfidf_node_lc' : False    
-                      , 'n_tfidf_edge'    : 250
-                      , 't_ngrams_edge'   : (2,4)
-                      , 'b_tfidf_edge_lc' : False    
-                      }
-    
-    learnerConfig = { 'C'                 : .1 
-                     , 'njobs'            : 4
-                     , 'inference_cache'  : 50
-                     , 'tol'              : .1
-                     , 'save_every'       : 50     #save every 50 iterations,for warm start
-                     , 'max_iter'         : 1000
-                     }
-    
-    def getGraphClass(self):
+    def __init__(self, sModelName, sModelDir, sComment=None): 
         
-        #we will load data from MultiPageXml XML files
-        DU_StAZH_Graph = Graph_MultiPageXml
+        DU_CRF_Task.__init__(self
+                             , sModelName, sModelDir
+                             , DU_GRAPH
+                             , dFeatureConfig = {
+                                    'n_tfidf_node'    : 500
+                                  , 't_ngrams_node'   : (2,4)
+                                  , 'b_tfidf_node_lc' : False    
+                                  , 'n_tfidf_edge'    : 250
+                                  , 't_ngrams_edge'   : (2,4)
+                                  , 'b_tfidf_edge_lc' : False    
+                              }
+                             , dLearnerConfig = {
+                                   'C'                : .1 
+                                 , 'njobs'            : 4
+                                 , 'inference_cache'  : 50
+                                 , 'tol'              : .1
+                                 , 'save_every'       : 50     #save every 50 iterations,for warm start
+                                 , 'max_iter'         : 250
+                                 }
+                             , sComment=sComment
+                             )
         
-        nt = NodeType_PageXml("TR"                   #some short prefix because labels below are prefixed with it
-                              , ['catch-word', 'header', 'heading', 'marginalia', 'page-number']   #EXACTLY as in GT data!!!!
-                              , []      #no ignored label/ One of those above or nothing, otherwise Exception!!
-                              , True    #no label means OTHER
-                              )
-        nt.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
-                          , "./pc:TextEquiv")       #how to get their text
-                       )
-        DU_StAZH_Graph.addNodeType(nt)
-        
-        traceln("- classes: ", DU_StAZH_Graph.getLabelNameList())
-        
-        """
-        The constraints must be a list of tuples like ( <operator>, <unaries>, <states>, <negated> )
-        where:
-        - operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
-        - states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
-        - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
-        """
-#         DU_StAZH_Graph.setPageConstraint( [    ('ATMOSTONE', 'catch-word', False)   #0 or 1 catch_word per page
-#                                              , ('ATMOSTONE', 'heading', False)      #0 or 1 heading pare page
-#                                              , ('ATMOSTONE', 'page-number', False)  #0 or 1 page number per page
-#                                              ] )
-
-        return DU_StAZH_Graph
-
+        self.addBaseline_LogisticRegression()    #use a LR model as baseline
     #=== END OF CONFIGURATION =============================================================
 
 
@@ -116,22 +102,31 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
     # --- 
     try:
-        sModelName, sModelDir = args
+        sModelDir, sModelName = args
     except Exception as e:
         _exit(usage, 1, e)
         
-    doer = DU_StAZH_a(dFeatureConfig=DU_StAZH_a.featureExtractorConfig
-                      , dLearnerConfig=DU_StAZH_a.learnerConfig)
+    doer = DU_StAZH_a(sModelName, sModelDir)
+    
+    if options.rm:
+        doer.rm()
+        sys.exit(0)
+    
+    traceln("- classes: ", DU_GRAPH.getLabelNameList())
+    
     
     #Add the "col" subdir if needed
     lTrn, lTst, lRun = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun]]
 
     if lTrn:
-        doer.train_test(sModelName, sModelDir, lTrn, lTst)
+        doer.train_save_test(lTrn, lTst, options.force)
     elif lTst:
-        doer.test(sModelName, sModelDir, lTst)
+        doer.load()
+        tstReport = doer.test(lTst)
+        traceln(tstReport)
     
     if lRun:
-        lsOutputFilename = doer.predict(sModelName, sModelDir, lRun)
+        doer.load()
+        lsOutputFilename = doer.predict(lRun)
         traceln("Done, see in:\n  %s"%lsOutputFilename)
     

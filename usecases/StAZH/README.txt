@@ -28,7 +28,7 @@ srcTR=/c/Local/meunier/git/TranskribusPyClient/src
   7749/  7749.mpxml*  7749_max.ts*  7750/  7750.mpxml*  7750_max.ts*  trp.json*
 
 #Training!!!
-  > ./python.sh $srcDU/tasks/DU_StAZH_a.py --trn trnskrbs_3820 mdl-StAZH_a trn3820
+  > ./python.sh $srcDU/tasks/DU_StAZH_a.py trn3820 mdl-StAZH_a --trn trnskrbs_3820 
 
 #again with a test collection - also annotated to compute some performance score of the model
   > ./python.sh $srcTR/TranskribusCommands/do_createCollec.py READDU_JL_TST
@@ -38,7 +38,7 @@ srcTR=/c/Local/meunier/git/TranskribusPyClient/src
 - Done, see in .\trnskrbs_3832
 
 #TESTING!!!!!!!!!!!!!!!
-  > ./python.sh $srcDU/tasks/DU_StAZH_a.py mdl-StAZH_a trn3820 --tst trnskrbs_3832
+  > ./python.sh $srcDU/tasks/DU_StAZH_a.py trn3820 mdl-StAZH_a  --tst trnskrbs_3832
 --------------------------------------------------
 Trained model 'mdl-StAZH_a' in folder 'trn3820'
 Test  collection(s):['C:\\tmp_READ\\tuto\\trnskrbs_3832\\col']
@@ -90,7 +90,7 @@ $   > ./python.sh $srcTR/TranskribusCommands/do_copyDocToCollec.py 3571 3829 825
   > ./python.sh $srcTR/TranskribusCommands/Transkribus_downloader.py 3829 --noimage
 ---> - Done, see in .\trnskrbs_3829
 
-  > ./python.sh $srcDU/tasks/DU_StAZH_a.py mdl-StAZH_a trn3820 --run trnskrbs_3829
+  > ./python.sh $srcDU/tasks/DU_StAZH_a.py trn3820 mdl-StAZH_a  --run trnskrbs_3829
 --> - done
 
 #we produced some ..._du.mpxml files
@@ -105,7 +105,7 @@ $ ls trnskrbs_3829/col
 
 
 #Actually, this collection was also annotated, so we can compute a score on it
-  > ./python.sh $srcDU/tasks/DU_StAZH_a.py mdl-StAZH_a trn3820 --tst trnskrbs_3829
+  > ./python.sh $srcDU/tasks/DU_StAZH_a.py trn3820 mdl-StAZH_a  --tst trnskrbs_3829
 
 Line=True class, column=Prediction
                OTHER  [[176  11   6   8   1  13]
@@ -160,13 +160,13 @@ avg / total       0.95      0.88      0.90       370
   ########################################################################################################################################
   $ ./python.sh $srcDU/tasks/DU_StAZH_b.py --trn trnskrbs_3820 mdl-StAZH_b trn3820
   
-  $ ./python.sh $srcDU/tasks/DU_StAZH_b.py mdl-StAZH_b trn3820 --tst trnskrbs_3832
+  $ ./python.sh $srcDU/tasks/DU_StAZH_b.py trn3820 mdl-StAZH_b  --tst trnskrbs_3832
 
-  $ ./python.sh $srcDU/tasks/DU_StAZH_b.py mdl-StAZH_b trn3820 --tst trnskrbs_3829
+  $ ./python.sh $srcDU/tasks/DU_StAZH_b.py trn3820 mdl-StAZH_b  --tst trnskrbs_3829
 
 
 coiba /c/tmp_READ/tuto
-$ ./python.sh $srcDU/tasks/DU_StAZH_b.py mdl-StAZH_b trn3820 --tst trnskrbs_3832
+$ ./python.sh $srcDU/tasks/DU_StAZH_b.py trn3820 mdl-StAZH_b  --tst trnskrbs_3832
                OTHER  [[21  1  2  0  1]
               header   [ 0  6  2  0  0]
              heading   [ 0  0  1  0  0]
@@ -185,7 +185,7 @@ avg / total       0.95      0.90      0.92        58
 (unweighted) Accuracy score = 0.90
 
 
-$ ./python.sh $srcDU/tasks/DU_StAZH_b.py mdl-StAZH_b trn3820 --tst trnskrbs_3829
+$ ./python.sh $srcDU/tasks/DU_StAZH_b.py trn3820 mdl-StAZH_b  --tst trnskrbs_3829
                OTHER  [[179  10   9   6   5   6]
           catch-word   [  0   0   0   0   0   0]
               header   [  0   0  40   3   0   0]

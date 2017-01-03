@@ -92,6 +92,10 @@ See DU_StAZH_b.py
                           , help="Test a model using the given annotated collection.")    
         parser.add_option("-r", "--run", dest='lRun',  action="store", type="string"
                           , help="Run a model on the given non-annotated collection.")    
+        parser.add_option("-f", "--force", dest='force',  action="store_true"
+                          , help="Train even if some model files already exist")   
+        parser.add_option("--rm", dest='rm',  action="store_true"
+                          , help="Remove all model files")   
         return usage, description, parser
     getBasicTrnTstRunOptionParser = classmethod(getBasicTrnTstRunOptionParser)
            
@@ -116,21 +120,46 @@ See DU_StAZH_b.py
         self._lBaselineModel.append(mdl)
 
     #----------------------------------------------------------------------------------------------------------    
-    def load(self):
+    def load(self, bForce=False):
         """
         Load the model from the disk
+        if bForce == True, force the load, even if already loaded
         """
-        traceln("- loading a %s model"%self.ModelClass)
-        self._mdl = self.ModelClass(self.sModelName, self.sModelDir)
-        self._mdl.load()
-        traceln(" done")
+        if bForce or not self._mdl:
+            traceln("- loading a %s model"%self.ModelClass)
+            self._mdl = self.ModelClass(self.sModelName, self.sModelDir)
+            self._mdl.load()
+            traceln(" done")
+        else:
+            traceln("- %s model already loaded"%self.ModelClass)
+            
         return
+    
+    def rm(self):
+        """
+        Clean the disk from any data for this model!!!
+        CAUTION!!!
+        """
+        mdl = self.ModelClass(self.sModelName, self.sModelDir)
         
-    def train_save_test(self, lsTrnColDir, lsTstColDir):
+        for s in [  mdl.getModelFilename()
+                  , mdl.getTransformerFilename()
+                  , mdl.getConfigurationFilename()
+                  , mdl.getBaselineFilename()       ]:
+            if os.path.exists(s):
+                traceln("\t - rm %s"%s) 
+                os.unlink(s)
+        if os.path.exists(self.sModelDir) and not os.listdir(self.sModelDir):
+            traceln("\t - rmdir %s"%self.sModelDir) 
+            os.rmdir(self.sModelDir)
+        return 
+    
+    def train_save_test(self, lsTrnColDir, lsTstColDir, bForce=False):
         """
         Train a model on the tTRN collections and optionally test it using the TST collections, if not empty
         Also train/test any baseline model associated to the main model
         Trained models are saved
+        if bForce==True, ignore any pre-existing model on disk and train (if some training darta is provided)
         return a test report object
         """
         traceln("-"*50)
@@ -148,16 +177,20 @@ See DU_StAZH_b.py
         
         DU_GraphClass = self.cGraphClass
         
-        traceln("- loading training graphs")
-        lGraph_trn = DU_GraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
-        traceln(" %d graphs loaded"%len(lGraph_trn))
-            
         traceln("- creating a %s model"%self.ModelClass)
         mdl = self.ModelClass(self.sModelName, self.sModelDir)
+        
+        if not bForce:
+            if os.path.exists(mdl.getModelFilename()): raise ModelException("Model exists on disk already, either remove it first or force the training.")
+            
         mdl.configureLearner(**self.config_learner_kwargs)
         mdl.setBaselineModelList(self._lBaselineModel)
         mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
         traceln("\t - configuration: ", self.config_learner_kwargs )
+
+        traceln("- loading training graphs")
+        lGraph_trn = DU_GraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
+        traceln(" %d graphs loaded"%len(lGraph_trn))
 
         traceln("- retrieving or creating feature extractors...")
         try:
