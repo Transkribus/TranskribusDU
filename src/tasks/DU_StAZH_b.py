@@ -55,7 +55,7 @@ nt.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
 DU_GRAPH.addNodeType(nt)
 
 """
-The constraints must be a list of tuples like ( <operator>, <unaries>, <states>, <negated> )
+The constraints must be a list of tuples like ( <operator>, <NodeType>, <states>, <negated> )
 where:
 - operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
 - states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
