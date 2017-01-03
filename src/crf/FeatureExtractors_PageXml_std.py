@@ -110,16 +110,16 @@ class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
                                                          ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
                                                          ])
                                         )
-                                    , ("sourcetext", Pipeline([
-                                                       ('selector', EdgeTransformerSourceText()),
+                                    , ("sourcetext0", Pipeline([
+                                                       ('selector', EdgeTransformerSourceText(0)),
                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
                                                                                  , dtype=np.float64)),
                                                        ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
                                                        ])
                                        )
-                                    , ("targettext", Pipeline([
-                                                       ('selector', EdgeTransformerTargetText()),
+                                    , ("targettext0", Pipeline([
+                                                       ('selector', EdgeTransformerTargetText(0)),
                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge
                                                                                  #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
@@ -127,6 +127,40 @@ class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
                                                        ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
                                                        ])
                                        )
+                                    , ("sourcetext1", Pipeline([
+                                                       ('selector', EdgeTransformerSourceText(1)),
+                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
+                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
+                                                                                 , dtype=np.float64)),
+                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
+                                                       ])
+                                       )
+                                    , ("targettext1", Pipeline([
+                                                       ('selector', EdgeTransformerTargetText(1)),
+                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
+                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge
+                                                                                 #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
+                                                                                 , dtype=np.float64)),
+                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
+                                                       ])
+                                       )
+                                    , ("sourcetext2", Pipeline([
+                                                       ('selector', EdgeTransformerSourceText(2)),
+                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
+                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
+                                                                                 , dtype=np.float64)),
+                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
+                                                       ])
+                                       )
+                                    , ("targettext2", Pipeline([
+                                                       ('selector', EdgeTransformerTargetText(2)),
+                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
+                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge
+                                                                                 #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
+                                                                                 , dtype=np.float64)),
+                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
+                                                       ])
+                                       )                        
                         ]
                         
         edge_transformer = FeatureUnion( lEdgeFeature )
@@ -150,8 +184,8 @@ class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
         JL
         """
         self._node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
-        self._edge_transformer.transformer_list[2][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
-        self._edge_transformer.transformer_list[3][1].steps[1][1].stop_words_ = None        
+        for i in [2, 3, 4, 5, 6, 7]:
+            self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
         return self._node_transformer, self._edge_transformer        
 
     
