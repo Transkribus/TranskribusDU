@@ -92,6 +92,7 @@ See DU_StAZH_b.py
         """
         Train a model on the tTRN collections and optionally test it using the TST collections, if not empty
         if bCmpLogit is True, also test using a logit model
+        return a test report object
         """
         traceln("-"*50)
         traceln("Training model '%s' in folder '%s'"%(sModelName, sModelDir))
@@ -138,11 +139,11 @@ See DU_StAZH_b.py
             lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
             traceln(" %d graphs loaded"%len(lGraph_tst))
     
-            fScore, sReport = mdl.test(lGraph_tst, DU_GraphClass.getLabelNameList())
+            oReport = mdl.test(lGraph_tst)
         else:
-            fScore, sReport = None, None
+            oReport = None, None
             
-        return fScore, sReport
+        return oReport
 
     def test(self, sModelName, sModelDir, lsTstColDir):
         """
@@ -173,10 +174,10 @@ See DU_StAZH_b.py
 
         if lPageConstraint:
             lConstraints = [g.instanciatePageConstraints() for g in lGraph_tst]
-            tstRpt = mdl.test(lGraph_tst)
+            oReport = mdl.test(lGraph_tst)
         else:
-            tstRpt = mdl.test(lGraph_tst)
-        return tstRpt
+            oReport = mdl.test(lGraph_tst)
+        return oReport
 
     def predict(self, sModelName, sModelDir, lsColDir):
         """
