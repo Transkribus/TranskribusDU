@@ -28,13 +28,15 @@ import os
 import glob
 from optparse import OptionParser
 
+from sklearn.linear_model import LogisticRegression
+from sklearn.grid_search import GridSearchCV
+
 from common.trace import traceln
 
 from crf.FeatureExtractors_PageXml_std import FeatureExtractors_PageXml_StandardOnes
 from crf.Model import ModelException
 from crf.Model_SSVM_AD3 import Model_SSVM_AD3
 from xml_formats.PageXml import MultiPageXml
-
 
 class DU_CRF_Task:
     """
@@ -54,17 +56,23 @@ See DU_StAZH_b.py
     ModelClass = Model_SSVM_AD3
     
     sMetadata_Creator = "XRCE Document Understanding CRF-based - v0.1"
-    sMetadata_Comments = None
+    sMetadata_Comments = ""
+    
+    dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
 
-    def __init__(self, dFeatureConfig={}, dLearnerConfig={}): 
+    def __init__(self, sModelName, sModelDir, cGraphClass, dFeatureConfig={}, dLearnerConfig={}, sComment=None): 
         """
-        bPageConstraint: Do we predict under some logical constraints or not?
         """
-        self.config_extractor_kwargs = dFeatureConfig
-        self.config_learner_kwargs = dLearnerConfig
+        self.sModelName     = sModelName
+        self.sModelDir      = sModelDir
+        self.cGraphClass    = cGraphClass
+        self.config_extractor_kwargs    = dFeatureConfig
+        self.config_learner_kwargs      = dLearnerConfig
+        if sComment: self.sMetadata_Comments    = sComment
+        
+        self._mdl = None
+        self._lBaselineModel = []
 
-    def getGraphClass(self):
-        raise Exception("Method must be overridden")
     
     #---  WHAT IS BELOW IS GENERIC  -------------------------------
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
@@ -88,15 +96,46 @@ See DU_StAZH_b.py
     getBasicTrnTstRunOptionParser = classmethod(getBasicTrnTstRunOptionParser)
            
     #----------------------------------------------------------------------------------------------------------    
-    def train_test(self, sModelName, sModelDir, lsTrnColDir, lsTstColDir):
+    def setBaselines(self, lMdl):
+        """
+        Add one or several baseline methods.
+        set one or a list of sklearn model(s):
+        - they MUST be initialized, so that the fit method can be called at train time
+        - they MUST accept the sklearn usual predict method
+        - they SHOULD support a concise __str__ method
+        They will be trained with the node features, from all nodes of all training graphs
+        """
+        self._lBaselineModel = lMdl
+        
+    def addBaseline_LogisticRegression(self):
+        """
+        add as Baseline a Logistic Regression model, trained via a grid search
+        """
+        lr = LogisticRegression(class_weight='balanced')
+        mdl = GridSearchCV(lr , self.dGridSearch_LR_conf)        
+        self._lBaselineModel.append(mdl)
+
+    #----------------------------------------------------------------------------------------------------------    
+    def load(self):
+        """
+        Load the model from the disk
+        """
+        traceln("- loading a %s model"%self.ModelClass)
+        self._mdl = self.ModelClass(self.sModelName, self.sModelDir)
+        self._mdl.load()
+        traceln(" done")
+        return
+        
+    def train_save_test(self, lsTrnColDir, lsTstColDir):
         """
         Train a model on the tTRN collections and optionally test it using the TST collections, if not empty
-        if bCmpLogit is True, also test using a logit model
+        Also train/test any baseline model associated to the main model
+        Trained models are saved
         return a test report object
         """
         traceln("-"*50)
-        traceln("Training model '%s' in folder '%s'"%(sModelName, sModelDir))
-        sConfigFile = os.path.join(sModelDir, sModelName+".py")
+        traceln("Training model '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
+        sConfigFile = os.path.join(self.sModelDir, self.sModelName+".py")
         traceln("  Configuration file: %s"%sConfigFile)
         traceln("Train collection(s):", lsTrnColDir)
         traceln("Test  collection(s):", lsTstColDir)
@@ -107,15 +146,16 @@ See DU_StAZH_b.py
         ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, "*[0-9]"+MultiPageXml.sEXT)
         _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*[0-9]"+MultiPageXml.sEXT)
         
-        DU_GraphClass = self.getGraphClass()
+        DU_GraphClass = self.cGraphClass
         
         traceln("- loading training graphs")
         lGraph_trn = DU_GraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
         traceln(" %d graphs loaded"%len(lGraph_trn))
             
         traceln("- creating a %s model"%self.ModelClass)
-        mdl = self.ModelClass(sModelName, sModelDir)
+        mdl = self.ModelClass(self.sModelName, self.sModelDir)
         mdl.configureLearner(**self.config_learner_kwargs)
+        mdl.setBaselineModelList(self._lBaselineModel)
         mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
         traceln("\t - configuration: ", self.config_learner_kwargs )
 
@@ -132,7 +172,10 @@ See DU_StAZH_b.py
         
         traceln("- training model...")
         mdl.train(lGraph_trn, True, ts_trn)
+        mdl.save()
         traceln(" done")
+        # OK!!
+        self._mdl = mdl
         
         if lFilename_tst:
             traceln("- loading test graphs")
@@ -145,24 +188,21 @@ See DU_StAZH_b.py
             
         return oReport
 
-    def test(self, sModelName, sModelDir, lsTstColDir):
+    def test(self, lsTstColDir):
         """
-        if bCmpLogit is True, also test using a logit model
+        test the model(s)
         """
         traceln("-"*50)
-        traceln("Trained model '%s' in folder '%s'"%(sModelName, sModelDir))
+        traceln("Trained model '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
         traceln("Test  collection(s):", lsTstColDir)
         traceln("-"*50)
+        
+        if not self._mdl: raise Exception("The model must be loaded beforehand!")
         
         #list the train and test files
         _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*[0-9]"+MultiPageXml.sEXT)
         
-        traceln("- loading a %s model"%self.ModelClass)
-        mdl = self.ModelClass(sModelName, sModelDir)
-        mdl.load()
-        traceln(" done")
-        
-        DU_GraphClass = self.getGraphClass()
+        DU_GraphClass = self.cGraphClass
         
         lPageConstraint = DU_GraphClass.getPageConstraint()
         if lPageConstraint: 
@@ -172,31 +212,24 @@ See DU_StAZH_b.py
         lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
         traceln(" %d graphs loaded"%len(lGraph_tst))
 
-        if lPageConstraint:
-            lConstraints = [g.instanciatePageConstraints() for g in lGraph_tst]
-            oReport = mdl.test(lGraph_tst)
-        else:
-            oReport = mdl.test(lGraph_tst)
+        oReport = self._mdl.test(lGraph_tst)
         return oReport
 
-    def predict(self, sModelName, sModelDir, lsColDir):
+    def predict(self, lsColDir):
         """
         Return the list of produced files
         """
         traceln("-"*50)
-        traceln("Trained model '%s' in folder '%s'"%(sModelName, sModelDir))
+        traceln("Trained model '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
         traceln("Collection(s):", lsColDir)
         traceln("-"*50)
+
+        if not self._mdl: raise Exception("The model must be loaded beforehand!")
         
         #list the train and test files
         _     , lFilename = self.listMaxTimestampFile(lsColDir, "*[0-9]"+MultiPageXml.sEXT)
         
-        traceln("- loading a %s model"%self.ModelClass)
-        mdl = self.ModelClass(sModelName, sModelDir)
-        mdl.load()
-        traceln(" done")
-        
-        DU_GraphClass = self.getGraphClass()
+        DU_GraphClass = self.cGraphClass
 
         lPageConstraint = DU_GraphClass.getPageConstraint()
         if lPageConstraint: 
@@ -211,11 +244,9 @@ See DU_StAZH_b.py
             
             if lPageConstraint:
                 traceln("\t- prediction with logical constraints: %s"%sFilename)
-                constraints = g.instanciatePageConstraints()
-                Y = mdl.predict(g, constraints=constraints)
             else:
                 traceln("\t- prediction : %s"%sFilename)
-                Y = mdl.predict(g)
+            Y = self._mdl.predict(g)
                 
             doc = g.setDomLabels(Y)
             MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)

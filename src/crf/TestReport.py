@@ -26,7 +26,7 @@
 """
 import os
 import cPickle, gzip, json
-import types
+import types, time
 
 import numpy as np
 
@@ -50,22 +50,39 @@ from pystruct.learners import FrankWolfeSSVM
 from common.trace import  traceln
 from common.chrono import chronoOn, chronoOff
 
+
 class TestReport:
     """
     A class that encapsulates the result of a classification test
     """
     
-    def __init__(self, name, l_Y_pred, l_Y, lsClassName):
+    def __init__(self, name, l_Y_pred, l_Y, lsClassName=None):
         """
-        compute the confusion matrix and classification report.
-        Print them on stderr and return the accuracy global score and the report
-        """
+        takes a prediction and a groundtruth or 2 lists of that stuff
+        compute:
+        - is lsClassName: the sub-list of seen class (in either prediction or GT)
+        - the confusion matrix
+        - the classification report
+        - the global accuracy score
         
+        """
+        #Content of this object (computed below!!)
+        self.t = time.time()
+        self.name = name
+        self.fScore = None                  #global accuracy score
+        self.aConfusionMatrix = None        #confusion matrix (np.array)
+        self.sClassificationReport = ""     #formatted P/R/F per class
+        self.lsSeenClassName = []           #sub-list of class names seen in that test, ordered by class index, if any class name list was provided. 
+        
+        self.lBaselineTestReport = []       #TestReport for baseline methods, if any
+        
+        # --- 
+        assert type(l_Y_pred) == type(l_Y), "Internal error: when creating a tets report, both args must be of same type (list of np.array or np.array)"
         if type(l_Y_pred) == types.ListType:
             Y_pred = np.hstack(l_Y_pred)
             Y      = np.hstack(l_Y)
         else:
-            Y_Pred = l_Y_pred
+            Y_pred = l_Y_pred
             Y      = l_Y
         
         #we need to include all clasname that appear in the dataset or in the predicted labels (well... I guess so!)
@@ -73,11 +90,35 @@ class TestReport:
             setSeenCls = set()
             for _Y in [Y, Y_pred]:
                 setSeenCls = setSeenCls.union( np.unique(_Y).tolist() )
-            lsSeenClassName = [ cls for (i, cls) in enumerate(lsClassName) if i in setSeenCls]
+            self.lsSeenClassName = [ cls for (i, cls) in enumerate(lsClassName) if i in setSeenCls]
             
-        traceln("Line=True class, column=Prediction")
-        a = confusion_matrix(Y, Y_pred)
-#not nice because of formatting of numbers possibly different per line
+            
+        self.aConfusionMatrix = confusion_matrix(Y, Y_pred)
+
+        if self.lsSeenClassName:
+            self.sClassificationReport = classification_report(Y, Y_pred, target_names=self.lsSeenClassName)
+        else:
+            self.sClassificationReport = classification_report(Y, Y_pred)
+        
+        self.fScore = accuracy_score(Y, Y_pred)
+    
+    def attach(self, loTstRpt):
+        """
+        attach this testReport or list of TestReport
+        """
+        if type(loTstRpt) == types.ListType:
+            self.lBaselineTestReport.extend(loTstRpt)
+        else:
+            self.lBaselineTestReport.append(loTstRpt)
+        return self.lBaselineTestReport
+    
+    def toString(self, bShowBaseline=True, bBaseline=False):
+        """
+        return a nicely indented test report
+        if bShowBaseline, includes any attached report(s), with proper indentation
+        if bBaseline: report for a baseline method
+        """
+        #not nice because of formatting of numbers possibly different per line
 #         if lsClassName:
 #             #Let's show the class names
 #             s1 = ""
@@ -85,22 +126,53 @@ class TestReport:
 #                 s1 += "%20s %s\n"%(sLabel, aLine)
 #         else:
 #             s1 = str(a)
-        s1 = str(a)
-        if lsClassName:
-            lsLine = s1.split("\n")    
-            assert len(lsLine)==len(lsSeenClassName)
-            s1 = "\n".join( ["%20s  %s"%(sLabel, sLine) for (sLabel, sLine) in zip(lsSeenClassName, lsLine)])    
-        traceln(s1)
-
-        if lsClassName:
-            s2 = classification_report(Y, Y_pred, target_names=lsSeenClassName)
+        if bBaseline:
+            sSepBeg = "\n" + "-" * 30
+            sTitle  = " BASELINE "
+            sSpace  = " "*8
         else:
-            s2 = classification_report(Y, Y_pred)
-        traceln(s2)
+            sSepBeg = "--- " +  time.asctime(time.gmtime(self.t)) + "---------------------------------"
+            sTitle  = "TEST REPORT FOR"
+            sSpace  = ""
+        sSepEnd = "-"*len(sSepBeg)
         
-        self.fScore = accuracy_score(Y, Y_pred)
+        s1 = str(self.aConfusionMatrix)
+        if self.lsSeenClassName:
+            iMaxClassNameLen = max([len(s) for s in self.lsSeenClassName])            
+            lsLine = s1.split("\n")    
+            sFmt = "%%%ds  %%s"%iMaxClassNameLen     #producing something like "%20s  %s"
+            assert len(lsLine) == len(self.lsSeenClassName)
+            s1 = "\n".join( [sFmt%(sLabel, sLine) for (sLabel, sLine) in zip(self.lsSeenClassName, lsLine)])    
+
+        s2 = self.sClassificationReport
+        
         s3 = "(unweighted) Accuracy score = %.2f"% self.fScore
-        traceln(s3)
-    
+        
+        if bShowBaseline:
+            if self.lBaselineTestReport:
+                sBaselineReport = "".join( [o.toString(False, True) for o in self.lBaselineTestReport] )
+            else:
+                sBaselineReport = sSpace + "(No Baseline method to report)"
+        else:
+            sBaselineReport = ""
+        
+        return """%(space)s%(sSepBeg)s 
+%(space)s%(sTitle)s: %(name)s
+
+%(space)s  Line=True class, column=Prediction
+%(s1)s
+
+s%(s2)s
+%(space)s%(s3)s
+%(sBaselineReport)s
+%(space)s%(sSepEnd)s
+""" % {"space":sSpace, "sSepBeg":sSepBeg
+       , "sTitle":sTitle, "name":self.name
+       , "s1":s1, "s2":s2, "s3":s3, "sBaselineReport":sBaselineReport, "sSepEnd":sSepEnd}        
+        
     def __str__(self):
-        return str(self.fScore)
+        """
+        return a nicely formatted string containing all the info of this test report object
+        """
+        return self.toString()
+

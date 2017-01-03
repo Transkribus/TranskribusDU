@@ -68,9 +68,10 @@ class Model_SSVM_AD3(Model):
     def load(self, expiration_timestamp=None):
         """
         Load myself from disk
-        If an expiration timestamp is given, the mdeol stored on disk must be fresher than timestamp
+        If an expiration timestamp is given, the model stored on disk must be fresher than timestamp
         return self or raise a ModelException
         """
+        Model.load(self, expiration_timestamp)
         self.ssvm = self._loadIfFresh(self.getModelFilename(), expiration_timestamp, lambda x: SaveLogger(x).load())
         self.loadTransformers(expiration_timestamp)
         return self
@@ -130,7 +131,10 @@ class Model_SSVM_AD3(Model):
         del lX, lY
         gc.collect()
         return 
-            
+
+    #no need to define def save(self):
+    #because the SSVM is saved while being trained, and the attached baeline models are saved by the parent class
+                    
     def test(self, lGraph):
         """
         Test the model using those graphs and report results on stderr
@@ -156,6 +160,9 @@ class Model_SSVM_AD3(Model):
         traceln("\t done")
         
         tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName)
+        
+        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName)
+        tstRpt.attach(lBaselineTestReport)
         
         #do some garbage collection
         del lX, lY

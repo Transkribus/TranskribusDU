@@ -73,7 +73,7 @@ class Model:
         self._node_transformer   = None
         self._edge_transformer   = None
         
-        self._lMdlBaseline       = None  #contains possibly empty list of models
+        self._lMdlBaseline       = []  #contains possibly empty list of models
             
     def configureLearner(self, **kwargs):
         """
@@ -88,14 +88,20 @@ class Model:
         return os.path.join(self.sDir, self.sName+"_transf.pkl")
     def getConfigurationFilename(self):
         return os.path.join(self.sDir, self.sName+"_config.json")
+    def getBaselineFilename(self):
+        return os.path.join(self.sDir, self.sName+"_baselines.pkl")
     
-    def load(self):
+    def load(self, expiration_timestamp=None):
         """
         Load myself from disk
+        If an expiration timestamp is given, the model stored on disk must be fresher than timestamp
         return self or raise a ModelException
         """
-        raise Exception("Method must be overridden")
-        
+        #by default, load the baseline models
+        sBaselineFile = self.getBaselineFilename()
+        self._lMdlBaseline =  self._loadIfFresh(sBaselineFile, expiration_timestamp, self.gzip_cPickle_load)
+        return self    
+            
     def _loadIfFresh(self, sFilename, expiration_timestamp, loadFun):
         """
         Look for the given file
@@ -193,11 +199,12 @@ class Model:
 
     # --- TRAIN / TEST / PREDICT BASELINE MODELS ------------------------------------------------
     
-    def setBaselineModels(self, mdlBaselines):
+    def setBaselineModelList(self, mdlBaselines):
         """
         set one or a list of sklearn model(s):
         - they MUST be initialized, so that the fit method can be called at train time
         - they MUST accept the sklearn usual predict method
+        - they SHOULD support a concise __str__ method
         They will be trained with the node features, from all nodes of all training graphs
         """
         #the baseline model(s) if any
@@ -226,11 +233,12 @@ class Model:
                 mdlBaseline.fit(X_flat, Y_flat)
                 traceln("\t [%.1fs] done\n"%chronoOff())
             del X_flat, Y_flat
-        return 
+        return True
                   
-    def _testBaselines(self, lX, lY):
+    def _testBaselines(self, lX, lY, lLabelName=None):
         """
-        test the baseline models, return a test report list
+        test the baseline models, 
+        return a test report list
         """
         lTstRpt = []
         if self._lMdlBaseline:
@@ -239,14 +247,15 @@ class Model:
             lTstRpt = list()
             for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
                 Y_pred_flat = mdl.predict(X_flat)
-                lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat) )
+                lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat, lLabelName) )
                 del Y_pred_flat
             del X_flat, Y_flat
         return lTstRpt                                                                              
     
     def predictBaselines(self, X):
         """
-        predict with the baseline models, return a list of 1-dim numpy arrays
+        predict with the baseline models, 
+        return a list of 1-dim numpy arrays
         """
         return [mdl.predict(X) for mdl in self._lMdlBaseline]
 
@@ -262,6 +271,15 @@ class Model:
         """
         raise Exception("Method must be overridden")
 
+    def save(self):
+        """
+        Save a trained model
+        """
+        #by default, save the baseline models
+        sBaselineFile = self.getBaselineFilename()
+        self.gzip_cPickle_dump(sBaselineFile, self.getBaselineModelList())
+        return sBaselineFile
+    
     def test(self, lGraph):
         """
         Test the model using those graphs and report results on stderr
