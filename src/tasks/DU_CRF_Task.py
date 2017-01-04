@@ -24,8 +24,7 @@
     under grant agreement No 674943.
     
 """
-import os
-import glob
+import os, glob
 from optparse import OptionParser
 
 from sklearn.linear_model import LogisticRegression
@@ -33,34 +32,44 @@ from sklearn.grid_search import GridSearchCV
 
 from common.trace import traceln
 
-from crf.FeatureExtractors_PageXml_std import FeatureExtractors_PageXml_StandardOnes
-from crf.Model import ModelException
+import crf.Model
 from crf.Model_SSVM_AD3 import Model_SSVM_AD3
 from xml_formats.PageXml import MultiPageXml
+import crf.FeatureDefinition
+from crf.FeatureDefinition_PageXml_std import FeatureDefinition_PageXml_StandardOnes
 
 class DU_CRF_Task:
     """
+Document Understanding class that relies on CRF (learning with SSVM and inference with AD3, thru the pystruct library
+
 USAGE:
-- Sub-class this class and specialise:
-    - ModelClass (class): set the learner+inference methods. As of Dec 2016, only Model_SSVM_AD3 is available. So do not change...
-    - sMetadata_Creator (string): will appear in the metadata of the MultiPageXml or PageXml XML files 
-    - sMetadata_Comments (string): idem
-    - getGraphClass (method): return the Graph class, making sure it defines the labels relevant to the tasks
-                                , and optionally the constraints
-- create an instance of the sub-class    
+- define your graph class
+- choose a model name and a folder where it will be stored
+- define the features and their configuration
+- define the learner configuration
+- instantiate this class
+
+METHODs:
+- training: train_save_test
+- loading a trained model: load
+- testing a trained model: test
+- removing a model from the disk: rm
+- if you want to use specific features: setFeatureDefinition
+- if you want to also train/test against some baseline model: setBaselineList, addBaseline_LogisticRegression 
 
 See DU_StAZH_b.py
 
     """
     
-    ModelClass = Model_SSVM_AD3
+    cModelClass          = Model_SSVM_AD3
+    cFeatureDefinition   = FeatureDefinition_PageXml_StandardOnes
     
-    sMetadata_Creator = "XRCE Document Understanding CRF-based - v0.1"
+    sMetadata_Creator = "XRCE Document Understanding CRF-based - v0.2"
     sMetadata_Comments = ""
     
     dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
 
-    def __init__(self, sModelName, sModelDir, cGraphClass, dFeatureConfig={}, dLearnerConfig={}, sComment=None): 
+    def __init__(self, sModelName, sModelDir, cGraphClass, dFeatureConfig={}, dLearnerConfig={}, sComment=None, cFeatureDefinition=None): 
         """
         """
         self.sModelName     = sModelName
@@ -72,25 +81,38 @@ See DU_StAZH_b.py
         
         self._mdl = None
         self._lBaselineModel = []
-
+        self.bVerbose = True
+        
+        if cFeatureDefinition: self.cFeatureDefinition = cFeatureDefinition
+        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
+        assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
     
-    #---  WHAT IS BELOW IS GENERIC  -------------------------------
+    #---  CONFIGURATION setters --------------------------------------------------------------------
+    def setModelClass(self, cModelClass): 
+        self.cModelClass = cModelClass
+        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
+        
+    def setFeatureDefinition(self, cFeatureDefinition): 
+        self.cFeatureDefinition = cFeatureDefinition
+        assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
+
+    #---  COMMAND LINE PARSZER --------------------------------------------------------------------
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
-        usage = "%s <model-name> <model-directory> [--trn <col-dir>]+ [--tst <col-dir>]+ [--prd <col-dir>]+"%sys_argv0
+        usage = "%s <model-name> <model-directory> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+"%sys_argv0
         description = """ 
-        Train or test the given model or predict using the given model.
+        Train or test or remove the given model or predict using the given model.
         The data is given as a list of DS directories.
-        The model is loaded from or saved to the model directory. The model parameters are taken from a Python module named after the model.
+        The model is loaded from or saved to the model directory.
         """
     
         #prepare for the parsing of the command line
         parser = OptionParser(usage=usage, version=version)
         
-        parser.add_option("-T", "--trn", dest='lTrn',  action="store", type="string"
+        parser.add_option("--trn", dest='lTrn',  action="store", type="string"
                           , help="Train or continue previous training session using the given annotated collection.")    
-        parser.add_option("-t", "--tst", dest='lTst',  action="store", type="string"
+        parser.add_option("--tst", dest='lTst',  action="store", type="string"
                           , help="Test a model using the given annotated collection.")    
-        parser.add_option("-r", "--run", dest='lRun',  action="store", type="string"
+        parser.add_option("--run", dest='lRun',  action="store", type="string"
                           , help="Run a model on the given non-annotated collection.")    
         parser.add_option("-w", "--warm", dest='warm',  action="store_true"
                           , help="Attempt to warm-start the training")   
@@ -122,56 +144,63 @@ See DU_StAZH_b.py
         mdl = GridSearchCV(lr , self.dGridSearch_LR_conf)        
         self._lBaselineModel.append(mdl)
 
+    #----------------------------------------------------------------------------------------------------------   
+    # in case you want no output at all on stderr
+    def setVerbose(self, bVerbose)  : self.bVerbose = bVerbose 
+    def getVerbose(self)            : return self.bVerbose 
+    
+    def traceln(self, *kwargs)     : 
+        if self.bVerbose: traceln(*kwargs)
     #----------------------------------------------------------------------------------------------------------    
     def load(self, bForce=False):
         """
         Load the model from the disk
-        if bForce == True, force the load, even if already loaded
+        if bForce == True, force the load, even if the model is already loaded in memory
         """
         if bForce or not self._mdl:
-            traceln("- loading a %s model"%self.ModelClass)
-            self._mdl = self.ModelClass(self.sModelName, self.sModelDir)
+            self.traceln("- loading a %s model"%self.cModelClass)
+            self._mdl = self.cModelClass(self.sModelName, self.sModelDir)
             self._mdl.load()
-            traceln(" done")
+            self.traceln(" done")
         else:
-            traceln("- %s model already loaded"%self.ModelClass)
+            self.traceln("- %s model already loaded"%self.cModelClass)
             
         return
     
     def rm(self):
         """
-        Clean the disk from any data for this model!!!
-        CAUTION!!!
+        Remove from the disk any file for this model!!!
         """
-        mdl = self.ModelClass(self.sModelName, self.sModelDir)
+        mdl = self.cModelClass(self.sModelName, self.sModelDir)
         
         for s in [  mdl.getModelFilename()
                   , mdl.getTransformerFilename()
                   , mdl.getConfigurationFilename()
                   , mdl.getBaselineFilename()       ]:
             if os.path.exists(s):
-                traceln("\t - rm %s"%s) 
+                self.traceln("\t - rm %s"%s) 
                 os.unlink(s)
         if os.path.exists(self.sModelDir) and not os.listdir(self.sModelDir):
-            traceln("\t - rmdir %s"%self.sModelDir) 
+            self.traceln("\t - rmdir %s"%self.sModelDir) 
             os.rmdir(self.sModelDir)
         return 
     
     def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False):
         """
-        Train a model on the tTRN collections and optionally test it using the TST collections, if not empty
-        Also train/test any baseline model associated to the main model
-        Trained models are saved
-        if bWarm==True, ignore any pre-existing model on disk and train (if some training darta is provided)
+        - Train a model on the tTRN collections, if not empty.
+        - Test the trained model using the lTST collections, if not empty.
+        - Also train/test any baseline model associated to the main model.
+        - Trained models are saved on disk, for testing, redicting or further training (by warm-start)
+        - if bWarm==True: warm-start the training from any data stored on disk. Otherwise, a non-empty model folder raises a ModelException
         return a test report object
         """
-        traceln("-"*50)
-        traceln("Training model '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
+        self.traceln("-"*50)
+        self.traceln("Model file '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
         sConfigFile = os.path.join(self.sModelDir, self.sModelName+".py")
-        traceln("  Configuration file: %s"%sConfigFile)
-        traceln("Train collection(s):", lsTrnColDir)
-        traceln("Test  collection(s):", lsTstColDir)
-        traceln("-"*50)
+        self.traceln("  Configuration file: %s"%sConfigFile)
+        self.traceln("Training with collection(s):", lsTrnColDir)
+        self.traceln("Testing with  collection(s):", lsTstColDir)
+        self.traceln("-"*50)
         
         #list the train and test files
         #NOTE: we check the presence of a digit before the '.' to eclude the *_du.xml files
@@ -180,43 +209,43 @@ See DU_StAZH_b.py
         
         DU_GraphClass = self.cGraphClass
         
-        traceln("- creating a %s model"%self.ModelClass)
-        mdl = self.ModelClass(self.sModelName, self.sModelDir)
+        self.traceln("- creating a %s model"%self.cModelClass)
+        mdl = self.cModelClass(self.sModelName, self.sModelDir)
         
         if not bWarm:
-            if os.path.exists(mdl.getModelFilename()): raise ModelException("Model exists on disk already, either remove it first or warm-start the training.")
+            if os.path.exists(mdl.getModelFilename()): raise crf.Model.ModelException("Model exists on disk already, either remove it first or warm-start the training.")
             
         mdl.configureLearner(**self.config_learner_kwargs)
         mdl.setBaselineModelList(self._lBaselineModel)
         mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
-        traceln("\t - configuration: ", self.config_learner_kwargs )
+        self.traceln("\t - configuration: ", self.config_learner_kwargs )
 
-        traceln("- loading training graphs")
+        self.traceln("- loading training graphs")
         lGraph_trn = DU_GraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
-        traceln(" %d graphs loaded"%len(lGraph_trn))
+        self.traceln(" %d graphs loaded"%len(lGraph_trn))
 
-        traceln("- retrieving or creating feature extractors...")
+        self.traceln("- retrieving or creating feature extractors...")
         try:
             mdl.loadTransformers(ts_trn)
-        except ModelException:
-            fe = FeatureExtractors_PageXml_StandardOnes(**self.config_extractor_kwargs)         
+        except crf.Model.ModelException:
+            fe = self.cFeatureDefinition(**self.config_extractor_kwargs)         
             fe.fitTranformers(lGraph_trn)
-            fe.clean_transformers()
+            fe.cleanTransformers()
             mdl.setTranformers(fe.getTransformers())
             mdl.saveTransformers()
-        traceln(" done")
+        self.traceln(" done")
         
-        traceln("- training model...")
+        self.traceln("- training model...")
         mdl.train(lGraph_trn, True, ts_trn)
         mdl.save()
-        traceln(" done")
+        self.traceln(" done")
         # OK!!
         self._mdl = mdl
         
         if lFilename_tst:
-            traceln("- loading test graphs")
+            self.traceln("- loading test graphs")
             lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-            traceln(" %d graphs loaded"%len(lGraph_tst))
+            self.traceln(" %d graphs loaded"%len(lGraph_tst))
     
             oReport = mdl.test(lGraph_tst)
         else:
@@ -226,12 +255,13 @@ See DU_StAZH_b.py
 
     def test(self, lsTstColDir):
         """
-        test the model(s)
+        test the model
+        return a TestReport object
         """
-        traceln("-"*50)
-        traceln("Trained model '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
-        traceln("Test  collection(s):", lsTstColDir)
-        traceln("-"*50)
+        self.traceln("-"*50)
+        self.traceln("Trained model '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
+        self.traceln("Testing  collection(s):", lsTstColDir)
+        self.traceln("-"*50)
         
         if not self._mdl: raise Exception("The model must be loaded beforehand!")
         
@@ -242,11 +272,11 @@ See DU_StAZH_b.py
         
         lPageConstraint = DU_GraphClass.getPageConstraint()
         if lPageConstraint: 
-            for dat in lPageConstraint: traceln("\t\t%s"%str(dat))
+            for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
             
-        traceln("- loading test graphs")
+        self.traceln("- loading test graphs")
         lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-        traceln(" %d graphs loaded"%len(lGraph_tst))
+        self.traceln(" %d graphs loaded"%len(lGraph_tst))
 
         oReport = self._mdl.test(lGraph_tst)
         return oReport
@@ -255,10 +285,10 @@ See DU_StAZH_b.py
         """
         Return the list of produced files
         """
-        traceln("-"*50)
-        traceln("Trained model '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
-        traceln("Collection(s):", lsColDir)
-        traceln("-"*50)
+        self.traceln("-"*50)
+        self.traceln("Trained model '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
+        self.traceln("Predicting for collection(s):", lsColDir)
+        self.traceln("-"*50)
 
         if not self._mdl: raise Exception("The model must be loaded beforehand!")
         
@@ -269,9 +299,9 @@ See DU_StAZH_b.py
 
         lPageConstraint = DU_GraphClass.getPageConstraint()
         if lPageConstraint: 
-            for dat in lPageConstraint: traceln("\t\t%s"%str(dat))
+            for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
         
-        traceln("- loading collection as graphs, and processing each in turn. (%d files)"%len(lFilename))
+        self.traceln("- loading collection as graphs, and processing each in turn. (%d files)"%len(lFilename))
         du_postfix = "_du"+MultiPageXml.sEXT
         lsOutputFilename = []
         for sFilename in lFilename:
@@ -279,9 +309,9 @@ See DU_StAZH_b.py
             [g] = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
             
             if lPageConstraint:
-                traceln("\t- prediction with logical constraints: %s"%sFilename)
+                self.traceln("\t- prediction with logical constraints: %s"%sFilename)
             else:
-                traceln("\t- prediction : %s"%sFilename)
+                self.traceln("\t- prediction : %s"%sFilename)
             Y = self._mdl.predict(g)
                 
             doc = g.setDomLabels(Y)
@@ -290,9 +320,9 @@ See DU_StAZH_b.py
             doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
             doc.freeDoc()
             del Y, g
-            traceln("\t done")
+            self.traceln("\t done")
             lsOutputFilename.append(sDUFilename)
-        traceln(" done")
+        self.traceln(" done")
 
         return lsOutputFilename
 

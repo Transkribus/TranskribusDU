@@ -3,7 +3,6 @@
 """
     Node and edge feature transformers to extract features for PageXml
     
-
     Copyright Xerox(C) 2016 JL. Meunier
 
     This program is free software: you can redistribute it and/or modify

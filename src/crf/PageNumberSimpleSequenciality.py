@@ -10,12 +10,6 @@ March 21st, 2016
 Copyright Xerox 2016
 '''
 
-import sys, os.path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))))
-
-from common.trace import trace, traceln
-
-        
 class PageNumberSimpleSequenciality:
     """
     whether or not two strings could be considered as part of a page numbering sequence?

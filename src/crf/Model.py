@@ -27,26 +27,10 @@
 import os
 import cPickle, gzip, json
 import types
-import gc
 
 import numpy as np
 
-from pystruct.utils import SaveLogger
-
 from sklearn.utils.class_weight import compute_class_weight
-from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.preprocessing import StandardScaler
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.grid_search import GridSearchCV
-from sklearn.metrics import confusion_matrix, accuracy_score
-from sklearn.metrics import classification_report
-
-from pystruct.learners import OneSlackSSVM
-from pystruct.models import EdgeFeatureGraphCRF
-
-from pystruct.models import ChainCRF
-from pystruct.learners import FrankWolfeSSVM
 
 from common.trace import  traceln
 from common.chrono import chronoOn, chronoOff
@@ -54,6 +38,9 @@ from common.chrono import chronoOn, chronoOff
 from TestReport import TestReport
 
 class ModelException(Exception):
+    """
+    Exception specific to this class
+    """
     pass
 
 class Model:
@@ -91,6 +78,7 @@ class Model:
     def getBaselineFilename(self):
         return os.path.join(self.sDir, self.sName+"_baselines.pkl")
     
+    # --- Model loading/writing -------------------------------------------------------------
     def load(self, expiration_timestamp=None):
         """
         Load myself from disk
@@ -134,7 +122,7 @@ class Model:
                 return cPickle.load(zfd)        
     gzip_cPickle_load = classmethod(gzip_cPickle_load)
     
-    # --- TRANSFORMER FITTING ---------------------------------------------------
+    # --- TRANSFORMERS ---------------------------------------------------
     def setTranformers(self, (node_transformer, edge_transformer)):
         """
         Set the type of transformers 
@@ -158,16 +146,6 @@ class Model:
         sTransfFile = self.getTransformerFilename()
         self.gzip_cPickle_dump(sTransfFile, (self._node_transformer, self._edge_transformer))
         return sTransfFile
-        
-    def saveConfiguration(self, config_data):
-        """
-        Save the configuration on disk
-        return the filename
-        """
-        sConfigFile = self.getConfigurationFilename()
-        with open(sConfigFile, "wb") as fd:
-            json.dump(config_data, fd, indent=4, sort_keys=True)
-        return sConfigFile
         
     def loadTransformers(self, expiration_timestamp=0):
         """
@@ -197,6 +175,16 @@ class Model:
         else:
             return lX
 
+    def saveConfiguration(self, config_data):
+        """
+        Save the configuration on disk
+        return the filename
+        """
+        sConfigFile = self.getConfigurationFilename()
+        with open(sConfigFile, "wb") as fd:
+            json.dump(config_data, fd, indent=4, sort_keys=True)
+        return sConfigFile
+        
     # --- TRAIN / TEST / PREDICT BASELINE MODELS ------------------------------------------------
     
     def setBaselineModelList(self, mdlBaselines):

@@ -29,8 +29,6 @@
     under grant agreement No 674943.
     
 """
-import types
-
 
 class NodeType:
 
@@ -44,7 +42,7 @@ class NodeType:
     
     def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther=True):
         """
-        Those labels MUST BE NAMED EXACTLY AS FOUND IN THE DATASET !!
+        Those labels MUST BE THE SAME AS FOUND IN THE DATASET !!
         
         We get a list of label of interest and a list of labels that must be ignored, and become OTHER
         

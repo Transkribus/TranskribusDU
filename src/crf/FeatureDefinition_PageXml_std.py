@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    Standard PageXml feature extractors
-    
+    Standard PageXml features
 
     Copyright Xerox(C) 2016 JL. Meunier
 
@@ -37,12 +36,13 @@ from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformer
 from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
-from FeatureExtractors import FeatureExtractors
+from FeatureDefinition import FeatureDefinition
 
-class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
+class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
+    
     def __init__(self, n_tfidf_node=None, t_ngrams_node=None, b_tfidf_node_lc=None
                      , n_tfidf_edge=None, t_ngrams_edge=None, b_tfidf_edge_lc=None): 
-        FeatureExtractors.__init__(self)
+        FeatureDefinition.__init__(self)
         
         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
         self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc = n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc
@@ -51,7 +51,7 @@ class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
                                                                                   , dtype=np.float64)
         
-        node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see clean_transformers method!!!!
+        node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                     ("text", Pipeline([
                                                        ('selector', NodeTransformerTextEnclosed()),
 #                                                         ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=self.n_tfidf_node
@@ -96,7 +96,7 @@ class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
 #                                        )                                          
                                       ])
     
-        lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see clean_transformers method!!!!
+        lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                       ("1hot", Pipeline([
                                                          ('1hot', Edge1HotFeatures(PageNumberSimpleSequenciality()))
                                                          ])
@@ -172,11 +172,11 @@ class FeatureExtractors_PageXml_StandardOnes(FeatureExtractors):
         
     def getTransformers(self):
         """
-        return the node and edge feature extractors, as well as the tfidf extractor
+        return (node transformer, edge transformer)
         """
         return self._node_transformer, self._edge_transformer
     
-    def clean_transformers(self):
+    def cleanTransformers(self):
         """
         the TFIDF transformers are keeping the stop words => huge pickled file!!!
         

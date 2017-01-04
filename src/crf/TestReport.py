@@ -24,32 +24,12 @@
     under grant agreement No 674943.
     
 """
-import os
-import cPickle, gzip, json
 import types, time
 
 import numpy as np
 
-from pystruct.utils import SaveLogger
-
-from sklearn.utils.class_weight import compute_class_weight
-from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.preprocessing import StandardScaler
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.metrics import classification_report
-
-from pystruct.learners import OneSlackSSVM
-from pystruct.models import EdgeFeatureGraphCRF
-
-from pystruct.models import ChainCRF
-from pystruct.learners import FrankWolfeSSVM
-
-from common.trace import  traceln
-from common.chrono import chronoOn, chronoOff
-
 
 class TestReport:
     """
@@ -58,9 +38,10 @@ class TestReport:
     
     def __init__(self, name, l_Y_pred, l_Y, lsClassName=None):
         """
-        takes a prediction and a groundtruth or 2 lists of that stuff
+        takes a test name, a prediction and a groundtruth or 2 lists of that stuff
+        optionnally the list f class names
         compute:
-        - is lsClassName: the sub-list of seen class (in either prediction or GT)
+        - if lsClassName: the sub-list of seen class (in either prediction or GT)
         - the confusion matrix
         - the classification report
         - the global accuracy score
@@ -104,7 +85,7 @@ class TestReport:
     
     def attach(self, loTstRpt):
         """
-        attach this testReport or list of TestReport
+        attach this testReport or list of TestReport to the current TestReport (typically the results of the baseline(s) )
         """
         if type(loTstRpt) == types.ListType:
             self.lBaselineTestReport.extend(loTstRpt)

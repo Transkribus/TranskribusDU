@@ -2,6 +2,9 @@
 
 """
     Train, test, predict steps for a CRF model
+    - CRF model is EdgeFeatureGraphCRF  (unary and pairwise potentials)
+    - Train using SSM
+    - Predict using AD3
 
     Copyright Xerox(C) 2016 JL. Meunier
 
@@ -25,12 +28,6 @@
     
 """
 import gc
-
-import numpy as np
-
-# from sklearn.grid_search import GridSearchCV
-# from sklearn.metrics import confusion_matrix, accuracy_score
-# from sklearn.metrics import classification_report
 
 from pystruct.utils import SaveLogger
 from pystruct.learners import OneSlackSSVM

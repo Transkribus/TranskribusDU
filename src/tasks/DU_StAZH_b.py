@@ -25,7 +25,6 @@
     
 """
 import sys, os
-from optparse import OptionParser
 
 try: #to ease the use without proper Python installation
     import TranskribusDU_version

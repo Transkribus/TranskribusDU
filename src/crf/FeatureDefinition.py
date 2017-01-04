@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
 """
-    Feature extractors
+    Feature Definition
     
-
+    Sub-class it and specialize getTransformer and clean_tranformers
+    
     Copyright Xerox(C) 2016 JL. Meunier
 
     This program is free software: you can redistribute it and/or modify
@@ -26,12 +27,15 @@
     
 """
 
-class FeatureExtractors:
+class FeatureDefinition:
+    """
+    A class to sub-class to define which features from a Tranformer class, you want for node and edges
+    """
     def __init__(self): pass
 
     def getTransformers(self):
         """
-        return the node and edge feature extractors
+        return (node transformer, edge transformer)
         """
         raise Exception("Method must be overridden")
         
@@ -50,9 +54,9 @@ class FeatureExtractors:
         
         return True
 
-    def clean_transformers(self):
+    def cleanTransformers(self):
         """
-        Some extractors/transfomers keep a large state in memory , taht is not required in "production".
+        Some extractors/transfomers keep a large state in memory , which is not required in "production".
         This method must clean this useless large data
         
         For instance: the TFIDF transformers are keeping the stop words => huge pickled file!!!

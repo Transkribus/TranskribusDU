@@ -51,4 +51,3 @@ class Page:
     def __str__(self):
         return "Page id=%s page=%d (%f, %f)" %(self.domid, self.pnum, self.w, self.h)
     
- 
