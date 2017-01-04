@@ -78,11 +78,13 @@ class DU_StAZH_a(DU_CRF_Task):
                                   , 'b_tfidf_edge_lc' : False    
                               }
                              , dLearnerConfig = {
-                                   'C'                : .1 
+                                    'C'                : .1 
+#                                    'C'                : 1.0 
                                  , 'njobs'            : 4
                                  , 'inference_cache'  : 50
-                                 , 'tol'              : .1
-                                 , 'save_every'       : 50     #save every 50 iterations,for warm start
+                                , 'tol'              : .1
+#                                  , 'tol'              : 0.05
+                                , 'save_every'       : 50     #save every 50 iterations,for warm start
                                  , 'max_iter'         : 250
                                  }
                              , sComment=sComment
@@ -119,7 +121,7 @@ if __name__ == "__main__":
     lTrn, lTst, lRun = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun]]
 
     if lTrn:
-        doer.train_save_test(lTrn, lTst, options.force)
+        doer.train_save_test(lTrn, lTst, options.warm)
     elif lTst:
         doer.load()
         tstReport = doer.test(lTst)

@@ -92,15 +92,15 @@ See DU_StAZH_b.py
                           , help="Test a model using the given annotated collection.")    
         parser.add_option("-r", "--run", dest='lRun',  action="store", type="string"
                           , help="Run a model on the given non-annotated collection.")    
-        parser.add_option("-f", "--force", dest='force',  action="store_true"
-                          , help="Train even if some model files already exist")   
+        parser.add_option("-w", "--warm", dest='warm',  action="store_true"
+                          , help="Attempt to warm-start the training")   
         parser.add_option("--rm", dest='rm',  action="store_true"
                           , help="Remove all model files")   
         return usage, description, parser
     getBasicTrnTstRunOptionParser = classmethod(getBasicTrnTstRunOptionParser)
            
     #----------------------------------------------------------------------------------------------------------    
-    def setBaselines(self, lMdl):
+    def setBaselineList(self, lMdl):
         """
         Add one or several baseline methods.
         set one or a list of sklearn model(s):
@@ -111,6 +111,9 @@ See DU_StAZH_b.py
         """
         self._lBaselineModel = lMdl
         
+    def getBaselineList(self):
+        return self._lBaselineModel
+    
     def addBaseline_LogisticRegression(self):
         """
         add as Baseline a Logistic Regression model, trained via a grid search
@@ -154,12 +157,12 @@ See DU_StAZH_b.py
             os.rmdir(self.sModelDir)
         return 
     
-    def train_save_test(self, lsTrnColDir, lsTstColDir, bForce=False):
+    def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False):
         """
         Train a model on the tTRN collections and optionally test it using the TST collections, if not empty
         Also train/test any baseline model associated to the main model
         Trained models are saved
-        if bForce==True, ignore any pre-existing model on disk and train (if some training darta is provided)
+        if bWarm==True, ignore any pre-existing model on disk and train (if some training darta is provided)
         return a test report object
         """
         traceln("-"*50)
@@ -180,8 +183,8 @@ See DU_StAZH_b.py
         traceln("- creating a %s model"%self.ModelClass)
         mdl = self.ModelClass(self.sModelName, self.sModelDir)
         
-        if not bForce:
-            if os.path.exists(mdl.getModelFilename()): raise ModelException("Model exists on disk already, either remove it first or force the training.")
+        if not bWarm:
+            if os.path.exists(mdl.getModelFilename()): raise ModelException("Model exists on disk already, either remove it first or warm-start the training.")
             
         mdl.configureLearner(**self.config_learner_kwargs)
         mdl.setBaselineModelList(self._lBaselineModel)

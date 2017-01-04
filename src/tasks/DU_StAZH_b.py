@@ -94,7 +94,8 @@ class DU_StAZH_b(DU_CRF_Task):
                                    'C'                : .1 
                                  , 'njobs'            : 4
                                  , 'inference_cache'  : 50
-                                 , 'tol'              : .1
+                                 #, 'tol'              : .1
+                                 , 'tol'              : .05
                                  , 'save_every'       : 50     #save every 50 iterations,for warm start
                                  , 'max_iter'         : 250
                                  }
@@ -132,7 +133,7 @@ if __name__ == "__main__":
     lTrn, lTst, lRun = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun]]
 
     if lTrn:
-        doer.train_save_test(lTrn, lTst, options.force)
+        doer.train_save_test(lTrn, lTst, options.warm)
     elif lTst:
         doer.load()
         tstReport = doer.test(lTst)
