@@ -71,8 +71,8 @@ class  XMLDSGRAPHLINEClass(XMLDSObjectClass):
     def getY(self): return float(self.getAttribute('y')) #return self.avgY
     def getX2(self): return float(self.getAttribute('x2')) #return float(self.getAttribute('x'))+self.getWidth()
     def getY2(self): return float(self.getAttribute('y2')) #return self.avgY
-    def getHeight(self): return  float(self.getAttribute('height'))
-    def getWidth(self): return float(self.getAttribute('width'))
+    def getHeight(self): return  abs(float(self.getAttribute('height')))
+    def getWidth(self): return abs(float(self.getAttribute('width')))
     
     
     def setPoints(self,lp): self.lPoints = lp

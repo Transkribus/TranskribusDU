@@ -24,6 +24,7 @@
 
 # Adjustement of the PYTHONPATH to include /.../DS/src
 import sys, os.path
+from jsonschema._validators import pattern
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 import common.Component as Component
@@ -41,12 +42,6 @@ class sequenceMiner(Component.Component):
     version = "0.1"
     name = "Sequence Minor"
 
-    kTAG = "tag"
-    kNGRAM = "ngram"
-    KLEENEPLUS = 2
-    SINGLETON = 1
-    BIGRAM = 2
-    
     def __init__(self):
         """
         Always call first the Component constructor.
@@ -156,6 +151,55 @@ class sequenceMiner(Component.Component):
                                         if self.bDebug:print 'RULE: %s => %s[%d] (%s/%s = %s)'%(newPattern, item,i,dP[str(newPattern)],support, fConfidence)
                                         lRules.append( (newPattern,item,i,pattern, fConfidence) )
         return lRules
+    
+    
+    def applySetOfRules(self,lSeqRules,lPatterns):
+        """
+            apply a list of seqRule to a list of patterns
+            associate the richer new pattern to initial pattern
+        """
+        dAncestor = {}
+        lNewPatterns=[]
+        for pattern, _ in lPatterns:
+            lNewPatterns=[]
+            print "**",pattern
+            curpattern = pattern
+            for rule in lSeqRules:
+                print '\t',curpattern,'\t',rule
+                newpattern = self.applyRule(rule, curpattern)
+                print '\t\t-> ',newpattern
+                if newpattern:
+                    curpattern = newpattern[:]
+            if curpattern not in lNewPatterns:
+                lNewPatterns.append(curpattern)
+            #take the longest extention
+            #  lNewPatterns must contain more than pattern
+            if len(lNewPatterns) > 1  and len(pattern) == 1:
+                lNewPatterns.sort(key=lambda x:len(x))
+                dAncestor[str(pattern)] =  lNewPatterns[-1]
+                print pattern, lNewPatterns
+            
+        return dAncestor        
+    
+    def applyRule(self,rule,pattern):
+        """
+            try to apply seqrule to pattern
+        """
+        """
+            1 apply all rules: get a new pattern: 
+            go to 2 is ne pattern
+        """
+        
+        lhs, elt, pos,rhs, _ = rule
+        if len(lhs) == len(pattern):
+#             if len
+            if elt not in lhs[pos]:
+                foo = map(lambda x:x[:],lhs)
+                foo[pos].append(elt)
+                foo[pos].sort()
+                if foo == rhs:
+                    return rhs
+        return None
     
     def patternToMV(self,pattern):
         """
@@ -374,7 +418,7 @@ class sequenceMiner(Component.Component):
         lCovered = []  
         kNewValue={}
         for f, freq in sortedItems:
-#             print f,freq,f.getTH()
+#             print f,freq,lMergedFeatures[f]
             ## update the value if numerical feature: take the mean and not the most frequent!!
             if f.getType() == featureObject.NUMERICAL:
                 lvalues=map(lambda x:x.getValue(),lMergedFeatures[f])
@@ -408,6 +452,11 @@ class sequenceMiner(Component.Component):
 #                 print "xx\t",f, f.getCanonical()
         nbdeleted = 0
         lCovered.sort(key=lambda x:len(x.getNodes()), reverse=True)
+        
+        ## compute weight
+        map(lambda x:x.setWeight(len(x.getNodes())),lCovered) 
+        
+#         for x in lCovered:print x, x.getWeight()
 
         lTBDel = []
 #         for i,f in enumerate(lCovered):
@@ -422,7 +471,7 @@ class sequenceMiner(Component.Component):
 #             except KeyError:pass
 
         ## need to update again the features: remerge again?? or simply discard?
-        lCovered=filter(lambda x:x.getID() not in map(lambda x:x.getID(),lTBDel),lCovered)
+        lCovered = filter(lambda x:x.getID() not in map(lambda x:x.getID(),lTBDel),lCovered)
                 
         for elt in lList:
             ltodel = []

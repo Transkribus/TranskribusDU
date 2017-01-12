@@ -16,6 +16,7 @@ from XMLDSLINEClass import XMLDSLINEClass
 from XMLDSTEXTClass import XMLDSTEXTClass
 from XMLDSBASELINEClass import XMLDSBASELINEClass
 from XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
+from XMLDSTABLEClass import XMLDSTABLEClass
 class  XMLDSPageClass(XMLDSObjectClass):
     """
         PAGE class
@@ -48,9 +49,9 @@ class  XMLDSPageClass(XMLDSObjectClass):
         # by default: one column Template
         self._verticalZoneTemplates = []
         
-        self.lVSeparator = {}
+        self.dVSeparator = {}
         # INIT: emptyfeatures?
-        self.lVSeparator['INIT']=[]
+        self.dVSeparator['INIT']=[]
                   
         # index them by verticalTemplates?? 
         ## or add attribtute to the region -> region.myTemplate=..
@@ -115,7 +116,12 @@ class  XMLDSPageClass(XMLDSObjectClass):
                     myObject= XMLDSGRAPHLINEClass(elt)
                     self.addObject(myObject)
                     myObject.setPage(self)
-                    myObject.fromDom(elt)                                  
+                    myObject.fromDom(elt)
+                elif elt.name == ds_xml_def.sTABLE:
+                    myObject= XMLDSTABLEClass(elt)
+                    self.addObject(myObject)
+                    myObject.setPage(self)
+                    myObject.fromDom(elt)                    
                 else:
                     myObject= XMLDSObjectClass()
                     myObject.setNode(elt)
@@ -132,23 +138,28 @@ class  XMLDSPageClass(XMLDSObjectClass):
 #     def setVerticalTemplates(self,lvm):
 #         self._verticalZoneTemplates = lvm
         
+    def resetVerticalTemplate(self): 
+        self._verticalZoneTemplates = []
+        self.dVSeparator = {}
+
     def addVerticalTemplate(self,vm): 
         #if vm not in self._verticalZoneTemplates:
         self._verticalZoneTemplates.append(vm)
-        self.lVSeparator[vm]=[]
+        self.dVSeparator[vm]=[]
         
     def getVerticalTemplates(self): return self._verticalZoneTemplates
     
     #REGISTERED CUTS
     def addVSeparator(self,template, lcuts):
         try:
-            self.lVSeparator[template].append(lcuts)
+            self.dVSeparator[template].extend(lcuts)
         except KeyError:
-            self.lVSeparator[template] = [lcuts]
+            self.dVSeparator[template] = lcuts
         
-    def getlVSeparator(self,template): 
-        try:return self.lVSeparator[template]
+    def getdVSeparator(self,template): 
+        try:return self.dVSeparator[template]
         except KeyError: return []  
+    
     
     #OBJECTS (from registered cut regions)
     
@@ -556,6 +567,8 @@ class  XMLDSPageClass(XMLDSObjectClass):
                         ftype= featureObject.NUMERICAL
                         feature = featureObject()
                         feature.setName(attr)
+                        l = sum(x.getHeight() for x in lHisto[attr])
+                        feature.setWeight(l)
                         feature.setTH(TH)
                         feature.addNode(self)
                         feature.setObjectName(self)

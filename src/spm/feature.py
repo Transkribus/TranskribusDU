@@ -228,7 +228,7 @@ class  featureObject(object):
     id  = 0
     
     def __init__(self):
-        import math
+
         ##  feature._value can be a list 
         self._objectName = None ### associate to a document object 
         self._type = None  # numerical 

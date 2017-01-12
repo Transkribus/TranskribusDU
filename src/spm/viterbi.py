@@ -18,17 +18,22 @@ class Decoder(object):
         return self.obsProb[:, obs, None]
  
     def Decode(self, obs):
-        trellis = np.zeros((self.N, len(obs)))
-        backpt = np.ones((self.N, len(obs)), 'int32') * -1
+        trellis = np.zeros((self.N, len(obs)),dtype=np.float64)
+        backpt = np.ones((self.N, len(obs)), dtype=np.int32) * -1
  
         # initialization
         trellis[:, 0] = np.squeeze(self.initialProb * self.Obs(obs[0]))
  
         for t in xrange(1, len(obs)):
             trellis[:, t] = (trellis[:, t-1, None].dot(self.Obs(obs[t]).T) * self.transProb).max(0)
+            if (trellis[:, t] < 1e-100).all():
+                trellis[:, t] =  trellis[:, t] * 1e+100
             backpt[:, t] = (np.tile(trellis[:, t-1, None], [1, self.N]) * self.transProb).argmax(0)
         
-        # termination
+#         print trellis[:,-1]
+#         print trellis[:,-1].max()
+#         print trellis[:,-1]*1e+100
+#         print (trellis[:, -1] < 1e-100).all()
         tokens = [trellis[:, -1].argmax()]
         for i in xrange(len(obs)-1, 0, -1):
             tokens.append(backpt[tokens[-1], i])

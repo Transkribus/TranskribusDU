@@ -1,12 +1,12 @@
-# -*- coding: latin-1 -*-
+# -*- coding: utf-8 -*-
 """
 
-    XML object class 
+    XMLDS line object class 
     
-    Hervé Déjean
+    HervÃ© DÃ©jean
     cpy Xerox 2009
     
-    a class for object from a XMLDocument
+    a class for line from a XMLDocument
 
 """
 

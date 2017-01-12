@@ -52,7 +52,7 @@ class DS2PageXMLConvertor(Component):
         
         self.storagePath = ''
         
-        self.dTagNameMapping = {'PAGE':'Page','TEXT':'TextLine', 'BLOCK':'TextRegion','GRAPHELT':'LineDrawingRegion'} 
+        self.dTagNameMapping = {'PAGE':'Page','TEXT':'TextLine', 'BLOCK':'TextRegion','GRAPHELT':'LineDrawingRegion','TABLE':'TableRegion','CELL':'TableCell'} 
 
         self.pageXmlNS = None
         
@@ -63,7 +63,7 @@ class DS2PageXMLConvertor(Component):
         Always call first the Component setParams
         """
         Component.setParams(self, dParams)
-        if dParams.has_key("bMultiPage"): self.bMultiPages =  dParams.has_key("bMultiPage")  
+        if dParams.has_key("bMultiPage"): self.bMultiPages =  dParams["bMultiPage"]  
                 
     
     def setDPI(self,v): self.dpi=v
@@ -96,6 +96,7 @@ class DS2PageXMLConvertor(Component):
     def convertDSObject(self,DSObject,pageXmlParentNode):
         """
             convert DSObject and add it as child to pageXmlParentNode
+            
              
              <TextLine id="line_1472550984091_215" custom="readingOrder {index:0;}">
                 <Coords points="218,65 280,65 280,100 218,100"/>
@@ -105,10 +106,28 @@ class DS2PageXMLConvertor(Component):
                 </TextEquiv>
             </TextLine>            
             
+            
+        for table:
+        <TableRegion id="Table_1484215666379_5" custom="readingOrder {index:92;}">
+            <Coords points="221,246 781,246 781,1094 221,1094"/>
+            <TableCell row="0" col="0" colSpan="1" id="TableCell_1484215672011_8">
+                <Coords points="221,246 221,1094 451,1094 451,246"/>
+                <CornerPts>0 1 2 3</CornerPts>
+            </TableCell>
+            <TableCell row="0" col="1" colSpan="1" id="TableCell_1484215672011_7">
+                <Coords points="451,246 451,1094 781,1094 781,246"/>
+                <CornerPts>0 1 2 3</CornerPts>
+            </TableCell>
+        </TableRegion>        
+        
+            
+            
         """
         try:
             pageXmlName= self.dTagNameMapping[DSObject.getName()]
-        except KeyError: pass
+        except KeyError: 
+#             print DSObject.getName() ," not declared"
+            return 
                     
         domNode= PageXml.createPageXmlNode(pageXmlName,self.pageXmlNS)
         if DSObject.getID():
@@ -120,12 +139,30 @@ class DS2PageXMLConvertor(Component):
         coordsNode.setNs(self.pageXmlNS)
         coordsNode.setProp('points', self.BB2Polylines(DSObject.getX(),DSObject.getY(), DSObject.getHeight(),DSObject.getWidth()))        
 
-        domNode.addChild(coordsNode)       
+        domNode.addChild(coordsNode)            
+        ## specific attributes for cell
+        ###  row="0" col="2" colSpan="1
+        if pageXmlName == 'TableCell':
+            domNode.setProp('row',str(DSObject.getIndex()[0]))
+            domNode.setProp('col',str(DSObject.getIndex()[1]))
+            cornerNode = libxml2.newNode('CornerPts')
+            cornerNode.setContent("0 1 2 3")
+            cornerNode.setNs(self.pageXmlNS)
+            domNode.addChild(cornerNode)    
+#             coordsNode.setProp('colSpan',str(DSObject.getColSpan()))
+#             coordsNode.setProp('rowSpan',str(DSObject.getRowSpan()))
+            
+        
+        #process objects
+        for subobject in DSObject.getObjects():
+            self.convertDSObject(subobject, domNode)
         
         
     def addXRCEID(self,node):
         node.setProp("id", "xrce_%d"%self.xrce_id)  
         self.xrce_id += 1
+        
+        
         
     def convertDSPage(self,OPage,pageXmlPageNODE):
         """
@@ -133,6 +170,7 @@ class DS2PageXMLConvertor(Component):
         """
         from ObjectModel.XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
         from ObjectModel.XMLDSTEXTClass import XMLDSTEXTClass
+        from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
 
         # TextRegion needed: create a fake one with BB zone?
         regionNode= PageXml.createPageXmlNode("TextRegion",self.pageXmlNS)
@@ -143,6 +181,11 @@ class DS2PageXMLConvertor(Component):
         coordsNode.setNs(self.pageXmlNS)
         coordsNode.setProp('points', self.BB2Polylines(0,0, OPage.getHeight(),OPage.getWidth()))
         regionNode.addChild(coordsNode)     
+        
+        ##get table elements
+        lElts= OPage.getAllNamedObjects(XMLDSTABLEClass)
+        for DSObject in lElts:
+            self.convertDSObject(DSObject,pageXmlPageNODE)        
         
         # get textual elements
         lElts= OPage.getAllNamedObjects(XMLDSTEXTClass)
@@ -216,9 +259,9 @@ if __name__ == "__main__":
     
     #Now we are back to the normal programmatic mode, we set the componenet parameters
     docConv.setParams(dParams)
-    
     doc = docConv.loadDom()
     lPageXml = docConv.run(doc)
+    print docConv.bMultiPages
     if lPageXml != []:# and docM.getOutputFileName() != "-":
         if docConv.bMultiPages:
             docConv.storeMultiPageXml(lPageXml)

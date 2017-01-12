@@ -84,46 +84,55 @@ class verticalZonestemplateClass(templateClass):
         """
             find the best solution assuming reg=x
             dynamic programing (viterbi path)
+            
+            score needs to be normalized (0,1)
         """
-        
         def buildObs(calibration,lRegCuts,lCuts):
             N=len(lRegCuts)+1
-            obs = np.zeros((N,len(lCuts)), dtype=np.float32)+1.0/(20*10)
+            obs = np.zeros((N,len(lCuts)), dtype=np.float16)+ 0.0
             for i,refx in enumerate(lRegCuts):
                 for j,x in enumerate(lCuts):
-                    # "sigmpoid" if too larong:empty state
-                    try:
 #                         print refx, x, (x.getValue()-calibration), abs((x.getValue()-calibration)-refx.getValue())
                         if abs((x.getValue()-calibration)-refx.getValue()) < 20:
 #                             print "\t",refx, x, (x.getValue()-calibration)
-                            obs[i,j]= 1.0/abs(x.getValue()-calibration-refx.getValue())
+                            obs[i,j]=  x.getCanonical().getWeight() * ( 20 - ( abs(x.getValue()-calibration-refx.getValue()))) / 20.0
+                        elif abs((x.getValue()-calibration)-refx.getValue()) < 40:
+                            obs[i,j]=  x.getCanonical().getWeight() * (( 40 - ( abs(x.getValue()-calibration-refx.getValue()))) / 40.0)                            
                         else:
-                            obs[-1,j] = 1.0/(20+1)
-                    except ZeroDivisionError: obs[i,j] = 1.0
-            return obs
+                            # go to empty state
+                            obs[-1,j] = 1.0
+                        if np.isinf(obs[i,j]):
+                            print i,j,score
+                            obs[i,j]=64000
+                        if np.isnan(obs[i,j]):
+                            print i,j,score
+                            obs[i,j]=10e-3                                                        
+#             print lRegCuts, lCuts, normalized(obs)
+            return obs / np.amax(obs)
 
-        import numpy as np
         import spm.viterbi as viterbi
         
         # add 'missing' state 
         N =len(lRegCuts)+1
-        transProb = np.zeros((N,N), dtype = np.float32)
+        transProb = np.zeros((N,N), dtype = np.float16)
         for i  in range(N-1):
 #             for j in range(i,N):
-                transProb[i,i+1]=1.0/(N-i)
-        transProb[:,-1,]=1.0/(N)
-        transProb[-1,:]=1.0/(N)        
-        
+                transProb[i,i+1]=1.0 #/(N-i)
+        transProb[:,-1,]=1.0 #/(N)
+        transProb[-1,:]=1.0  #/(N)        
         initialProb = np.ones(N)
         initialProb = np.reshape(initialProb,(N,1))
         
         obs = buildObs(calibration,lRegCuts,lCuts)
-
         d = viterbi.Decoder(initialProb, transProb, obs)
         states,score =  d.Decode(np.arange(len(lCuts)))
-#         result = np.array(lCuts)[states].tolist()
+#         print map(lambda x:(x,x.getCanonical().getWeight()),lCuts)
+#         print states
+#         for i,si in enumerate(states):
+#             print lCuts[si],si
+#             print obs[si,:]
         
-        # return the best alignement with template
+        # return the best alignment with template
         return states, score
         
         
@@ -131,7 +140,6 @@ class verticalZonestemplateClass(templateClass):
         """
             select the best anchor and use width for defining the other?
         """
-        lFinal=[]
         fShort = 9e9
         bestElt = None
         for i,(x,y) in enumerate(lCuts):
@@ -158,7 +166,17 @@ class verticalZonestemplateClass(templateClass):
         for x,y in lCuts:
             lFinal.append((x,dBest[x]))
         return lFinal
-            
+        
+    def computeScore(self,lReg,lCuts):
+        fFound= 1.0 * sum(map(lambda (r,x):x.getCanonical().getWeight(),lReg))
+        fTotal = 1.0 * sum(map(lambda x:x.getCanonical().getWeight(),lCuts))
+#         print '========'
+#         print map(lambda x:(x,x.getCanonical().getWeight()),lCuts)
+# 
+#         print fFound , map(lambda (r,x):x.getCanonical().getWeight(),lReg)
+#         print fTotal, map(lambda x:x.getCanonical().getWeight(),lCuts)
+        return  fFound/fTotal
+    
     def registration(self,pageObject):
         """
             using lCuts (and width) for positioning the page
@@ -173,7 +191,8 @@ class verticalZonestemplateClass(templateClass):
 #         print self.getXCuts()
         
         ## define a set of interesting calibration
-        lCalibration= [0,-25,25,-50,50]
+#         lCalibration= [0,-50,50]
+        lCalibration= [0]
         
         
         bestScore=0
@@ -183,22 +202,21 @@ class verticalZonestemplateClass(templateClass):
 #             print calibration, reg, curScore
             if curScore > bestScore:
                 bestReg=reg;bestScore=curScore
-        
-#         print '\t',bestReg
-        ltmp = self.getXCuts()[:]
-        ltmp.append('EMPTY')
-        lMissingIndex = filter(lambda x: x not in bestReg, range(0,len(self.getXCuts())+1))
-        lMissing = np.array(ltmp)[lMissingIndex].tolist()
-        lMissing = filter(lambda x: x!= 'EMPTY',lMissing)
-        result = np.array(ltmp)[bestReg].tolist()
-        
-        lFinres= filter(lambda (x,y): x!= 'EMPTY',zip(result,pageObject.lf_XCut))
 
-        lFinres =  self.selectBestCandidat(lFinres)
-#         print lFinres
-#         self.selectBestAnchor(lFinres)
-        if len(lFinres) >=  len(self.getXCuts()) * 0.50:
-            return lFinres,lMissing,bestScore
+        if bestReg:
+            ltmp = self.getXCuts()[:]
+            ltmp.append('EMPTY')
+            lMissingIndex = filter(lambda x: x not in bestReg, range(0,len(self.getXCuts())+1))
+            lMissing = np.array(ltmp)[lMissingIndex].tolist()
+            lMissing = filter(lambda x: x!= 'EMPTY',lMissing)
+            result = np.array(ltmp)[bestReg].tolist()
+            lFinres= filter(lambda (x,y): x!= 'EMPTY',zip(result,pageObject.lf_XCut))
+            if lFinres == []:
+                bestScore = 0
+            else:lFinres =  self.selectBestCandidat(lFinres)
+            # for estimating missing?
+    #         self.selectBestAnchor(lFinres) 
+            return lFinres,lMissing,self.computeScore(lFinres, pageObject.lf_XCut)
         else:
             return None,None,-1
         
