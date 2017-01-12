@@ -2,6 +2,9 @@
 
 """
     Train, test, predict steps for a CRF model
+    - CRF model is EdgeFeatureGraphCRF  (unary and pairwise potentials)
+    - Train using SSM
+    - Predict using AD3
 
     Copyright Xerox(C) 2016 JL. Meunier
 
@@ -24,12 +27,7 @@
     under grant agreement No 674943.
     
 """
-
-import numpy as np
-
-# from sklearn.grid_search import GridSearchCV
-# from sklearn.metrics import confusion_matrix, accuracy_score
-# from sklearn.metrics import classification_report
+import gc
 
 from pystruct.utils import SaveLogger
 from pystruct.learners import OneSlackSSVM
@@ -38,6 +36,7 @@ from pystruct.models import EdgeFeatureGraphCRF
 from common.trace import traceln
 from common.chrono import chronoOn, chronoOff
 from Model import Model
+from TestReport import TestReport
 
 class Model_SSVM_AD3(Model):
     #default values for the solver
@@ -66,9 +65,10 @@ class Model_SSVM_AD3(Model):
     def load(self, expiration_timestamp=None):
         """
         Load myself from disk
-        If an expiration timestamp is given, the mdeol stored on disk must be fresher than timestamp
+        If an expiration timestamp is given, the model stored on disk must be fresher than timestamp
         return self or raise a ModelException
         """
+        Model.load(self, expiration_timestamp)
         self.ssvm = self._loadIfFresh(self.getModelFilename(), expiration_timestamp, lambda x: SaveLogger(x).load())
         self.loadTransformers(expiration_timestamp)
         return self
@@ -120,38 +120,64 @@ class Model_SSVM_AD3(Model):
         traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
+        
+        #the baseline model(s) if any
+        self._trainBaselines(lX, lY)
+        
+        #do some garbage collection
+        del lX, lY
+        gc.collect()
+        return 
 
-    def test(self, lGraph, lsClassName=None, lConstraints=[]):
+    #no need to define def save(self):
+    #because the SSVM is saved while being trained, and the attached baeline models are saved by the parent class
+                    
+    def test(self, lGraph):
         """
         Test the model using those graphs and report results on stderr
-        Return the textual report
+        if some baseline model(s) were set, they are also tested
+        Return a Report object
         """
+        assert lGraph
+        lLabelName   = lGraph[0].getLabelNameList()
+        bConstraint  = lGraph[0].getPageConstraint()
+        
         traceln("\t- computing features on test set")
         lX, lY = self.transformGraphs(lGraph, True)
         traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         traceln("\t done")
 
         traceln("\t- predicting on test set")
-        if lConstraints:
+        if bConstraint:
+            lConstraints = [g.instanciatePageConstraints() for g in lGraph]
             lY_pred = self.ssvm.predict(lX, constraints=lConstraints)
         else:
             lY_pred = self.ssvm.predict(lX)
              
         traceln("\t done")
-        Y_flat = np.hstack(lY)
-        Y_pred_flat = np.hstack(lY_pred)
-        del lX, lY, lY_pred
-        return self.test_report(Y_flat, Y_pred_flat, lsClassName)
+        
+        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName)
+        
+        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName)
+        tstRpt.attach(lBaselineTestReport)
+        
+        #do some garbage collection
+        del lX, lY
+        gc.collect()
+        
+        return tstRpt
 
-    def predict(self, graph, constraints=None):
+    def predict(self, graph):
         """
         predict the class of each node of the graph
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
         """
         [X] = self.transformGraphs([graph])
+        bConstraint  = graph.getPageConstraint()
+        
         traceln("\t  #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
-        if constraints:
-            [Y] = self.ssvm.predict([X], constraints=[constraints])
+        if bConstraint:
+            [Y] = self.ssvm.predict([X], constraints=[graph.instanciatePageConstraints()])
         else:
             [Y] = self.ssvm.predict([X])
             

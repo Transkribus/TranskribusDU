@@ -35,9 +35,24 @@ except ImportError:
 from common.trace import traceln
 from tasks import  _checkFindColDir
 
-from crf.Graph_MultiPageXml_TextRegion import Graph_MultiPageXml_TextRegion
+from crf.Graph_MultiPageXml import Graph_MultiPageXml
+from crf.NodeType_PageXml   import NodeType_PageXml
 
 from tasks.DU_CRF_Task import DU_CRF_Task
+
+# ===============================================================================================================
+#DEFINING THE CLASS OF GRAPH WE USE
+DU_GRAPH = Graph_MultiPageXml
+nt = NodeType_PageXml("TR"                   #some short prefix because labels below are prefixed with it
+                      , ['catch-word', 'header', 'heading', 'marginalia', 'page-number']   #EXACTLY as in GT data!!!!
+                      , []      #no ignored label/ One of those above or nothing, otherwise Exception!!
+                      , True    #no label means OTHER
+                      )
+nt.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
+                  , "./pc:TextEquiv")       #how to get their text
+               )
+DU_GRAPH.addNodeType(nt)
+# ===============================================================================================================
 
  
 class DU_Test(DU_CRF_Task):
@@ -47,26 +62,34 @@ class DU_Test(DU_CRF_Task):
     , with the below labels 
     """
 
-    #  0=OTHER        1            2            3        4                5
-    TASK_LABELS = ['catch-word', 'header', 'heading', 'marginalia', 'page-number']
-
-    n_tfidf_node    = 10
-    t_ngrams_node   = (2,2)
-    b_tfidf_node_lc = False    
-    n_tfidf_edge    = 10
-    t_ngrams_edge    = (2,2)
-    b_tfidf_edge_lc = False    
-
-    
-    def __init__(self): 
-        DU_CRF_Task.__init__(self)
-    
-    def getGraphClass(self):
-        DU_StAZH_Graph = Graph_MultiPageXml_TextRegion
-        DU_StAZH_Graph.setLabelList(self.TASK_LABELS, True)  #True means non-annotated node are of class 0 = OTHER
-
-        return DU_StAZH_Graph
-
+    #=== CONFIGURATION ====================================================================
+    def __init__(self, sModelName, sModelDir, sComment=None): 
+        
+        DU_CRF_Task.__init__(self
+                             , sModelName, sModelDir
+                             , DU_GRAPH
+                             , dFeatureConfig = {
+                                    'n_tfidf_node'    : 10
+                                  , 't_ngrams_node'   : (2,2)
+                                  , 'b_tfidf_node_lc' : False    
+                                  , 'n_tfidf_edge'    : 10
+                                  , 't_ngrams_edge'   : (2,2)
+                                  , 'b_tfidf_edge_lc' : False    
+                              }
+                             , dLearnerConfig = {
+                                   'C'                : .1 
+                                 , 'njobs'            : 2
+                                 , 'inference_cache'  : 10
+                                 , 'tol'              : .1
+                                 , 'save_every'       : 5     #save every 50 iterations,for warm start
+                                 #, 'max_iter'         : 1000
+                                 , 'max_iter'         : 8
+                                 }
+                             , sComment=sComment
+                             )
+        
+        self.addBaseline_LogisticRegression()    #use a LR model as baseline
+        
 
 def test_main():
     """
@@ -79,26 +102,40 @@ def test_main():
     sModelDir = tempfile.mkdtemp()
     sModelName = "toto"
     traceln("Working in temp dir: %s"%sModelDir)
-    try:
-        sTranskribusTestDir = os.path.join(os.path.dirname(__file__), "trnskrbs_3820")
 
-        doer = DU_Test()
-        
-        doer.configureLearner(njobs=2, save_every=5, max_iter=8)
-        
-        #We train, test, predict on teh same document(s)
-        lDir = _checkFindColDir( [sTranskribusTestDir])
+    sTranskribusTestDir = os.path.join(os.path.dirname(__file__), "trnskrbs_3820")
 
-        doer.train_test(sModelName, sModelDir, lDir, lDir)
-        if False:
-            #you can also test the prediction, but it will generate a file "7749_du.mpxml" in trnskrbs_3820/col
-            doer.predict(sModelName, sModelDir, lDir)
-    finally:
-        #Hack to clean
-        mdl = DU_CRF_Task.ModelClass(sModelName, sModelDir) 
-        os.unlink(mdl.getModelFilename())
-        os.unlink(mdl.getTransformerFilename())
-        os.rmdir(sModelDir)
+    traceln("- classes: ", DU_GRAPH.getLabelNameList())
+
+    #We train, test, predict on the same document(s)
+    lDir = _checkFindColDir( [sTranskribusTestDir])
+
+    traceln("- training and testing a model")
+    doer = DU_Test(sModelName, sModelDir, "Installation test, with almost fake training and testing.")
+    oTestReport = doer.train_save_test(lDir, lDir)
+    traceln(oTestReport)
+    del doer
+    traceln("DONE")
+    
+    traceln("- loading and testing a model")
+    doer2 = DU_Test(sModelName, sModelDir, "Testing the load of a model")
+    doer2.load()
+    oTestReport = doer2.test(lDir)
+    traceln(oTestReport)
+    del doer2
+    traceln("DONE")
+    
+    traceln("- loading and predicting")
+    doer3 = DU_Test(sModelName, sModelDir, "Predicting")
+    doer3.load()
+    l = doer3.predict(lDir)
+    del doer3
+    traceln(l)
+    traceln("DONE")
+    
+    #cleaning!
+    mdl = DU_Test(sModelName, sModelDir) 
+    mdl.rm()
         
 if __name__ == "__main__":
     """

@@ -26,30 +26,21 @@
 """
 import os
 import cPickle, gzip, json
+import types
 
 import numpy as np
 
-from pystruct.utils import SaveLogger
-
 from sklearn.utils.class_weight import compute_class_weight
-from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.preprocessing import StandardScaler
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.grid_search import GridSearchCV
-from sklearn.metrics import confusion_matrix, accuracy_score
-from sklearn.metrics import classification_report
-
-from pystruct.learners import OneSlackSSVM
-from pystruct.models import EdgeFeatureGraphCRF
-
-from pystruct.models import ChainCRF
-from pystruct.learners import FrankWolfeSSVM
 
 from common.trace import  traceln
 from common.chrono import chronoOn, chronoOff
 
+from TestReport import TestReport
+
 class ModelException(Exception):
+    """
+    Exception specific to this class
+    """
     pass
 
 class Model:
@@ -66,9 +57,11 @@ class Model:
             os.mkdir(sModelDir)
         self.sDir = sModelDir
 
-        self.node_transformer   = None
-        self.edge_transformer   = None
-    
+        self._node_transformer   = None
+        self._edge_transformer   = None
+        
+        self._lMdlBaseline       = []  #contains possibly empty list of models
+            
     def configureLearner(self, **kwargs):
         """
         To configure the learner: pass a dictionary using the ** argument-passing method
@@ -82,14 +75,21 @@ class Model:
         return os.path.join(self.sDir, self.sName+"_transf.pkl")
     def getConfigurationFilename(self):
         return os.path.join(self.sDir, self.sName+"_config.json")
+    def getBaselineFilename(self):
+        return os.path.join(self.sDir, self.sName+"_baselines.pkl")
     
-    def load(self):
+    # --- Model loading/writing -------------------------------------------------------------
+    def load(self, expiration_timestamp=None):
         """
         Load myself from disk
+        If an expiration timestamp is given, the model stored on disk must be fresher than timestamp
         return self or raise a ModelException
         """
-        raise Exception("Method must be overridden")
-        
+        #by default, load the baseline models
+        sBaselineFile = self.getBaselineFilename()
+        self._lMdlBaseline =  self._loadIfFresh(sBaselineFile, expiration_timestamp, self.gzip_cPickle_load)
+        return self    
+            
     def _loadIfFresh(self, sFilename, expiration_timestamp, loadFun):
         """
         Look for the given file
@@ -122,13 +122,13 @@ class Model:
                 return cPickle.load(zfd)        
     gzip_cPickle_load = classmethod(gzip_cPickle_load)
     
-    # --- TRANSFORMER FITTING ---------------------------------------------------
+    # --- TRANSFORMERS ---------------------------------------------------
     def setTranformers(self, (node_transformer, edge_transformer)):
         """
         Set the type of transformers 
         return True 
         """
-        self.node_transformer, self.edge_transformer = node_transformer, edge_transformer        
+        self._node_transformer, self._edge_transformer = node_transformer, edge_transformer        
         return True
 
     def getTransformers(self):
@@ -136,7 +136,7 @@ class Model:
         return the node and edge transformers.
         This method is useful to clean them before saving them on disk
         """
-        return self.node_transformer, self.edge_transformer
+        return self._node_transformer, self._edge_transformer
 
     def saveTransformers(self):
         """
@@ -144,18 +144,8 @@ class Model:
         return the filename
         """
         sTransfFile = self.getTransformerFilename()
-        self.gzip_cPickle_dump(sTransfFile, (self.node_transformer, self.edge_transformer))
+        self.gzip_cPickle_dump(sTransfFile, (self._node_transformer, self._edge_transformer))
         return sTransfFile
-        
-    def saveConfiguration(self, config_data):
-        """
-        Save the configuration on disk
-        return the filename
-        """
-        sConfigFile = self.getConfigurationFilename()
-        with open(sConfigFile, "wb") as fd:
-            json.dump(config_data, fd, indent=4, sort_keys=True)
-        return sConfigFile
         
     def loadTransformers(self, expiration_timestamp=0):
         """
@@ -167,7 +157,7 @@ class Model:
         sTransfFile = self.getTransformerFilename()
 
         dat =  self._loadIfFresh(sTransfFile, expiration_timestamp, self.gzip_cPickle_load)
-        self.node_transformer, self.edge_transformer = dat        
+        self._node_transformer, self._edge_transformer = dat        
         return True
         
     def transformGraphs(self, lGraph, bLabelled=False):
@@ -178,36 +168,119 @@ class Model:
          - a list of X and a list of Y
          - a list of X
         """
-        lX = [g.buildNodeEdgeMatrices(self.node_transformer, self.edge_transformer) for g in lGraph]
+        lX = [g.buildNodeEdgeMatrices(self._node_transformer, self._edge_transformer) for g in lGraph]
         if bLabelled:
             lY = [g.buildLabelMatrix() for g in lGraph]
             return lX, lY
         else:
             return lX
-                
+
+    def saveConfiguration(self, config_data):
+        """
+        Save the configuration on disk
+        return the filename
+        """
+        sConfigFile = self.getConfigurationFilename()
+        with open(sConfigFile, "wb") as fd:
+            json.dump(config_data, fd, indent=4, sort_keys=True)
+        return sConfigFile
+        
+    # --- TRAIN / TEST / PREDICT BASELINE MODELS ------------------------------------------------
+    
+    def setBaselineModelList(self, mdlBaselines):
+        """
+        set one or a list of sklearn model(s):
+        - they MUST be initialized, so that the fit method can be called at train time
+        - they MUST accept the sklearn usual predict method
+        - they SHOULD support a concise __str__ method
+        They will be trained with the node features, from all nodes of all training graphs
+        """
+        #the baseline model(s) if any
+        if type(mdlBaselines) in [types.ListType, types.TupleType]:
+            self._lMdlBaseline = mdlBaselines
+        else:
+            self._lMdlBaseline = list(mdlBaselines) if mdlBaselines else []  #singleton or None
+        return
+    
+    def getBaselineModelList(self):
+        """
+        return the list of baseline models
+        """
+        return self._lMdlBaseline
+    
+    def _trainBaselines(self, lX, lY):
+        """
+        Train the baseline models, if any
+        """
+        if self._lMdlBaseline:
+            X_flat = np.vstack( [node_features for (node_features, _, _) in lX] )
+            Y_flat = np.hstack(lY)
+            for mdlBaseline in self._lMdlBaseline:
+                chronoOn()
+                traceln("\t - training baseline model: %s"%str(mdlBaseline))
+                mdlBaseline.fit(X_flat, Y_flat)
+                traceln("\t [%.1fs] done\n"%chronoOff())
+            del X_flat, Y_flat
+        return True
+                  
+    def _testBaselines(self, lX, lY, lLabelName=None):
+        """
+        test the baseline models, 
+        return a test report list
+        """
+        lTstRpt = []
+        if self._lMdlBaseline:
+            X_flat = np.vstack( [node_features for (node_features, _, _) in lX] )
+            Y_flat = np.hstack(lY)
+            lTstRpt = list()
+            for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
+                Y_pred_flat = mdl.predict(X_flat)
+                lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat, lLabelName) )
+                del Y_pred_flat
+            del X_flat, Y_flat
+        return lTstRpt                                                                              
+    
+    def predictBaselines(self, X):
+        """
+        predict with the baseline models, 
+        return a list of 1-dim numpy arrays
+        """
+        return [mdl.predict(X) for mdl in self._lMdlBaseline]
+
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
     def train(self, lGraph, bWarmStart=True, expiration_timestamp=None):
         """
         Return a model trained using the given labelled graphs.
         The train method is expected to save the model into self.getModelFilename(), at least at end of training
         If bWarmStart==True, The model is loaded from the disk, if any, and if fresher than given timestamp, and training restarts
+        
+        if some baseline model(s) were set, they are also trained, using the node features
+        
         """
         raise Exception("Method must be overridden")
 
-    def test(self, lGraph, lsClassName=None, lConstraints=[]):
+    def save(self):
+        """
+        Save a trained model
+        """
+        #by default, save the baseline models
+        sBaselineFile = self.getBaselineFilename()
+        self.gzip_cPickle_dump(sBaselineFile, self.getBaselineModelList())
+        return sBaselineFile
+    
+    def test(self, lGraph):
         """
         Test the model using those graphs and report results on stderr
-        lConstraints may contain a list of logical constraints per graph.
-        This list has the form: [(logical-operator, indices, state, negated), ...]
         
-        Return the textual report
+        if some baseline model(s) were set, they are also tested
+        
+        Return a Report object
         """
         raise Exception("Method must be overridden")
 
-    def predict(self, graph, constraints=None):
+    def predict(self, graph):
         """
         predict the class of each node of the graph
-        constraints may contain a list of logical constraints of the form: [(logical-operator, indices, state, negated), ...]
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
         """
         raise Exception("Method must be overridden")
@@ -220,48 +293,6 @@ class Model:
         return class_weights
     computeClassWeight = classmethod(computeClassWeight)
 
-    def test_report(self, Y, Y_pred, lsClassName=None):
-        """
-        compute the confusion matrix and classification report.
-        Print them on stderr and return the accuracy global score and the report
-        """
-        
-        #we need to include all clasname that appear in the dataset or in the predicted labels (well... I guess so!)
-        if lsClassName:
-            setSeenCls = set()
-            for _Y in [Y, Y_pred]:
-                setSeenCls = setSeenCls.union( np.unique(_Y).tolist() )
-            lsSeenClassName = [ cls for (i, cls) in enumerate(lsClassName) if i in setSeenCls]
-            
-        traceln("Line=True class, column=Prediction")
-        a = confusion_matrix(Y, Y_pred)
-#not nice because of formatting of numbers possibly different per line
-#         if lsClassName:
-#             #Let's show the class names
-#             s1 = ""
-#             for sLabel, aLine in zip(lsSeenClassName, a):
-#                 s1 += "%20s %s\n"%(sLabel, aLine)
-#         else:
-#             s1 = str(a)
-        s1 = str(a)
-        if lsClassName:
-            lsLine = s1.split("\n")    
-            assert len(lsLine)==len(lsSeenClassName)
-            s1 = "\n".join( ["%20s  %s"%(sLabel, sLine) for (sLabel, sLine) in zip(lsSeenClassName, lsLine)])    
-        traceln(s1)
-
-        if lsClassName:
-            s2 = classification_report(Y, Y_pred, target_names=lsSeenClassName)
-        else:
-            s2 = classification_report(Y, Y_pred)
-        traceln(s2)
-        
-        fScore = accuracy_score(Y, Y_pred)
-        s3 = "(unweighted) Accuracy score = %.2f"% fScore
-        traceln(s3)
-        
-        return fScore, "\n\n".join([s1,s2,s3])
-    test_report = classmethod(test_report)    
 
 # --- AUTO-TESTS ------------------------------------------------------------------
 def test_computeClassWeight():

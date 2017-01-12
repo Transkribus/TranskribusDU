@@ -3,7 +3,6 @@
 """
     Node and edge feature transformers to extract features for PageXml
     
-
     Copyright Xerox(C) 2016 JL. Meunier
 
     This program is free software: you can redistribute it and/or modify
@@ -184,9 +183,14 @@ class EdgeTransformerSourceText(Transformer):
     we will get a list of edges and need to send back what a textual feature extractor (TfidfVectorizer) needs.
     So we return a list of strings, of the source node of the edge
     """
+    def __init__(self, n):
+        Transformer.__init__(self)
+        self._edgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge][n]
+        
     def transform(self, lEdge):
         #return map(lambda x: x.A.text, lEdge)
-        return map(lambda x: "{%s}"%x.A.text, lEdge)
+#         return map(lambda x: "{%s}"%x.A.text, lEdge)
+        return map(lambda edge: "{%s}"%edge.A.text if isinstance(edge, self._edgeClass) else "_", lEdge)
 
 #------------------------------------------------------------------------------------------------------
 class EdgeTransformerTargetText(Transformer):
@@ -194,9 +198,14 @@ class EdgeTransformerTargetText(Transformer):
     we will get a list of edges and need to send back what a textual feature extractor (TfidfVectorizer) needs.
     So we return a list of strings, of the source node of the edge
     """
+    def __init__(self, n):
+        Transformer.__init__(self)
+        self._edgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge][n]
+
     def transform(self, lEdge):
         #return map(lambda x: x.B.text, lEdge)
-        return map(lambda x: "{%s}"%x.B.text, lEdge)
+#         return map(lambda x: "{%s}"%x.B.text, lEdge)
+        return map(lambda edge: "{%s}"%edge.B.text if isinstance(edge, self._edgeClass) else "_", lEdge)
 
 #------------------------------------------------------------------------------------------------------
 class Edge1HotFeatures(Transformer):
@@ -218,16 +227,18 @@ class Edge1HotFeatures(Transformer):
         return self
     
     def transform(self, lEdge):
-        #DISC a = np.zeros( ( len(lEdge), 16 ) , dtype=np.float64)
-        a = np.zeros( ( len(lEdge), 21 ) , dtype=np.float64)
+        a = np.zeros( ( len(lEdge), 3 + 17*3 ) , dtype=np.float64)
         for i, edge in enumerate(lEdge):
             #-- vertical / horizontal / virtual / cross-page / not-neighbor
             if isinstance(edge, VerticalEdge):
                 a[i,0] = 1.0
+                z = 0
             elif isinstance(edge, HorizontalEdge):
                 a[i,1] = 1.0
+                z = 17
             elif isinstance(edge, CrossPageEdge):
                 a[i,2] = 1.0
+                z = 34
             else:
                 assert False, "INTERNAL ERROR: unknown type of edge"
             
@@ -241,7 +252,7 @@ class Edge1HotFeatures(Transformer):
             
             #sequenciality, either None, or increasing or decreasing
             sA, sB = A.text, B.text
-            if sA == sB: a[i, 3] = 1.0
+            if sA == sB: a[i, z + 3] = 1.0
             if self.sqnc.isPossibleSequence(sA, sB):
                 fInSequence = 1.0
             elif self.sqnc.isPossibleSequence(sB, sA): 
@@ -250,25 +261,25 @@ class Edge1HotFeatures(Transformer):
                 fInSequence = 0.0
                 
             if A.pnum == B.pnum:
-                a[i, 4] = fInSequence          #-1, 0, +1
-                a[i, 5] = abs(fInSequence)     # 0 or 1
+                a[i, z + 4] = fInSequence          #-1, 0, +1
+                a[i, z + 5] = abs(fInSequence)     # 0 or 1
             else:
-                a[i, 6] = fInSequence          #-1, 0, +1
-                a[i, 7] = abs(fInSequence)     # 0 or 1
+                a[i, z + 6] = fInSequence          #-1, 0, +1
+                a[i, z + 7] = abs(fInSequence)     # 0 or 1
              
-            if sA.isalnum(): a[i,  8] = 1.0
-            if sA.isalpha(): a[i,  9] = 1.0
-            if sA.isdigit(): a[i, 10] = 1.0
-            if sA.islower(): a[i, 11] = 1.0
-            if sA.istitle(): a[i, 12] = 1.0
-            if sA.isupper(): a[i, 13] = 1.0  
+            if sA.isalnum(): a[i, z +  8] = 1.0
+            if sA.isalpha(): a[i, z +  9] = 1.0
+            if sA.isdigit(): a[i, z + 10] = 1.0
+            if sA.islower(): a[i, z + 11] = 1.0
+            if sA.istitle(): a[i, z + 12] = 1.0
+            if sA.isupper(): a[i, z + 13] = 1.0  
                        
-            if sB.isalnum(): a[i, 14] = 1.0
-            if sB.isalpha(): a[i, 15] = 1.0
-            if sB.isdigit(): a[i, 16] = 1.0
-            if sB.islower(): a[i, 17] = 1.0
-            if sB.istitle(): a[i, 18] = 1.0
-            if sB.isupper(): a[i, 19] = 1.0  
+            if sB.isalnum(): a[i, z + 14] = 1.0
+            if sB.isalpha(): a[i, z + 15] = 1.0
+            if sB.isdigit(): a[i, z + 16] = 1.0
+            if sB.islower(): a[i, z + 17] = 1.0
+            if sB.istitle(): a[i, z + 18] = 1.0
+            if sB.isupper(): a[i, z + 19] = 1.0  
 
         return a
 
@@ -282,24 +293,31 @@ class EdgeBooleanFeatures(Transformer):
     """
     def transform(self, lEdge):
         #DISC a = np.zeros( ( len(lEdge), 16 ) , dtype=np.float64)
-        a = - np.ones( ( len(lEdge), 6 ) , dtype=np.float64)
+        a = - np.ones( ( len(lEdge), 3*6 ) , dtype=np.float64)
         for i, edge in enumerate(lEdge):
+            if isinstance(edge, VerticalEdge):
+                z=0
+            elif isinstance(edge, HorizontalEdge):
+                z=6
+            elif isinstance(edge, CrossPageEdge):
+                z=12
+            
             A,B = edge.A, edge.B        
             #-- centering
             if A.x1 + A.x2 - (B.x1 + B.x2) <= 2 * fEPSILON:     #horizontal centered
-                a[i, 0] = 1.0
+                a[i, z + 0] = 1.0
             if A.y1 + A.y2 - (B.y1 + B.y2) <= 2 * fEPSILON:     #V centered
-                a[i, 1] = 1.0
+                a[i, z + 1] = 1.0
             
             #justified
             if abs(A.x1-B.x1) <= fEPSILON:
-                a[i, 2] = 1.0
+                a[i, z + 2] = 1.0
             if abs(A.y1-B.y1) <= fEPSILON:
-                a[i, 3] = 1.0
+                a[i, z + 3] = 1.0
             if abs(A.x2-B.x2) <= fEPSILON:
-                a[i, 4] = 1.0
+                a[i, z + 4] = 1.0
             if abs(A.y2-B.y2) <= fEPSILON:
-                a[i, 5] = 1.0       
+                a[i, z + 5] = 1.0       
         #_debug(lEdge, a)
         return a
 
@@ -316,43 +334,50 @@ class EdgeNumericalSelector(Transformer):
     def transform(self, lEdge):
         #no font size a = np.zeros( ( len(lEdge), 5 ) , dtype=np.float64)
 #         a = np.zeros( ( len(lEdge), 7 ) , dtype=np.float64)
-        a = np.zeros( ( len(lEdge), 5+3 ) , dtype=np.float64)
+        a = np.zeros( ( len(lEdge), 3*8 ) , dtype=np.float64)
         for i, edge in enumerate(lEdge):
+            if isinstance(edge, VerticalEdge):
+                z=0
+            elif isinstance(edge, HorizontalEdge):
+                z=8
+            elif isinstance(edge, CrossPageEdge):
+                z=16
+
             A,B = edge.A, edge.B        
             
             #overlap
             ovr = A.significantOverlap(B, 0)
             try:
-                a[i,0] = ovr / (A.area() + B.area() - ovr)
+                a[i, z+0] = ovr / (A.area() + B.area() - ovr)
             except ZeroDivisionError:
                 pass
-            a[i,1] = min(ovr, 5000.0)
+            a[i, z+1] = min(ovr, 5000.0)
             
             #
             na, nb = len(A.text), len(B.text)
             lcs = lcs_length(A.text,na, B.text,nb)
             try:
-                a[i,2] =  float( lcs / (na+nb-lcs) )
+                a[i, z+2] =  float( lcs / (na+nb-lcs) )
             except ZeroDivisionError:
                 pass
-            a[i,3] = min(lcs, 50.0)
-            a[i,4] = min(lcs, 100.0)
+            a[i, z+3] = min(lcs, 50.0)
+            a[i, z+4] = min(lcs, 100.0)
             
             #new in READ: the length of a same-page edge, along various normalisation schemes
             if isinstance(edge, SamePageEdge):
                 if isinstance(edge, VerticalEdge):
                     norm_length = edge.length / float(edge.A.page.h)
-                    a[i,5] = norm_length
+                    a[i, z+5] = norm_length
                 else:
                     norm_length = edge.length / float(edge.A.page.w)
-                    a[i,6] = norm_length
-                a[i,7] = norm_length    #normalised length whatever direction it has
+                    a[i, z+6] = norm_length
+                a[i, z+7] = norm_length    #normalised length whatever direction it has
                     
-            #if A.txt == B.txt: a[i, 4] = 1.0
+            #if A.txt == B.txt: a[i, z+ 4] = 1.0
             
 #             #fontsize
-#             a[i,5] = B.fontsize - A.fontsize
-#             a[i,6] = (B.fontsize+1) / (A.fontsize+1)
+#             a[i, z+5] = B.fontsize - A.fontsize
+#             a[i, z+6] = (B.fontsize+1) / (A.fontsize+1)
             
         return a  
 
