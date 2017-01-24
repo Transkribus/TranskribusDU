@@ -174,10 +174,7 @@ class lineMiner(Component.Component):
         
         return lPages
     
-    def printSeq(self,lElts):
-        
-        for elt in lElts:
-            if elt.
+            
     def testKleeneageTemplates(self,dTemplatesCnd,lElts):
         """
             test a set of patterns
