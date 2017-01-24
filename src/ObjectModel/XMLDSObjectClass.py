@@ -30,6 +30,8 @@ class  XMLDSObjectClass(XMLObjectClass):
         self._page  = None
         self._id= None
         
+        # associated 'templates' 
+        self._ltemplates = None
         
         self.Xnearest=[[],[]]  # top bottom
         self.Ynearest=[[],[]]  # left right        
@@ -50,6 +52,12 @@ class  XMLDSObjectClass(XMLObjectClass):
     def getHeight(self): return float(self.getAttribute('height'))
     def getWidth(self): return float(self.getAttribute('width'))    
     
+    def resetTemplate(self): self._ltemplates = None
+    def addTemplate(self,t): 
+        try:self._ltemplates.append(t)
+        except AttributeError: self._ltemplates = [t]
+    
+    def getTemplates(self): return self._ltemplates
     
     def resizeMe(self,objectType):
         assert len(self.getAllNamedObjects(objectType)) != 0

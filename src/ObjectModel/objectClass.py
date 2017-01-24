@@ -31,8 +31,17 @@ class  objectClass(sequenceAPI):
         self._content = None
         
         
+        # list of attributes used as features
+        self._myFeatures = []
+        # associated list of multivalued features (used for parsing)
+        self._myMVFeatures = []
+        
+        
         # list of structures
         self._lStructures = []
+    
+    def __str__(self): return self.getName()
+    def __repr__(self): return "%s"%self.getName()
     
     def getName(self): return self._name
     def setName(self,n): self._name  = n
@@ -71,8 +80,6 @@ class  objectClass(sequenceAPI):
             c= c.strip()
             self._content = c
             return c
-            
-
             
     def getAllNamedObjects(self,objectName):
         
@@ -130,7 +137,7 @@ class  objectClass(sequenceAPI):
         for obj in self.getObjects():
             obj.display(level+1)
             
-            
+       
             
             
     # also in zoneClass

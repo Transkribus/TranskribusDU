@@ -152,10 +152,15 @@ def parse(rule, lSeq):
                 lS.append(state)
         return -1,lS
 
-def build_trees(state):
-    return build_trees_helper([], state, len(state.rules) - 1, state.end_column)
+def build_trees(state,MAX=-1):
+    return build_trees_helper([], state, len(state.rules) - 1, state.end_column,MAX)
+#     try:
+#         return build_trees_helper([], state, len(state.rules) - 1, state.end_column,MAX)
+#     except RuntimeError:
+#         # recursion level issue (for long sequence: >600)
+#         return build_trees_helper([], state, len(state.rules) - 1, state.end_column,MAX=2)
 
-def build_trees_helper(children, state, rule_index, end_column):
+def build_trees_helper(children, state, rule_index, end_column,MAX=-1):
     if rule_index < 0:
         return [Node(state, children)]
     elif rule_index == 0:
@@ -165,7 +170,7 @@ def build_trees_helper(children, state, rule_index, end_column):
     
     rule = state.rules[rule_index]
     outputs = []
-    for st in end_column:
+    for st in end_column: #[:MAX]:
         if st is state:
             break
         if st is state or not st.completed() or st.name != rule.name:
@@ -173,7 +178,7 @@ def build_trees_helper(children, state, rule_index, end_column):
         if start_column is not None and st.start_column != start_column:
             continue
         for sub_tree in build_trees(st):
-            for node in build_trees_helper([sub_tree] + children, state, rule_index - 1, st.start_column):
+            for node in build_trees_helper([sub_tree] + children, state, rule_index - 1, st.start_column,MAX):
 #                 print node.print_()
                 outputs.append(node)
     return outputs

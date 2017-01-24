@@ -56,10 +56,6 @@ class pageVerticalMiner(Component.Component):
         self.THCOMP = 10
         self.evalData= None
         
-        self.lGridPopulation = {}
-        
-        self.lTemplateClassesNames= [singlePageTemplateClass,doublePageTemplateClass]
-        
         self.bManual = False
         
     def setParams(self, dParams):
@@ -112,6 +108,7 @@ class pageVerticalMiner(Component.Component):
                 elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['x','x2'],myLevel=XMLDSTEXTClass)
    
             seqGen = sequenceMiner()
+#             seqGen.bDebug = self.bDebug
             _  = seqGen.featureGeneration(lElts,2)
             lKleendPlus = self.getKleenePlusFeatures(lElts)
             page.setVX1Info(lKleendPlus)
@@ -135,13 +132,18 @@ class pageVerticalMiner(Component.Component):
                 except KeyError:dFreqFeatures[fea] = 1
                 for nextE in elt.next:
                     if fea in nextE.getSetofFeatures().getSequences():
-                        try:dKleenePlusFeatures[fea].append((elt,nextE))
-                        except KeyError:dKleenePlusFeatures[fea]=[(elt,nextE)]
+                        try:
+                            dKleenePlusFeatures[fea].append(nextE)
+                            dKleenePlusFeatures[fea].append(elt)                            
+                        except KeyError:
+                            dKleenePlusFeatures[fea]=[elt]
+                            dKleenePlusFeatures[fea].append(nextE)
         for fea in dFreqFeatures:
             try:
                 dKleenePlusFeatures[fea]
-                if len(dKleenePlusFeatures[fea]) >= 0.5 *  dFreqFeatures[fea]:
+                if len(set(dKleenePlusFeatures[fea])) >= 0.5 *  dFreqFeatures[fea]:
                     lKleenePlus.append(fea) 
+#                     print fea,len(set(dKleenePlusFeatures[fea])) , dFreqFeatures[fea]
             except:
                 pass
         return  lKleenePlus
@@ -241,7 +243,7 @@ class pageVerticalMiner(Component.Component):
     
         pattern = lfPattern
         
-        print pattern[1]
+        print pattern
         
         ### in prodf: mytemplate given by page.getVerticalTemplates()
         mytemplate = verticalZonestemplateClass()
@@ -249,15 +251,15 @@ class pageVerticalMiner(Component.Component):
 
         mytemplate2 = verticalZonestemplateClass()
 #         mytemplate2.setPattern(pattern [1])
-        mytemplate2.setPattern(pattern[1])
+        mytemplate2.setPattern(pattern[0])
         
         # registration provides best matching
         ## from registration matched: select the final cuts
-        for p in lPages:
-#             print p, p.lf_XCut
+        for i,p in enumerate(lPages):
+            print p, p.lf_XCut
             registeredPoints1, lMissing1, score1 = mytemplate.registration(p)
             registeredPoints2, lMissing2, score2 = mytemplate2.registration(p)
-#             print registeredPoints1, registeredPoints2
+            print i,p,registeredPoints1, registeredPoints2, score1
             # if score1 == score 2 !!
             if score1 > 0 and score1 >= score2:
                 lfinalCuts= map(lambda (x,y):y,filter(lambda (x,y): x!= 'EMPTY',registeredPoints1))
@@ -411,8 +413,8 @@ class pageVerticalMiner(Component.Component):
                 ncols
                 regulargrid
             
-            test: if i want a singlepagesinglecol: which best
-                            ...
+            test: if i want a singlepagesinglecol: whic best
+                        
             
         """  
         pageWidth=0.0
@@ -451,7 +453,7 @@ class pageVerticalMiner(Component.Component):
         
         ### APPLY RULESSSS setMaxSequenceLength=1 enough for tagging?
         ### or simulate the 'gain' that the rule could bring to some pattern!
-        dPC,dCP = self.getPatternGraph(lSeqRules)
+        _,dCP = self.getPatternGraph(lSeqRules)
 #         if self.bDebug:print dCP
         #select N(5)-best candidates for each pattern
         dTemplatesCnd = self.analyzeListOfPatterns(lPatterns,dCP)
@@ -735,9 +737,8 @@ class pageVerticalMiner(Component.Component):
                     terminal node: tuple (tag,(tag,indexstart,indexend))
                 
             """
-            lOut=[]
             if type(node[0]).__name__  == 'tuple':
-                    tagX,(tag,start,end) = node[0]
+                    _,(tag,start,end) = node[0]
                     # tag need to be converted in mv -> featreu
                     subtemplate = template.findTemplatePartFromPattern(dMtoSingleFeature[tag])
                     lElts[start].addVerticalTemplate(subtemplate) 

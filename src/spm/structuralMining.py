@@ -24,13 +24,14 @@
 
 # Adjustement of the PYTHONPATH to include /.../DS/src
 import sys, os.path
-from jsonschema._validators import pattern
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 import common.Component as Component
 import config.ds_xml_def as ds_xml
 from operator import itemgetter
 
+# from feature import multiValueFeatureObject
+# from ObjectModel.templateClass import templateClass
 
 
 class sequenceMiner(Component.Component):
@@ -56,13 +57,13 @@ class sequenceMiner(Component.Component):
         self._TH = 0 
         
         # maximal sequence size
-        self.maxSeqLength = 2
+        self.maxSeqLength = 1
 
         self.sdc = 0.1  # support different constraints
         # support # given by mis:
 #         self.support = 2
 
-        self.THRULES = 0.6
+        self.THRULES = 0.9
         
     def setTH(self,th):
         self._TH = th
@@ -94,16 +95,11 @@ class sequenceMiner(Component.Component):
             tmpseq = []
             for item in seq:
                 tmpitem = []
-                if item.__class__.__name__ =='multiValueFeatureObject':  #featureObject
-                    tmpitem.append(item)
-                else:
-                    for fea in item.getSetofFeatures().getSequences():
-                        tmpitem.append(fea)
-#                     tmpitemset.sort()
+                for fea in item.getSetofFeatures():
+                    tmpitem.append(fea)
                 if tmpitem != []:
                     tmpseq.append(tmpitem)
                 else:
-                    #add emptyfeature
                     pass
             db.append(tmpseq)
         return db,lMIS
@@ -125,7 +121,7 @@ class sequenceMiner(Component.Component):
             j+=1
         return lList
            
-    def generateSequentialRules(self,lPatterns,lenSeq=5):
+    def generateSequentialRules(self,lPatterns):
         """
             generate sequential rules from  a list pa (pattern,support)
         """
@@ -134,22 +130,21 @@ class sequenceMiner(Component.Component):
         for p,s in lPatterns:
             dP[str(p)] = s
         for pattern,support in lPatterns:
-            if support > 2:
-                if support > lenSeq :
-                    for i , itemset in enumerate(pattern):
-                        if len(itemset) > 1:
-        #                     print 'itemset', itemset
-                            for item in itemset:
-                                newItemSet = itemset[:]
-                                newItemSet.remove(item)
-                                newPattern=pattern[:]
-                                newPattern[i] = newItemSet
-        #                         print 'tst rules', newPattern
-                                if  str(newPattern) in dP:
-                                    fConfidence = 1.0 *support / dP[str(newPattern)]
-                                    if fConfidence> self.THRULES: 
-                                        if self.bDebug:print 'RULE: %s => %s[%d] (%s/%s = %s)'%(newPattern, item,i,dP[str(newPattern)],support, fConfidence)
-                                        lRules.append( (newPattern,item,i,pattern, fConfidence) )
+            if support > 9:
+                for i , itemset in enumerate(pattern):
+                    if len(itemset) > 1:
+                        for item in itemset:
+                            newItemSet = itemset[:]
+                            newItemSet.remove(item)
+                            newPattern=pattern[:]
+                            newPattern[i] = newItemSet
+                            # need to sort 
+                            newPattern[i].sort()
+                            if  str(newPattern) in dP:
+                                fConfidence = 1.0 *support / dP[str(newPattern)]
+                                if fConfidence >  self.THRULES: 
+                                    if self.bDebug:print 'RULE: %s => %s[%d] (%s/%s = %s)'%(newPattern, item,i,dP[str(newPattern)],support, fConfidence)
+                                    lRules.append( (newPattern,item,i,pattern, fConfidence) )
         return lRules
     
     
@@ -281,10 +276,8 @@ class sequenceMiner(Component.Component):
             detect if the pattern is +. if yes: parse the elements 
         """
         from ObjectModel.sequenceAPI import sequenceAPI
-        from feature import sequenceOfFeatures
         lNewKleeneFeatures=[]
         lLNewKleeneSeq = []
-        lLScoreKleenSeq=[]
         for gram,lFullList,ltrees in lParsings:
             ## create new feature
             ## collect all covered pages ans see if this is a kleene gram
@@ -292,7 +285,7 @@ class sequenceMiner(Component.Component):
             ##  fkleeneFactor = proportion of sequence wich are klenee
             ikleeneFactor=0
             gramLen=len(gram) * 1.0
-            for lParsedPages, ktree,ltree in ltrees:
+            for lParsedPages, _,_ in ltrees:
 #                 print gram, lParsedPages, ltree
                 if len(lParsedPages)> gramLen:
                     ikleeneFactor +=len(lParsedPages)
@@ -317,9 +310,7 @@ class sequenceMiner(Component.Component):
                         if not bNew:
                             bNew=True
                             kleeneElt = sequenceAPI()
-                            seqOfF = sequenceOfFeatures()
-                            seqOfF.addFeature(gramPlus)
-                            kleeneElt._lBasicFeatures=seqOfF                            
+                            kleeneElt._lBasicFeatures= [gramPlus]                       
                             lNewSeq.append(kleeneElt)
                                                     
                     i+=1
@@ -386,9 +377,9 @@ class sequenceMiner(Component.Component):
         from  feature import featureObject   
         lFeatures = {}
         for elt in lList:
-            elt.computeSetofFeatures()
+#             elt.computeSetofFeatures()
             if self.bDebug: print "\t",elt, str(elt.getSetofFeatures())
-            for feature in elt.getSetofFeatures().getSequences():
+            for feature in elt.getSetofFeatures():
                 try:lFeatures[feature].append(feature)
                 except KeyError: lFeatures[feature] = [feature]
         sortedItems = map(lambda x: (x, len(lFeatures[x])), lFeatures)
@@ -476,11 +467,20 @@ class sequenceMiner(Component.Component):
         for elt in lList:
             ltodel = []
 #             print "x",elt, elt.getSetofFeatures()
-            for f in elt.getSetofFeatures().getSequences():
+            for f in elt.getSetofFeatures():
                 if len(f.getCanonical().getNodes()) >= TH:
                     ## need t oupdate again sience kNewValue has changed
                     if f.getType() == featureObject.NUMERICAL:
-                        f.getObjectName().getSetofFeatures().updateFeature(f.getCanonical())
+        #         for i,myf in enumerate(self.getSequences()):
+        #             if f == myf:
+        #                 myf.storeOldValue(myf.getValue())
+        #                 myf.setValue(f.getValue())                        
+                        
+                        indxf=f.getObjectName().getSetofFeatures().index(f.getCanonical())
+                        myf= f.getObjectName().getSetofFeatures()[indxf]
+                        myf.storeOldValue(myf.getValue())
+                        myf.setValue(f.getCanonical().getValue()) 
+#                         f.getObjectName().getSetofFeatures().updateFeature(f.getCanonical())
                     
 #                     print elt, f, f.getID(),len(f.getNodes()),len(f.getCanonical().getNodes()),f.getCanonical() #,f.getNodes()
 #                    for n in f.getCanonical().getNodes():
@@ -489,7 +489,7 @@ class sequenceMiner(Component.Component):
 #                     print "remove %d %s %s %s\t%s"%(TH,elt,f,f.getID(),len(f.getCanonical().getNodes()))
                     ltodel.append(f)
             for f in ltodel:
-                elt.getSetofFeatures().deleteFeature(f)
+                elt.getSetofFeatures().remove(f)
                 nbdeleted += 1
             if self.bDebug: print "\t",elt, str(elt.getSetofFeatures())
 #        print "nb f deleted:",nbdeleted

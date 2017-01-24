@@ -3,13 +3,22 @@
 class sequenceAPI():
     
     def __init__(self):
-        self._featureFunction = None
-        self._lBasicFeatures = None
-        self._featureFunctionTH = None
         
-        self.objectClass = None
+        # how to create features
+        self._featureFunction = None
+        # threshold value for equality
+        self._featureFunctionTH = None
+        # which objetc/subobject to use
+        self._subObjects=None
+#         self.objectClass = None
+
+        # which features to use
         self._lFeatureList= None
         
+        # list of features 
+        self._lBasicFeatures = None
+        
+        self._subObjects=None
     def __hash__(self):
         return hash(self.getSetofFeatures())
     
@@ -20,6 +29,8 @@ class sequenceAPI():
         except AttributeError:
             # no node: use features?
             return str(self.getSetofFeatures())
+
+
 
     def resetFeatures(self):
         ## assume structure define elsewhere
@@ -38,42 +49,62 @@ class sequenceAPI():
         self._lFeatureList=lFeatureList
         self._subObjects = myLevel
 
-    def computeSetofFeatures(self,TH=90):
-        """
-        
-            for fuzzy matching: getSetofDegradedFeatures() ??
-        """
-        
-        from spm.feature import sequenceOfFeatures
-        try:
-            self._lBasicFeatures
-        except AttributeError:
-            self._lBasicFeatures=None
-            
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR
-
+    def computeSetofFeatures(self):
         self._featureFunction(self._featureFunctionTH,self._lFeatureList,self._subObjects)
-      
-      
-      
-    def getSetofFeatures(self,bAll=False):
-        """
-            skeleton
-        """
-        from spm.feature import sequenceOfFeatures
         
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR
-        x= sequenceOfFeatures()
+#         """
+#         
+#             for fuzzy matching: getSetofDegradedFeatures() ??
+#         """
+#         
+#         from spm.feature import sequenceOfFeatures
+#         try:
+#             self._lBasicFeatures
+#         except AttributeError:
+#             self._lBasicFeatures=None
+#             
+#         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
+#             lR=sequenceOfFeatures()
+#             for f in self._lBasicFeatures.getSequences():
+#                 if f.isAvailable():
+#                     lR.addFeature(f)
+#             return lR
+# 
+#         self._featureFunction(self._featureFunctionTH,self._lFeatureList,self._subObjects)
+      
+
+#     def getSetofFeaturesInit(self,TH,lAttributes,myObject):
+#         from spm.feature import sequenceOfFeatures
+#         
+#         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
+#             lR=sequenceOfFeatures()
+#             for f in self._lBasicFeatures.getSequences():
+#                 if f.isAvailable():
+#                     lR.addFeature(f)
+#             return lR
+#         x= sequenceOfFeatures()
+#         return x              
+        
+    def setSequenceOfFeatures(self,l):
+        self._lBasicFeatures = l
+        
+    def addFeature(self,f):
+        if self._lBasicFeatures is not None: 
+            if f not in self.getSetofFeatures():
+                self._lBasicFeatures.append(f)
+        else:
+            self._lBasicFeatures = [f]
+            
+    def getSetofFeatures(self):
+        return self._lBasicFeatures
+#         from spm.feature import sequenceOfFeatures
+#         
+#         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
+#             lR=sequenceOfFeatures()
+#             for f in self._lBasicFeatures.getSequences():
+#                 if f.isAvailable():
+#                     lR.addFeature(f)
+#             return lR
+#         x= sequenceOfFeatures()
         
         
-        return x                

@@ -15,8 +15,6 @@ import sys, os.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 
-from feature import featureObject, sequenceOfFeatures
-
 
 """
  class: RULESEQElement
@@ -27,11 +25,11 @@ class RULESEQElement():
     
     def __init__(self,node=None):
         self._node = node
-        self._lBasicFeatures = sequenceOfFeatures()
+        self._lBasicFeatures = []
 
 
     def __hash__(self):
-        return hash(self.getSetofFeatures())
+        return hash(str(self.getSetofFeatures()))
     
     def __repr__(self):
         try:
@@ -43,8 +41,8 @@ class RULESEQElement():
 
     def __eq__(self,other):
         
-        for x in self.getSetofFeatures().getSequences():
-            if x in other.getSetofFeatures().getSequences():
+        for x in self.getSetofFeatures():
+            if x in other.getSetofFeatures():
                 return True
         return False
          
@@ -67,41 +65,58 @@ class RULESEQElement():
         
     def computeSetofFeatures(self,TH=90):
         
-        try:
-            self._lBasicFeatures
-        except AttributeError:
-            self._lBasicFeatures=None
-            
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR
+#         try:
+#             self._lBasicFeatures
+#         except AttributeError:
+#             self._lBasicFeatures=None
+#             
+#         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
+#             lR=sequenceOfFeatures()
+#             for f in self._lBasicFeatures.getSequences():
+#                 if f.isAvailable():
+#                     lR.addFeature(f)
+#             return lR
 
         self._featureFunction(self._featureFunctionTH)
         
     def addFeature(self,f):
-        if f not in self.getSetofFeatures().getSequences():
+        if f not in self.getSetofFeatures():
             f.addNode(self)
-            self._lBasicFeatures.addFeature(f)
+            self._lBasicFeatures.append(f)
                         
     def getSetofFeatures(self):
-        
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR
-        x= sequenceOfFeatures()
-        return x            
+        return self._lBasicFeatures 
+#         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
+#             lR=sequenceOfFeatures()
+#             for f in self._lBasicFeatures.getSequences():
+#                 if f.isAvailable():
+#                     lR.addFeature(f)
+#             return lR
+#         x= sequenceOfFeatures()
+#         return x            
 
 
 class sequenceGrammar():        
     
-        
-    def generateGrammarRules(self, featureType,grammarTree,level):
+#     def generateAplus(self,grammTree):
+#         """
+#             a+ need to be optimize
+#             parsing is fast, but build-tree vey low: why? too many solution ofr a long a+
+#         """
+#         from  earleyParser import Rule, Production
+#         
+#         
+#         featurerule = grammTree[0]
+#         elt = RULESEQElement()
+#         elt.addFeature(featurerule)
+#         elt.computeSetofFeatures()
+#         gramRule = Rule(featurerule.getName() + featurerule.getStringValue(), Production(elt))
+#         gramRule2 = Rule(featurerule.getName() + featurerule.getStringValue()+"2", Production(gramRule))
+#         gramRule2.add(Production(gramRule2,gramRule))
+#         print 'a+:',gramRule2
+#         return gramRule2
+    
+    def generateGrammarRules(self, grammarTree,level,i):
         """
             convert list of features into rules (for earleyParser module)
         """
@@ -111,25 +126,21 @@ class sequenceGrammar():
         lrules=[]        
         for featurerule in grammarTree:
             if type(featurerule).__name__ == 'list':
-                lrules.append(self.generateGrammarRules(featureType,featurerule,level+1))
+                ## if no list inside: mutivalue: generate rule
+                lrules.append(self.generateGrammarRules(featurerule,level+1,i+1))
             else:
-#                 feature = featureType()
-#                 feature.setName(featurerule.getName())
-#                 feature.setType(featurerule.getType())
-#                 feature.setValue(featurerule.getValue())
-#                 feature.setTH(featurerule.getTH())
-
-                # simply use featurerule ? featureType useless?
                 elt = RULESEQElement()
                 elt.addFeature(featurerule)
-                elt.computeSetofFeatures()
+#                 elt.computeSetofFeatures()
                 
 #                 gramRule = Rule(featurerule.getName() + featurerule.getStringValue(), Production(elt))
                 gramRule = Rule(featurerule, Production(elt))
 
                 lrules.append(gramRule)
                 
-        mainRuleName='s%d'%level
+        mainRuleName='s%d-%s'% (level,i)
+#         mainRuleName='s%d'% (level)
+        print mainRuleName, grammarTree , "*************"
         MainRule=Rule(mainRuleName,Production(*lrules))            
         MainRule2 = Rule(mainRuleName+'+',Production(MainRule))
         MainRule2.add(Production(MainRule2,MainRule))
@@ -143,20 +154,12 @@ class sequenceGrammar():
         """
             transform the hierarchical Node into a recursive list of index/elt
         """
-        import re
         
         lChildOut= []
-#         print type(node.value), node.value
-        #if terminal: one index:
-#         print "?",node.value.name, node.value.start_column,node.value.end_column.index-1
         
-        # store if not kleenePlus
         try:dInvertDict[node.value.name].append((node.value.name,node.value.start_column.index,node.value.end_column.index-1))
         except KeyError: dInvertDict[node.value.name]=[(node.value.name,node.value.start_column.index,node.value.end_column.index-1)]        
         
-#         if (node.value.end_column.index - node.value.start_column.index)==1:
-#             lChildOut.append((node.value.name,lElts[node.value.start_column.index]))
-#         else:
         if node.children != []:
             for child in node.children:
                 lChildOut.extend((child.value.name,self.getHListFromNode(child,lElts,dInvertDict)))
@@ -165,19 +168,6 @@ class sequenceGrammar():
 
         return lChildOut
             
-    def simplifyRes(self,lRes,name):
-        """
-        LR parsing of a+ needs to be flatten!
-        """
-        lFlatenRes=[]
-        for resname,lres in lRes:
-            print 'ss',resname,lres
-            if resname[-1] == '+':
-                lFlatenRes.extend(self.simplifyRes(lres,name))
-            else:
-                lFlatenRes.append([resname,lres])
-        return lFlatenRes
-    
         
     def parseSequence(self,featureType, grammar, lSeqElement):
         """
@@ -189,7 +179,7 @@ class sequenceGrammar():
         self.bDEBUG = False
         
         if self.bDEBUG:print "\n\n===== GRAMMAR: %s =============" % (grammar)
-        myGrammar = self.generateGrammarRules(featureType,grammar,0)
+        myGrammar = self.generateGrammarRules(grammar,0,0)
         ## if just one rule: a+  : need optimisation!
 #         print myGrammar.productions
         # # here start with the first possible match?  (minus x for fussy?) 
@@ -198,8 +188,8 @@ class sequenceGrammar():
         res, lT = parse(myGrammar, lList)
 #         print 'res:',res
 #         return 
-        lInvertDict= []
         
+        self.bDEBUG = False
         lParsings = []
         if res == 0 :
             if self.bDEBUG:print "full res",res
@@ -223,19 +213,17 @@ class sequenceGrammar():
             i = 0
             lResults = []
             while res != 0 and i < len(lList):
-#                 print i,map(lambda x:x,lList)
                 if res == 0:
-    #                         for t in build_trees(lT[0]):
-    #                             t.print_()
-    #                         print lList
+#                     for t in build_trees(lT[0]):
+#                         t.print_()
                     lResults.append([(lT[0], lList)])
                 else:
                     # partial
                     # get final index //07/09/2016 !!! lIndex not used
                     lastindex = 0
-                    lIndex = {}
                     for s in lT:
                         # partial 
+#                         print s.name , myGrammar.name,  s.completed()
                         if s.name == myGrammar.name and s.completed():
                             lastindex = max(lastindex, s.end_column.index)
                             lResults.append((s, lList[s.start_column.index:lastindex]))
@@ -258,10 +246,6 @@ class sequenceGrammar():
             
         # get coverage
         lFinalList  = self.getCoverage(lParsings)
-#         for x,y in lTmp:
-# #             print '\t',x[1],len(x[1])
-# #             print '\t\t',len (self.simplifyRes(x[0],'s0'))
-#             lFinalList.append((x,self.simplifyRes(x,'s0')))
 
         return lFinalList
         
@@ -276,7 +260,7 @@ class sequenceGrammar():
         
         
         from  earleyParser import  build_trees
-
+        self.bDEBUG = False
         lParsings= []
         lResults.sort(key=lambda x:len(x[1]),reverse=True)
         for res in lResults:
@@ -311,6 +295,7 @@ class sequenceGrammar():
         for lelt,keys,tree in lParsings:
             if lelt[0] in lFirst:continue
             else: 
+#                 print tree
                 lFirst.append(lelt[0])
                 lRes.append((lelt,keys,tree))
         return lRes    
