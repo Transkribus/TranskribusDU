@@ -30,8 +30,8 @@ import common.Component as Component
 import config.ds_xml_def as ds_xml
 from operator import itemgetter
 
-# from feature import multiValueFeatureObject
-# from ObjectModel.templateClass import templateClass
+import numpy as np
+from  feature import featureObject   
 
 
 class sequenceMiner(Component.Component):
@@ -95,6 +95,7 @@ class sequenceMiner(Component.Component):
             tmpseq = []
             for item in seq:
                 tmpitem = []
+#                 print item, item.getSetofFeatures()
                 for fea in item.getSetofFeatures():
                     tmpitem.append(fea)
                 if tmpitem != []:
@@ -344,24 +345,6 @@ class sequenceMiner(Component.Component):
         return lPatterns
         
 
-#     def computePatternScores(self,lPatterns,N):
-#         """
-#             compute support, confidence
-#             conf a->b supp(a,b)/supp(a)
-#         
-#         """
-#         dPatternFreq={}
-#         dPatternConf={}
-#         for p,s in lPatterns:
-#             if len(p):
-#                 dPatternFreq[str(p)] = s/N
-#         
-#         for p,s in lPatterns:
-#             if len(p) == 1 and len(p[0]) == 2:
-#                 print p, dPatternFreq[str([p[0]])], dPatternFreq[str([[p[0][0]]])], dPatternFreq[str([p[0]])] / (1.0 * dPatternFreq[str([[p[0][0]]])])
-#             
-#         return dPatternFreq, dPatternConf
-          
     def featureGeneration(self, lList, TH=2):
         """
             lList: global list : all elements 
@@ -374,7 +357,6 @@ class sequenceMiner(Component.Component):
             ?? REGROUP FEATURES PER node 
             when enriching, consider only features from other nodes?
         """
-        from  feature import featureObject   
         lFeatures = {}
         for elt in lList:
 #             elt.computeSetofFeatures()
@@ -387,7 +369,6 @@ class sequenceMiner(Component.Component):
         lCovered = []
         lMergedFeatures = {}
         for i, (f, freq) in enumerate(sortedItems):
-#             print f,freq,hash(f)
             if f.getID() not in map(lambda x: x.getID(), lCovered):
                 lMergedFeatures[f] = lFeatures[f]
                 lCovered.append(f)
@@ -401,45 +382,44 @@ class sequenceMiner(Component.Component):
                                 # test with IF if ff2 not in list 
                                 lMergedFeatures[f].append(ff2)
                                 lCovered.append(ff2)
-#                     else:
-#                         print '<>',f,ff
-                
+                                
         sortedItems = map(lambda x: (x, len(lMergedFeatures[x])), lMergedFeatures)
         sortedItems.sort(key=itemgetter(1), reverse=True)
-        lCovered = []  
+        lCovered = []
+        lMapCovered=[]  
         kNewValue={}
         for f, freq in sortedItems:
-#             print f,freq,lMergedFeatures[f]
+            print f,freq,lMergedFeatures[f]
             ## update the value if numerical feature: take the mean and not the most frequent!!
             if f.getType() == featureObject.NUMERICAL:
                 lvalues=map(lambda x:x.getValue(),lMergedFeatures[f])
                 lweights= map(lambda x:1.0*x/len(lMergedFeatures[f]),lvalues)
 #                 print f,freq, lvalues, lweights
-                import numpy as np
                 try: kNewValue[f] =  round(np.average(lvalues,weights=lweights),0)
 
                 except ZeroDivisionError: print lweights, lvalues, lMergedFeatures[f]
-            if freq >= TH and f not in lCovered:
+            if freq >= TH and f.getID() not in lMapCovered:
                 f.setCanonical(f)
                 for ff in lMergedFeatures[f]:
-#                     print "\t",ff,freq,ff.getTH(),ff.getObjectName(), ff.getID() ,f.getID()
-                    if ff not in lCovered  and ff.getID() != f.getID():
+                    print "\t",ff,freq,ff.getTH(),ff.getObjectName(), ff.getID() ,f.getID(), ff.getID() not in lMapCovered
+                    if ff.getID() not in lMapCovered  and ff.getID() != f.getID():
                         # replace the feature by the canonical one
-                        try:
 #                             print ff,  ff.getObjectName()
 #                             print '\tOK\t',ff.getObjectName().getSetofFeatures()
-                            ff.getObjectName().getSetofFeatures().updateFeature(f)
-                        except AttributeError:
-                            pass
-#                             print ff, "NO OBJECT"
-#                         print "\t%s: replace %s by %s" %(ff.getObjectName(),ff,f)
-                        for n in ff.getNodes():
-                            f.addNode(n)
-#                            print "\t\t",n
-                        ff.setCanonical(f)
-#                     print "\t canonical", ff,f 
+#                             ff.getObjectName().getSetofFeatures().updateFeature(f)
+                        indxf=ff.getObjectName().getSetofFeatures().index(ff.getCanonical())
+                        if indxf >-1:
+                            myf= ff.getObjectName().getSetofFeatures()[indxf]
+                            myf.storeOldValue(myf.getValue())
+                            myf.setValue(f.getCanonical().getValue())                             
+                            for n in ff.getNodes():
+                                f.addNode(n)
+                            lCovered.append(f)
+                            lMapCovered.append(f.getID())                                
+                            ff.setCanonical(f)
                 if f not in lCovered:
                     lCovered.append(f)
+                    lMapCovered.append(f.getID())
 #                 print "xx\t",f, f.getCanonical()
         nbdeleted = 0
         lCovered.sort(key=lambda x:len(x.getNodes()), reverse=True)
@@ -471,11 +451,6 @@ class sequenceMiner(Component.Component):
                 if len(f.getCanonical().getNodes()) >= TH:
                     ## need t oupdate again sience kNewValue has changed
                     if f.getType() == featureObject.NUMERICAL:
-        #         for i,myf in enumerate(self.getSequences()):
-        #             if f == myf:
-        #                 myf.storeOldValue(myf.getValue())
-        #                 myf.setValue(f.getValue())                        
-                        
                         indxf=f.getObjectName().getSetofFeatures().index(f.getCanonical())
                         myf= f.getObjectName().getSetofFeatures()[indxf]
                         myf.storeOldValue(myf.getValue())
