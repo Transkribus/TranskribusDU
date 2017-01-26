@@ -20,7 +20,7 @@ class sequenceAPI():
         
         self._subObjects=None
     def __hash__(self):
-        return hash(self.getSetofFeatures())
+        return hash(str(self.getSetofFeatures()))
     
     def __repr__(self):
 #         return str(len(self._node.getContent())) + " " + self._node.getContent().encode('utf-8').strip()[:20]
