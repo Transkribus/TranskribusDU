@@ -1,9 +1,9 @@
-# -*- coding: latin-1 -*-
+# -*- coding: utf-8 -*-
 """
 
     XML object class 
     
-    Hervé Déjean
+    Hervï¿½ Dï¿½jean
     cpy Xerox 2009
     
     a class for object from a XMLDocument
@@ -19,13 +19,13 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
     """
         TEXT (chunk) class
     """
-    name = ds_xml.sTEXT
     def __init__(self,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
         self._domNode = domNode
         
         self.Obaseline=None
+        self.setName(ds_xml.sTEXT)
     
 #     def getX(self): return float(self.getAttribute('x'))
 #     def getY(self): return float(self.getAttribute('y'))
@@ -43,8 +43,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
             attributes x y  id height width  (all!)
             
         """
-        # must be PAGE        
-        self._name = domNode.name
+#         self.setName(domNode.name)
         self.setNode(domNode)
         # get properties
         prop = domNode.properties
@@ -133,64 +132,42 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
     
     def getSetOfFeaturesXPos(self,TH,lAttr,myObject):
 
-        from feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject
      
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR     
-   
-        else:
+        if self._lBasicFeatures is None:
+            self._lBasicFeatures = []
             
-            lFeatures = []
-
-            ftype= featureObject.NUMERICAL
-            feature = featureObject()
-            feature.setName('x')
-            feature.setTH(TH)
-            feature.addNode(self)
-            feature.setObjectName(self)
-            feature.setValue(round(self.getX()))
-            feature.setType(ftype)
-            lFeatures.append(feature)
-            
-            ftype= featureObject.NUMERICAL
-            feature = featureObject()
-            feature.setName('x2')
-            feature.setTH(TH)
-            feature.addNode(self)
-            feature.setObjectName(self)
-            feature.setValue(round(self.getX()+self.getWidth()))
-            feature.setType(ftype)
-            lFeatures.append(feature)  
-                      
-            ftype= featureObject.NUMERICAL
-            feature = featureObject()
-            feature.setName('xc')
-            feature.setTH(TH)
-            feature.addNode(self)
-            feature.setObjectName(self)
-            feature.setValue(round(self.getX()+self.getWidth()/2))
-            feature.setType(ftype)
-            lFeatures.append(feature)                       
+        ftype= featureObject.NUMERICAL
+        feature = featureObject()
+        feature.setName('x')
+        feature.setTH(TH)
+        feature.addNode(self)
+        feature.setObjectName(self)
+        feature.setValue(round(self.getX()))
+        feature.setType(ftype)
+        self.addFeature(feature)
         
-        if lFeatures == []:
-            feature = featureObject()
-            feature.setName('EMPTY')
-            feature.setTH(TH)
-            feature.addNode(self)
-            feature.setObjectName(self)
-            feature.setValue(True)
-            feature.setType(featureObject.BOOLEAN)
-            lFeatures.append(feature)            
-
-        seqOfF = sequenceOfFeatures()
-        for f in lFeatures:
-            seqOfF.addFeature(f)
-        self._lBasicFeatures=seqOfF
-        return seqOfF         
+        ftype= featureObject.NUMERICAL
+        feature = featureObject()
+        feature.setName('x2')
+        feature.setTH(TH)
+        feature.addNode(self)
+        feature.setObjectName(self)
+        feature.setValue(round(self.getX()+self.getWidth()))
+        feature.setType(ftype)
+        self.addFeature(feature)
+                  
+        ftype= featureObject.NUMERICAL
+        feature = featureObject()
+        feature.setName('xc')
+        feature.setTH(TH)
+        feature.addNode(self)
+        feature.setObjectName(self)
+        feature.setValue(round(self.getX()+self.getWidth()/2))
+        feature.setType(ftype)
+        self.addFeature(feature)
+    
+        return self.getSetofFeatures()         
         
     def getSetOfListedAttributes(self,TH,lAttributes,myObject):
         """
@@ -198,123 +175,127 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
             
             
         """
-        from feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject
      
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR     
-   
-        else:
+        if self._lBasicFeatures is None:
+            self._lBasicFeatures = []
             
-            lHisto = {}
-            for elt in self.getAllNamedObjects(myObject):
-                for attr in lAttributes:
-                    try:lHisto[attr]
-                    except KeyError:lHisto[attr] = {}
-                    if elt.hasAttribute(attr):
-                        try:lHisto[attr][round(float(elt.getAttribute(attr)))].append(elt)
-                        except: lHisto[attr][round(float(elt.getAttribute(attr)))] = [elt]
-            
-            lFeatures = []
+        lHisto = {}
+        for elt in self.getAllNamedObjects(myObject):
             for attr in lAttributes:
-                for value in lHisto[attr]:
-                    if  len(lHisto[attr][value]) > 0.1:
-                        ftype= featureObject.NUMERICAL
-                        feature = featureObject()
-                        feature.setName(attr)
-                        feature.setTH(TH)
-                        feature.addNode(self)
-                        feature.setObjectName(self)
-                        feature.setValue(value)
-                        feature.setType(ftype)
-                        lFeatures.append(feature)
+                try:lHisto[attr]
+                except KeyError:lHisto[attr] = {}
+                if elt.hasAttribute(attr):
+                    try:
+                        try:lHisto[attr][round(float(elt.getAttribute(attr)))].append(elt)
+                        except KeyError: lHisto[attr][round(float(elt.getAttribute(attr)))] = [elt]
+                    except TypeError:pass
         
-        
-            if 'text' in lAttributes:
-                if len(self.getContent()):
-                    ftype= featureObject.EDITDISTANCE
-                    feature = featureObject()
-                    feature.setName('content')
-                    feature.setTH(90)
-                    feature.addNode(self)
-                    feature.setObjectName(self)
-                    feature.setValue(self.getContent())
-                    feature.setType(ftype)
-                    lFeatures.append(feature)            
-            
-            if 'xc' in lAttributes:
-                ftype= featureObject.NUMERICAL
-                feature = featureObject()
-                feature.setName('xc')
-                feature.setTH(TH)
-                feature.addNode(self)
-                feature.setObjectName(self)
-                feature.setValue(round(self.getX()+self.getWidth()/2))
-                feature.setType(ftype)
-                lFeatures.append(feature)    
-#           
-#             if 'x2' in lAttributes:
-#                 ftype= featureObject.NUMERICAL
-#                 feature = featureObject()
-#                 feature.setName('x2')
-#                 feature.setTH(TH)
-#                 feature.addNode(self)
-#                 feature.setObjectName(self)
-#                 feature.setValue(round(self.getX()+self.getWidth()))
-#                 feature.setType(ftype)
-#                 lFeatures.append(feature)            
-        
-            if 'bl' in lAttributes:
-                for next in self.next:
-#                     print 'c\t',self, next
+        for attr in lAttributes:
+            for value in lHisto[attr]:
+                if  len(lHisto[attr][value]) > 0.1:
                     ftype= featureObject.NUMERICAL
                     feature = featureObject()
-                    baseline = self.getBaseline()
-                    nbl=next.getBaseline()
-                    if baseline and nbl:
-                        feature.setName('bl')
-                        feature.setTH(TH)
-                        feature.addNode(self)
-                        feature.setObjectName(self)
-#                         print nbl, baseline
-                        feature.setValue(round(nbl.getY2()-baseline.getY2()))
-    #                     feature.setValue(round(next.getY2()-self.getY2()))
-                        feature.setType(ftype)
-                        lFeatures.append(feature)                
-                
-            if 'linegrid' in lAttributes:
-                #lgridlist.append((ystart,rowH, y1,yoverlap))
-                for ystart,rowh,y1,yoverlpa  in self.lgridlist:
-                    ftype= featureObject.BOOLEAN
-                    feature = featureObject()
-                    feature.setName('linegrid%s'%rowh)
+                    feature.setName(attr)
+                    feature.setName('f')
                     feature.setTH(TH)
                     feature.addNode(self)
                     feature.setObjectName(self)
-                    feature.setValue(ystart)
+                    feature.setValue(value)
                     feature.setType(ftype)
-                    lFeatures.append(feature) 
-                
+                    self.addFeature(feature)
+    
+    
+        if 'text' in lAttributes:
+            if len(self.getContent()):
+                ftype= featureObject.EDITDISTANCE
+                feature = featureObject()
+#                     feature.setName('content')
+                feature.setName('f')
+                feature.setTH(90)
+                feature.addNode(self)
+                feature.setObjectName(self)
+                feature.setValue(self.getContent())
+                feature.setType(ftype)
+                self.addFeature(feature)            
         
-        if lFeatures == []:
+        if 'xc' in lAttributes:
+            ftype= featureObject.NUMERICAL
             feature = featureObject()
-            feature.setName('EMPTY')
+#                 feature.setName('xc')
+            feature.setName('f')
             feature.setTH(TH)
             feature.addNode(self)
             feature.setObjectName(self)
-            feature.setValue(True)
-            feature.setType(featureObject.BOOLEAN)
-            lFeatures.append(feature)            
-
-        seqOfF = sequenceOfFeatures()
-        for f in lFeatures:
-            seqOfF.addFeature(f)
-        self._lBasicFeatures=seqOfF
-        return seqOfF        
+            feature.setValue(round(self.getX()+self.getWidth()/2))
+            feature.setType(ftype)
+            self.addFeature(feature) 
+#           
+        if 'virtual' in lAttributes:
+            ftype= featureObject.BOOLEAN
+            feature = featureObject()
+            feature.setName('f')
+            feature.setTH(TH)
+            feature.addNode(self)
+            feature.setObjectName(self)
+            feature.setValue(self.getAttribute('virtual'))
+            feature.setType(ftype)
+            self.addFeature(feature)
+                            
+        if 'bl' in lAttributes:
+            for inext in self.next:
+#                     print 'c\t',self, next
+                ftype= featureObject.NUMERICAL
+                feature = featureObject()
+                baseline = self.getBaseline()
+                nbl=inext.getBaseline()
+                if baseline and nbl:
+                    feature.setName('bl')
+                    feature.setTH(TH)
+                    feature.addNode(self)
+                    feature.setObjectName(self)
+#                         print nbl, baseline
+                    feature.setValue(round(nbl.getY2()-baseline.getY2()))
+#                     feature.setValue(round(next.getY2()-self.getY2()))
+                    feature.setType(ftype)
+                    self.addFeature(feature)                
+            
+        if 'linegrid' in lAttributes:
+            #lgridlist.append((ystart,rowH, y1,yoverlap))
+            for ystart,rowh,_,_  in self.lgridlist:
+                ftype= featureObject.BOOLEAN
+                feature = featureObject()
+                feature.setName('linegrid%s'%rowh)
+                feature.setTH(TH)
+                feature.addNode(self)
+                feature.setObjectName(self)
+                feature.setValue(ystart)
+                feature.setType(ftype)
+                self.addFeature(feature) 
+            
+    
+        return self.getSetofFeatures()        
     
          
+    def getSetOfMutliValuedFeatures(self,TH,lMyFeatures,myObject):
+        """
+            define a multivalued features 
+        """
+        from spm.feature import multiValueFeatureObject
 
+        #reinit 
+        self._lBasicFeatures = []
+        
+        mv =multiValueFeatureObject()
+        name= "multi" #'|'.join(i.getName() for i in lMyFeatures)
+        mv.setName(name)
+        mv.addNode(self)
+        mv.setObjectName(self)
+        mv.setTH(TH)
+        mv.setObjectName(self)
+        mv.setValue(map(lambda x:x,lMyFeatures))
+        mv.setType(multiValueFeatureObject.COMPLEX)
+        self.addFeature(mv)
+            
+        return self._lBasicFeatures
 

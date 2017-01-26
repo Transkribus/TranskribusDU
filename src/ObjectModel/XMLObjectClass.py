@@ -49,7 +49,7 @@ class  XMLObjectClass(objectClass):
         ## if domNode in mappingTable:
         ## -> ise the fromDom of the specific object
         
-        self._name = domNode.name
+        self.setName(domNode.name)
 #         print self.getName()
         self.setNode(domNode)
         # get properties

@@ -39,13 +39,34 @@ class templateClass(objectClass,sequenceAPI):
         
         # type of template: vertical zones,...: or use self._name ??? 
         self._templateType = None
+        self.parent=None # link to parent template 
+        self.pattern = None
+        self.bIsMirrored= False
         
-        
+    def __str__(self):return 'template'
+    def __repr__(self):return 'template'
+
+    def getPattern(self): return self.pattern
+    def setPattern(self,p): self.pattern = p 
+ 
     def setType(self,t): self._templateType = t
     def getType(self): return self._templateType
+    
+    def getParent(self): return self.parent
+    def setParent(self,p): self.parent= p
+    
+    def isMirrored(self): return self.bIsMirrored
+     
     def registration(self,object):
         raise "SOFTWARE ERROR: your component must define a testRun method"
 
+
+    def describeMe(self):
+        """
+            a plain text description of this template 
+        """
+        raise "SOFTWARE ERROR: your component must define a testRun method"
+        
     def tagDom(self,dom):
         raise "SOFTWARE ERROR: your component must define a testRun method"        
     

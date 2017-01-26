@@ -7,6 +7,12 @@
       </VERSION>
       <CREATIONDATE>Thu Nov  3 11:28:10 2016</CREATIONDATE>
     </PROCESS>
+    <PROCESS name="pageVerticalMiner" cmd="spmPageVerticals.py" cmd_arg="{'log': False, 'zlib': False, 'input': 'testVertical/xml/MOtter12-10-abc.xml', 'debug': False, 'output': 'testVertical/out/MOtter12-10-abc.xml', 'verbose': False}">
+      <VERSION value="v.01">
+        <COMMENT/>
+      </VERSION>
+      <CREATIONDATE>Thu Dec 01 07:58:43 2016</CREATIONDATE>
+    </PROCESS>
   </METADATA>
   <PAGE number="1" imageFilename="M_Otterskirchen_012_0000.jpg" width="494.88" height="766.32">
     <TEXT x="142.75848" y="116.16" height="18.48" width="212.97912" acc="0.910444" id="4">

@@ -449,14 +449,14 @@ class MultiPageXml(PageXml):
         
         assert lDom, "ERROR: empty list of DOM PageXml"
         pnum = 1
-        doc = lDom.pop()
+        doc = lDom.pop(0)
         rootNd = doc.getRootElement()
         #Let's addPrefix all IDs with a page number...
         cls.addPrefix("p%d_"%pnum, rootNd, "id")
         
         while lDom:
             pnum += 1
-            _doc = lDom.pop()
+            _doc = lDom.pop(0)
             _rootNd = _doc.getRootElement()
             assert _rootNd.name == "PcGts", "Data error: expected a root element named 'PcGts' in %d th dom" %pnum
 
@@ -483,7 +483,7 @@ class MultiPageXml(PageXml):
         assert lsXmlDocFilename, "ERROR: empty list of filenames"
         
         pnum = 1
-        sXmlFile = lsXmlDocFilename.pop()
+        sXmlFile = lsXmlDocFilename.pop(0)
         doc = libxml2.parseFile(sXmlFile)
         rootNd = doc.getRootElement()
         #Let's addPrefix all IDs with a page number...
@@ -491,7 +491,7 @@ class MultiPageXml(PageXml):
         
         while lsXmlDocFilename:
             pnum += 1
-            sXmlFile = lsXmlDocFilename.pop()
+            sXmlFile = lsXmlDocFilename.pop(0)
             _doc = libxml2.parseFile(sXmlFile)
             _rootNd = _doc.getRootElement()
             assert _rootNd.name == "PcGts", "Data error: expected a root element named 'PcGts' in %s"%sXmlFile

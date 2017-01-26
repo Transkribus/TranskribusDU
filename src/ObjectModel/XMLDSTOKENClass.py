@@ -17,7 +17,6 @@ class  XMLDSTOKENClass(XMLDSObjectClass):
     """
         LINE class
     """
-    name = ds_xml.sTOKEN
     def __init__(self,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
@@ -29,7 +28,7 @@ class  XMLDSTOKENClass(XMLDSObjectClass):
         """
         
         # must be PAGE        
-        self._name = domNode.name
+        self.setName(domNode.name)
         self.setNode(domNode)
         # get properties
         # all?

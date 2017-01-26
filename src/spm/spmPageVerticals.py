@@ -22,6 +22,7 @@ from feature import featureObject, multiValueFeatureObject
 
 
 from ObjectModel.xmlDSDocumentClass import XMLDSDocument
+from ObjectModel.XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
 from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
 from ObjectModel.XMLDSTOKENClass import XMLDSTOKENClass
 #from ObjectModel.XMLDSPageClass import XMLDSPageClass
@@ -50,14 +51,12 @@ class pageVerticalMiner(Component.Component):
         
         
         # TH for comparing numerical features for X
-        self.THNUMERICAL= 20
+        self.THNUMERICAL= 30
         # use for evaluation
         self.THCOMP = 10
         self.evalData= None
         
-        self.lGridPopulation = {}
-        
-        self.lTemplateClassesNames= [singlePageTemplateClass,doublePageTemplateClass]
+        self.bManual = False
         
     def setParams(self, dParams):
         """
@@ -65,7 +64,10 @@ class pageVerticalMiner(Component.Component):
         Here, we set our internal attribute according to a possibly specified value (otherwise it stays at its default value)
         """
         Component.Component.setParams(self, dParams)
-        
+        if dParams.has_key("pattern"): 
+            self.manualPattern = eval( dParams["pattern"])
+            self.bManual=True  
+
 
         
     
@@ -106,7 +108,8 @@ class pageVerticalMiner(Component.Component):
                 elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['x','x2'],myLevel=XMLDSTEXTClass)
    
             seqGen = sequenceMiner()
-            foo  = seqGen.featureGeneration(lElts,2)
+#             seqGen.bDebug = self.bDebug
+            _  = seqGen.featureGeneration(lElts,2)
             lKleendPlus = self.getKleenePlusFeatures(lElts)
             page.setVX1Info(lKleendPlus)
             del seqGen
@@ -129,13 +132,18 @@ class pageVerticalMiner(Component.Component):
                 except KeyError:dFreqFeatures[fea] = 1
                 for nextE in elt.next:
                     if fea in nextE.getSetofFeatures().getSequences():
-                        try:dKleenePlusFeatures[fea].append((elt,nextE))
-                        except KeyError:dKleenePlusFeatures[fea]=[(elt,nextE)]
+                        try:
+                            dKleenePlusFeatures[fea].append(nextE)
+                            dKleenePlusFeatures[fea].append(elt)                            
+                        except KeyError:
+                            dKleenePlusFeatures[fea]=[elt]
+                            dKleenePlusFeatures[fea].append(nextE)
         for fea in dFreqFeatures:
             try:
                 dKleenePlusFeatures[fea]
-                if len(dKleenePlusFeatures[fea]) >= 0.5 *  dFreqFeatures[fea]:
+                if len(set(dKleenePlusFeatures[fea])) >= 0.5 *  dFreqFeatures[fea]:
                     lKleenePlus.append(fea) 
+#                     print fea,len(set(dKleenePlusFeatures[fea])) , dFreqFeatures[fea]
             except:
                 pass
         return  lKleenePlus
@@ -149,19 +157,25 @@ class pageVerticalMiner(Component.Component):
             p.lf_XCut=[]
             for fi in p.getVX1Info() + p.getVX2Info():
                 if fi not in p.lf_XCut:
+                    l = sum(x.getHeight() for x in fi.getNodes())
+                    fi.setWeight(l)
                     p.lf_XCut.append(fi)
-            for graphline in p.getAllNamedObjects('GRAPHELT'):
+            for graphline in p.getAllNamedObjects(XMLDSGRAPHLINEClass):
                 if graphline.getHeight() > graphline.getWidth() and graphline.getHeight() > 50:
                     # create a feature
                     f = featureObject()
                     f.setType(featureObject.NUMERICAL)
                     f.setTH(self.THNUMERICAL)
+                    f.setValue(graphline.getY())
+                    f.setWeight(graphline.getHeight())
                     f.setName("x")
                     f.setValue(round(graphline.getX()))
                     if f not in p.lf_XCut:
                         p.lf_XCut.append(f)
                 
             p.lf_XCut.sort(key=lambda x:x.getValue())
+            
+#             for x in  p.lf_XCut  : print x,x.getWeight()            
             if self.bDebug :print p,  p.lf_XCut            
         
     def patternToMV(self,pattern,TH):
@@ -190,23 +204,31 @@ class pageVerticalMiner(Component.Component):
     
     
     
-    def processWithTemplate(self,pattern,lPages):
+    def processWithTemplate(self,lPattern,lPages):
         """
             process sequence of pqges with given pattern
+            create table 
         """
         
         
         ## artifical construction Motter12
-        lPattern= [ [2.0,41.0, 350,477.0] , [2.0,109,445.0,477.0] ]
+#         lPattern= [ [41.0, 380,442.0] , [40,110,442] ]
+        ## MO12 pattern2 
+#         lPattern= [ [41.0, 110,250,340,420,442.0]]
+        
+        ## RRB 
+#         lPattern= [ [15,97.0, 311.0]]
         #MF012
-        lPattern= [ [27.0, 361,430.0] , [27.0,86.0,430.0] ]
-        lPattern = [[19,104,277,371,470,],[19,60,104,371,470]]
-        #nn_n0171 (hub)  [['x=295.0', 'x=850.0'], ['x=34.0', 'x=572.0']]
-        lPattern = [ [34.0, 564.0, 738.0], [156.0, 339.0, 846.0] ]
+#         lPattern= [ [27.0, 361,430.0] , [27.0,86.0,430.0] ]
+#         lPattern = [[19,104,277,371,470,],[19,60,104,371,470]]
+#         #nn_n0171 (hub)  [['x=295.0', 'x=850.0'], ['x=34.0', 'x=572.0']]
+#         lPattern = [ [34.0, 564.0, 738.0], [156.0, 339.0, 846.0] ]
 #         lPattern = [[295,850,],[34,572]]
         #lib
 #         lPattern = [[28,321],[144,449]]
         
+#         lPattern = [ [144.0, 449]]
+ 
         lfPattern= []
         for itemset in lPattern:
             fItemset = []
@@ -225,69 +247,119 @@ class pageVerticalMiner(Component.Component):
         
         ### in prodf: mytemplate given by page.getVerticalTemplates()
         mytemplate = verticalZonestemplateClass()
-        mytemplate.setPattern(pattern [0])
+        mytemplate.setPattern(pattern[0])
 
         mytemplate2 = verticalZonestemplateClass()
-        mytemplate2.setPattern(pattern [1])
+#         mytemplate2.setPattern(pattern [1])
+        mytemplate2.setPattern(pattern[0])
+        
         # registration provides best matching
         ## from registration matched: select the final cuts
-        for p in lPages:
-            print p
-            registeredPoints1,lMissing1,score1 = mytemplate.registration(p)
-            registeredPoints2,lMissing2,score2 = mytemplate2.registration(p)
-            print score1>0, score2>0
+        for i,p in enumerate(lPages):
+            print p, p.lf_XCut
+            registeredPoints1, lMissing1, score1 = mytemplate.registration(p)
+            registeredPoints2, lMissing2, score2 = mytemplate2.registration(p)
+            print i,p,registeredPoints1, registeredPoints2, score1
             # if score1 == score 2 !!
             if score1 > 0 and score1 >= score2:
                 lfinalCuts= map(lambda (x,y):y,filter(lambda (x,y): x!= 'EMPTY',registeredPoints1))
-                print registeredPoints1
-                print 'final:',lfinalCuts
+                print p,'final1:',lfinalCuts, lMissing1
+                p.addVerticalTemplate(mytemplate)
                 p.addVSeparator(mytemplate,lfinalCuts)
-                for x in lfinalCuts:
-                    verticalSep  = libxml2.newNode('PAGEBORDER')
-                    verticalSep.setProp('points', '%f,%f,%f,%f'%(x.getValue(),0,x.getValue(),p.getHeight()))
-                    p.getNode().addChild(verticalSep)
-                for x in lMissing1:
-                    verticalSep  = libxml2.newNode('PAGEBORDER')
-                    verticalSep.setProp('points', '%f,%f,%f,%f'%(x.getValue(),0,x.getValue(),p.getHeight()))
-                    p.getNode().addChild(verticalSep)                    
             elif score2 > 0 and  score2 > score1:
                 lfinalCuts= map(lambda (x,y):y,filter(lambda (x,y): x!= 'EMPTY',registeredPoints2))
                 print registeredPoints2
-                print 'final:',lfinalCuts
+                print 'final2:',lfinalCuts, lMissing2
+                p.addVerticalTemplate(mytemplate)
                 p.addVSeparator(mytemplate,lfinalCuts)
-                for x in lfinalCuts:
-                    verticalSep  = libxml2.newNode('PAGEBORDER')
-                    verticalSep.setProp('points', '%f,%f,%f,%f'%(x.getValue(),0,x.getValue(),p.getHeight()))
-                    p.getNode().addChild(verticalSep)                    
-                for x in lMissing2:
-                    verticalSep  = libxml2.newNode('PAGEBORDER')
-                    verticalSep.setProp('points', '%f,%f,%f,%f'%(x.getValue(),0,x.getValue(),p.getHeight()))
-                    p.getNode().addChild(verticalSep)                        
             else:
                 print 'NO REGISTRATION'
-        return
+        
+        self.tagDomAsTable(lPages)
+        
+        return 1
     
     
-    def applySetOfPatterns(self,lTemplatesCnd,lPages):
+    def testKleeneageTemplates(self,dTemplatesCnd,lPages):
         """
-            test a set of patterns 
-            stop when the set of pages is covered by TH% 
+            test a set of patterns
+            select those which are kleene+ 
         """
         
         """
-            interesting mirroed width : [['x=37.0', 'x=126.0', 'x=442.0', 'x=473.0']]   [['x=15.0', 'x=37.0', 'x=376.0', 'x=442.0']] 6.0 
-            working with width directly is too noisy 
+            resulting parsing can be used as prior for hmm/viterbi? yes
+            but need to apply seqrule for completion or relax parsing
+            
         """
-        lenP = len(lPages)
-        for templateType in lTemplatesCnd.keys():
-            for p,s, mytemplate in lTemplatesCnd[templateType][:5]:
+        lTemplates = []
+        dScoredTemplates = {}
+        for templateType in dTemplatesCnd.keys():
+            for _,_, mytemplate in dTemplatesCnd[templateType][:5]:
+                
                 ## need to test kleene+: if not discard?
                 parseRes = self.parseWithTemplate(mytemplate,lPages)
+                
                 ## assess and keep if kleeneplus
                 if parseRes:
-                    print mytemplate, parseRes[1]
-                
+                    parseRes[1].sort()
+                    print mytemplate,'\t\t',len(parseRes[1]),parseRes[1]
+                    if mytemplate.isMirrored():
+                        lTemplates.append(mytemplate.leftPage)
+                        dScoredTemplates[mytemplate.leftPage] = len(parseRes[1])
+                        lTemplates.append(mytemplate.rightPage)
+                        dScoredTemplates[mytemplate.rightPage] = len(parseRes[1])
+                        
+                    else:
+                        lTemplates.append(mytemplate.mainZone)
+                        dScoredTemplates[mytemplate.mainZone] = len(parseRes[1])
+
+        
+        #  transition matrix: look at  for template in page.getVerticalTemplates():
+        N = len(lTemplates) + 1
+        transProb = np.zeros((N,N), dtype = np.float16)
             
+        dTemplateIndex= {}
+        for i,template in enumerate(lTemplates):
+            dTemplateIndex[template]=i
+        for t in dTemplateIndex:
+            print dTemplateIndex[t],t, t.parent
+            
+#         for page in lPages:
+#             for t in page.getVerticalTemplates():
+#                 print page , dTemplateIndex[t]
+        for i,page in enumerate(lPages):
+            # only takes the best ?
+            for template in page.getVerticalTemplates():
+#                 print page, template
+                try:
+                    nextPage=lPages[i+1]
+                    lnextTemplates = nextPage.getVerticalTemplates()
+                    for nextT in lnextTemplates:
+#                         print i, template,dScoredTemplates[template], nextT,nextT is template
+                        ## not one: but the frequency of the template
+                        w = dScoredTemplates[template]
+                        ## kleene 
+                        if nextT is template:
+                            w +=  dScoredTemplates[template]
+                        if template.parent.isMirrored() and nextT.parent.isMirrored() and template.parent == nextT.parent:
+# #                             print nextPage, dTemplateIndex[template],dTemplateIndex[nextT],transProb[dTemplateIndex[template],dTemplateIndex[nextT]], template, nextT
+                            w += dScoredTemplates[template]
+                        # if transition 
+                        ## ...
+                        transProb[dTemplateIndex[template],dTemplateIndex[nextT]] = w +  transProb[dTemplateIndex[template],dTemplateIndex[nextT]]
+                        if np.isinf(transProb[dTemplateIndex[template],dTemplateIndex[nextT]]):
+                            transProb[dTemplateIndex[template],dTemplateIndex[nextT]] = 64000
+                except IndexError:pass
+        
+#         transProb /= totalSum
+        #all states point to None
+        transProb[:,-1] = 1.0 #/totalSum
+        #last: None: to all
+        transProb[-1,:] = 1.0 #/totalSum
+        mmax =  np.amax(transProb)
+        if np.isinf(mmax):
+            mmax=64000
+        return lTemplates,transProb / mmax
     
     def parseWithTemplate(self,mytemplate,lPages):
         """
@@ -297,7 +369,7 @@ class pageVerticalMiner(Component.Component):
         pattern = mytemplate.getPattern()
         
         dMtoSingleFeature= {}
-        PARTIALMATCH_TH = 0.9
+        PARTIALMATCH_TH = 1.0
         mvPattern = self.patternToMV(pattern, PARTIALMATCH_TH)
         for i,pp in enumerate(mvPattern):
             dMtoSingleFeature[mvPattern[i]] = pattern[i]
@@ -317,8 +389,8 @@ class pageVerticalMiner(Component.Component):
         
         
         parsingRes = seqGen.parseSequence(mvPattern,multiValueFeatureObject,lPages)
-        ##here test if kleenePlus sequence 
         if parsingRes:
+            # needed for computing transition matrix
             self.populateElementWithParsing(mytemplate,parsingRes,dMtoSingleFeature)
             
         return parsingRes
@@ -341,6 +413,9 @@ class pageVerticalMiner(Component.Component):
                 ncols
                 regulargrid
             
+            test: if i want a singlepagesinglecol: whic best
+                        
+            
         """  
         pageWidth=0.0
         for p in lPages:
@@ -348,7 +423,7 @@ class pageVerticalMiner(Component.Component):
             p.setFeatureFunction(p.getSetOfMigratedFeatures,TH=self.THNUMERICAL,lFeatureList=p.lf_XCut)
             pageWidth += p.getWidth()
         pageWidth /=len(lPages)
-        print pageWidth
+
         seqGen = sequenceMiner()
         seqGen.bDebug = False
         seqGen.setMaxSequenceLength(2)
@@ -364,50 +439,130 @@ class pageVerticalMiner(Component.Component):
         lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.1)
         lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
         
-        ## cleaning:         [a,b] [b,a], [a],[a,a]  
+        ## cleaning? :         [a,b] [b,a], [a],[a,a]  
         lPatterns.sort(key=lambda (x,y):y, reverse=True)
         #filer too short patterns
-        lPatterns  = filter(lambda (p,s):self.getWidth(p) > pageWidth *0.25,lPatterns)
+        lPatterns  = filter(lambda (p,s):self.getPatternWidth(p) > pageWidth * 0.25,lPatterns)
         if self.bDebug:
             for p,s in lPatterns:
-                if s > 5: print p,s
+                if s > 1: print p,s
+                
         ### GENERATE SEQUENTIAL RULES
+        seqGen.bDebug=True
         lSeqRules = seqGen.generateSequentialRules(lPatterns)
-        ### APPLY RULESSSS setMaxSequenceLength=1 enoigh for tagging?
+        
+        ### APPLY RULESSSS setMaxSequenceLength=1 enough for tagging?
         ### or simulate the 'gain' that the rule could bring to some pattern!
-        dPC,dCP = self.getPatternGraph(lSeqRules)
-
-        #select N(3)-best candidates for each pattern
-        llTemplatesCnd = self.analyzeListOfPatterns(lPatterns,dCP,pageWidth)
+        _,dCP = self.getPatternGraph(lSeqRules)
+#         if self.bDebug:print dCP
+        #select N(5)-best candidates for each pattern
+        dTemplatesCnd = self.analyzeListOfPatterns(lPatterns,dCP)
+        if self.bDebug:print dTemplatesCnd
+#         dAncestors = seqGen.applySetOfRules(lSeqRules, lPatterns)
         
+        ## DECORATE PAGES WITH ANCESTOR TEMPLATE
+        ### %updated: level of noise 
+#         self.updateWithAncestor(lPages,dPC)
+        # parse with templates to collect proba  for matching 
+        lVTemplates,tranprob = self.testKleeneageTemplates(dTemplatesCnd, lPages)
+#         print lVTemplates
         
-        self.applySetOfPatterns(llTemplatesCnd, lPages)
-
-        for p in lPages:
-            print p
-            for mytemplate in p.getVerticalTemplates():
-                registeredPoints1, lMissing1, score= mytemplate.registration(p)
-                print mytemplate, mytemplate.getParent(),score
-        
-        ## final decision: viterbi for asigning a template to an element using registration score
-        
+        ## final decision: viterbi for assigning a template to an element using registration score
+        self.selectFinalTemplate(lVTemplates,tranprob,lPages)
         
         # tagging for visualization
-        self.tagDomWithBestTemplate(lPages)
+        self.tagDomAsTable(lPages)
+#         self.tagDomWithBestTemplate(lPages)
         
+        del seqGen
         
         return 1 
     
     
+
+    def updateWithAncestor(self,lPages,dCP):
+        """
+            replace multiValueFeature by Ancestor feature
+
+        """
+        
+        for page in lPages:
+            print page
+            mvPattern = page.getSetofFeatures().getSequences()
+            print mvPattern
+            try:
+                dCP[str(mvPattern)]
+                print mvPattern, 'replaced by: ', dCP[str(mvPattern)]
+            except KeyError:pass
+        
+        
+        
+    def selectFinalTemplate(self,lTemplates,transProb,lPages):
+        """
+            apply viterbi to select best sequence of templates
+        """
+        import spm.viterbi as viterbi        
+
+        if  lTemplates == []:
+            return None
+        
+        def buildObs(lTemplates,lPages):
+            """
+                build observation prob
+            """
+            N = len(lTemplates) + 1
+            obs = np.zeros((N,len(lPages)), dtype=np.float16) 
+            for i,temp in enumerate(lTemplates):
+                for j,page in enumerate(lPages):
+                    _, _, score= temp.registration(page)
+                    if score == -1:
+                        score= 0.0
+                    obs[i,j]= score
+                    if np.isinf(obs[i,j]):
+                        obs[i,j] = 64000
+                    if np.isnan(obs[i,j]):
+                        obs[i,j] = 0.0                        
+#                     print i,j,page, temp,score 
+                #add no-template:-1
+            return obs / np.amax(obs)
+
+        
+        N= len(lTemplates) + 1.0
+        # build transition score matrix
+        ## use the support to initialize ?? why 
+        initialProb = np.ones(N) * 1
+        initialProb = np.reshape(initialProb,(N,1))
+        obs = buildObs(lTemplates,lPages)
+        d = viterbi.Decoder(initialProb, transProb, obs)
+        states,score =  d.Decode(np.arange(len(lPages)))
+
+        print states, score
+        
+        #assigned to each page the template assigned by viterbi
+        for i,page, in enumerate(lPages):
+            mytemplate= lTemplates[states[i]]
+            page.resetVerticalTemplate()
+            page.addVerticalTemplate(mytemplate)
+            registeredPoints, lMissing, score= mytemplate.registration(page)
+            if registeredPoints:
+                print registeredPoints, lMissing , score
+                if lMissing != []:
+                    registeredPoints.extend(zip(lMissing,lMissing))
+                registeredPoints.sort(key=lambda (x,y):y.getValue())
+                lcuts = map(lambda (ref,cut):cut,registeredPoints)
+                page.addVSeparator(mytemplate,lcuts)
+            
+        return score        
+        
     
-    def getWidth(self,pattern):
+    def getPatternWidth(self,pattern):
         """
             return the width of a pattern
         """
         # if bigramm
         return min ( (pattern[0][-1].getValue() - pattern[0][0].getValue()), pattern[-1][-1].getValue() - pattern[-1][0].getValue())
     
-    def analyzeListOfPatterns(self,lPatterns,dCA, pageWidth):
+    def analyzeListOfPatterns(self,lPatterns,dCA):
         """
             group pattern by family
             unigram, bigrann,...
@@ -423,13 +578,12 @@ class pageVerticalMiner(Component.Component):
             
             
         """
-        lTemplatesTypes={}
-        for pattern,support in filter(lambda (x,y):y>5,lPatterns):
+        dTemplatesTypes={}
+        for pattern,support in filter(lambda (x,y):y>1,lPatterns):
             ## here first test width of the pattern
             ## if too narrow, skip it!
             ### singlepage:
-            if self.getWidth(pattern) < pageWidth * 0.25:
-                continue
+#             print pattern
             if len(pattern) == 1:
                 try:
                     dCA[str(pattern)]
@@ -441,47 +595,49 @@ class pageVerticalMiner(Component.Component):
                     icolMax=2
                     template =  self.isVZonePattern(pattern,icolMin,icolMax)
                     if template:
-                        try:lTemplatesTypes[template.__class__.__name__].append((pattern,support,template))
-                        except KeyError: lTemplatesTypes[template.__class__.__name__] = [(pattern,support,template)]                
-                
+                        try:dTemplatesTypes[template.__class__.__name__].append((pattern,support,template))
+                        except KeyError: dTemplatesTypes[template.__class__.__name__] = [(pattern,support,template)]                
+                      
                     ## test multicol
                     icolMin=3
                     if len(pattern) == 1:
                         template =  self.isVZonePattern(pattern,icolMin)
                         if template:
-                            try:lTemplatesTypes[template.__class__.__name__].append((pattern,support,template))
-                            except KeyError: lTemplatesTypes[template.__class__.__name__] = [(pattern,support,template)]              
+                            try:dTemplatesTypes[template.__class__.__name__].append((pattern,support,template))
+                            except KeyError: dTemplatesTypes[template.__class__.__name__] = [(pattern,support,template)]              
 
             #double page
             if self.isMirroredPattern(pattern):
                 bSkip=False
                 try:
-                    # skip if one of the ancestor is mirrored 
+                    # skip if one of the ancestor is mirrored: or simply one ancestor ?? 
                     dCA[str(pattern)]
                     for parent in dCA[str(pattern)]:
                         if self.isMirroredPattern(parent):
-                            print pattern, 'skipped,',parent
+#                             print pattern, 'skipped,',parent
                             bSkip = True
                 except KeyError:bSkip=False
+#                 if len(pattern[0]) != 3:
+#                     bSkip=True
                 if not bSkip:
                     template=doublePageTemplateClass()
                     template.fromPattern(pattern)
-                    try:lTemplatesTypes[template.__class__.__name__].append((pattern,support,template))
-                    except KeyError: lTemplatesTypes[template.__class__.__name__] = [(pattern,support,template)]
-                
-                ## test if translated  a= b(+-)X
-                    # generate only one singlepage : shift done during the registration?? but then issue with parsing?
-                    # ==> better to have a specific template
+                    try:dTemplatesTypes[template.__class__.__name__].append((pattern,support,template))
+                    except KeyError: dTemplatesTypes[template.__class__.__name__] = [(pattern,support,template)]
+#                 
+#                 ## test if translated  a= b(+-)X
+#                     # generate only one singlepage : shift done during the registration?? but then issue with parsing?
+#                     # ==> better to have a specific template
                 
                 
             
         print '-'*30
-        for classType in  lTemplatesTypes.keys():
+        for classType in  dTemplatesTypes.keys():
             print classType
-            for t in lTemplatesTypes[classType]:
+            for t in dTemplatesTypes[classType]:
                 print '\t',t
         
-        return lTemplatesTypes
+        return dTemplatesTypes
         
     def getPatternGraph(self,lRules):
         """
@@ -518,6 +674,8 @@ class pageVerticalMiner(Component.Component):
         """
             test if a pattern is mirrored or not
             [A,B,C] [C,B,A]
+            
+            left must be different from right !
         """
         if len(pattern) != 2 or len(pattern[0]) != len(pattern[1]) or (pattern[0] == pattern[1]): 
             return False
@@ -528,7 +686,7 @@ class pageVerticalMiner(Component.Component):
             lw1= map(lambda (x,y):abs(y.getValue()-x.getValue()),lcouple1)
             lcouple0= zip(pattern[0],pattern[0][1:])
             lw0= map(lambda (x,y):abs(y.getValue()-x.getValue()),lcouple0)
-            final = set(map(lambda (x,y): abs(x-y) < self.THNUMERICAL*2,zip(lw0,lw1)))
+            final = set(map(lambda (x,y): abs(x-y) < self.THNUMERICAL * 1,zip(lw0,lw1)))
             return  set(final) == set([True])
     
     def isVZonePattern(self,pattern,iNbCol=3,iNbColMax=None):
@@ -545,7 +703,7 @@ class pageVerticalMiner(Component.Component):
         if len(pattern) > 2:
             return None
         # at least 3 elements
-        if True and len(pattern) == 2 and pattern[0] != pattern[1] and  len(pattern[0])  == len(pattern[1])  and len(pattern[0]) > 2 and len(pattern[0]) in linterval:
+        if len(pattern) == 2 and pattern[0] != pattern[1] and  len(pattern[0])  == len(pattern[1])  and len(pattern[0]) > 2 and len(pattern[0]) in linterval:
             bitemplate=doublePageTemplateClass()
             bitemplate.setPattern(pattern)
             bitemplate.leftPage = verticalZonestemplateClass()
@@ -566,6 +724,7 @@ class pageVerticalMiner(Component.Component):
             template = singlePageTemplateClass()
             template.mainZone = verticalZonestemplateClass()
             template.mainZone.setPattern(pattern[0])
+            template.mainZone.setParent(template)
             return template
     
     def populateElementWithParsing(self,template,parsings,dMtoSingleFeature):
@@ -578,9 +737,8 @@ class pageVerticalMiner(Component.Component):
                     terminal node: tuple (tag,(tag,indexstart,indexend))
                 
             """
-            lOut=[]
             if type(node[0]).__name__  == 'tuple':
-                    tagX,(tag,start,end) = node[0]
+                    _,(tag,start,end) = node[0]
                     # tag need to be converted in mv -> featreu
                     subtemplate = template.findTemplatePartFromPattern(dMtoSingleFeature[tag])
                     lElts[start].addVerticalTemplate(subtemplate) 
@@ -619,25 +777,50 @@ class pageVerticalMiner(Component.Component):
 
 
     
+    
     def tagDomWithBestTemplate(self,lPages):
         """
-            add vertical line sin the DOM
+            Create (empty) REGIONS (for end-to-end; for GT: create table)
         """
         
+        x = 0
         for page in lPages:
             if page.getNode():
                 best = None
+                bestRegisteredPoints =None
+                lMissingBest= None
                 bestScore = 0
                 for mytemplate in page.getVerticalTemplates():
-                    registeredPoints1, lMissing1, score= mytemplate.registration(page)
+                    registeredPoints, lMissing, score= mytemplate.registration(page)
+                    print page, mytemplate, score
                     if score > bestScore:
                         best = mytemplate
-                print page, best
+                        bestRegisteredPoints= registeredPoints
+                        lMissingBest=lMissing 
+                        bestScore = score
+                print page,best, bestScore # bestRegisteredPoints, lMissingBest
                 if best:
-                    for cut in best.getXCuts():
-                        verticalSep  = libxml2.newNode('CENTERBORDER')
-                        verticalSep.setProp('points', '%f,%f,%f,%f'%(cut.getValue(),0,cut.getValue(),page.getHeight()))
-                        page.getNode().addChild(verticalSep)
+                    prevcut=0
+                    for refcut,realcut in bestRegisteredPoints:
+                        if realcut != prevcut:
+                            region  = libxml2.newNode('REGION')
+                            region.setProp("x",str(prevcut))
+                            region.setProp("y",'0')
+                            region.setProp("height",str(page.getHeight()))
+                            region.setProp("width", str(realcut.getValue() - prevcut))                              
+                            region.setProp('points', '%f,%f,%f,%f,%f,%f,%f,%f'%(prevcut,0, realcut.getValue(),0 ,realcut.getValue(),page.getHeight(),prevcut,page.getHeight()))
+                            page.getNode().addChild(region)
+                            prevcut = realcut.getValue()
+                    #final col
+                    if prevcut != page.getWidth():
+                        region  = libxml2.newNode('REGION')
+                        width = page.getWidth() - prevcut
+                        region.setProp("x",str(prevcut))
+                        region.setProp("y",'0')
+                        region.setProp("height",str(page.getHeight()))
+                        region.setProp("width", str(width))                              
+                        region.setProp('points', '%f,%f,%f,%f,%f,%f,%f,%f'%(prevcut,0, page.getWidth(),0,page.getWidth(),page.getHeight(),prevcut,page.getHeight()))
+                        page.getNode().addChild(region)
                         
                         
     def tagDOMVerticalZones(self,lPages):
@@ -708,8 +891,33 @@ class pageVerticalMiner(Component.Component):
             table zone: page
             columns: the created vertical zones
         """
-        
-        
+        for page in lPages:
+            if page.getNode():
+                # if several template ???
+                for template in page.getVerticalTemplates():
+                    ### create a table
+                    tableNode = libxml2.newNode('TABLE')
+                    tableNode.setProp('x','0')
+                    tableNode.setProp('y','0')
+                    tableNode.setProp('height',str(page.getHeight()))
+                    tableNode.setProp('width',str(page.getWidth()))
+
+                    page.getNode().addChild(tableNode) 
+                    page.getdVSeparator(template).sort(key=lambda x:x.getValue())
+#                     print page.getdVSeparator(template)
+                    prevcut=0
+                    for i,cut in enumerate(page.getdVSeparator(template)):
+                        cellNode  = libxml2.newNode('CELL')
+                        cellNode.setProp("x",str(prevcut))
+                        cellNode.setProp("y",'0')
+                        cellNode.setProp("irow","0")
+                        cellNode.setProp("icol",str(i))
+                        cellNode.setProp("height",str(page.getHeight()))
+                        cellNode.setProp("width", str(cut.getValue() - prevcut))                            
+#                         cellNode.setProp('points', '%f,%f,%f,%f,%f,%f,%f,%f'%(cut,0, cut.getValue(),0 ,cut.getValue(),page.getHeight(),cut,page.getHeight()))
+                        tableNode.addChild(cellNode)
+                        prevcut  = cut.getValue()      
+            
             
     def testCliping(self,lPages):
         """
@@ -797,7 +1005,7 @@ class pageVerticalMiner(Component.Component):
         
         self.ODoc.loadFromDom(self.doc,listPages=range(self.firstPage,self.lastPage+1))        
         self.lPages= self.ODoc.getPages()   
-        self.cleanInput(self.lPages)
+#         self.cleanInput(self.lPages)
         
         
         # first mine page size!!
@@ -805,9 +1013,10 @@ class pageVerticalMiner(Component.Component):
 
         self.minePageVerticalFeature(self.lPages)
 
-#         self.processVSegmentation(self.lPages)
-
-        self.processWithTemplate(None,self.lPages)
+        if self.bManual:
+            self.processWithTemplate(self.manualPattern,self.lPages)
+        else:
+            self.processVSegmentation(self.lPages)
         
         self.addTagProcessToMetadata(self.doc)
         
@@ -980,6 +1189,7 @@ if __name__ == "__main__":
     docM.createCommandLineParser()
     docM.add_option("-f", "--first", dest="first", action="store", type="int", help="first page number", metavar="NN")
     docM.add_option("-l", "--last", dest="last", action="store", type="int", help="last page number", metavar="NN")
+    docM.add_option("--pattern", dest="pattern", action="store", type="string", help="pattern to be applied", metavar="[]")
         
     #parse the command line
     dParams, args = docM.parseCommandLine()

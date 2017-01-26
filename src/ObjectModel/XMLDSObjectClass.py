@@ -1,9 +1,9 @@
-# -*- coding: latin-1 -*-
+# -*- coding: utf-8 -*-
 """
 
     XML object class 
     
-    Hervé Déjean
+    Hervï¿½ Dï¿½jean
     cpy Xerox 2009
     
     a class for object from a XMLDocument
@@ -11,6 +11,7 @@
 """
 
 from XMLObjectClass import XMLObjectClass
+from config import ds_xml_def as ds_xml
 
 class  XMLDSObjectClass(XMLObjectClass):
     """
@@ -29,11 +30,12 @@ class  XMLDSObjectClass(XMLObjectClass):
         self._page  = None
         self._id= None
         
+        # associated 'templates' 
+        self._ltemplates = None
         
         self.Xnearest=[[],[]]  # top bottom
         self.Ynearest=[[],[]]  # left right        
         
-    def getName(self): return self.name
     def getPage(self): return self._page
     def setPage(self,p): self._page= p 
     
@@ -50,6 +52,12 @@ class  XMLDSObjectClass(XMLObjectClass):
     def getHeight(self): return float(self.getAttribute('height'))
     def getWidth(self): return float(self.getAttribute('width'))    
     
+    def resetTemplate(self): self._ltemplates = None
+    def addTemplate(self,t): 
+        try:self._ltemplates.append(t)
+        except AttributeError: self._ltemplates = [t]
+    
+    def getTemplates(self): return self._ltemplates
     
     def resizeMe(self,objectType):
         assert len(self.getAllNamedObjects(objectType)) != 0
@@ -80,8 +88,7 @@ class  XMLDSObjectClass(XMLObjectClass):
         ## if domNode in mappingTable:
         ## -> ise the fromDom of the specific object
         
-        self._name = domNode.name
-#         print self.getName()
+        self.setName(domNode.name)
         self.setNode(domNode)
         # get properties
         prop = domNode.properties
@@ -107,21 +114,19 @@ class  XMLDSObjectClass(XMLObjectClass):
                 from XMLDSLINEClass import XMLDSLINEClass
                 from XMLDSTEXTClass import XMLDSTEXTClass
                 from XMLDSBASELINEClass import XMLDSBASELINEClass
-                
-                if child.name  == XMLDSLINEClass.name:
+                if child.name  == ds_xml.sLINE_Elt:
                     myObject= XMLDSLINEClass(child)
                     # per type?
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(child)
-                elif child.name  == XMLDSTEXTClass.name:
+                elif child.name  == ds_xml.sTEXT:
                     myObject= XMLDSTEXTClass(child)
                     # per type?
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(child)
-#                     print myObject,myObject.getObjects()
-                elif child.name == XMLDSBASELINEClass.name:
+                elif child.name == ds_xml.sBaseline:
                     myObject= XMLDSBASELINEClass(child)
                     self.addObject(myObject)
                     myObject.setPage(self)
@@ -213,7 +218,7 @@ class  XMLDSObjectClass(XMLObjectClass):
             
             
         """
-        from StructureInference.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
      
         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
             lR=sequenceOfFeatures()
