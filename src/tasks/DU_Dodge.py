@@ -98,6 +98,7 @@ class DU_Dodge(DU_CRF_Task):
                                  , 'max_iter'         : 250
                                  }
                              , sComment=sComment
+                             , cFeatureDefinition=None #SO THAT WE USE THE SAME FEATURES AS FOR PageXml (because it is the features by default)
                              )
         
         self.addBaseline_LogisticRegression()    #use a LR model as baseline
