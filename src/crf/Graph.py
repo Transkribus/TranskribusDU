@@ -104,7 +104,7 @@ class Graph:
             try:
                 cls = self._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
             except KeyError:
-                raise ValueError("Page %d, unknown label '%s' in %s"%(nd.pnum, sLabel, str(nd.node)))
+                raise ValueError("Page %d, unknown label '%s' in %s (Known labels are %s)"%(nd.pnum, sLabel, str(nd.node), self._dClsByLabel))
             nd.cls = cls
             setSeensLabels.add(cls)
         return setSeensLabels    
