@@ -3,10 +3,10 @@
 
     XML object class 
     
-    Herv� D�jean
+    Hervé Déjean
     cpy Xerox 2009
     
-    a class for object from a XMLDocument
+    a class for TEXT from a XMLDocument
 
 """
 
@@ -62,7 +62,6 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
             b.fromDom(domNode)
             b.setParent(self.getParent())
             self.setBaseline(b)
-#             print self, self.getBaseline()
         
         ctxt = domNode.doc.xpathNewContext()
         ctxt.setContextNode(domNode)        
@@ -85,7 +84,6 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
         
         if self.getBaseline() is not None:
             return self.getBaseline()
-            
 #         lHisto={}
         lY=[]
         lX=[]
@@ -101,14 +99,12 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
                 pass            
 
         import numpy as np
-        import libxml2
         
         if len(lX) > 0:
             a,b = np.polyfit(lX, lY, 1)
             
 #             lPoints = ','.join(map(lambda (x,y):x,y,zip(lX,lY)))
             lPoints = ','.join(["%d,%d"%(xa,ya) for xa,ya  in zip(lX, lY)])
-#             print lPoints
 #             print '\t' , a,b
 #             import math
 #             print 'ANLGE:',math.degrees(math.atan(a))
@@ -121,6 +117,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
             b.setAngle(a)
             b.setPoints(lPoints)
             b.setParent(self.getParent())
+#             print b.getPoints()
             self.setBaseline(b)
             b.computePoints()
             
@@ -179,7 +176,10 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
      
         if self._lBasicFeatures is None:
             self._lBasicFeatures = []
-            
+        # needed to keep canonical values!
+        elif self.getSetofFeatures() != []:
+            return self.getSetofFeatures()
+               
         lHisto = {}
         for elt in self.getAllNamedObjects(myObject):
             for attr in lAttributes:
@@ -193,11 +193,12 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
         
         for attr in lAttributes:
             for value in lHisto[attr]:
+#                 print attr, value, lHisto[attr][value]
                 if  len(lHisto[attr][value]) > 0.1:
                     ftype= featureObject.NUMERICAL
                     feature = featureObject()
                     feature.setName(attr)
-                    feature.setName('f')
+#                     feature.setName('f')
                     feature.setTH(TH)
                     feature.addNode(self)
                     feature.setObjectName(self)
@@ -244,21 +245,22 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
                             
         if 'bl' in lAttributes:
             for inext in self.next:
-#                     print 'c\t',self, next
                 ftype= featureObject.NUMERICAL
                 feature = featureObject()
                 baseline = self.getBaseline()
-                nbl=inext.getBaseline()
+                nbl = inext.getBaseline()
                 if baseline and nbl:
                     feature.setName('bl')
                     feature.setTH(TH)
                     feature.addNode(self)
                     feature.setObjectName(self)
-#                         print nbl, baseline
-                    feature.setValue(round(nbl.getY2()-baseline.getY2()))
-#                     feature.setValue(round(next.getY2()-self.getY2()))
+                    # avg of baseline?
+                    avg1= baseline.getY()+(baseline.getY2() -baseline.getY())/2
+                    avg2= nbl.getY() +(nbl.getY2()-nbl.getY())/2
+
+                    feature.setValue(round(abs(avg2-avg1)))
                     feature.setType(ftype)
-                    self.addFeature(feature)                
+                    self.addFeature(feature)
             
         if 'linegrid' in lAttributes:
             #lgridlist.append((ystart,rowH, y1,yoverlap))
@@ -273,7 +275,6 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
                 feature.setType(ftype)
                 self.addFeature(feature) 
             
-    
         return self.getSetofFeatures()        
     
          
