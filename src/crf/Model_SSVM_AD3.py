@@ -74,7 +74,7 @@ class Model_SSVM_AD3(Model):
         return self
     
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
-    def train(self, lGraph, bWarmStart=True, expiration_timestamp=None):
+    def train(self, lGraph, bWarmStart=True, expiration_timestamp=None, verbose=0):
         """
         Train a CRF model using the list of labelled graph as training
         if bWarmStart if True, try to continue from previous training, IF the stored model is older than expiration_timestamp!!
@@ -110,7 +110,7 @@ class Model_SSVM_AD3(Model):
                                 , inference_cache=self.inference_cache, C=self.C, tol=self.tol, n_jobs=self.njobs
                                 , logger=SaveLogger(sModelFN, save_every=self.save_every)
                                 , max_iter=self.max_iter                                        
-                                , show_loss_every=10, verbose=1)
+                                , show_loss_every=10, verbose=verbose)
             bWarmStart = False
         chronoOn()
         traceln("\t - training graph-based model")
