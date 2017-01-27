@@ -386,10 +386,11 @@ class sequenceMiner(Component.Component):
         sortedItems = map(lambda x: (x, len(lMergedFeatures[x])), lMergedFeatures)
         sortedItems.sort(key=itemgetter(1), reverse=True)
         lCovered = []
+        lToBeSkipped=[]
         lMapCovered=[]  
         kNewValue={}
         for f, freq in sortedItems:
-            print f,freq,lMergedFeatures[f]
+#             print f,freq,lMergedFeatures[f]
             ## update the value if numerical feature: take the mean and not the most frequent!!
             if f.getType() == featureObject.NUMERICAL:
                 lvalues=map(lambda x:x.getValue(),lMergedFeatures[f])
@@ -401,20 +402,22 @@ class sequenceMiner(Component.Component):
             if freq >= TH and f.getID() not in lMapCovered:
                 f.setCanonical(f)
                 for ff in lMergedFeatures[f]:
-                    print "\t",ff,freq,ff.getTH(),ff.getObjectName(), ff.getID() ,f.getID(), ff.getID() not in lMapCovered
+#                     print "\t",ff,freq,ff.getTH(),ff.getObjectName(), ff.getID() ,f.getID(), ff.getID() not in lMapCovered
                     if ff.getID() not in lMapCovered  and ff.getID() != f.getID():
+#                         print "replace %s by %s" %(ff, f)
                         # replace the feature by the canonical one
 #                             print ff,  ff.getObjectName()
 #                             print '\tOK\t',ff.getObjectName().getSetofFeatures()
 #                             ff.getObjectName().getSetofFeatures().updateFeature(f)
-                        indxf=ff.getObjectName().getSetofFeatures().index(ff.getCanonical())
+                        indxf=map(lambda x:x.getID(),ff.getObjectName().getSetofFeatures()).index(ff.getID())
                         if indxf >-1:
+                            ## if 'similar' feature first: the similar is tkane, the the one we want!!
                             myf= ff.getObjectName().getSetofFeatures()[indxf]
                             myf.storeOldValue(myf.getValue())
                             myf.setValue(f.getCanonical().getValue())                             
                             for n in ff.getNodes():
                                 f.addNode(n)
-                            lCovered.append(f)
+#                             lCovered.append(ff)
                             lMapCovered.append(f.getID())                                
                             ff.setCanonical(f)
                 if f not in lCovered:
@@ -443,11 +446,13 @@ class sequenceMiner(Component.Component):
 
         ## need to update again the features: remerge again?? or simply discard?
         lCovered = filter(lambda x:x.getID() not in map(lambda x:x.getID(),lTBDel),lCovered)
-                
+            
+        lIDCovered = map(lambda x:x.getID(),lCovered)    
         for elt in lList:
             ltodel = []
 #             print "x",elt, elt.getSetofFeatures()
             for f in elt.getSetofFeatures():
+#                 print '\t',f,len(f.getCanonical().getNodes()), f.getCanonical() 
                 if len(f.getCanonical().getNodes()) >= TH:
                     ## need t oupdate again sience kNewValue has changed
                     if f.getType() == featureObject.NUMERICAL:
@@ -457,9 +462,6 @@ class sequenceMiner(Component.Component):
                         myf.setValue(f.getCanonical().getValue()) 
 #                         f.getObjectName().getSetofFeatures().updateFeature(f.getCanonical())
                     
-#                     print elt, f, f.getID(),len(f.getNodes()),len(f.getCanonical().getNodes()),f.getCanonical() #,f.getNodes()
-#                    for n in f.getCanonical().getNodes():
-#                        print "\t\t",n
                 else:
 #                     print "remove %d %s %s %s\t%s"%(TH,elt,f,f.getID(),len(f.getCanonical().getNodes()))
                     ltodel.append(f)
@@ -474,7 +476,8 @@ class sequenceMiner(Component.Component):
 #             for n in f.getNodes():
 #                 for fea in n.getSetofFeatures().getSequences():
 #                     print '\t', fea.getOldValue()
-                
+            
+        
         return lCovered
     
     
