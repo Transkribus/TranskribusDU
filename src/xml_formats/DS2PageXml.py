@@ -15,7 +15,6 @@
 """
 import sys, os
 import libxml2
-from macpath import basename
 
 try: #to ease the use without proper Python installation
     import TranskribusDU_version
@@ -52,11 +51,12 @@ class DS2PageXMLConvertor(Component):
         
         self.storagePath = ''
         
-        self.dTagNameMapping = {'PAGE':'Page','TEXT':'TextLine', 'BLOCK':'TextRegion','GRAPHELT':'LineDrawingRegion','TABLE':'TableRegion','CELL':'TableCell'} 
+        self.dTagNameMapping = {'PAGE':'Page','TEXT':'TextLine', 'REGION':'TextRegion','BLOCK':'TextRegion','GRAPHELT':'LineDrawingRegion','TABLE':'TableRegion','CELL':'TableCell'} 
 
         self.pageXmlNS = None
         
         self.bMultiPages = False
+        self.bRegionOnly = False
         
     def setParams(self, dParams):
         """
@@ -64,7 +64,8 @@ class DS2PageXMLConvertor(Component):
         """
         Component.setParams(self, dParams)
         if dParams.has_key("bMultiPage"): self.bMultiPages =  dParams["bMultiPage"]  
-                
+        if dParams.has_key("bRegionOnly"): self.bRegionOnly =  dParams["bRegionOnly"]  
+        
     
     def setDPI(self,v): self.dpi=v
     
@@ -163,6 +164,16 @@ class DS2PageXMLConvertor(Component):
         self.xrce_id += 1
         
         
+    
+    
+    def convertOnlyRegion(self,OPage,pageXmlPageNODE):
+        """
+            populate pageXml with OPageRegion
+        """
+        # get REGION elements
+        lElts= OPage.getAllNamedObjects('REGION')
+        for DSObject in lElts:
+            self.convertDSObject(DSObject,pageXmlPageNODE)        
         
     def convertDSPage(self,OPage,pageXmlPageNODE):
         """
@@ -236,7 +247,11 @@ class DS2PageXMLConvertor(Component):
             print page, page.getAttribute('imageFilename')
             pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='XRCE', filename = os.path.basename(page.getAttribute('imageFilename')), imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
             self.pageXmlNS = pageXmlDoc.getRootElement().ns()
-            self.convertDSPage(page,pageNode)
+            print "??",self.bRegionOnly
+            if self.bRegionOnly:
+                self.convertOnlyRegion(page, pageNode)
+            else:
+                self.convertDSPage(page,pageNode)
             #store pageXml
             lPageXmlDoc.append((pageXmlDoc,page.getAttribute('imageFilename')))
 #             print pageXmlDoc.serialize('UTF-8', 1)
@@ -252,7 +267,8 @@ if __name__ == "__main__":
 
     #prepare for the parsing of the command line
     docConv.createCommandLineParser()
-    docConv.add_option("-m", "--multi", dest="bMultiPage", action="store_true", default="False", help="store as multipagePageXml", metavar="B")
+    docConv.add_option("-m", "--multi", dest="bMultiPage", action="store_true", default=False, help="store as multipagePageXml", metavar="B")
+    docConv.add_option("-r", "--region", dest="bRegionOnly", action="store_true", default=False, help="convert only regions", metavar="B")
       
     #parse the command line
     dParams, args = docConv.parseCommandLine()
