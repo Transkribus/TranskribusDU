@@ -14,19 +14,11 @@ import sys, os.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))))
 
-import string, libxml2
+import  libxml2
 
 import common.Component as Component
 import config.ds_xml_def as ds_xml
-from common.trace import trace, traceln
-from common.chrono import chronoOn, chronoOff
-
-from operator import itemgetter
-import unicodedata
-
-#from common.pageClass import pageClass 
-# from common.elementClass import Element
-# from common.zoneClass import Zone
+from common.trace import traceln
 
 
 class primaAnalysis(Component.Component):
