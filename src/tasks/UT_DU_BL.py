@@ -55,9 +55,8 @@ class UT_DU_BL(unittest.TestCase):
 
     def test_getSelectedFeatures(self):
         #Redo a Traning if not done
-        self.doer.train_save_test([self.collection_name], [], True)
+        self.doer.train_save_test([self.collection_name], [], False)
         node_transformer,edge_transformer =self.doer._mdl.getTransformers()
-
 
         self.assertTrue(node_transformer is not None)
         print(node_transformer)

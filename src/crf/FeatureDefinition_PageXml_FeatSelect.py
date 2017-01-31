@@ -59,7 +59,7 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
 
         #tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=10000
-         #                                                                         , analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
+        #                                                                         , analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
 
         self.feature_selection=False
         feat_selector=None
@@ -70,13 +70,13 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
 
 
         if feat_selector:
-            node_transformer_debug = Pipeline([('selector', NodeTransformerTextEnclosed()),
+            text_pipeline = Pipeline([('selector', NodeTransformerTextEnclosed()),
                                                ('tf', tdifNodeTextVectorizer), #we can use it separately from the pipleline once fitted
                                                 ('word_selector',feat_selector),
                                                ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
                                                ])
         else:
-            node_transformer_debug= Pipeline([('selector', NodeTransformerTextEnclosed()),
+            text_pipeline= Pipeline([('selector', NodeTransformerTextEnclosed()),
                                                ('tf', tdifNodeTextVectorizer), #we can use it separately from the pipleline once fitted
                                                ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
                                                ])
@@ -86,13 +86,7 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
 
 
         node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
-                                    ("text", Pipeline([
-                                                       ('selector', NodeTransformerTextEnclosed()),
-                                                       ('tf', tdifNodeTextVectorizer), #we can use it separately from the pipleline once fitted
-                                                        #('chi2',feat_selector),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                     )
+                                    ("text", text_pipeline)
                                     ,
                                     ("textlen", Pipeline([
                                                          ('selector', NodeTransformerTextLen()),
@@ -184,7 +178,7 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
 
         edge_transformer = FeatureUnion( lEdgeFeature )
         #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
-        self._node_transformer = node_transformer_debug
+        self._node_transformer = node_transformer
         self._edge_transformer = edge_transformer
         self.tfidfNodeTextVectorizer = tdifNodeTextVectorizer
 
@@ -202,12 +196,12 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
         Here the fix is a bit rough. There are better ways....
         JL
         """
-        #Do not Clean
         print('TODO Cleaning Method not implemented yet .....')
 
-        #self._node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
-        #for i in [2, 3, 4, 5, 6, 7]:
-        #    self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
+        self._node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
+        for i in [2, 3, 4, 5, 6, 7]:
+            self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
+
         return self._node_transformer
 
 
@@ -216,7 +210,8 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
         #I have the impression this implem is not efficient
         #as we still keep the 10,000 words from the vectorizer ...
         #TODO Combine objects CountVectorizer with features selection that update and clean the vocabulary
-        cvect=node_transformer.named_steps['tf']
+
+        cvect=node_transformer.transformer_list[0][1].named_steps['tf']
         #Index to Word String array
         I2S_array =np.array(cvect.get_feature_names())
         if hasattr(node_transformer,'feature_selection') and node_transformer.feature_selection is True:
