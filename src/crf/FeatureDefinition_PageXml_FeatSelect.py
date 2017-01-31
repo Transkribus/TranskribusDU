@@ -44,37 +44,44 @@ from sklearn.feature_selection import chi2
 #Should be able to discriminate between chi2 and mutual info, right ?
 #(X, y, discrete_features='auto', n_neighbors=3, copy=True, random_state=None)[source]¶
 
-'''
->>> from sklearn.feature_selection import chi2
->>> iris = load_iris()
->>> X, y = iris.data, iris.target
->>> X.shape
-(150, 4)
->>> X_new = SelectKBest(chi2, k=2).fit_transform(X, y)
-'''
 
 
 class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
 
     def __init__(self, n_tfidf_node=None, t_ngrams_node=None, b_tfidf_node_lc=None
-                     , n_tfidf_edge=None, t_ngrams_edge=None, b_tfidf_edge_lc=None):
+                     , n_tfidf_edge=None, t_ngrams_edge=None, b_tfidf_edge_lc=None,feat_select=None):
         FeatureDefinition.__init__(self)
 
         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
         self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc = n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc
 
         tdifNodeTextVectorizer = CountVectorizer(lowercase=self.b_tfidf_node_lc, max_features=10000
-                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
-                                                                                  , dtype=np.float64)
+                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
 
-        feat_selector=SelectKBest(chi2, k=n_tfidf_node)
+        #tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=10000
+         #                                                                         , analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
+
+        self.feature_selection=False
+        feat_selector=None
+
+        if feat_select=='chi2':
+            self.feature_selection=True
+            feat_selector=SelectKBest(chi2, k=self.n_tfidf_node)
 
 
-        node_transformer_debug = Pipeline([('selector', NodeTransformerTextEnclosed()),
+        if feat_selector:
+            node_transformer_debug = Pipeline([('selector', NodeTransformerTextEnclosed()),
                                                ('tf', tdifNodeTextVectorizer), #we can use it separately from the pipleline once fitted
-                                                ('chi2',feat_selector),
+                                                ('word_selector',feat_selector),
                                                ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
                                                ])
+        else:
+            node_transformer_debug= Pipeline([('selector', NodeTransformerTextEnclosed()),
+                                               ('tf', tdifNodeTextVectorizer), #we can use it separately from the pipleline once fitted
+                                               ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
+                                               ])
+
+
 
 
 
@@ -204,11 +211,19 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
         return self._node_transformer
 
 
-    def getTextSelectedFeatures(self):
+    @staticmethod
+    def getNodeTextSelectedFeatures(node_transformer):
         #I have the impression this implem is not efficient
         #as we still keep the 10,000 words from the vectorizer ...
         #TODO Combine objects CountVectorizer with features selection that update and clean the vocabulary
-
-        raise NotImplementedError
+        cvect=node_transformer.named_steps['tf']
+        #Index to Word String array
+        I2S_array =np.array(cvect.get_feature_names())
+        if hasattr(node_transformer,'feature_selection') and node_transformer.feature_selection is True:
+            fs=node_transformer.named_steps['word_select']
+            selected_indices=fs.get_support(indices=True)
+            return I2S_array[selected_indices]
+        else:
+            return I2S_array
 
 

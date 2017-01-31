@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 """
     Feature Definition
@@ -31,7 +30,7 @@ class FeatureDefinition:
     """
     A class to sub-class to define which features from a Tranformer class, you want for node and edges
     """
-    def __init__(self, nbClass=None): 
+    def __init__(self, nbClass=None):
         self.nbClass = nbClass  #number of node classes (also called 'labels', and 'states' in pystruct)
 
     def getTransformers(self):
@@ -39,18 +38,19 @@ class FeatureDefinition:
         return (node transformer, edge transformer)
         """
         raise Exception("Method must be overridden")
-        
-    def fitTranformers(self, lGraph):
+
+
+    def fitTranformers(self, lGraph,lY=None):
         """
         Fit the transformers using the graphs
         return True 
         """
         lAllNode = [nd for g in lGraph for nd in g.lNode]
-        self._node_transformer.fit(lAllNode)
+        self._node_transformer.fit(lAllNode,lY)
         del lAllNode #trying to free the memory!
         
         lAllEdge = [edge for g in lGraph for edge in g.lEdge]
-        self._edge_transformer.fit(lAllEdge)
+        self._edge_transformer.fit(lAllEdge,lY)
         del lAllEdge
         
         return True
@@ -63,4 +63,4 @@ class FeatureDefinition:
         For instance: the TFIDF transformers are keeping the stop words => huge pickled file!!!
         """
         return None
-    
+
