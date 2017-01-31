@@ -30,8 +30,8 @@ class Decoder(object):
                 trellis[:, t] =  trellis[:, t] * 1e+100
             backpt[:, t] = (np.tile(trellis[:, t-1, None], [1, self.N]) * self.transProb).argmax(0)
         
-#         print trellis[:,-1]
-#         print trellis[:,-1].max()
+#         print trellis
+        #         print trellis[:,-1].max()
 #         print trellis[:,-1]*1e+100
 #         print (trellis[:, -1] < 1e-100).all()
         tokens = [trellis[:, -1].argmax()]

@@ -16,7 +16,7 @@ def _exit(usage, status, exc=None):
     if exc != None: sys.stderr.write(str(exc))  #any exception?
     sys.exit(status)    
 
-def _checkFindColDir(lsDir):
+def _checkFindColDir(lsDir, sColName=sCOL):
     """
     For each directory in the input list, check if it is a "col" directory, or look for a 'col' sub-directory
     If a string is given instead of a list, make of it a list
@@ -28,8 +28,8 @@ def _checkFindColDir(lsDir):
     if type(lsDir) != types.ListType: lsDir = [lsDir]
     lsColDir = list()
     for sDir in lsDir:  
-        if not(sDir.endswith(sCOL) or sDir.endswith(sCOL+os.path.sep)): 
-            sColDir = os.path.abspath(os.path.join(sDir, sCOL))
+        if not(sDir.endswith(sColName) or sDir.endswith(sColName+os.path.sep)): 
+            sColDir = os.path.abspath(os.path.join(sDir, sColName))
         else:
             sColDir = os.path.abspath(sDir)
         if not( os.path.exists(sColDir) and os.path.isdir(sColDir) ):

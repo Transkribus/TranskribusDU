@@ -11,7 +11,6 @@
     
 """
 from templateClass import templateClass
-from numpy import dtype
 import numpy as np
 class verticalZonestemplateClass(templateClass):
     """
@@ -30,7 +29,7 @@ class verticalZonestemplateClass(templateClass):
         self.lX= []
         
         #list of the zone width
-        self.lWidth= []
+#         self.lWidth= []
         
         #for mirrored template
         self.brother=None
@@ -49,15 +48,15 @@ class verticalZonestemplateClass(templateClass):
         self.pattern = p
         self.bMirrored = len(self.pattern) == 2
         
-        lSubWith=[]
-        prev = 0
+#         lSubWith=[]
+#         prev = 0
         for item in self.pattern:
             self.addXCut(item)
-            w= item.getValue() - prev
-            if item.getValue() not in self.lWidth:
-                lSubWith.append(w)
-            prev= item.getValue()
-        self.lWidth.append(lSubWith)
+#             w= item.getValue() - prev
+#             if item.getValue() not in self.lWidth:
+#                 lSubWith.append(w)
+#             prev= item.getValue()
+#         self.lWidth.append(lSubWith)
     
     def setTH(self,t): self._TH = t
     def getTH(self): return self._TH
@@ -211,9 +210,8 @@ class verticalZonestemplateClass(templateClass):
             lMissing = filter(lambda x: x!= 'EMPTY',lMissing)
             result = np.array(ltmp)[bestReg].tolist()
             lFinres= filter(lambda (x,y): x!= 'EMPTY',zip(result,pageObject.lf_XCut))
-            if lFinres == []:
-                bestScore = 0
-            else:lFinres =  self.selectBestCandidat(lFinres)
+            if lFinres != []:
+                lFinres =  self.selectBestCandidat(lFinres)
             # for estimating missing?
     #         self.selectBestAnchor(lFinres) 
             return lFinres,lMissing,self.computeScore(lFinres, pageObject.lf_XCut)

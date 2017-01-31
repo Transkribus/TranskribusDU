@@ -68,6 +68,8 @@ See DU_StAZH_b.py
     sMetadata_Comments = ""
     
     dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
+    
+    sXmlFilenamePattern = "*[0-9]"+MultiPageXml.sEXT    #how to find the Xml files
 
     def __init__(self, sModelName, sModelDir, cGraphClass, dFeatureConfig={}, dLearnerConfig={}, sComment=None, cFeatureDefinition=None): 
         """
@@ -204,8 +206,8 @@ See DU_StAZH_b.py
         
         #list the train and test files
         #NOTE: we check the presence of a digit before the '.' to eclude the *_du.xml files
-        ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, "*[0-9]"+MultiPageXml.sEXT)
-        _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*[0-9]"+MultiPageXml.sEXT)
+        ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
+        _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
         
         DU_GraphClass = self.cGraphClass
         
@@ -266,7 +268,7 @@ See DU_StAZH_b.py
         if not self._mdl: raise Exception("The model must be loaded beforehand!")
         
         #list the train and test files
-        _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*[0-9]"+MultiPageXml.sEXT)
+        _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
         
         DU_GraphClass = self.cGraphClass
         
@@ -293,7 +295,7 @@ See DU_StAZH_b.py
         if not self._mdl: raise Exception("The model must be loaded beforehand!")
         
         #list the train and test files
-        _     , lFilename = self.listMaxTimestampFile(lsColDir, "*[0-9]"+MultiPageXml.sEXT)
+        _     , lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
         
         DU_GraphClass = self.cGraphClass
 

@@ -296,19 +296,15 @@ class  XMLDSPageClass(XMLDSObjectClass):
                 -> need to 'migrate' fi into sef level :
             
         """
-        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject
      
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR     
+        if self._lBasicFeatures is None:
+            self._lBasicFeatures = []
+        # needed to keep canonical values!
+        elif self.getSetofFeatures() != []:
+            return self.getSetofFeatures()
    
-        else:
-            pass
         
-        lFeatures = []
         for oldfi in lInitialFeatures:
             fi = featureObject()
 #             fi.setName(oldfi.getName())
@@ -318,44 +314,35 @@ class  XMLDSPageClass(XMLDSObjectClass):
             fi.addNode(self)
             fi.setType(oldfi.getType())
             fi.setObjectName(self)
-            if fi not in lFeatures:
-                lFeatures.append(fi)
+            self.addFeature(fi)
 
-        seqOfF = sequenceOfFeatures()
-        for f in lFeatures:
-            seqOfF.addFeature(f)
-        self._lBasicFeatures=seqOfF
-        return seqOfF 
+        return self.getSetofFeatures()
         
     def getSetOfMutliValuedFeatures(self,TH,lMyFeatures,myObject):
         """
             define a multivalued features 
         """
-        from spm.feature import multiValueFeatureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import multiValueFeatureObject
 
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR     
+        if self._lBasicFeatures is None:
+            self._lBasicFeatures = []
+        # needed to keep canonical values!
+        elif self.getSetofFeatures() != []:
+            return self.getSetofFeatures()
    
-        else:
-
-            lFeatures=[]
-            mv =multiValueFeatureObject()
-            name= "multi" #'|'.join(i.getName() for i in lMyFeatures)
-            mv.setName(name)
-            mv.addNode(self)
-            mv.setObjectName(self)
-            mv.setTH(TH)
-            mv.setObjectName(self)
-            mv.setValue(map(lambda x:x,lMyFeatures))
-            mv.setType(multiValueFeatureObject.COMPLEX)
-            lFeatures.append(mv)
+        mv =multiValueFeatureObject()
+        name= "multi" #'|'.join(i.getName() for i in lMyFeatures)
+        mv.setName(name)
+        mv.addNode(self)
+        mv.setObjectName(self)
+        mv.setTH(TH)
+        mv.setObjectName(self)
+        mv.setValue(map(lambda x:x,lMyFeatures))
+        mv.setType(multiValueFeatureObject.COMPLEX)
+        self.addFeature(mv)
 
             
-        if lFeatures == []:
+        if self.getSetofFeatures() == []:
             feature = multiValueFeatureObject()
             feature.setName('EMPTY')
             feature.setTH(TH)
@@ -363,35 +350,27 @@ class  XMLDSPageClass(XMLDSObjectClass):
             feature.setObjectName(self)
             feature.setValue(True)
             feature.setType(multiValueFeatureObject.BOOLEAN)
-            lFeatures.append(feature)            
+            self.addFeature(feature)            
 
-        seqOfF = sequenceOfFeatures()
-        for f in lFeatures:
-            seqOfF.addFeature(f)
-        self._lBasicFeatures=seqOfF
-        return seqOfF                  
+
+        return self.getSetofFeatures()                 
     
     def getSetOfVInfoFeatures(self,TH,lAttributes,myObject):
         """
             
         """
-        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject
      
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR     
-   
-        else:
+        if self._lBasicFeatures is None:
+            self._lBasicFeatures = []   
+        # needed to keep canonical values!
+        elif self.getSetofFeatures() != []:
+            return self.getSetofFeatures()
+      
 
-            lFeatures = []
             for attr in lAttributes:
-#                 print attr
                 name= attr[0].getName()
                 value = attr[0].getValue()
-#                 if value > 2:
                 feature = featureObject()
                 feature.setName(name)
                 feature.setTH(TH)
@@ -399,11 +378,10 @@ class  XMLDSPageClass(XMLDSObjectClass):
                 feature.setObjectName(self)
                 feature.setValue(value)
                 feature.setType(feature.NUMERICAL)
-                if feature not in lFeatures:
-                    lFeatures.append(feature)
+                self.addFeature(feature) 
       
             
-        if lFeatures == []:
+        if self.getSetofFeatures()   == []:
             feature = featureObject()
             feature.setName('EMPTY')
             feature.setTH(TH)
@@ -411,52 +389,46 @@ class  XMLDSPageClass(XMLDSObjectClass):
             feature.setObjectName(self)
             feature.setValue(True)
             feature.setType(featureObject.BOOLEAN)
-            lFeatures.append(feature)            
+            self.addFeature(feature)            
 
-        seqOfF = sequenceOfFeatures()
-        for f in lFeatures:
-            seqOfF.addFeature(f)
-        self._lBasicFeatures=seqOfF
-        return seqOfF          
+
+        return self.getSetofFeatures()          
         
     def getSetOfFeaturesPageSize(self,TH,lAttributes,myObject):
         """
             features: BB X Y H W
             
         """
-        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject
      
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR     
+        if self._lBasicFeatures is None:
+            self._lBasicFeatures = []
+        # needed to keep canonical values!
+        elif self.getSetofFeatures() != []:
+            return self.getSetofFeatures()
    
-        else:
 
+        lFeatures = []
+        feature = featureObject()
+        feature.setName('h')
+        feature.setTH(TH)
+        feature.addNode(self)
+        feature.setObjectName(self.getName())
+        feature.setValue(round(float(self.getAttribute('height'))))
+        feature.setType(feature.NUMERICAL)
+        self.addFeature(feature)
 
-            lFeatures = []
-            feature = featureObject()
-            feature.setName('h')
-            feature.setTH(TH)
-            feature.addNode(self)
-            feature.setObjectName(self.getName())
-            feature.setValue(round(float(self.getAttribute('height'))))
-            feature.setType(feature.NUMERICAL)
-            lFeatures.append(feature)
-
-            feature = featureObject()
-            feature.setName('w')
-            feature.setTH(TH)
-            feature.addNode(self)
-            feature.setObjectName(self.getName())
-            feature.setValue(round(float(self.getAttribute('width'))))
-            feature.setType(feature.NUMERICAL)
-            lFeatures.append(feature)
+        feature = featureObject()
+        feature.setName('w')
+        feature.setTH(TH)
+        feature.addNode(self)
+        feature.setObjectName(self.getName())
+        feature.setValue(round(float(self.getAttribute('width'))))
+        feature.setType(feature.NUMERICAL)
+        self.addFeature(feature)
       
             
-        if lFeatures == []:
+        if self.getSetofFeatures()  == []:
             feature = featureObject()
             feature.setName('EMPTY')
             feature.setTH(TH)
@@ -464,13 +436,9 @@ class  XMLDSPageClass(XMLDSObjectClass):
             feature.setObjectName(self.getName())
             feature.setValue(True)
             feature.setType(featureObject.BOOLEAN)
-            lFeatures.append(feature)            
+            self.addFeature(feature)           
 
-        seqOfF = sequenceOfFeatures()
-        for f in lFeatures:
-            seqOfF.addFeature(f)
-        self._lBasicFeatures=seqOfF
-        return seqOfF        
+        return self.getSetofFeatures()           
                  
         
 
@@ -479,45 +447,40 @@ class  XMLDSPageClass(XMLDSObjectClass):
             features: BB X Y H W
             
         """
-        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject
      
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR     
+        if self._lBasicFeatures is None:
+            self._lBasicFeatures = []
+        # needed to keep canonical values!
+        elif self.getSetofFeatures() != []:
+            return self.getSetofFeatures()
    
-        else:
+        #build BB 
+        if self.getBB() is None:
+            self.addBoundingBox()
+        x,y,h,w = self.getBB()
 
-            #build BB 
-            if self.getBB() is None:
-                self.addBoundingBox()
-            x,y,h,w = self.getBB()
+            
+        feature = featureObject()
+        feature.setName('lm')
+        feature.setTH(TH)
+        feature.addNode(self)
+        feature.setObjectName(self.getName())
+        feature.setValue(round(x))
+        feature.setType(feature.NUMERICAL)
+        self.addFeature(feature)  
 
-            lFeatures = []
-
-                
-            feature = featureObject()
-            feature.setName('lm')
-            feature.setTH(TH)
-            feature.addNode(self)
-            feature.setObjectName(self.getName())
-            feature.setValue(round(x))
-            feature.setType(feature.NUMERICAL)
-            lFeatures.append(feature)
-
-            feature = featureObject()
-            feature.setName('rm')
-            feature.setTH(TH)
-            feature.addNode(self)
-            feature.setObjectName(self.getName())
-            feature.setValue(round(x+w))
-            feature.setType(feature.NUMERICAL)
-            lFeatures.append(feature)
+        feature = featureObject()
+        feature.setName('rm')
+        feature.setTH(TH)
+        feature.addNode(self)
+        feature.setObjectName(self.getName())
+        feature.setValue(round(x+w))
+        feature.setType(feature.NUMERICAL)
+        self.addFeature(feature)  
       
             
-        if lFeatures == []:
+        if self.getSetofFeatures()  == []:
             feature = featureObject()
             feature.setName('EMPTY')
             feature.setTH(TH)
@@ -525,13 +488,9 @@ class  XMLDSPageClass(XMLDSObjectClass):
             feature.setObjectName(self.getName())
             feature.setValue(True)
             feature.setType(featureObject.BOOLEAN)
-            lFeatures.append(feature)            
+            self.addFeature(feature)  
 
-        seqOfF = sequenceOfFeatures()
-        for f in lFeatures:
-            seqOfF.addFeature(f)
-        self._lBasicFeatures=seqOfF
-        return seqOfF        
+        return self.getSetofFeatures()          
         
         
     def getSetOfListedAttributes(self,TH,lAttributes,myObject):
@@ -540,43 +499,42 @@ class  XMLDSPageClass(XMLDSObjectClass):
             
             
         """
-        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
+        from spm.feature import featureObject
      
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR     
+        if self._lBasicFeatures is None:
+            self._lBasicFeatures = []
+        # needed to keep canonical values!
+        elif self.getSetofFeatures() != []:
+            return self.getSetofFeatures()
    
-        else:
-            lHisto={}
-            for elt in self.getAllNamedObjects(myObject):
-                if float(elt.getAttribute('width')) > 00:
-                    for attr in lAttributes:
-                        try:lHisto[attr]
-                        except KeyError:lHisto[attr] = {}
-                        if elt.hasAttribute(attr):
-                            try:lHisto[attr][round(float(elt.getAttribute(attr)))].append(elt)
-                            except: lHisto[attr][round(float(elt.getAttribute(attr)))] = [elt]
-            
-            lFeatures = []
-            for attr in lAttributes:
-                for value in lHisto[attr]:
-                    if  len(lHisto[attr][value]) > 0.1:
-                        ftype= featureObject.NUMERICAL
-                        feature = featureObject()
-                        feature.setName(attr)
-                        l = sum(x.getHeight() for x in lHisto[attr])
-                        feature.setWeight(l)
-                        feature.setTH(TH)
-                        feature.addNode(self)
-                        feature.setObjectName(self)
-                        feature.setValue(value)
-                        feature.setType(ftype)
-                        lFeatures.append(feature)
+   
+        lHisto={}
+        for elt in self.getAllNamedObjects(myObject):
+            if float(elt.getAttribute('width')) > 00:
+                for attr in lAttributes:
+                    try:lHisto[attr]
+                    except KeyError:lHisto[attr] = {}
+                    if elt.hasAttribute(attr):
+                        try:lHisto[attr][round(float(elt.getAttribute(attr)))].append(elt)
+                        except: lHisto[attr][round(float(elt.getAttribute(attr)))] = [elt]
         
-        if lFeatures == []:
+        for attr in lAttributes:
+            for value in lHisto[attr]:
+                print attr, value
+                if  len(lHisto[attr][value]) > 0.1:
+                    ftype= featureObject.NUMERICAL
+                    feature = featureObject()
+                    feature.setName(attr)
+                    l = sum(x.getHeight() for x in lHisto[attr])
+                    feature.setWeight(l)
+                    feature.setTH(TH)
+                    feature.addNode(self)
+                    feature.setObjectName(self)
+                    feature.setValue(value)
+                    feature.setType(ftype)
+                    self.addFeature(feature)  
+        
+        if  self.getSetofFeatures()   == []:
             feature = featureObject()
             feature.setName('EMPTY')
             feature.setTH(TH)
@@ -584,10 +542,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
             feature.setObjectName(self)
             feature.setValue(True)
             feature.setType(featureObject.BOOLEAN)
-            lFeatures.append(feature)            
+            self.addFeature(feature)        
 
-        seqOfF = sequenceOfFeatures()
-        for f in lFeatures:
-            seqOfF.addFeature(f)
-        self._lBasicFeatures=seqOfF
-        return seqOfF
+        
+        return self.getSetofFeatures() 

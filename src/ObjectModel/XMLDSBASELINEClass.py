@@ -31,6 +31,9 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
         self.avgY    = None
         self.length  = None
 
+    def __str__(self):
+        return 'B:%s'% self.getPoints()
+    
     def computePoints(self):
         """
             points= x,y,x,y,x,y
@@ -83,14 +86,13 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
     
     
     def setPoints(self,lp): self.lPoints = lp
-    
+    def getPoints(self): return self.lPoints
     def fromDom(self,domNode):
         """
             only contains points attribute
         """
         
-        # must be PAGE        
-        self._name = domNode.name
+        self._name = ds_xml.sBaseline
         self.setNode(domNode)
         # get properties
         # all?
@@ -107,70 +109,5 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
             
             
         """
-        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
-     
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR     
-   
-        else:
-            
-            
-#             ## needed?
-#             lHisto={}
-#             for elt in self.getAllNamedObjects(myObject):
-#                 for attr in lAttributes:
-#                     try:lHisto[attr]
-#                     except KeyError:lHisto[attr] = {}
-#                     if elt.hasAttribute(attr):
-#                         try:lHisto[attr][round(float(elt.getAttribute(attr)))].append(elt)
-#                         except: lHisto[attr][round(float(elt.getAttribute(attr)))] = [elt]
-#             
-            lFeatures = []
-            
-            
-#             for attr in lAttributes:
-#                 for value in lHisto[attr]:
-#                     if  len(lHisto[attr][value]) > 0.1:
-#                         ftype= featureObject.NUMERICAL
-#                         feature = featureObject()
-#                         feature.setName(attr)
-#                         feature.setTH(TH)
-#                         feature.addNode(self)
-#                         feature.setObjectName(self)
-#                         feature.setValue(value)
-#                         feature.setType(ftype)
-#                         lFeatures.append(feature)
-        
-            if 'bl' in lAttributes:
-                for next in self.next:
-                    ftype= featureObject.NUMERICAL
-                    feature = featureObject()
-                    feature.setName('bl')
-                    feature.setTH(TH)
-                    feature.addNode(self)
-                    feature.setObjectName(self)
-                    feature.setValue(round(next.getY() - self.getY()))
-                    feature.setType(ftype)
-                    lFeatures.append(feature)                
-                
-        
-        if lFeatures == []:
-            feature = featureObject()
-            feature.setName('EMPTY')
-            feature.setTH(TH)
-            feature.addNode(self)
-            feature.setObjectName(self)
-            feature.setValue(True)
-            feature.setType(featureObject.BOOLEAN)
-            lFeatures.append(feature)            
-
-        seqOfF = sequenceOfFeatures()
-        for f in lFeatures:
-            seqOfF.addFeature(f)
-        self._lBasicFeatures=seqOfF
-        return seqOfF        
+        pass
             
