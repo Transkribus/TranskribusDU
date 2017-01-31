@@ -63,7 +63,7 @@ class DU_BL_Task(DU_CRF_Task):
         assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
 
 
-    def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False):
+    def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False,filterFilesRegexp=True):
         """
         - Train a model on the tTRN collections, if not empty.
         - Test the trained model using the lTST collections, if not empty.
@@ -82,8 +82,16 @@ class DU_BL_Task(DU_CRF_Task):
 
         #list the train and test files
         #NOTE: we check the presence of a digit before the '.' to eclude the *_du.xml files
-        ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, "*[0-9]"+MultiPageXml.sEXT)
-        _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*[0-9]"+MultiPageXml.sEXT)
+        if filterFilesRegexp:
+            ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, "*[0-9]"+MultiPageXml.sEXT)
+            _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*[0-9]"+MultiPageXml.sEXT)
+        else:
+            #Assume the file list are correct
+            lFilename_trn=lsTrnColDir
+            lFilename_tst=lsTstColDir
+
+            ts_trn = max([os.path.getmtime(sFilename) for sFilename in lFilename_trn])
+
 
         DU_GraphClass = self.cGraphClass
 
