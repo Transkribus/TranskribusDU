@@ -38,18 +38,19 @@ class FeatureDefinition:
         return (node transformer, edge transformer)
         """
         raise Exception("Method must be overridden")
-        
-    def fitTranformers(self, lGraph):
+
+        #TODO Maybe rename to -- fitTransformer anod tranf for
+    def fitTranformers(self, lGraph,lY=None):
         """
         Fit the transformers using the graphs
         return True 
         """
         lAllNode = [nd for g in lGraph for nd in g.lNode]
-        self._node_transformer.fit(lAllNode)
+        self._node_transformer.fit(lAllNode,lY)
         del lAllNode #trying to free the memory!
         
         lAllEdge = [edge for g in lGraph for edge in g.lEdge]
-        self._edge_transformer.fit(lAllEdge)
+        self._edge_transformer.fit(lAllEdge,lY)
         del lAllEdge
         
         return True

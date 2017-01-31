@@ -137,6 +137,11 @@ class DU_BL_Task(DU_CRF_Task):
 
         return oReport
 
+    def addFixedLR(self):
+        lr = LogisticRegression(C=1.0,class_weight='balanced')
+        self._lBaselineModel=[lr]
+
+
 
 
 # ===============================================================================================================
@@ -191,10 +196,6 @@ class DU_BL_V1(DU_BL_Task):
 
 
 if __name__ == "__main__":
-
-
-
-
 
     version = "v.01"
     usage, description, parser = DU_BL_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
