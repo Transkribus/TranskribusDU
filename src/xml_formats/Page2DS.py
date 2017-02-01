@@ -250,6 +250,95 @@ class primaAnalysis(Component.Component):
                     if ltexts:
                         wnode.setContent(document.encodeEntitiesReentrant(ltexts[0].getContent()))
                  
+             
+
+    def convert2DS(self,mprimedoc,sDocID):
+        """
+            convert a MPXMLDom to DSDOM
+        """ 
+        dsdom = libxml2.newDoc("1.0")
+        dsroot = libxml2.newNode(ds_xml.sDOCUMENT)
+        dsdom.setRootElement(dsroot)
+        
+        
+        ctxt = mprimedoc.xpathNewContext()
+        ctxt.xpathRegisterNs("a", self.xmlns)
+        xpath  = "//a:%s" % ("Page")
+        lPages = ctxt.xpathEval(xpath)
+        ctxt.xpathFreeContext()
+        for ipageNumber,ipage in enumerate(lPages):
+            page = libxml2.newNode(ds_xml.sPAGE)
+            dsroot.addChild(page)            
+            page.setProp(ds_xml.sPageNumber,str(ipageNumber+1))
+            page.setProp("imageFilename",'..%scol%s%s%s'%(os.sep,os.sep,sDocID,os.sep)+ ipage.prop("imageFilename"))
+            imageWidth =  72 * (float(ipage.prop("imageWidth"))  / self.dpi)
+            imageHeight = 72 * (float(ipage.prop("imageHeight")) / self.dpi)
+            page.setProp("width",str(imageWidth))
+            page.setProp("height",str(imageHeight))
+            child = ipage.children
+            while child:
+                if child.type == "element":
+                    if not self.bRef or (self.bRef and child.name in self.lRefTag): 
+                        ## get points
+                        ctxt = mprimedoc.xpathNewContext()
+#                         _ = self.getPoints(child)
+                        ctxt.xpathRegisterNs("a", self.xmlns)
+                        xpath  = "./a:Coords/@%s" % ("points")
+                        ctxt.setContextNode(child)
+                        lPoints = ctxt.xpathEval(xpath)
+                        if lPoints !=[]:
+                            ctxt.xpathFreeContext()
+                            [x,y,h,w] = self.regionBoundingBox(lPoints[0])
+                            xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w)) 
+                            if child.name == "TextRegion":
+                                #get type
+                                node = libxml2.newNode("REGION")
+                                node.setProp('type',child.prop('type') )
+                                self.getTextLineSubStructure(node,child)
+                            elif child.name =="ImageRegion":
+                                node = libxml2.newNode("IMAGE")
+                            elif child.name =="LineDrawingRegion":
+                                node = libxml2.newNode("IMAGE")
+                            elif child.name =="GraphicRegion":
+                                node = libxml2.newNode("IMAGE")
+                            elif child.name =="SeparatorRegion":
+                                node = libxml2.newNode("SeparatorRegion")
+                                sp= self.getPoints(child)
+                                # polylines
+                                node.setProp('points',sp)                                         
+                            elif child.name =="TableRegion":
+                                node = libxml2.newNode("TABLE")
+                                ## update with table cells
+                            elif child.name =="FrameRegion":
+                                node = libxml2.newNode("FRAME")
+                            elif child.name =="ChartRegion":
+                                node = libxml2.newNode("FRAME")
+                            elif child.name =="MathsRegion":
+                                node = libxml2.newNode("MATH")
+                            elif  child.name =="PrintSpace":
+                                node = libxml2.newNode("typeArea")                                     
+                            else:
+                                node = libxml2.newNode("MISC")
+                            ## ADD ROTATION INFO
+                            if child.hasProp("orientation"):
+                                rotation = child.prop("orientation")
+                                if float(rotation) == 0:
+                                    node.setProp("rotation","0")
+                                elif float(rotation) == -90:
+                                    node.setProp("rotation","1")
+                                elif float(rotation) == 90:
+                                    node.setProp("rotation","2")
+                                elif float(rotation) == 180:
+                                    node.setProp("rotation","3")           
+                            node.setProp(ds_xml.sX,str(xp))
+                            node.setProp(ds_xml.sY,str(yp))
+                            node.setProp(ds_xml.sHeight,str(hp))
+                            node.setProp(ds_xml.sWidth,str(wp))
+                            page.addChild(node)
+                child = child.next
+                
+        self.addTagProcessToMetadata(dsdom)                 
+        return dsdom         
                  
     def run(self):
         
@@ -266,10 +355,10 @@ class primaAnalysis(Component.Component):
                 #pathname = it.next()
                 print pathname
                 primedoc = self.loadDom(pathname)
-                page = libxml2.newNode(ds_xml.sPAGE)
-                page.setProp(ds_xml.sPageNumber,str(ipageNumber))
-                ipageNumber += 1
-                dsroot.addChild(page)            
+#                 page = libxml2.newNode(ds_xml.sPAGE)
+#                 page.setProp(ds_xml.sPageNumber,str(ipageNumber))
+#                 ipageNumber += 1
+#                 dsroot.addChild(page)            
                 ctxt = primedoc.xpathNewContext()
                 ctxt.xpathRegisterNs("a", self.xmlns)
                 xpath  = "//a:%s" % ("Page")
@@ -277,18 +366,22 @@ class primaAnalysis(Component.Component):
                 ctxt.xpathFreeContext()
                 lRegion =[]
                 for ipage in lPages:
+                    page = libxml2.newNode(ds_xml.sPAGE)
+                    page.setProp(ds_xml.sPageNumber,str(ipageNumber))
+                    ipageNumber += 1
+                    dsroot.addChild(page)                       
                     page.setProp("imageFilename",'..%scol%s%s%s'%(os.sep,os.sep,self.sDocID,os.sep)+ ipage.prop("imageFilename"))
                     imageWidth =  72 * (float(ipage.prop("imageWidth"))  / self.dpi)
                     imageHeight = 72 * (float(ipage.prop("imageHeight")) / self.dpi)
                     page.setProp("width",str(imageWidth))
                     page.setProp("height",str(imageHeight))
-#                    imgNode = libxml2.newNode("IMAGE")
-#                    imgNode.setProp("href",ipage.prop("imageFilename"))
-#                    imgNode.setProp("x","0")
-#                    imgNode.setProp("y","0")
-#                    imgNode.setProp("height",str(imageHeight))
-#                    imgNode.setProp("width",str(imageWidth))
-#                    page.addChild(imgNode)
+                    imgNode = libxml2.newNode("IMAGE")
+                    imgNode.setProp("href",ipage.prop("imageFilename"))
+                    imgNode.setProp("x","0")
+                    imgNode.setProp("y","0")
+                    imgNode.setProp("height",str(imageHeight))
+                    imgNode.setProp("width",str(imageWidth))
+                    page.addChild(imgNode)
                     child = ipage.children
                     while child:
                         if child.type == "element":
