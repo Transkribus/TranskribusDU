@@ -212,55 +212,55 @@ class  XMLDSObjectClass(XMLObjectClass):
         [b1,b2] = zone.getY(),zone.getY() + zone.getHeight()
         return min(a2, b2) >=  max(a1, b1)   
         
-    def getAllSetOfFeatures(self,TH):
-        """
-            Generate a set of features for self.
-            
-            
-        """
-        from spm.feature import featureObject,sequenceOfFeatures, emptyFeatureObject
-     
-        if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-            lR=sequenceOfFeatures()
-            for f in self._lBasicFeatures.getSequences():
-                if f.isAvailable():
-                    lR.addFeature(f)
-            return lR     
-   
-        else:
-
-            lFeatures = []
-            for attributeName in self.getAttributes():
-                if (self._lFeatureList is not None and attributeName in self._lFeatureList) or self._lFeatureList is None:
-                    try:
-                        fvalue = float(self.getAttribute(attributeName))
-                        ftype= featureObject.NUMERICAL
-                    except ValueError:
-                        ftype = featureObject.EDITDISTANCE
-                        fvalue = self.getAttribute(attributeName)
-                        
-                    feature = featureObject()
-                    feature.setName(attributeName)
-                    feature.setTH(TH)
-                    feature.addNode(self)
-                    feature.setObjectName(self.getName())
-                    feature.setValue(fvalue)
-                    feature.setType(ftype)
-                    lFeatures.append(feature)
-      
-            
-        if lFeatures == []:
-            feature = featureObject()
-            feature.setName('EMPTY')
-            feature.setTH(TH)
-            feature.addNode(self)
-            feature.setObjectName(self.getName())
-            feature.setValue(True)
-            feature.setType(featureObject.BOOLEAN)
-            lFeatures.append(feature)            
-
-        seqOfF = sequenceOfFeatures()
-        for f in lFeatures:
-            seqOfF.addFeature(f)
-        self._lBasicFeatures=seqOfF
-        return seqOfF
+#     def getAllSetOfFeatures(self,TH):
+#         """
+#             Generate a set of features for self.
+#             
+#             
+#         """
+#         from spm.feature import featureObject,
+#      
+#         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
+#             lR=sequenceOfFeatures()
+#             for f in self._lBasicFeatures.getSequences():
+#                 if f.isAvailable():
+#                     lR.addFeature(f)
+#             return lR     
+#    
+#         else:
+# 
+#             lFeatures = []
+#             for attributeName in self.getAttributes():
+#                 if (self._lFeatureList is not None and attributeName in self._lFeatureList) or self._lFeatureList is None:
+#                     try:
+#                         fvalue = float(self.getAttribute(attributeName))
+#                         ftype= featureObject.NUMERICAL
+#                     except ValueError:
+#                         ftype = featureObject.EDITDISTANCE
+#                         fvalue = self.getAttribute(attributeName)
+#                         
+#                     feature = featureObject()
+#                     feature.setName(attributeName)
+#                     feature.setTH(TH)
+#                     feature.addNode(self)
+#                     feature.setObjectName(self.getName())
+#                     feature.setValue(fvalue)
+#                     feature.setType(ftype)
+#                     lFeatures.append(feature)
+#       
+#             
+#         if lFeatures == []:
+#             feature = featureObject()
+#             feature.setName('EMPTY')
+#             feature.setTH(TH)
+#             feature.addNode(self)
+#             feature.setObjectName(self.getName())
+#             feature.setValue(True)
+#             feature.setType(featureObject.BOOLEAN)
+#             lFeatures.append(feature)            
+# 
+#         seqOfF = sequenceOfFeatures()
+#         for f in lFeatures:
+#             seqOfF.addFeature(f)
+#         self._lBasicFeatures=seqOfF
+#         return seqOfF

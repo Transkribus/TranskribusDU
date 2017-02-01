@@ -14,6 +14,7 @@
 
 from XMLDSObjectClass import XMLDSObjectClass
 from config import ds_xml_def as ds_xml
+import libxml2
 
 class  XMLDSBASELINEClass(XMLDSObjectClass):
     """
@@ -27,6 +28,7 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
         self._domNode = domNode
         
         self.skewAngle= None
+        self._bx=None
         self.lPoints = None
         self.avgY    = None
         self.length  = None
@@ -76,7 +78,10 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
         
     """            
     def getAngle(self) : return self.skewAngle
-    def setAngle(self,a): self.skewAngle = a  
+    def setAngle(self,a): self.skewAngle = a
+    
+    def setBx(self,b): self._bx=b
+    def getBx(self): return self._bx  
     def getX(self): return float(self.getAttribute('x'))
     def getY(self): return float(self.getAttribute('y')) #return self.avgY
     def getX2(self): return float(self.getAttribute('x2')) #return float(self.getAttribute('x'))+self.getWidth()
@@ -102,6 +107,18 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
             # add attributes
             prop = prop.next
         self.computePoints()
+            
+            
+    def tagDom(self):
+        """
+            decorate dom with baseline points
+        """
+        ymax = self.getAngle() * self.getX2() +self.getBx()
+        ymin =  self.getAngle()*self.getX() + self.getBx()
+        
+#         myPoints = ' '.join(["%d,%d"%(xa,ya) for xa,ya  in self.getPoints()])
+        myPoints = '%f,%f,%f,%f'%(self.getX(),ymin,self.getX2(),ymax)      
+        self.getParent().getNode().setProp('blpoints', myPoints)
             
     def getSetOfListedFeatures(self,TH,lAttributes,myObject):
         """

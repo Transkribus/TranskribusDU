@@ -496,7 +496,6 @@ class sequenceMiner(Component.Component):
         
         from grammarTool import sequenceGrammar
         
-        
         myGram = sequenceGrammar()
         lParsings = myGram.parseSequence(myFeatureType,myPattern, lSeqElements)
         lFullList=[]
