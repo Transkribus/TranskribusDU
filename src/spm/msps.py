@@ -46,8 +46,8 @@ class msps(object):
       if self.bDEBUG: print "MIS:",self.lMIS
       support_counts = dict(Counter(item for flattened_sequence in flattened_sequences for item in flattened_sequence))
       self.actual_supports = {item:support_counts.get(item)/float(sequence_count) for item in support_counts.keys()}
-      if self.bDEBUG:pass
-      print "actual supports: %s" % self.actual_supports
+      if self.bDEBUG:
+        print "actual supports: %s" % self.actual_supports
       del flattened_sequences
       
       # Get the sorted list of frequent items i.e items with sup(i) >= MIS(i)
@@ -58,10 +58,12 @@ class msps(object):
       # Iterate through frequent items to get sequential patterns
       for item in frequent_items:
         # Get the minimum item support count for item i.e count(MIS(item))
-        mis_count = int(math.ceil(self.lMIS.get(item)*sequence_count))
-#         except TypeError:
-#             print '!!!!why!!' , item
-#             mis_count = 0.1
+#         print item, self.lMIS.get(item), self.actual_supports.get(item)
+        try:        
+            mis_count = int(math.ceil(self.lMIS.get(item)*sequence_count))
+        except TypeError:
+            # issue in featureGeneration: to be fixed!!
+            mis_count = 0.00
         
         if self.bDEBUG:print "------------- Current item:",item,"MIS:",mis_count, "Sup:",support_counts.get(item),"-----------------"
         if self.bDEBUG:print "Seq:", [sequence for sequence in sequences if self.has_item(sequence, item)]
