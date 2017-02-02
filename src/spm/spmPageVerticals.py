@@ -29,7 +29,9 @@ from ObjectModel.XMLDSTOKENClass import XMLDSTOKENClass
 from ObjectModel.singlePageTemplateClass import singlePageTemplateClass
 from ObjectModel.doublePageTemplateClass import doublePageTemplateClass
 from ObjectModel.verticalZonesTemplateClass import verticalZonestemplateClass    
-    
+# from ObjectModel.PageTemplateClass import pageTemplateClass
+from ObjectModel.treeTemplateClass import treeTemplateClass
+
 class pageVerticalMiner(Component.Component):
     """
         pageVerticalMiner class: a component to mine column-like page layout
@@ -71,6 +73,107 @@ class pageVerticalMiner(Component.Component):
 
         
     
+    def minePageDimensions(self,lPages):
+        """
+            use page dimensions to build highest structure
+            
+            need iterations!
+        """
+        self.THNUMERICAL = 10
+        
+        ## initialization for iter 0
+        for i,page, in enumerate(lPages):
+            page.setFeatureFunction(page.getSetOfFeaturesPageSize,self.THNUMERICAL)
+            page.computeSetofFeatures()
+#             print i, page.getSetofFeatures()
+            
+        seqGen = sequenceMiner()
+        seqGen.setMaxSequenceLength(1)
+        seqGen.setSDC(0.9)          
+        lSortedFeatures  = seqGen.featureGeneration(lPages,2)        
+        for _,p in enumerate(lPages):
+            p.lFeatureForParsing=p.getSetofFeatures()
+            
+        icpt=0
+        lCurList=lPages[:]
+        lTerminalTemplates=[]
+        while icpt <2:
+            if icpt > 0: 
+                seqGen.setMaxSequenceLength(3)
+#                     print '***'*20
+                seqGen.bDebug = False
+                for elt in lCurList:
+                    if elt.getSetofFeatures() is None:
+                        elt.resetFeatures()
+                        elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['virtual'],myLevel=XMLDSTEXTClass)
+                        elt.computeSetofFeatures()
+                        elt.lX=elt.getSetofFeatures()
+                    else:
+                        elt.setSequenceOfFeatures(elt.lX)
+                lSortedFeatures  = seqGen.featureGeneration(lCurList,1)
+                
+            lmaxSequence = seqGen.generateItemsets(lCurList)
+            seqGen.bDebug = False
+            
+            lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.2)
+            lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)            
+            lPatterns.sort(key=lambda (x,y):y, reverse=True)
+
+            print "List of patterns and their support:"
+            for p,support  in lPatterns:
+                if support > 1: #and len(p) == 4:
+                    print p, support
+            
+            seqGen.bDebug = True
+            seqGen.THRULES = 0.8
+            lSeqRules = seqGen.generateSequentialRules(lPatterns)
+            _,dCP = self.getPatternGraph(lSeqRules)
+            
+            dTemplatesCnd = self.pattern2PageTemplate(lPatterns,dCP,icpt)
+            print dTemplatesCnd
+            lTerminalTemplates,tranprob = seqGen.testTreeKleeneageTemplates(dTemplatesCnd, lCurList)
+            print tranprob
+            self.pageSelectFinalTemplates(lTerminalTemplates,tranprob,lCurList)
+            
+            ## store parsed sequences in mytemplate 
+            for templateType in dTemplatesCnd.keys():
+                for _,_, mytemplate in dTemplatesCnd[templateType][:1]:
+                    mytemplate.print_()
+                    _,lCurList = self.parseWithTemplate(mytemplate,lCurList,bReplace=True)                
+            
+            icpt +=1
+#                 print 'curList:',lCurList
+#                 print len(lCurList)
+        print "final hierarchy"
+        self.printTreeView(lCurList)
+               
+        del seqGen        
+    
+        # return the tree ; also organize elements per level/pattern
+    
+    def pattern2PageTemplate(self,lPatterns,dCA,step):
+        """
+            select patterns and convert them into appropriate templates.
+            
+            Need to specify the template for terminals
+        """
+        dTemplatesTypes = {}
+        for pattern,support in filter(lambda (x,y):y>1,lPatterns):
+            try:
+                dCA[str(pattern)]
+                bSkip = True
+            except KeyError:bSkip=False
+            if step > 0 and len(pattern) == 1:
+                bSkip=True
+            if not bSkip:                        
+                template  = treeTemplateClass()
+                template.setPattern(pattern)
+                template.buildTreeFromPattern(pattern)
+                template.setType('lineTemplate')
+                try:dTemplatesTypes[template.__class__.__name__].append((pattern, support, template))
+                except KeyError: dTemplatesTypes[template.__class__.__name__] = [(pattern,support,template)]                      
+        
+        return dTemplatesTypes
     
     def minePageVerticalFeature(self,lPages):
         """
@@ -152,7 +255,7 @@ class pageVerticalMiner(Component.Component):
         """
             store vertical positions in each page
         """
-        for i, p in enumerate(lp):
+        for _, p in enumerate(lp):
             p.lf_XCut=[]
             for fi in p.getVX1Info() + p.getVX2Info():
                 if fi not in p.lf_XCut:
@@ -165,12 +268,11 @@ class pageVerticalMiner(Component.Component):
                     f = featureObject()
                     f.setType(featureObject.NUMERICAL)
                     f.setTH(self.THNUMERICAL)
-                    f.setValue(graphline.getY())
                     f.setWeight(graphline.getHeight())
                     f.setName("x")
                     f.setValue(round(graphline.getX()))
-                    if f not in p.lf_XCut:
-                        p.lf_XCut.append(f)
+#                     if f not in p.lf_XCut:
+                    p.lf_XCut.append(f)
                 
             p.lf_XCut.sort(key=lambda x:x.getValue())
             
@@ -219,7 +321,7 @@ class pageVerticalMiner(Component.Component):
         ## RRB 
 #         lPattern= [ [15,97.0, 311.0]]
         #MF012
-#         lPattern= [ [27.0, 361,430.0] , [27.0,86.0,430.0] ]
+        lPattern= [ [27.0, 361,430.0] , [27.0,86.0,430.0] ]
 #         lPattern = [[19,104,277,371,470,],[19,60,104,371,470]]
 #         #nn_n0171 (hub)  [['x=295.0', 'x=850.0'], ['x=34.0', 'x=572.0']]
 #         lPattern = [ [34.0, 564.0, 738.0], [156.0, 339.0, 846.0] ]
@@ -251,7 +353,7 @@ class pageVerticalMiner(Component.Component):
 
         mytemplate2 = verticalZonestemplateClass()
 #         mytemplate2.setPattern(pattern [1])
-        mytemplate2.setPattern(pattern[0])
+        mytemplate2.setPattern(pattern[1])
         
         # registration provides best matching
         ## from registration matched: select the final cuts
@@ -384,7 +486,7 @@ class pageVerticalMiner(Component.Component):
 #             p.computeSetofFeatures()
             
         for p in lPages:
-            p.setSequenceOfFeatures(p.lXX)
+            p.setSequenceOfFeatures(p.lFeatureForParsing)
             lf= p.getSetofFeatures()[:]
             p.resetFeatures()
             p.setFeatureFunction(p.getSetOfMutliValuedFeatures,TH = PARTIALMATCH_TH, lFeatureList = lf)
@@ -438,7 +540,7 @@ class pageVerticalMiner(Component.Component):
 
         lSortedFeatures = seqGen.featureGeneration(lPages,2)
         for _,p in enumerate(lPages):
-            p.lXX=p.getSetofFeatures()
+            p.lFeatureForParsing=p.getSetofFeatures()
 #             print i, p.lXX
         if lSortedFeatures == []:
             print "No template found in this document"
@@ -1048,7 +1150,11 @@ class pageVerticalMiner(Component.Component):
         
         # first mine page size!!
         ## if width is not the 'same' , then  initial values are not comparable (x-end-ofpage)
-        
+        lSubPagesList = self.minePageDimensions(self.lPages)
+    
+        # then for each subsequence: mine VZones
+        return 
+    
         self.minePageVerticalFeature(self.lPages)
 
         if self.bManual:
