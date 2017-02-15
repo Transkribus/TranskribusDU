@@ -38,7 +38,7 @@ from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
 from FeatureDefinition import FeatureDefinition
 
-from sklearn.feature_selection import mutual_info_classif
+#from sklearn.feature_selection import mutual_info_classif
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import chi2
 #Should be able to discriminate between chi2 and mutual info, right ?
@@ -55,27 +55,34 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
         self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc = n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc
 
-        tdifNodeTextVectorizer = CountVectorizer(lowercase=self.b_tfidf_node_lc, max_features=10000
-                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
+
 
         #tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=10000
         #                                                                         , analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
 
-        self.feature_selection=False
         feat_selector=None
 
         if feat_select=='chi2':
-            self.feature_selection=True
             feat_selector=SelectKBest(chi2, k=self.n_tfidf_node)
+        elif feat_selector is None:
+            pass
+        else:
+            raise Exception('Invalid Feature Selection Method')
 
 
         if feat_selector:
+            tdifNodeTextVectorizer = CountVectorizer(lowercase=self.b_tfidf_node_lc, max_features=10000
+                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
+
             text_pipeline = Pipeline([('selector', NodeTransformerTextEnclosed()),
                                                ('tf', tdifNodeTextVectorizer), #we can use it separately from the pipleline once fitted
                                                 ('word_selector',feat_selector),
                                                ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
                                                ])
         else:
+            tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=self.n_tfidf_node
+                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
+                                                                                  , dtype=np.float64)
             text_pipeline= Pipeline([('selector', NodeTransformerTextEnclosed()),
                                                ('tf', tdifNodeTextVectorizer), #we can use it separately from the pipleline once fitted
                                                ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
@@ -196,8 +203,7 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
         Here the fix is a bit rough. There are better ways....
         JL
         """
-        print('TODO Cleaning Method not implemented yet .....')
-
+        #TODO Better Cleaning for feature selection
         self._node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
         for i in [2, 3, 4, 5, 6, 7]:
             self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
@@ -211,10 +217,12 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
         #as we still keep the 10,000 words from the vectorizer ...
         #TODO Combine objects CountVectorizer with features selection that update and clean the vocabulary
 
+        text_pipeline =node_transformer.transformer_list[0][1]
         cvect=node_transformer.transformer_list[0][1].named_steps['tf']
         #Index to Word String array
         I2S_array =np.array(cvect.get_feature_names())
-        if hasattr(node_transformer,'feature_selection') and node_transformer.feature_selection is True:
+        #if hasattr(node_transformer,'feature_selection') and node_transformer.feature_selection is True:
+        if 'word_select' in text_pipeline.named_steps:
             fs=node_transformer.named_steps['word_select']
             selected_indices=fs.get_support(indices=True)
             return I2S_array[selected_indices]

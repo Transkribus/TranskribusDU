@@ -30,6 +30,7 @@ import numpy as np
 
 from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.metrics import classification_report
+import string
 
 class TestReport:
     """
@@ -156,4 +157,27 @@ s%(s2)s
         return a nicely formatted string containing all the info of this test report object
         """
         return self.toString()
+
+
+
+class RankingReport(TestReport):
+    """
+    A ranking Report which include Mean Average Precision and possibly other ranking measures
+    """
+
+    def __init__(self, name, l_Y_pred, l_Y, lsClassName=None):
+        TestReport.__init__(self,name,l_Y_pred,l_Y,lsClassName)
+        self.average_precision=[]
+
+    def toString(self, bShowBaseline=True, bBaseline=False):
+        #report=super(RankingReport,self).toString(bShowBaseline,bBaseline)
+        report=TestReport.toString(self,bShowBaseline,bBaseline)
+        report+="-" * 30+'\n'
+        report+='     RANKING MEASURES  \n'
+        report+="-" * 30+'\n'
+        report+="Mean Average Precision\n"
+        for i,avgpi in self.average_precision:
+            report+='\t'+str(i)+':'+str(avgpi)+'\n'
+        report+="-" * 30+'\n'
+        return report
 
