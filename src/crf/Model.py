@@ -35,7 +35,9 @@ from sklearn.utils.class_weight import compute_class_weight
 from common.trace import  traceln
 from common.chrono import chronoOn, chronoOff
 
-from TestReport import TestReport
+from TestReport import TestReport,RankingReport
+import pdb
+from sklearn.metrics import average_precision_score
 
 class ModelException(Exception):
     """
@@ -94,6 +96,10 @@ class Model:
         self.loadTransformers(expiration_timestamp)
             
         return self    
+        #
+        #self._lMdlBaseline =  self._loadIfFresh(sBaselineFile, expiration_timestamp, self.gzip_cPickle_load)
+        #self.loadTransformers(expiration_timestamp) #Fix this
+        #return self
             
     def _loadIfFresh(self, sFilename, expiration_timestamp, loadFun):
         """
@@ -240,8 +246,21 @@ class Model:
             lTstRpt = list()
             for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
                 Y_pred_flat = mdl.predict(X_flat)
-                lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat, lLabelName) )
+
+
+                if hasattr(mdl,'predict_proba'):
+                    report = RankingReport(str(mdl), Y_pred_flat, Y_flat, lLabelName)
+                    Y_score_flat = mdl.predict_proba(X_flat)
+                    for i in range(Y_flat.max()+1):
+                        avgp_i =average_precision_score(Y_flat==i,Y_score_flat[:,i])
+                        report.average_precision.append((i,avgp_i))
+                    lTstRpt.append(report)
+
+                else:
+                    lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat, lLabelName) )
                 del Y_pred_flat
+
+
             del X_flat, Y_flat
         return lTstRpt                                                                              
     
