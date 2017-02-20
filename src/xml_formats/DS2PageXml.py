@@ -139,8 +139,12 @@ class DS2PageXMLConvertor(Component):
         coordsNode = libxml2.newNode('Coords')
         coordsNode.setNs(self.pageXmlNS)
         coordsNode.setProp('points', self.BB2Polylines(DSObject.getX(),DSObject.getY(), DSObject.getHeight(),DSObject.getWidth()))        
-
         domNode.addChild(coordsNode)            
+        
+        # if blpoints:  build Baseline
+        
+        # collect content and generate a textequiv
+        
         ## specific attributes for cell
         ###  row="0" col="2" colSpan="1
         if pageXmlName == 'TableCell':
@@ -183,15 +187,14 @@ class DS2PageXMLConvertor(Component):
         from ObjectModel.XMLDSTEXTClass import XMLDSTEXTClass
         from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
 
-        # TextRegion needed: create a fake one with BB zone?
-        regionNode= PageXml.createPageXmlNode("TextRegion",self.pageXmlNS)
-        pageXmlPageNODE.addChild(regionNode)
-        self.addXRCEID(regionNode)
-                
-        coordsNode = libxml2.newNode('Coords')
-        coordsNode.setNs(self.pageXmlNS)
-        coordsNode.setProp('points', self.BB2Polylines(0,0, OPage.getHeight(),OPage.getWidth()))
-        regionNode.addChild(coordsNode)     
+#         # TextRegion needed: create a fake one with BB zone?
+#         regionNode= PageXml.createPageXmlNode("TextRegion",self.pageXmlNS)
+#         pageXmlPageNODE.addChild(regionNode)
+#         self.addXRCEID(regionNode)
+#         coordsNode = libxml2.newNode('Coords')
+#         coordsNode.setNs(self.pageXmlNS)
+#         coordsNode.setProp('points', self.BB2Polylines(0,0, OPage.getHeight(),OPage.getWidth()))
+#         regionNode.addChild(coordsNode)     
         
         ##get table elements
         lElts= OPage.getAllNamedObjects(XMLDSTABLEClass)
@@ -199,9 +202,9 @@ class DS2PageXMLConvertor(Component):
             self.convertDSObject(DSObject,pageXmlPageNODE)        
         
         # get textual elements
-        lElts= OPage.getAllNamedObjects(XMLDSTEXTClass)
+        lElts= OPage.getAllNamedObjects('REGION')
         for DSObject in lElts:
-            self.convertDSObject(DSObject,regionNode)
+            self.convertDSObject(DSObject,pageXmlPageNODE)
 
 #         # get graphelt elements
         lElts= OPage.getAllNamedObjects(XMLDSGRAPHLINEClass)
