@@ -27,7 +27,7 @@ class  XMLObjectClass(objectClass):
         self._previousObject = None
     
     def __repr__(self):
-        return "%s[%s] %s" % (self.getName(),self.getID(),self.getContent().encode('utf-8'))
+        return "%s[%s] %s" % (self.getName(),self.getID(),self.getContent()[:10].encode('utf-8'))
         return "%s %s %s" % (self.getName(),self.getContent().encode('utf-8'),self.getAttributes())
     
     #def __eq__(self,xmlo):   _eq__ or __cmp__

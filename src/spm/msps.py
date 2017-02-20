@@ -46,8 +46,8 @@ class msps(object):
       if self.bDEBUG: print "MIS:",self.lMIS
       support_counts = dict(Counter(item for flattened_sequence in flattened_sequences for item in flattened_sequence))
       self.actual_supports = {item:support_counts.get(item)/float(sequence_count) for item in support_counts.keys()}
-      if self.bDEBUG:
-        print "actual supports: %s" % self.actual_supports
+#       if self.bDEBUG:
+      print "actual supports: %s" % self.actual_supports
       del flattened_sequences
       
       # Get the sorted list of frequent items i.e items with sup(i) >= MIS(i)

@@ -73,7 +73,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
                 myObject.setPage(self)
                 myObject.fromDom(elt)
             except: pass #print 'issue with token'
-        
+          
         ctxt.xpathFreeContext()        
     
     def setBaseline(self,ob): self.Obaseline = ob
@@ -206,7 +206,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
                 feature.setTH(90)
                 feature.addNode(self)
                 feature.setObjectName(self)
-                feature.setValue(self.getContent())
+                feature.setValue(self.getContent().split()[0])
                 feature.setType(ftype)
                 self.addFeature(feature)            
         
@@ -214,7 +214,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
             ftype= featureObject.NUMERICAL
             feature = featureObject()
 #                 feature.setName('xc')
-            feature.setName('f')
+            feature.setName('xc')
             feature.setTH(TH)
             feature.addNode(self)
             feature.setObjectName(self)

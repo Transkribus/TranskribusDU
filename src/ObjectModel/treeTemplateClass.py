@@ -52,6 +52,8 @@ class treeTemplateClass(templateClass):
         if self.getChildren():
             for child in self.getChildren():
                 child.print_(level+1)
+        else:
+            print "\t terminal", self.getPattern()
     
     
     def buildTreeFromPattern(self,pattern):
@@ -59,8 +61,9 @@ class treeTemplateClass(templateClass):
              create a tree structure corresponding to pattern
         """
         self.setPattern(pattern)
-#         print 'creation:',self.getPattern()
         if isinstance(pattern,list):
+#             if  'list' not in map(lambda x:type(x).__name__, pattern):
+#                 print "real terminal??", pattern            
             for child in self.getPattern():
 #                 print 'child',child
                 ctemplate  = treeTemplateClass()
@@ -71,7 +74,7 @@ class treeTemplateClass(templateClass):
 #             print '--',self.getChildren()
         else:
             pass
-            #terminal    
+
 #     def buildTreeFromPattern(self,pattern):
 #         """
 #              create a tree structure corresponding to pattern
@@ -140,41 +143,42 @@ class treeTemplateClass(templateClass):
                 
     
     
-    def findBestMatch(self,calibration,lRegCuts,lCuts):
+    def findBestMatch(self,lRegCuts,lCuts):
         """
             find the best solution assuming reg=x
             dynamic programing (viterbi path)
             
-            score needs to be normalized (0,1)
         """
-        def buildObs(calibration,lRegCuts,lCuts):
+        def buildObs(lRegCuts,lCuts):
             N=len(lRegCuts)+1
-            obs = np.zeros((N,len(lCuts)), dtype=np.float16)+ 0.0
+            obs = np.zeros((N,len(lCuts)), dtype=np.float16)
             for i,refx in enumerate(lRegCuts):
                 for j,x in enumerate(lCuts):
                     # are features compatible?
                     if x.getType() == refx.getType():
                         ## numerical 
-                        if abs((x.getValue()-calibration)-refx.getValue()) < refx.getTH():
-                            obs[i,j]=  x.getCanonical().getWeight() * ( refx.getTH() - ( abs(x.getValue()-calibration-refx.getValue()))) / refx.getTH()
-                        elif abs((x.getValue()-calibration)-refx.getValue()) < (refx.getTH() * 2 ):
-                            obs[i,j]=  x.getCanonical().getWeight() * ( (refx.getTH() * 2) - ( abs(x.getValue()-calibration-refx.getValue()))) / ( refx.getTH() * 2 )
-                        
+                        if abs(x.getValue()-refx.getValue()) < refx.getTH():
+                            obs[i,j]=  x.getWeight() * ( refx.getTH() - ( abs(x.getValue()-refx.getValue()))) / refx.getTH()
+#                             print x,refx, obs[i,j], ( refx.getTH() - ( abs(x.getValue()-refx.getValue()))) / refx.getTH(), x.getWeight(), refx.getTH(),  ( refx.getTH() - ( abs(x.getValue()-refx.getValue()))),abs(x.getValue()-refx.getValue()) 
+#                         elif abs(x.getValue()-refx.getValue()) < (refx.getTH() * 2 ):
+#                             obs[i,j]=  x.getWeight() * ( (refx.getTH() * 2) - ( abs(x.getValue()-refx.getValue()))) / ( refx.getTH() * 2 )
                         ## STRING
                         ### TODO
                         else:
                             # go to empty state
                             obs[-1,j] = 1.0
                         if np.isinf(obs[i,j]):
-    #                             print i,j,score
                             obs[i,j]=64000
                         if np.isnan(obs[i,j]):
-    #                             print i,j,score
                             obs[i,j]=10e-3
                     else:
                         obs[-1,j] = 1.0
-#             print obs / np.amax(obs)                                                        
-            return obs / np.amax(obs)
+#                     print x,refx, obs[i,j]
+            if np.amax(obs) != 0:
+                # elt with no feature obs=0
+                return obs / np.amax(obs)
+            else:
+                return obs
 
         import spm.viterbi as viterbi
         
@@ -182,15 +186,18 @@ class treeTemplateClass(templateClass):
         N =len(lRegCuts)+1
         transProb = np.zeros((N,N), dtype = np.float16)
         for i  in range(N-1):
-#             for j in range(i,N):
-                transProb[i,i+1]=1.0 #/(N-i)
-        transProb[:,-1,]=1.0 #/(N)
-        transProb[-1,:]=1.0  #/(N)        
+            transProb[i,i]=1.0
+            transProb[i,i+1]=1.0 
+        transProb[:,-1,]=1.0 
+        transProb[-1,:]=1.0  
+        
+#         print transProb        
         initialProb = np.ones(N)
         initialProb = np.reshape(initialProb,(N,1))
-
+        
                 
-        obs = buildObs(calibration,lRegCuts,lCuts)
+        obs = buildObs(lRegCuts,lCuts)
+#         print obs
         d = viterbi.Decoder(initialProb, transProb, obs)
         states,score =  d.Decode(np.arange(len(lCuts)))
 #         print map(lambda x:(x,x.getCanonical().getWeight()),lCuts)
@@ -202,35 +209,72 @@ class treeTemplateClass(templateClass):
         # return the best alignment with template
         return states, score                
                 
-    def computeScore(self,lReg,lCuts):
-        fFound= 1.0 * sum(map(lambda (r,x):x.getCanonical().getWeight(),lReg))
-        fTotal = 1.0 * sum(map(lambda x:x.getCanonical().getWeight(),lCuts))
-        return  fFound/fTotal
-                    
+    def computeScore(self,patLen,lReg,lCuts):
+        """
+            it seems better not to use canonical: thus score better reflects the page 
+            
+            also for REF 130  129 is better than 150
+        """
+#         print lReg
+#         print map(lambda (r,x):x.getWeight(),lReg)
+#         print lCuts
+#         print map(lambda x:x.getWeight(),lCuts)
+        fFound= 1.0 * sum(map(lambda (r,x):x.getWeight(),lReg))
+
+        fTotal = 1.0 * sum(map(lambda x:x.getWeight(),lCuts))
+#         print "# match:",len(set(map(lambda (r,x):r,lReg))), patLen,fFound, fTotal
+        # how many of the lreg found:
+        ff= 1.0*len(set(map(lambda (r,x):r,lReg)))/patLen
+        return  ff*(fFound/fTotal)
+        
+    def selectBestUniqueMatch(self,lFinres):
+        """
+            use weight to select one match
+             [('x=46.0', 'x=46.0'), ('x=123.0', 'x=111.0'), ('x=334.0', 'x=282.0'), ('x=334.0', 'x=384.0'), ('x=453.0', 'x=453.0')]
+            [('x=10.0', 69.54), ('x=46.0', 327.46632), ('x=111.0', 316.68936), ('x=282.0', 87.54), ('x=334.0', 335.23848000000004), ('x=384.0', 180.14136), ('x=453.0', 215.22768)]
+        """
+        kRef={}
+        for ref,cut in lFinres:
+            try:kRef[ref].append(cut)
+            except KeyError: kRef[ref]=[cut]
+        lUniqMatch=[]
+        ll=kRef.keys()
+        ll.sort(key=lambda x:x.getValue())
+        for mykey in ll:
+            kRef[mykey].sort(key=lambda x:x.getWeight(),reverse=True)
+            lUniqMatch.append((mykey, kRef[mykey][0]))
+        return lUniqMatch
+              
     def registration(self,anobject):
         """
             'register': match  the model to an object
             can only a terminal template 
         """
+        lobjectFeatures = anobject.lFeatureForParsing
+#         lobjectFeatures = anobject._fullFeatures
+#         print "?",anobject, lobjectFeatures
+        # empty object
+        if lobjectFeatures == []:
+            return None,None,-1
         
-        lobjectFeatures = anobject.lX
 #         print self.getPattern(), lobjectFeatures
-        
-        bestReg, curScore = self.findBestMatch(0,self.getPattern(),lobjectFeatures)
-        
+        self.getPattern().sort(key=lambda x:x.getValue())
+#         print self.getPattern(), anobject, lobjectFeatures
+        bestReg, curScore = self.findBestMatch(self.getPattern(),lobjectFeatures)
+#         print bestReg
         ltmp = self.getPattern()[:]
         ltmp.append('EMPTY')
         lMissingIndex = filter(lambda x: x not in bestReg, range(0,len(self.getPattern())+1))
         lMissing = np.array(ltmp)[lMissingIndex].tolist()
         lMissing = filter(lambda x: x!= 'EMPTY',lMissing)
         result = np.array(ltmp)[bestReg].tolist()
-        lFinres= filter(lambda (x,y): x!= 'EMPTY',zip(result,anobject.lX))
-#         print lFinres
+        lFinres= filter(lambda (x,y): x!= 'EMPTY',zip(result,lobjectFeatures))
         if lFinres != []:
-            #lFinres =  self.selectBestCandidat(lFinres)
+            score1 = self.computeScore(len(self.getPattern()),lFinres,lobjectFeatures)
+            lFinres =  self.selectBestUniqueMatch(lFinres)
         # for estimating missing?
 #         self.selectBestAnchor(lFinres) 
-            return lFinres,lMissing,self.computeScore(lFinres, anobject.lX)
+            return lFinres,lMissing,score1
         else:
             return None,None,-1
         

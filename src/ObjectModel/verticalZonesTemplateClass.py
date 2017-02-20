@@ -152,7 +152,7 @@ class verticalZonestemplateClass(templateClass):
     def selectBestCandidat(self,lCuts):
         """
             if several x are selected for a 'state': take the nearest one
-            possible improvement: consider width
+            possible improvement: consider width, weight
         """
         lFinal=[]
         dBest = {}
