@@ -42,7 +42,7 @@ class DU_BL_Task(DU_CRF_Task):
     sMetadata_Creator = "XRCE RXCE- v-0.000001"
     sMetadata_Comments = ""
 
-    dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
+    dGridSearch_LR_conf = {'C':[0.0001,0.001,0.1, 0.5, 1.0,10,100] }  #Grid search parameters for LR baseline method training
 
     def __init__(self, sModelName, sModelDir, cGraphClass, dFeatureConfig={}, dLearnerConfig={}, sComment=None, cFeatureDefinition=None):
         """
@@ -89,7 +89,6 @@ class DU_BL_Task(DU_CRF_Task):
             #Assume the file list are correct
             lFilename_trn=lsTrnColDir
             lFilename_tst=lsTstColDir
-
             ts_trn = max([os.path.getmtime(sFilename) for sFilename in lFilename_trn])
 
 
@@ -128,12 +127,10 @@ class DU_BL_Task(DU_CRF_Task):
         #TODO Now do the connection in the BaselineModel with the Graph
         mdl.train(lGraph_trn, True, ts_trn)
         mdl.save()
-        self.traceln(" done")
+        self.traceln("-training and save done ")
 
 
-        # OK!!
         self._mdl = mdl
-
         if lFilename_tst:
             self.traceln("- loading test graphs")
             lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
@@ -143,103 +140,18 @@ class DU_BL_Task(DU_CRF_Task):
         else:
             oReport = None, None
 
+        self.traceln("-JOB-END-")
         return oReport
 
     def addFixedLR(self):
         lr = LogisticRegression(C=1.0,class_weight='balanced')
         self._lBaselineModel=[lr]
 
-
-
-
-# ===============================================================================================================
-#DEFINING THE CLASS OF GRAPH WE USE
-DU_GRAPH = Graph_MultiPageXml
-nt = NodeType_PageXml("TR"                   #some short prefix because labels below are prefixed with it
-                      , ['catch-word', 'header', 'heading', 'marginalia', 'page-number']   #EXACTLY as in GT data!!!!
-                      , []      #no ignored label/ One of those above or nothing, otherwise Exception!!
-                      , True    #no label means OTHER
-                      )
-nt.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
-                  , "./pc:TextEquiv")       #how to get their text
-               )
-DU_GRAPH.addNodeType(nt)
-# ===============================================================================================================
-
-
-class DU_BL_V1(DU_BL_Task):
-    """
-    We will do a CRF model for a DU task
-    , working on a MultiPageXMl document at TextRegion level
-    , with the below labels
-    """
-
-    #=== CONFIGURATION ====================================================================
-    def __init__(self, sModelName, sModelDir, sComment=None):
-        DU_CRF_Task.__init__(self
-                             , sModelName, sModelDir
-                             , DU_GRAPH
-                             , dFeatureConfig = {
-                                    'n_tfidf_node'    : 500
-                                  , 't_ngrams_node'   : (2,4)
-                                  , 'b_tfidf_node_lc' : False
-                                  , 'n_tfidf_edge'    : 250
-                                  , 't_ngrams_edge'   : (2,4)
-                                  , 'b_tfidf_edge_lc' : False
-                              }
-                             , dLearnerConfig = {
-                                    'C'                : .1
-
-                                 , 'njobs'            : 4
-                                 , 'inference_cache'  : 50
-                                , 'tol'              : .1
-                                , 'save_every'       : 50     #save every 50 iterations,for warm start
-                                 , 'max_iter'         : 250
-                                 }
-                             , sComment=sComment
-                             )
-        self.addBaseline_LogisticRegression()    #use a LR model as baseline
-
-    #=== END OF CONFIGURATION =============================================================
-
-
-if __name__ == "__main__":
-
-    version = "v.01"
-    usage, description, parser = DU_BL_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
-
-    # ---
-    #parse the command line
-    (options, args) = parser.parse_args()
-    # ---
-    try:
-        sModelDir, sModelName = args
-    except Exception as e:
-        _exit(usage, 1, e)
-
-    doer = DU_BL_V1(sModelName, sModelDir)
-
-    if options.rm:
-        doer.rm()
-        sys.exit(0)
-
-    traceln("- classes: ", DU_GRAPH.getLabelNameList())
-
-
-    #Add the "col" subdir if needed
-    lTrn, lTst, lRun = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun]]
-
-    if lTrn:
-        doer.train_save_test(lTrn, lTst, options.warm)
-
-    elif lTst:
-        doer.load()
-        tstReport = doer.test(lTst)
-        traceln(tstReport)
-
-    if lRun:
-        doer.load()
-        lsOutputFilename = doer.predict(lRun)
-        traceln("Done, see in:\n  %s"%lsOutputFilename)
-
+    def addBaseline_LogisticRegression(self):
+        """
+        add as Baseline a Logistic Regression model, trained via a grid search
+        """
+        lr = LogisticRegression(class_weight='balanced')
+        glr = GridSearchCV(lr , self.dGridSearch_LR_conf)
+        self._lBaselineModel=[glr]
 
