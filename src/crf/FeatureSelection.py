@@ -16,9 +16,8 @@
 
 
 from sklearn.base import BaseEstimator
-from sklearn.feature_selection import chi2
-from sklearn.utils import (as_float_array, check_array, check_X_y, safe_sqr,
-                     safe_mask)
+
+from sklearn.utils import (as_float_array, check_array, check_X_y, safe_sqr,safe_mask)
 from sklearn.utils.extmath import norm, safe_sparse_dot
 from sklearn.utils.validation import check_is_fitted
 from scipy.sparse import issparse
@@ -226,6 +225,8 @@ class SelectRobinBest(BaseEstimator,SelectorMixin):
         for i in xrange(nclasses):
             self.scores_.append(self.score_func(Xbin, np.squeeze(Y[:,i].T )))
 
+        return self
+
     def _get_support_mask(self):
         """
         Get the boolean mask indicating which features are selected
@@ -242,12 +243,16 @@ class SelectRobinBest(BaseEstimator,SelectorMixin):
             return np.ones(self.scores_.shape, dtype=bool)
         else:
             #Select k by class
+            nb_classes=self.Y.shape[1]
+            k_by_class = self.k/nb_classes
+            #print 'nb_classes',nb_classes,k_by_class,self.k
             mask = np.zeros(self.scores_[0].shape, dtype=bool)
             for i in xrange(self.Y.shape[1]):
                 scores = _clean_nans(self.scores_[i])
                 # Request a stable sort. Mergesort takes more memory (~40MB per
                 # megafeature on x86-64).
-                mask[np.argsort(scores, kind="mergesort")[-self.k:]] = 1
+                #mask[np.argsort(scores, kind="mergesort")[-self.k:]] = 1
+                mask[np.argsort(scores, kind="mergesort")[-k_by_class:]] = 1
             return mask
 
 

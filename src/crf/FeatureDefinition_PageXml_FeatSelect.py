@@ -42,7 +42,18 @@ from FeatureDefinition import FeatureDefinition
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import chi2
 #Should be able to discriminate between chi2 and mutual info, right ?
-#(X, y, discrete_features='auto', n_neighbors=3, copy=True, random_state=None)[source]¶
+#(X, y, discrete_features='auto', n_neighbors=3, copy=True, random_state=None)[source]
+
+from crf.FeatureSelection import pointwise_mutual_information_score,mutual_information,SelectRobinBest
+
+#feat_selector=SelectRobinBest(mutual_information
+
+
+
+def chi2_scores(X,y):
+    #This return  only the scores of the chi2 function ...
+    # Define as a function as chi_score = lambda x,y : chi2(x,y)[0] #this can not be pickled ...
+    return chi2(X,y)[0]
 
 
 
@@ -57,17 +68,27 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
 
 
 
+        #TODO assert n_tfidf_node is int ...
+
         #tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=10000
         #                                                                         , analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
 
-        feat_selector=None
-
         if feat_select=='chi2':
             feat_selector=SelectKBest(chi2, k=self.n_tfidf_node)
-        elif feat_selector is None:
-            pass
+
+        elif feat_select == 'mi_rr':
+            print('Using Mutual Information Round Robin as Feature Selection')
+            feat_selector=SelectRobinBest(mutual_information,k=self.n_tfidf_node)
+
+        elif feat_select =='chi2_rr':
+            #chi_score = lambda x,y : chi2(x,y)[0] #this can not be pickled ...
+            feat_selector=SelectRobinBest(chi2_scores, k=self.n_tfidf_node)
+
+        elif feat_select=='tf' or feat_select is None:
+            feat_selector=None
+
         else:
-            raise Exception('Invalid Feature Selection Method')
+            raise ValueError('Invalid Feature Selection method',feat_select)
 
 
         if feat_selector:
