@@ -164,7 +164,7 @@ class UT_FeatureSelection(unittest.TestCase):
 
     def test_select_rr_mi(self):
         #Select the best two per class
-        feat_selector=SelectRobinBest(mutual_information, k=2)
+        feat_selector=SelectRobinBest(mutual_information, k=6)
         text_pipeline = Pipeline([('tf', self.cvect),('word_selector',feat_selector)])
         text_pipeline.fit(self.X_list,self.Y_list)
 
@@ -181,7 +181,7 @@ class UT_FeatureSelection(unittest.TestCase):
         #Select the best two per class
         #Chi2 return score and p_value ; we just keep the score
         chi_score = lambda x,y : chi2(x,y)[0]
-        feat_selector=SelectRobinBest(chi_score, k=2)
+        feat_selector=SelectRobinBest(chi_score, k=6)
         text_pipeline = Pipeline([('tf', self.cvect),('word_selector',feat_selector)])
         text_pipeline.fit(self.X_list,self.Y_list)
 
