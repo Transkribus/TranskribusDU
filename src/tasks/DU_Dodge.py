@@ -42,7 +42,7 @@ from DU_CRF_Task import DU_CRF_Task
 
 # ===============================================================================================================
 #DEFINING THE CLASS OF GRAPH WE USE
-DU_GRAPH = Graph_DSXml
+DU_DODGE_GRAPH = Graph_DSXml
 nt = NodeType_DS("Ddg"                   #some short prefix because labels below are prefixed with it
                       , ['title', 'pnum']   #EXACTLY as in GT data!!!!
                       , []      #no ignored label/ One of those above or nothing, otherwise Exception!!
@@ -50,7 +50,7 @@ nt = NodeType_DS("Ddg"                   #some short prefix because labels below
                       )
 nt.setXpathExpr( ".//BLOCK"        #how to find the nodes
                )
-DU_GRAPH.addNodeType(nt)
+DU_DODGE_GRAPH.addNodeType(nt)
 
 """
 The constraints must be a list of tuples like ( <operator>, <NodeType>, <states>, <negated> )
@@ -59,9 +59,9 @@ where:
 - states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
 - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
 """
-DU_GRAPH.setPageConstraint( [    ('ATMOSTONE', nt, 'pnum' , False)    #0 or 1 catch_word per page
-                               , ('ATMOSTONE', nt, 'title'    , False)    #0 or 1 heading pare page
-                             ] )
+DU_DODGE_GRAPH.setPageConstraint([('ATMOSTONE', nt, 'pnum' , False)  #0 or 1 catch_word per page
+                               , ('ATMOSTONE', nt, 'title'    , False)  #0 or 1 heading pare page
+                                  ])
 
 # ===============================================================================================================
 
@@ -72,14 +72,16 @@ class DU_Dodge(DU_CRF_Task):
     , working on a DS XML document at BLOCK level
     , with the below labels 
     """
+    #sXmlFilenamePattern = "*_ds.xml"
+    #sXmlFilenamePattern ="GraphML_R33*_ds.xml"
     sXmlFilenamePattern = "*_ds.xml"
-    
+
     #=== CONFIGURATION ====================================================================
     def __init__(self, sModelName, sModelDir, sComment=None): 
         
         DU_CRF_Task.__init__(self
                              , sModelName, sModelDir
-                             , DU_GRAPH
+                             , DU_DODGE_GRAPH
                              , dFeatureConfig = {
                                     'n_tfidf_node'    : 500
                                   , 't_ngrams_node'   : (2,4)
@@ -98,7 +100,7 @@ class DU_Dodge(DU_CRF_Task):
                                  , 'max_iter'         : 250
                                  }
                              , sComment=sComment
-                             , cFeatureDefinition=None #SO THAT WE USE THE SAME FEATURES AS FOR PageXml (because it is the features by default)
+                             , cFeatureDefinition=None  #SO THAT WE USE THE SAME FEATURES AS FOR PageXml (because it is the features by default)
                              )
         
         self.addBaseline_LogisticRegression()    #use a LR model as baseline
@@ -125,12 +127,13 @@ if __name__ == "__main__":
         doer.rm()
         sys.exit(0)
     
-    traceln("- classes: ", DU_GRAPH.getLabelNameList())
+    traceln("- classes: ", DU_DODGE_GRAPH.getLabelNameList())
     
     
     #Add the "out" subdir if needed
-    lTrn, lTst, lRun = [_checkFindColDir(lsDir, "out") for lsDir in [options.lTrn, options.lTst, options.lRun]] 
 
+    lTrn, lTst, lRun = [_checkFindColDir(lsDir, "out") for lsDir in [options.lTrn, options.lTst, options.lRun]] 
+    #print lTrn
     if lTrn:
         doer.train_save_test(lTrn, lTst, options.warm)
     elif lTst:

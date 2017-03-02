@@ -187,7 +187,7 @@ See DU_StAZH_b.py
             os.rmdir(self.sModelDir)
         return 
     
-    def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False):
+    def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False,filterFilesRegexp=True):
         """
         - Train a model on the tTRN collections, if not empty.
         - Test the trained model using the lTST collections, if not empty.
@@ -206,9 +206,25 @@ See DU_StAZH_b.py
         
         #list the train and test files
         #NOTE: we check the presence of a digit before the '.' to eclude the *_du.xml files
-        ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
-        _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
-        
+        #ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
+        #_     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
+
+
+        #list the train and test files
+        #NOTE: we check the presence of a digit before the '.' to eclude the *_du.xml files
+        if filterFilesRegexp:
+            #ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, "*[0-9]"+MultiPageXml.sEXT)
+            #_     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*[0-9]"+MultiPageXml.sEXT)
+            ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, "*_ds.xml")
+            _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*_ds.xml")
+        else:
+            #Assume the file list are correct
+            lFilename_trn=lsTrnColDir
+            lFilename_tst=lsTstColDir
+            ts_trn = max([os.path.getmtime(sFilename) for sFilename in lFilename_trn])
+
+        print('Training Filenames')
+        print(lFilename_trn)
         DU_GraphClass = self.cGraphClass
         
         self.traceln("- creating a %s model"%self.cModelClass)
@@ -255,7 +271,7 @@ See DU_StAZH_b.py
             
         return oReport
 
-    def test(self, lsTstColDir):
+    def test(self, lsTstColDir,filterFilesRegexp=True):
         """
         test the model
         return a TestReport object
@@ -266,10 +282,14 @@ See DU_StAZH_b.py
         self.traceln("-"*50)
         
         if not self._mdl: raise Exception("The model must be loaded beforehand!")
-        
-        #list the train and test files
-        _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
-        
+
+        if filterFilesRegexp:
+            #list the train and test files
+            _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
+        else:
+            #Assume the file list are correct
+            lFilename_tst=lsTstColDir
+
         DU_GraphClass = self.cGraphClass
         
         lPageConstraint = DU_GraphClass.getPageConstraint()
