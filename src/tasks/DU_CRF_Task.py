@@ -37,6 +37,9 @@ from crf.Model_SSVM_AD3 import Model_SSVM_AD3
 from xml_formats.PageXml import MultiPageXml
 import crf.FeatureDefinition
 from crf.FeatureDefinition_PageXml_std import FeatureDefinition_PageXml_StandardOnes
+from crf.FeatureDefinition_PageXml_FeatSelect import FeatureDefinition_PageXml_FeatSelect
+import numpy as np
+
 
 class DU_CRF_Task:
     """
@@ -215,13 +218,16 @@ See DU_StAZH_b.py
         if filterFilesRegexp:
             #ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, "*[0-9]"+MultiPageXml.sEXT)
             #_     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*[0-9]"+MultiPageXml.sEXT)
-            ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, "*_ds.xml")
-            _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*_ds.xml")
+            ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
+            _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
+
         else:
             #Assume the file list are correct
             lFilename_trn=lsTrnColDir
             lFilename_tst=lsTstColDir
             ts_trn = max([os.path.getmtime(sFilename) for sFilename in lFilename_trn])
+
+
 
         print('Training Filenames')
         print(lFilename_trn)
@@ -246,8 +252,12 @@ See DU_StAZH_b.py
         try:
             mdl.loadTransformers(ts_trn)
         except crf.Model.ModelException:
-            fe = self.cFeatureDefinition(**self.config_extractor_kwargs)         
-            fe.fitTranformers(lGraph_trn)
+            fe = self.cFeatureDefinition(**self.config_extractor_kwargs)
+
+            lY = [g.buildLabelMatrix() for g in lGraph_trn]
+            lY_flat = np.hstack(lY)
+            fe.fitTranformers(lGraph_trn,lY_flat)
+            #fe.fitTranformers(lGraph_trn)
             fe.cleanTransformers()
             mdl.setTranformers(fe.getTransformers())
             mdl.saveTransformers()
@@ -363,3 +373,15 @@ See DU_StAZH_b.py
         return ts, lFn
     listMaxTimestampFile = classmethod(listMaxTimestampFile)
     
+
+
+class DU_CRF_FS_Task(DU_CRF_Task):
+    cModelClass          = Model_SSVM_AD3
+    cFeatureDefinition   = FeatureDefinition_PageXml_FeatSelect
+
+    sMetadata_Creator = "XRCE Document Understanding CRF-based - v0.3 with some Feature Selection"
+    sMetadata_Comments = ""
+
+    dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
+
+    sXmlFilenamePattern = "*[0-9]"+MultiPageXml.sEXT    #how to find the Xml files

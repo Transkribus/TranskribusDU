@@ -1,7 +1,4 @@
 
-
-
-
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(os.getcwd()) ) )
 print sys.path
@@ -57,9 +54,9 @@ def get_collection(collection_name,prefix=_prefix_root):
 
 
 def getDodgeFileList0():
-    return ['/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2298385_000_SP_ds.xml',
+    return [#'/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2298385_000_SP_ds.xml',
             '/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2304654_000_SP_ds.xml',
-            '/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2305189_000_SP_ds.xml',
+            #'/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2305189_000_SP_ds.xml',
             ]
 
 
@@ -69,7 +66,7 @@ def getDodgeFileList1():
     :return:
     '''
     return ['/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2298618_000_SP_ds.xml',
-            '/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2304956_000_SP_ds.xml',
+            #'/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2304956_000_SP_ds.xml',
             #'/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2293321.xml',
             ]
 
@@ -78,7 +75,7 @@ def getDodgeFileList1():
     #        ]
 
 
-dFeatureConfig_Baseline = {'n_tfidf_node': 10000
+dFeatureConfig_Baseline = {'n_tfidf_node': 500
     , 't_ngrams_node': (2, 4)
     , 'b_tfidf_node_lc': False
     , 'n_tfidf_edge': 250
@@ -111,19 +108,26 @@ class DU_BL_Dodge(DU_BL_Task):
     sXmlFilenamePattern = "GraphML_R33*_ds.xml"
 
     # === CONFIGURATION ====================================================================
-    def __init__(self, sModelName, sModelDir, feat_select=None,sComment=None):
+    def __init__(self, sModelName, sModelDir, feat_select=None,nb_feat=500,sComment=None):
 
-        if feat_select=='chi2':
+        if feat_select is not None and feat_select!='tf':
+            paramsFeatSelect=dict(dFeatureConfig_FeatSelect)
+            paramsFeatSelect['feat_select']=feat_select
+            paramsFeatSelect['n_tfidf_node']=nb_feat
+
             DU_BL_Task.__init__(self, sModelName, sModelDir,
                                 DU_Dodge.DU_DODGE_GRAPH,
-                                dFeatureConfig=dFeatureConfig_FeatSelect,
+                                dFeatureConfig=paramsFeatSelect,
                                 dLearnerConfig=dLearnerConfig,
                                 sComment=sComment
                                 )
         else:
+            paramsBaseline=dict(dFeatureConfig_Baseline)
+            paramsBaseline['n_tfidf_node']=nb_feat
+
             DU_BL_Task.__init__(self, sModelName, sModelDir,
                                 DU_Dodge.DU_DODGE_GRAPH,
-                                dFeatureConfig=dFeatureConfig_Baseline,
+                                dFeatureConfig=paramsBaseline,
                                 dLearnerConfig=dLearnerConfig,
                                 sComment=sComment
                                 )
@@ -137,17 +141,16 @@ def simpleTest():
     modelName = 'baselineDodge_3'
     modeldir = 'UT_model'
     #Baseline Model
-    doer = DU_BL_Dodge(modelName, modeldir)
-    doer.addFixedLR()
+    #doer = DU_BL_Dodge(modelName, modeldir,'chi2_rr',500)
+    #doer.addFixedLR()
 
     #doer = DU_Dodge.DU_Dodge(modelName, modeldir)
 
-
-
-
+    #By Default Do Feature Selection with chi2
+    doer = DU_Dodge.DU_Dodge_CRF_FS(modelName, modeldir)
     #First Check Test with Dodge
     #doer = DU_Dodge.DU_Dodge(modelName,modeldir)
-    # Remove Previous file in anya
+    #Remove Previous file in anya
     doer.rm()
 
     listTest = getDodgeFileList1()
@@ -167,12 +170,15 @@ def simpleTest():
 
 
 
-def train_dodge_collection(collection_name,feat_select=None):
+def train_dodge_collection(collection_name,feat_select=None,nb_feat=500):
     #Baseline Model
     listTrain = get_collection(collection_name)
+
     if feat_select:
-        if feat_select=='chi2':
-            doer = DU_BL_Dodge(collection_name+'chi2', 'DODGE_TRAIN',feat_select='chi2')
+        model_name=get_model_name(collection_name,feat_select,nb_feat)
+        print("Training...",collection_name,feat_select,nb_feat)
+        doer = DU_BL_Dodge(model_name, 'DODGE_TRAIN',feat_select=feat_select,nb_feat=nb_feat)
+
     else:
         doer = DU_BL_Dodge(collection_name, 'DODGE_TRAIN')
 
@@ -183,25 +189,55 @@ def train_dodge_collection(collection_name,feat_select=None):
     print(report)
 
 
+def train_crf_dodge_collection(collection_name,feat_select=None,nb_feat=500):
+    #Baseline Model
+    listTrain = get_collection(collection_name)
+
+    if feat_select:
+        model_name=get_model_name(collection_name,feat_select,nb_feat)
+        print("Training...",collection_name,feat_select,nb_feat)
+        #doer = DU_Dodge.DU_Dodge(model_name, 'DODGE_CRF_TRAIN',feat_select=feat_select,nb_feat=nb_feat)
+        #TODO Fixing this
+        doer = DU_Dodge.DU_CRF_FS_Task(model_name, 'DODGE_CRF_TRAIN',feat_select=feat_select,nb_feat=nb_feat)
+
+    else:
+        doer = DU_Dodge.DU_Dodge(collection_name, 'DODGE_CRF_TRAIN')
+
+    #doer.addFixedLR()
+    doer.addBaseline_LogisticRegression()
+    report=doer.train_save_test(listTrain, [], bWarm=False, filterFilesRegexp=False)
+    print(report)
+
 
 def test_model(model_name,model_dir,target_collection):
-    listTest = get_collection(target_collection)
-    doer = DU_BL_Dodge(model_name,model_dir)
-    doer.load()
-    tstReport = doer.test(listTest,filterFilesRegexp=False)
-    rep=tstReport[0]
 
     #I only save the first report ....
-    rep.name='Train_'+model_name+'_TEST_'+target_collection
+    repname='Train_'+model_name+'_TEST_'+target_collection
+
     if os.path.exists('reports') is False:
         os.mkdir('reports')
 
-    print('Saving files in reports')
-    f=open(os.path.join('reports',rep.name+'.pickle'),'w')
-    pickle.dump(rep,f)
-    f.close()
+    report_fname=os.path.join('reports',repname+'.pickle')
 
-    return tstReport
+    if os.path.exists(report_fname) is False:
+
+        listTest = get_collection(target_collection)
+        doer = DU_BL_Dodge(model_name,model_dir)
+        doer.load()
+        tstReport = doer.test(listTest,filterFilesRegexp=False)
+        rep=tstReport[0]
+        rep.name=repname
+
+        print('Saving files in reports')
+        f=open(report_fname,'w')
+        pickle.dump(rep,f)
+        f.close()
+        return tstReport
+    else:
+        print('Report Already Generated')
+        f=open(report_fname)
+        return pickle.load(f)
+
 
 
 def create_training_plan_pickle():
@@ -214,11 +250,11 @@ def create_training_plan_pickle():
                'Plans_for_Grenoble5',
                'Plans_for_Grenoble7',]
 
-    AD=list(itertools.product(sel_collections,['_tf','_chi2','_mi']))
+    AD=list(itertools.product(sel_collections,['tf','chi2','mi_rr','chi2_rr']))
     AD_tmp=[]
     for coll,fs in AD:
-        if fs=='_tf':
-            for k  in [500,1000,10000]:
+        if fs=='tf':
+            for k  in [500,1000]:
                 AD_tmp.append((coll,fs,k))
         else:
             for k in [500,1000]:
@@ -236,6 +272,10 @@ def create_training_plan_pickle():
     f=open(outname,'w')
     pickle.dump(DATASETSID,f)
     f.close()
+    return DATASETSID
+
+
+
 
 
 def create_test_plan_pickle():
@@ -247,7 +287,7 @@ def create_test_plan_pickle():
                'Plans_for_Grenoble4',
                'Plans_for_Grenoble5',
                'Plans_for_Grenoble7',]
-
+    '''
     AD=list(itertools.product(sel_collections,['','chi2'],sel_collections,))
     AD=filter(lambda x : x[0]!=x[2],AD)
     AD=sorted(AD,key= lambda x : x[0])
@@ -261,23 +301,153 @@ def create_test_plan_pickle():
     f=open(outname,'w')
     pickle.dump(DATASETSID,f)
     f.close()
+    '''
+    f=open('dodge_train_plan.pickle')
+    Models=pickle.load(f)
+    f.close()
 
+    AD=[]
+    for m in Models.values():
+        collection_name = m[0]
+        for coll in sel_collections:
+            if coll!=collection_name:
+                AD.append((m[0],m[1],m[2],coll))
 
+    AD=sorted(AD,key= lambda x : x[0])
+    TasksID={}
+    i=0
+    for da in AD:
+        TasksID[i]=da
+        i+=1
+    print('Generated',i,' Tasks')
+    outname='dodge_test_plan.pickle'
+    f=open(outname,'w')
+    pickle.dump(TasksID,f)
+    f.close()
 
+    return TasksID
 
 
 import time
-def qsub_test_plan(taskid):
+def qsub_test_plan(taskid,mem="48G"):
     #source /usr/local/grid/XRCE/common/settings.sh
     exec_path="/opt/MLS_db/usr/sclincha/Transkribus/src/tasks/make_dodge_test_task.sh"
     exp_name = 'DT'+str(taskid)
     #cmd_str='qsub -l h='(floriad|alabama|alaska|ontario)  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name+ ' -l vf=32G,h_vmem=32G '\
     #cmd_str='qsub -l h=\'(florida|alabama|ohio|alaska|ontario|arizona|california|nevada|chichet|oregon|montana|colorado|kansas|iowa|indiana)\'  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=48G,h_vmem=48G ' +exec_path +' '+str(taskid)
-    cmd_str='qsub  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=48G,h_vmem=48G ' +exec_path +' '+str(taskid)
+    #cmd_str='qsub  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=64G,h_vmem=64G ' +exec_path +' '+str(taskid)
+    cmd_str='qsub  -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=64G,h_vmem=64G ' +exec_path +' '+str(taskid)
     print cmd_str
     os.system(cmd_str)
 
-#TEST Feature selection ..
+
+def qsub_train_plan(taskid):
+    #source /usr/local/grid/XRCE/common/settings.sh
+    exec_path="/opt/MLS_db/usr/sclincha/Transkribus/src/tasks/make_dodge_train_task.sh"
+    exp_name = 'DS'+str(taskid)
+    #cmd_str='qsub -l h='(floriad|alabama|alaska|ontario)  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name+ ' -l vf=32G,h_vmem=32G '\
+    #cmd_str='qsub -l h=\'(florida|alabama|ohio|alaska|ontario|arizona|california|nevada|chichet|oregon|montana|colorado|kansas|iowa|indiana)\'  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=48G,h_vmem=48G ' +exec_path +' '+str(taskid)
+    #cmd_str='qsub  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=64G,h_vmem=64G ' +exec_path +' '+str(taskid)
+    cmd_str='qsub  -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=64G,h_vmem=64G ' +exec_path +' '+str(taskid)
+    print cmd_str
+    os.system(cmd_str)
+
+
+
+
+
+def parse_model_name(model_name):
+    tok=string.split(model_name,':')
+    if len(tok)==3:
+        collection=tok[0]
+        feat_select =tok[1]
+        nb_feat     =int(tok[2])
+
+        return collection,feat_select,nb_feat,''
+    elif len(tok)==4:
+        mid        =  tok[0]
+        collection =  tok[1]
+        feat_select = tok[2]
+        nb_feat     =int(tok[3])
+
+        return collection,feat_select,nb_feat,mid
+    else:
+        #raise ValueError('Invalid Model Name',model_name)
+        return model_name,None,500
+
+
+
+def get_model_name(collection,feat_select,nb_feat,mid=''):
+    return string.join([mid,collection,feat_select,str(nb_feat)],':')
+
+
+
+
+
+def run_chi2_mi_exp():
+    Z=pickle.load(open('dodge_train_plan.pickle'))
+    for task_index in Z:
+        model_src,feat_select,nb_feat=Z[task_index]
+        model_name=get_model_name(model_src,feat_select,nb_feat)
+
+        if feat_select=='chi2' or feat_select =='mi_rr':
+            qsub_train_plan(task_index)
+            time.sleep(0.1)
+
+def run_train_tf(tf_feat=1000):
+    Z=pickle.load(open('dodge_train_plan.pickle'))
+    for task_index in Z:
+        model_src,feat_select,nb_feat=Z[task_index]
+        model_name=get_model_name(model_src,feat_select,nb_feat)
+
+        if feat_select=='tf' and nb_feat ==tf_feat:
+            qsub_train_plan(task_index)
+            time.sleep(0.5)
+
+
+def train_missing_models():
+    Z=pickle.load(open('dodge_train_plan.pickle'))
+    for task_index in Z:
+        model_src,feat_select,nb_feat=Z[task_index]
+        model_name=get_model_name(model_src,feat_select,nb_feat)
+
+        model_file =os.path.join("./DODGE_TRAIN",model_name+'_baselines.pkl')
+        print model_file
+        if os.path.exists(model_file) is False:
+            qsub_train_plan(task_index)
+            time.sleep(0.1)
+
+
+def run_missing_exp():
+    #TODO Memory
+    Z=pickle.load(open('dodge_test_plan.pickle'))
+    for task_index in Z:
+        model_src,feat_select,nb_feat,test_collection=Z[task_index]
+        model_name=get_model_name(model_src,feat_select,nb_feat)
+        model_dir='DODGE_TRAIN'
+
+        repname='Train_'+model_name+'_TEST_'+test_collection
+        report_fname=os.path.join('reports',repname+'.pickle')
+
+        if os.path.exists(report_fname) is False:
+            qsub_test_plan(task_index)
+
+
+
+def run_tf_10000_exp():
+    Z=pickle.load(open('dodge_test_plan.pickle'))
+    for task_index in Z:
+        model_src,feat_select,nb_feat,test_collection=Z[task_index]
+        if nb_feat==10000:
+            model_name=get_model_name(model_src,feat_select,nb_feat)
+            model_dir='DODGE_TRAIN'
+            print (model_src,feat_select,nb_feat,test_collection)
+
+            repname='Train_'+model_name+'_TEST_'+test_collection
+            report_fname=os.path.join('reports',repname+'.pickle')
+            if os.path.exists(report_fname) is False:
+                qsub_test_plan(task_index)
+
 
 
 
@@ -291,17 +461,30 @@ if __name__ == '__main__':
             simpleTest()
         elif mode =='dodge_train':
             train_collection = sys.argv[2]
+            '''
             if train_collection.endswith('_chi2'):
                 train_collection = string.split(train_collection,'_chi2')[0]
                 train_dodge_collection(train_collection,'chi2')
             else:
                 train_dodge_collection(train_collection)
+            '''
+            collection,feat_select,nb_feat = parse_model_name(train_collection)
+            train_dodge_collection(collection,feat_select,nb_feat)
 
-        elif mode =='dodge_train_chi2':
-            tmp = sys.argv[2]
-            #remove the _chi2
-            train_collection=tmp[:-5:]
-            train_dodge_collection(train_collection,'chi2')
+        elif mode=='dodge_train_crf':
+            #Temporary Fix
+            train_collection = sys.argv[2]
+            '''
+            if train_collection.endswith('_chi2'):
+                train_collection = string.split(train_collection,'_chi2')[0]
+                train_dodge_collection(train_collection,'chi2')
+            else:
+                train_dodge_collection(train_collection)
+            '''
+            collection,feat_select,nb_feat = parse_model_name(train_collection)
+            train_crf_dodge_collection(collection,feat_select,nb_feat)
+
+
         elif mode=='dodge_test':
             model_name= sys.argv[2]
             model_dir =sys.argv[3]
@@ -311,11 +494,18 @@ if __name__ == '__main__':
             pickle_fname =sys.argv[2]
             task_index   =int(sys.argv[3])
             Z=pickle.load(open(pickle_fname))
-            model_src,feat_select,test_collection=Z[task_index]
-            model_name=model_src+feat_select
+            model_src,feat_select,nb_feat,test_collection=Z[task_index]
+            model_name=get_model_name(model_src,feat_select,nb_feat)
             model_dir='DODGE_TRAIN'
             res=test_model(model_name,model_dir,test_collection)
             print(res)
+
+        elif mode=="make_train":
+            pickle_fname =sys.argv[2]
+            task_index   =int(sys.argv[3])
+            Z=pickle.load(open(pickle_fname))
+            collection_name,feat_select,nb_feat=Z[task_index]
+            train_dodge_collection(collection_name,feat_select,nb_feat)
         else:
             raise Exception('Invalid Mod Selected')
     else:
@@ -323,28 +513,6 @@ if __name__ == '__main__':
         print('Embed ...')
 
 
-'''
-import Dodge_Tasks
-model_name='Plans_for_Grenoble3'
-model_dir='DODGE_TRAIN/'
-doer = DU_BL_Dodge(model_name,model_dir)
-doer = Dodge_Tasks.DU_BL_Dodge(model_name,model_dir)
-doer
-doer.load()
-doer.mdl
-doer._mdl
-A=doer._mdl.getTransformers()
-A
-listTest = get_collection(model_name)
-listTest = Dodge_Tasks.get_collection(model_name)
-listTest
-tstReport = doer.test(listTest,filterFilesRegexp=False)
-tstReport
-tstReport.toStr()
-tstReport[0].tstReport
-str(tstReport[0])
-print(tstReport[0])
-'''
 
 #Memory
 #TFIDF Vectorizer takes the most frequents and then apply a TFiDF transformer

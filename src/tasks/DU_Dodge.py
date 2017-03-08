@@ -37,7 +37,7 @@ from tasks import _checkFindColDir, _exit
 
 from crf.Graph_DSXml import Graph_DSXml
 from crf.NodeType_DSXml   import NodeType_DS
-from DU_CRF_Task import DU_CRF_Task
+from DU_CRF_Task import DU_CRF_Task,DU_CRF_FS_Task
 
 
 # ===============================================================================================================
@@ -88,7 +88,8 @@ class DU_Dodge(DU_CRF_Task):
                                   , 'b_tfidf_node_lc' : False    
                                   , 'n_tfidf_edge'    : 250
                                   , 't_ngrams_edge'   : (2,4)
-                                  , 'b_tfidf_edge_lc' : False    
+                                  , 'b_tfidf_edge_lc' : False
+
                               }
                              , dLearnerConfig = {
                                    'C'                : .1 
@@ -105,6 +106,52 @@ class DU_Dodge(DU_CRF_Task):
         
         self.addBaseline_LogisticRegression()    #use a LR model as baseline
     #=== END OF CONFIGURATION =============================================================
+
+
+class DU_Dodge_CRF_FS(DU_CRF_FS_Task):
+    """
+    We will do a CRF model for a DU task
+    , working on a DS XML document at BLOCK level
+    , with the below labels
+    """
+    #sXmlFilenamePattern = "*_ds.xml"
+    #sXmlFilenamePattern ="GraphML_R33*_ds.xml"
+    sXmlFilenamePattern = "*_ds.xml"
+
+    #=== CONFIGURATION ====================================================================
+    def __init__(self, sModelName, sModelDir, sComment=None):
+
+        DU_CRF_FS_Task.__init__(self
+                             , sModelName, sModelDir
+                             , DU_DODGE_GRAPH
+                             , dFeatureConfig = {
+                                    'n_tfidf_node'    : 500
+                                  , 't_ngrams_node'   : (2,4)
+                                  , 'b_tfidf_node_lc' : False
+                                  , 'n_tfidf_edge'    : 250
+                                  , 't_ngrams_edge'   : (2,4)
+                                  , 'b_tfidf_edge_lc' : False
+                                  , 'feat_select':'chi2'
+                              }
+                             , dLearnerConfig = {
+                                   'C'                : .1
+                                 , 'njobs'            : 4
+                                 , 'inference_cache'  : 50
+                                 #, 'tol'              : .1
+                                 , 'tol'              : .05
+                                 , 'save_every'       : 50     #save every 50 iterations,for warm start
+                                 , 'max_iter'         : 250
+                                 }
+                             , sComment=sComment
+                             , cFeatureDefinition=None  #SO THAT WE USE THE SAME FEATURES AS FOR PageXml (because it is the features by default)
+                             )
+
+        self.addBaseline_LogisticRegression()    #use a LR model as baseline
+    #=== END OF CONFIGURATION =============================================================
+
+
+
+
 
 
 if __name__ == "__main__":

@@ -137,6 +137,9 @@ class DU_BL_Task(DU_CRF_Task):
             self.traceln(" %d graphs loaded"%len(lGraph_tst))
 
             oReport = mdl.test(lGraph_tst)
+            print(oReport)
+            for rep in oReport:
+                print(rep)
         else:
             oReport = None, None
 

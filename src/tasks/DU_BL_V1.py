@@ -138,7 +138,7 @@ if __name__ == "__main__":
     except Exception as e:
         _exit(usage, 1, e)
 
-    doer = DU_BL_V1(sModelName, sModelDir)
+    doer = DU_BL_V1(sModelName, sModelDir,feat_select='mi_rr')
 
     if options.rm:
         doer.rm()
@@ -157,6 +157,9 @@ if __name__ == "__main__":
         doer.load()
         tstReport = doer.test(lTst)
         traceln(tstReport)
+        for x in tstReport:
+            traceln(x)
+
 
     if lRun:
         doer.load()

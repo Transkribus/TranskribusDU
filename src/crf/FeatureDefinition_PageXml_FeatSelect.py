@@ -76,9 +76,11 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
         if feat_select=='chi2':
             feat_selector=SelectKBest(chi2, k=self.n_tfidf_node)
 
+
         elif feat_select == 'mi_rr':
             print('Using Mutual Information Round Robin as Feature Selection')
             feat_selector=SelectRobinBest(mutual_information,k=self.n_tfidf_node)
+
 
         elif feat_select =='chi2_rr':
             #chi_score = lambda x,y : chi2(x,y)[0] #this can not be pickled ...
@@ -92,7 +94,7 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
 
 
         if feat_selector:
-            tdifNodeTextVectorizer = CountVectorizer(lowercase=self.b_tfidf_node_lc, max_features=10000
+            tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=10000
                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
 
             text_pipeline = Pipeline([('selector', NodeTransformerTextEnclosed()),
@@ -136,6 +138,8 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
                                                          ])
                                        )
         ])
+
+
 
         lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                       ("1hot", Pipeline([
@@ -203,6 +207,7 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
                                                        ])
                                        )
                         ]
+
 
         edge_transformer = FeatureUnion( lEdgeFeature )
         #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
