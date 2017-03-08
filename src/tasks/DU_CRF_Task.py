@@ -28,17 +28,7 @@ import os, glob
 from optparse import OptionParser
 
 from sklearn.linear_model import LogisticRegression
-
-#sklearn has changed and sklearn.grid_search.GridSearchCV will disappear in next release or so
-#so it is recommended to use instead sklearn.model_selection
-#BUT on Linux, unplickling of the model fails
-#=> change only on Windows
-#JLM 2017-03-10
-import sys
-if sys.platform == "win32":
-    from sklearn.model_selection import GridSearchCV
-else:
-    from sklearn.grid_search import GridSearchCV
+from sklearn.grid_search import GridSearchCV
 
 from common.trace import traceln
 
@@ -47,6 +37,9 @@ from crf.Model_SSVM_AD3 import Model_SSVM_AD3
 from xml_formats.PageXml import MultiPageXml
 import crf.FeatureDefinition
 from crf.FeatureDefinition_PageXml_std import FeatureDefinition_PageXml_StandardOnes
+from crf.FeatureDefinition_PageXml_FeatSelect import FeatureDefinition_PageXml_FeatSelect
+import numpy as np
+
 
 class DU_CRF_Task:
     """
@@ -110,7 +103,7 @@ See DU_StAZH_b.py
 
     #---  COMMAND LINE PARSZER --------------------------------------------------------------------
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
-        usage = "%s <model-directory> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+"%sys_argv0
+        usage = "%s <model-name> <model-directory> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+"%sys_argv0
         description = """ 
         Train or test or remove the given model or predict using the given model.
         The data is given as a list of DS directories.
@@ -197,7 +190,7 @@ See DU_StAZH_b.py
             os.rmdir(self.sModelDir)
         return 
     
-    def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False):
+    def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False,filterFilesRegexp=True):
         """
         - Train a model on the tTRN collections, if not empty.
         - Test the trained model using the lTST collections, if not empty.
@@ -216,17 +209,35 @@ See DU_StAZH_b.py
         
         #list the train and test files
         #NOTE: we check the presence of a digit before the '.' to eclude the *_du.xml files
-        ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
-        _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
-        
+        #ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
+        #_     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
+
+
+        #list the train and test files
+        #NOTE: we check the presence of a digit before the '.' to eclude the *_du.xml files
+        if filterFilesRegexp:
+            #ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, "*[0-9]"+MultiPageXml.sEXT)
+            #_     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*[0-9]"+MultiPageXml.sEXT)
+            ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
+            _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
+
+        else:
+            #Assume the file list are correct
+            lFilename_trn=lsTrnColDir
+            lFilename_tst=lsTstColDir
+            ts_trn = max([os.path.getmtime(sFilename) for sFilename in lFilename_trn])
+
+
+
+        print('Training Filenames')
+        print(lFilename_trn)
         DU_GraphClass = self.cGraphClass
         
         self.traceln("- creating a %s model"%self.cModelClass)
         mdl = self.cModelClass(self.sModelName, self.sModelDir)
         
         if not bWarm:
-            if os.path.exists(mdl.getModelFilename()): 
-                raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
+            if os.path.exists(mdl.getModelFilename()): raise crf.Model.ModelException("Model exists on disk already, either remove it first or warm-start the training.")
             
         mdl.configureLearner(**self.config_learner_kwargs)
         mdl.setBaselineModelList(self._lBaselineModel)
@@ -241,8 +252,12 @@ See DU_StAZH_b.py
         try:
             mdl.loadTransformers(ts_trn)
         except crf.Model.ModelException:
-            fe = self.cFeatureDefinition(**self.config_extractor_kwargs)         
-            fe.fitTranformers(lGraph_trn)
+            fe = self.cFeatureDefinition(**self.config_extractor_kwargs)
+
+            lY = [g.buildLabelMatrix() for g in lGraph_trn]
+            lY_flat = np.hstack(lY)
+            fe.fitTranformers(lGraph_trn,lY_flat)
+            #fe.fitTranformers(lGraph_trn)
             fe.cleanTransformers()
             mdl.setTranformers(fe.getTransformers())
             mdl.saveTransformers()
@@ -266,7 +281,7 @@ See DU_StAZH_b.py
             
         return oReport
 
-    def test(self, lsTstColDir):
+    def test(self, lsTstColDir,filterFilesRegexp=True):
         """
         test the model
         return a TestReport object
@@ -277,10 +292,14 @@ See DU_StAZH_b.py
         self.traceln("-"*50)
         
         if not self._mdl: raise Exception("The model must be loaded beforehand!")
-        
-        #list the train and test files
-        _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
-        
+
+        if filterFilesRegexp:
+            #list the train and test files
+            _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
+        else:
+            #Assume the file list are correct
+            lFilename_tst=lsTstColDir
+
         DU_GraphClass = self.cGraphClass
         
         lPageConstraint = DU_GraphClass.getPageConstraint()
@@ -354,3 +373,15 @@ See DU_StAZH_b.py
         return ts, lFn
     listMaxTimestampFile = classmethod(listMaxTimestampFile)
     
+
+
+class DU_CRF_FS_Task(DU_CRF_Task):
+    cModelClass          = Model_SSVM_AD3
+    cFeatureDefinition   = FeatureDefinition_PageXml_FeatSelect
+
+    sMetadata_Creator = "XRCE Document Understanding CRF-based - v0.3 with some Feature Selection"
+    sMetadata_Comments = ""
+
+    dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
+
+    sXmlFilenamePattern = "*[0-9]"+MultiPageXml.sEXT    #how to find the Xml files
