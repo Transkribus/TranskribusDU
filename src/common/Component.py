@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 """
 Component class
@@ -726,7 +725,9 @@ class Component:
 			
 	#specific basename function
 	def getBasename(self, fileName):
-		if fileName.endswith(".gz"): 
+		if fileName.endswith(".ds_xml"):
+			i = -7  
+		elif fileName.endswith(".gz"): 
 			i = -7 	#  .xml.gz
 		else:
 			i = -4 	#  .ref  .run   .xml
