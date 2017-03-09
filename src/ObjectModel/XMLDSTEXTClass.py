@@ -101,32 +101,22 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
         import numpy as np
         
         if len(lX) > 0:
-            a,b = np.polyfit(lX, lY, 1)
+            a,bx = np.polyfit(lX, lY, 1)
             
-#             lPoints = ','.join(map(lambda (x,y):x,y,zip(lX,lY)))
             lPoints = ','.join(["%d,%d"%(xa,ya) for xa,ya  in zip(lX, lY)])
-#             print '\t' , a,b
-#             import math
 #             print 'ANLGE:',math.degrees(math.atan(a))
-            ymax = a*self.getWidth()+b        
-#             self.baseline[1]= a
+            ymax = a*self.getWidth()+bx     
             from ObjectModel.XMLDSBASELINEClass import XMLDSBASELINEClass
             b= XMLDSBASELINEClass()
             b.setNode(self)
 #             b.addAttribute("points",lPoints)
             b.setAngle(a)
+            b.setBx(bx)
             b.setPoints(lPoints)
-            b.setParent(self.getParent())
-#             print b.getPoints()
+            b.setParent(self)
             self.setBaseline(b)
             b.computePoints()
             
-#             verticalSep  = libxml2.newNode('BASELINE')
-#             verticalSep.setProp('points', '%f,%f,%f,%f'%(self.getX(),b,self.getX2(),ymax))
-#             print self, self.baseline, lX, lY
-#             self.getNode().addChild(verticalSep)
-            
-    
     def getSetOfFeaturesXPos(self,TH,lAttr,myObject):
 
         from spm.feature import featureObject
@@ -285,7 +275,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
         from spm.feature import multiValueFeatureObject
 
         #reinit 
-        self._lBasicFeatures = []
+        self._lBasicFeatures = None
         
         mv =multiValueFeatureObject()
         name= "multi" #'|'.join(i.getName() for i in lMyFeatures)
@@ -297,6 +287,5 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
         mv.setValue(map(lambda x:x,lMyFeatures))
         mv.setType(multiValueFeatureObject.COMPLEX)
         self.addFeature(mv)
-            
         return self._lBasicFeatures
 

@@ -140,7 +140,7 @@ class sequenceGrammar():
                 
         mainRuleName='s%d-%s'% (level,i)
 #         mainRuleName='s%d'% (level)
-        print mainRuleName, grammarTree , "*************"
+#         print mainRuleName, grammarTree , "*************"
         MainRule=Rule(mainRuleName,Production(*lrules))            
         MainRule2 = Rule(mainRuleName+'+',Production(MainRule))
         MainRule2.add(Production(MainRule2,MainRule))

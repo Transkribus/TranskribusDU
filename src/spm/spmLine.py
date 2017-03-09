@@ -6,11 +6,11 @@
     copyright Xerox 2017
     READ project 
 
-    mine a setof lies (itemset generation)
+    mine a set of lines (itemset generation)
+    
 """
 
 import sys, os.path
-from mpmath import ln
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
@@ -80,6 +80,8 @@ class lineMiner(Component.Component):
         import util.TwoDNeighbourhood as TwoDRel
         
         
+        lPageRegions = []
+        
         lVEdge = []
         lLElts=[ [] for i in range(0,len(lPages))]
         for i,page in enumerate(lPages):
@@ -109,6 +111,7 @@ class lineMiner(Component.Component):
             lSortedFeatures  = seqGen.featureGeneration(lElts,2)
             
             # for registration: needs to be replaced by ._lRegValues
+            print "sequence of elements and their features:"
             for elt in lElts:
                 elt.lX=elt.getSetofFeatures()
                 print elt, elt.lX
@@ -117,14 +120,14 @@ class lineMiner(Component.Component):
             lTerminalTemplates = []
 
             lCurList= lElts
-            print len(lCurList)
+#             print len(lCurList)
             while icpt < 2:
     #             seqGen.bDebug = False
                 ## generate sequences
                 if icpt > 0: 
                     seqGen.setMaxSequenceLength(3)
-                    print '***'*20
-                    seqGen.bDebug = True
+#                     print '***'*20
+                    seqGen.bDebug = False
                     for elt in lCurList:
                         if elt.getSetofFeatures() is None:
                             elt.resetFeatures()
@@ -142,9 +145,9 @@ class lineMiner(Component.Component):
                 lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)            
                 lPatterns.sort(key=lambda (x,y):y, reverse=True)
     
-                
+                print "List of patterns and their support:"
                 for p,support  in lPatterns:
-                    if support >1: #and len(p) == 4:
+                    if support > 1: #and len(p) == 4:
                         print p, support
                 
                 seqGen.bDebug = False
@@ -155,8 +158,8 @@ class lineMiner(Component.Component):
                 dTemplatesCnd = self.analyzeListOfPatterns(lPatterns,dCP,icpt)
                 lTerminalTemplates,tranprob = self.testKleeneageTemplates(dTemplatesCnd, lCurList)
     
-                print tranprob
-                print lTerminalTemplates
+#                 print tranprob
+#                 print lTerminalTemplates
                 
                 ## here we have a graph ()
                 self.selectFinalTemplates(lTerminalTemplates,tranprob,lCurList)
@@ -168,11 +171,15 @@ class lineMiner(Component.Component):
                         _,lCurList = self.parseWithTemplate(mytemplate,lCurList,bReplace=True)                
                 
                 icpt +=1
-                print 'curList:',lCurList
-                print len(lCurList)
+#                 print 'curList:',lCurList
+#                 print len(lCurList)
+            print "final hierarchy"
+            self.printTreeView(lCurList)
+            lRegions= self.getRegionsFromStructure(page,lCurList)
+                # store all interation
+            lPageRegions.append((page,lRegions,lCurList))
                 
-        
-        return lPages
+        return lPageRegions
     
             
     def testKleeneageTemplates(self,dTemplatesCnd,lElts):
@@ -190,16 +197,16 @@ class lineMiner(Component.Component):
         dScoredTemplates = {}
         for templateType in dTemplatesCnd.keys():
             for _,_, mytemplate in dTemplatesCnd[templateType][:1]:
-                mytemplate.print_()
+#                 mytemplate.print_()
                 ## need to test kleene+: if not discard?
                 parseRes,lseq = self.parseWithTemplate(mytemplate,lElts,bReplace=False)
-                print len(lseq)
+#                 print len(lseq)
                 ## assess and keep if kleeneplus
                 if parseRes:
                     ## traverse the tree template to list the termnimal pattern
 #                     print mytemplate,'\t\t', mytemplate,len(parseRes[1])
                     lterm= mytemplate.getTerminalTemplates()
-                    print 'terms: ',lterm
+#                     print 'terms: ',lterm
                     for template in lterm:
 #                         template.print_()
                         if template not in lTemplates:
@@ -214,8 +221,8 @@ class lineMiner(Component.Component):
         for i,template in enumerate(lTemplates):
             dTemplateIndex[template]=i
         
-        for t in dTemplateIndex:
-            print dTemplateIndex[t],t.getPattern()
+#         for t in dTemplateIndex:
+#             print dTemplateIndex[t],t.getPattern()
             
             
         for i,elt in enumerate(lElts):
@@ -229,16 +236,22 @@ class lineMiner(Component.Component):
                     lnextTemplates = nextElt.getTemplates()
                     if lnextTemplates is None: lnextTemplates=[]
                     for nextT in lnextTemplates:
-                        print i, template,nextT
+#                         print i, template,nextT
                         ## not one: but the frequency of the template
-                        w = dScoredTemplates[template]
+                        try:
+                            w = dScoredTemplates[template]
+                            dTemplateIndex[nextT]
+                        except KeyError:
+                            #template from previous iteration: ignore
+                            w= None
                         ## kleene 
-                        if nextT is template:
-                            w +=  dScoredTemplates[template]
-                        ## ...
-                        transProb[dTemplateIndex[template],dTemplateIndex[nextT]] = w +  transProb[dTemplateIndex[template],dTemplateIndex[nextT]]
-                        if np.isinf(transProb[dTemplateIndex[template],dTemplateIndex[nextT]]):
-                            transProb[dTemplateIndex[template],dTemplateIndex[nextT]] = 64000
+                        if w is not None:
+                            if nextT is template:
+                                w +=  dScoredTemplates[template]
+                            ## ...
+                            transProb[dTemplateIndex[template],dTemplateIndex[nextT]] = w +  transProb[dTemplateIndex[template],dTemplateIndex[nextT]]
+                            if np.isinf(transProb[dTemplateIndex[template],dTemplateIndex[nextT]]):
+                                transProb[dTemplateIndex[template],dTemplateIndex[nextT]] = 64000
                 except IndexError:pass
         
 #         transProb /= totalSum
@@ -318,7 +331,7 @@ class lineMiner(Component.Component):
                 except:
                     registeredPoints = None
                 if registeredPoints:
-                    print registeredPoints, lMissing , score
+#                     print registeredPoints, lMissing , score
                     if lMissing != []:
                         registeredPoints.extend(zip(lMissing,lMissing))
                     registeredPoints.sort(key=lambda (x,y):y.getValue())
@@ -459,7 +472,7 @@ class lineMiner(Component.Component):
             return lRes
     
         lfPattern =convertStringtoPattern(lPattern)
-        print lfPattern
+#         print lfPattern
         # create a template from lfPattern!
         mytemplate = treeTemplateClass()
 #         mytemplate.setPattern(lfPattern)
@@ -472,8 +485,8 @@ class lineMiner(Component.Component):
                 elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['x','x2','text'],myLevel=XMLDSTEXTClass)
                 elt.computeSetofFeatures()
                 elt.lX=elt.getSetofFeatures()                
-            lParsing,lNewSeq = self.parseWithTemplate(mytemplate,lElts)
-    
+            lParsing,lNewSeq = self.parseWithTemplate(mytemplate,lElts,bReplace=True)
+            self.printTreeView(lNewSeq)
             # process lNewSeq: create the output data structure?
     
     def parseWithTemplate(self,mytemplate,lElts,bReplace=False):
@@ -486,7 +499,7 @@ class lineMiner(Component.Component):
 #             print ' ' * level,level, type(head),type(tail)
             if not isinstance(head,str):
                 # terminal element
-                print ' ' * level,head, tail[0][1]
+#                 print ' ' * level,head, tail[0][1]
                 return tail[0][1]
             else:
                 lres=[]
@@ -511,34 +524,29 @@ class lineMiner(Component.Component):
 #         print mvPattern
 #         print dMtoSingleFeature
         
-        print [elt.lX for elt in lElts]
-        
         #need to optimize this double call        
         for elt in lElts:
             try:
                 elt.setSequenceOfFeatures(elt.lX)
-                print elt, elt.lX ,elt.getSetofFeatures()
+#                 print elt, elt.lX ,elt.getSetofFeatures()
                 lf= elt.getSetofFeatures()[:]
-                print elt, lf 
+#                 print elt, lf 
                 elt.resetFeatures()
                 elt.setFeatureFunction(elt.getSetOfMutliValuedFeatures,TH = PARTIALMATCH_TH, lFeatureList = lf )
+#                 print elt, elt.getSetofFeatures()
                 elt.computeSetofFeatures()            
             except AttributeError:
                 # lower recursive level; objetcclass: dont touch features
                 pass
-        
         seqGen = sequenceMiner()
-        
         # what is missing is the correspondance between rule name (sX) and template element
         ## provide a template to seqGen ? instead if recursive list (mvpatern)
         
 #         for e in lElts:
 #             print "wwww",e, e.getSetofFeatures()
         lNewSequence = lElts[:]
-        print '----------'
         parsingRes = seqGen.parseSequence(mvPattern,multiValueFeatureObject,lElts)
         if parsingRes:
-            print '----------'
             self.populateElementWithParsing(mytemplate,parsingRes,dMtoSingleFeature)
             _, _, ltrees  = parsingRes
             for lParsedElts, _,ltree in ltrees:
@@ -547,7 +555,7 @@ class lineMiner(Component.Component):
                 # replace kleene+ elt by an object ?
                 if bReplace:
                     lNewSequence = self.replaceEltsByParsing(lNewSequence,lkleeneVersion,lParsedElts,mytemplate.getPattern())
-                print len(lNewSequence)
+#                 print len(lNewSequence)
             
         return parsingRes, lNewSequence
 
@@ -565,8 +573,8 @@ class lineMiner(Component.Component):
                     _,(tag,start,_) = node[0]
                     # tag need to be converted in mv -> feature
                     subtemplate = mytemplate.findTemplatePartFromPattern(dMtoSingleFeature[tag])
-                    print subtemplate, dMtoSingleFeature[tag]
-                    print  lElts[start], tag, subtemplate, mytemplate, dMtoSingleFeature[tag]
+#                     print subtemplate, dMtoSingleFeature[tag]
+#                     print  lElts[start], tag, subtemplate, mytemplate, dMtoSingleFeature[tag]
                     lElts[start].addTemplate(subtemplate)
             else:
                 for subtree in node[1::2]: 
@@ -591,7 +599,7 @@ class lineMiner(Component.Component):
                 newObject = XMLDSTEXTClass() #objectClass()
                 newObject.addAttribute("virtual",pattern)
 #                 newObject.setName(str(pattern))
-#                 newObject.setObjectsList(lParsedElts)
+                newObject.setObjectsList(lParsedElts)
 #                 newObject = lParsedElts[0]
                 lElts.insert(i,newObject)
                 i=len(lElts)
@@ -600,6 +608,18 @@ class lineMiner(Component.Component):
         return  lElts
         
         
+        
+    def printTreeView(self,lElts,level=0):
+        """
+            recursive 
+        """
+        for elt in lElts:
+            if elt.getAttribute('virtual'):
+                print "  "*level, 'Node'
+                self.printTreeView(elt.getObjects(),level+1)
+            else:
+                print "  "*level, elt, elt.getContent().encode('utf-8')
+    
     def getPatternGraph(self,lRules):
         """
             create an graph which linsk exoannded patterns
@@ -631,6 +651,7 @@ class lineMiner(Component.Component):
             dChildParent[child].extend(ltmp)
         return dParentChild,  dChildParent
         
+        
     
     def generateTestOutput(self,lPages):
         """
@@ -651,8 +672,62 @@ class lineMiner(Component.Component):
 #                 domsep.setProp('x', str(sep[0].getValue()))
                 domsep.setProp('x', str(sep[0]))
         
-    
-    
+    def getRegionsFromStructure(self,page,lTree):
+        """
+            tag the dom with what?
+        """
+        
+        lZone=[]
+        srx, sry  = 9e9, 9e9
+        srx2,sry2 = 0 ,  0
+        lSubZone=[]
+        for elt in lTree:
+            if elt.getAttribute('virtual'):
+                rx,ry,rx2,ry2,lsub = self.getRegionsFromStructure(page,elt.getObjects())
+                srx = min(srx,rx)
+                sry = min(sry,ry)
+                srx2= max(srx2,rx2)
+                sry2= max(sry2,ry2)
+                lSubZone.append([rx,ry,rx2,ry2,lsub])
+            else:
+                lZone.append(elt)
+        # get BB of the zone
+        fMinX , fMinY = srx  , sry
+        fMaxX , fMaxY = srx2 , sry2
+        for e in lZone:
+            if e.getX2() > fMaxX:
+                fMaxX= e.getX2()
+            if e.getY2() > fMaxY:
+                fMaxY= e.getY2()
+            if e.getX() < fMinX:
+                fMinX= e.getX()
+            if e.getY() < fMinY:
+                fMinY= e.getY()
+        # has substructure
+        if srx != 9e9:
+            return [ fMinX,fMinY,fMaxX,fMaxY , lSubZone]
+        else:
+            return [ fMinX,fMinY,fMaxX,fMaxY, []]
+
+    def tagDom(self,page,region):
+        """
+            tag page with region (x,y,x2,y2)
+        """
+        fMinX , fMinY,  fMaxX , fMaxY, ltail = region
+        # new region node
+        regionNode = libxml2.newNode('REGION')
+        page.getNode().addChild(regionNode)
+        regionNode.setProp('x',str(fMinX))
+        regionNode.setProp('y',str(fMinY))
+        regionNode.setProp('height',str(fMaxY-fMinY))
+        regionNode.setProp('width',str(fMaxX - fMinX))
+        print 
+        print region
+        print regionNode
+        [self.tagDom(page,tail) for tail in ltail]
+        
+        return regionNode        
+            
     #--- RUN ---------------------------------------------------------------------------------------------------------------    
     def run(self, doc):
         """
@@ -667,7 +742,13 @@ class lineMiner(Component.Component):
         if self.bManual:
             self.processWithTemplate(self.manualPattern,self.lPages)
         else:
-            self.mineLineFeature(self.lPages)
+            
+            lRes = self.mineLineFeature(self.lPages)
+#             print lRes
+            # returns the hierarchical set of elements (a list)
+#             for page , region, tree in lRes:
+#                 self.tagDom(page, region)
+#                 return 
         
         self.addTagProcessToMetadata(self.doc)
         
