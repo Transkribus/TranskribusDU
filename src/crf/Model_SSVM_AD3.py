@@ -129,6 +129,20 @@ class Model_SSVM_AD3(Model):
         gc.collect()
         return 
 
+    def _ssvm_ad3plus_predict(self, lX, lConstraints):
+        """
+        Since onlt ad3+ is able to deal with constraints, we use it!
+        but training must have been done with ad3 or ad3+
+        """
+        assert self.ssvm.model.inference_method in ['ad3', 'ad3+'], "AD3+ is the only inference method supporting those constraints. Training with ad3 or ad3+ is required"
+        
+        #we use ad3+ for this particular inference
+        _inf = self.ssvm.model.inference_method
+        self.ssvm.model.inference_method = "ad3+"
+        lY = self.ssvm.predict(lX, constraints=lConstraints)
+        self.ssvm.model.inference_method = _inf            
+        return lY
+    
     #no need to define def save(self):
     #because the SSVM is saved while being trained, and the attached baeline models are saved by the parent class
                     
@@ -150,7 +164,7 @@ class Model_SSVM_AD3(Model):
         traceln("\t- predicting on test set")
         if bConstraint:
             lConstraints = [g.instanciatePageConstraints() for g in lGraph]
-            lY_pred = self.ssvm.predict(lX, constraints=lConstraints)
+            lY_pred = self._ssvm_ad3plus_predict(lX, lConstraints)
         else:
             lY_pred = self.ssvm.predict(lX)
              
@@ -177,7 +191,7 @@ class Model_SSVM_AD3(Model):
         
         traceln("\t  #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
         if bConstraint:
-            [Y] = self.ssvm.predict([X], constraints=[graph.instanciatePageConstraints()])
+            [Y] = self._ssvm_ad3plus_predict([X], [graph.instanciatePageConstraints()])
         else:
             [Y] = self.ssvm.predict([X])
             
