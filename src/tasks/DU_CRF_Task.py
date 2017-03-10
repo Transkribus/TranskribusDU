@@ -28,7 +28,17 @@ import os, glob
 from optparse import OptionParser
 
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GridSearchCV
+
+#sklearn has changed and sklearn.grid_search.GridSearchCV will disappear in next release or so
+#so it is recommended to use instead sklearn.model_selection
+#BUT on Linux, unplickling of the model fails
+#=> change only on Windows
+#JLM 2017-03-10
+import sys
+if sys.platform == "win32":
+    from sklearn.model_selection import GridSearchCV
+else:
+    from sklearn.grid_search import GridSearchCV
 
 from common.trace import traceln
 
