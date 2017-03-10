@@ -62,6 +62,8 @@ class  XMLDSPageClass(XMLDSObjectClass):
     
     def __repr__(self):
         return "%s %s %d" % (self.getName(),self.getNumber(), len(self.getObjects()))
+    def __str__(self):
+        return "%s %s" % (self.getName(),self.getNumber())
     
     def getNumber(self): return  self._number
     def setNumber(self,n): self._number = n
@@ -80,7 +82,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
         """
             load a page from dom 
         """
-        
+#         import sys
         # must be PAGE        
         self.setName(domNode.name)
         self.setNode(domNode)
@@ -131,7 +133,8 @@ class  XMLDSPageClass(XMLDSObjectClass):
                     myObject.fromDom(elt)
 
 
-
+#         print self.getAttribute('number')
+#         sys.stdout.flush()
 
 
     #TEMPLATE
@@ -290,33 +293,34 @@ class  XMLDSPageClass(XMLDSObjectClass):
     
     ############# FEATURING #######    
 
-    def getSetOfMigratedFeatures(self,TH,lInitialFeatures,myObject):
-        """
-            lInitialFeatures is produced at a different levels: TEXT
-                -> need to 'migrate' fi into sef level :
-            
-        """
-        from spm.feature import featureObject
-     
-        if self._lBasicFeatures is None:
-            self._lBasicFeatures = []
-        # needed to keep canonical values!
-        elif self.getSetofFeatures() != []:
-            return self.getSetofFeatures()
-   
-        
-        for oldfi in lInitialFeatures:
-            fi = featureObject()
-#             fi.setName(oldfi.getName())
-            fi.setName('x')
-            fi.setValue(oldfi.getValue())
-            fi.setTH(oldfi.getTH())
-            fi.addNode(self)
-            fi.setType(oldfi.getType())
-            fi.setObjectName(self)
-            self.addFeature(fi)
-
-        return self.getSetofFeatures()
+#     def getSetOfMigratedFeatures(self,TH,lInitialFeatures,myObject):
+#         """
+#             lInitialFeatures is produced at a different levels: TEXT
+#                 -> need to 'migrate' fi into sef level :
+#             
+#         """
+#         from spm.feature import featureObject
+#      
+#         if self._lBasicFeatures is None:
+#             self._lBasicFeatures = []
+#         # needed to keep canonical values!
+#         elif self.getSetofFeatures() != []:
+#             return self.getSetofFeatures()
+#    
+#         
+#         for oldfi in lInitialFeatures:
+#             fi = featureObject()
+# #             fi.setName(oldfi.getName())
+#             fi.setName('x')
+#             fi.setValue(oldfi.getValue())
+#             fi.setTH(oldfi.getTH())
+#             fi.setWeight(oldfi.getWeight())
+#             fi.addNode(self)
+#             fi.setType(oldfi.getType())
+#             fi.setObjectName(self)
+#             self.addFeature(fi)
+# 
+#         return self.getSetofFeatures()
         
     def getSetOfMutliValuedFeatures(self,TH,lMyFeatures,myObject):
         """
@@ -340,7 +344,6 @@ class  XMLDSPageClass(XMLDSObjectClass):
         mv.setValue(map(lambda x:x,lMyFeatures))
         mv.setType(multiValueFeatureObject.COMPLEX)
         self.addFeature(mv)
-
             
         if self.getSetofFeatures() == []:
             feature = multiValueFeatureObject()
@@ -408,12 +411,11 @@ class  XMLDSPageClass(XMLDSObjectClass):
             return self.getSetofFeatures()
    
 
-        lFeatures = []
         feature = featureObject()
         feature.setName('h')
         feature.setTH(TH)
         feature.addNode(self)
-        feature.setObjectName(self.getName())
+        feature.setObjectName(self)
         feature.setValue(round(float(self.getAttribute('height'))))
         feature.setType(feature.NUMERICAL)
         self.addFeature(feature)
@@ -422,7 +424,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
         feature.setName('w')
         feature.setTH(TH)
         feature.addNode(self)
-        feature.setObjectName(self.getName())
+        feature.setObjectName(self)
         feature.setValue(round(float(self.getAttribute('width'))))
         feature.setType(feature.NUMERICAL)
         self.addFeature(feature)
@@ -433,7 +435,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
             feature.setName('EMPTY')
             feature.setTH(TH)
             feature.addNode(self)
-            feature.setObjectName(self.getName())
+            feature.setObjectName(self)
             feature.setValue(True)
             feature.setType(featureObject.BOOLEAN)
             self.addFeature(feature)           
@@ -508,6 +510,18 @@ class  XMLDSPageClass(XMLDSObjectClass):
             return self.getSetofFeatures()
    
    
+        if 'virtual' in lAttributes:
+            ftype= featureObject.BOOLEAN
+            feature = featureObject()
+            feature.setName('f')
+            feature.setTH(TH)
+            feature.addNode(self)
+            feature.setObjectName(self)
+            feature.setValue(self.getAttribute('virtual'))
+            feature.setType(ftype)
+            self.addFeature(feature)
+        return self.getSetofFeatures()
+            
         lHisto={}
         for elt in self.getAllNamedObjects(myObject):
             if float(elt.getAttribute('width')) > 00:

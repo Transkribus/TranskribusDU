@@ -56,7 +56,10 @@ class templateClass(objectClass,sequenceAPI):
     def setParent(self,p): self.parent= p
     
     def isMirrored(self): return self.bIsMirrored
-     
+    
+    def buildFromPattern(self,p):
+        raise "SOFTWARE ERROR: your component must define a testRun method"
+        
     def registration(self,object):
         raise "SOFTWARE ERROR: your component must define a testRun method"
 

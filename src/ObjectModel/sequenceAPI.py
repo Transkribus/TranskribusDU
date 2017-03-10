@@ -18,6 +18,9 @@ class sequenceAPI():
         # list of features 
         self._lBasicFeatures = None
         
+        # set of canonical features
+        self._canonicalFeatures = None
+        
         self._subObjects=None
     def __hash__(self):
         return hash(str(self.getSetofFeatures()))
@@ -36,9 +39,8 @@ class sequenceAPI():
         ## assume structure define elsewhere
         self.setStructures([])
         self._lBasicFeatures = None           
+        
     
-        
-        
     def setFeatureFunction(self,foo,TH=5,lFeatureList = None,myLevel=None):
         """
             select featureFunction that have to be used
@@ -52,39 +54,6 @@ class sequenceAPI():
     def computeSetofFeatures(self):
         self._featureFunction(self._featureFunctionTH,self._lFeatureList,self._subObjects)
         
-#         """
-#         
-#             for fuzzy matching: getSetofDegradedFeatures() ??
-#         """
-#         
-#         from spm.feature import sequenceOfFeatures
-#         try:
-#             self._lBasicFeatures
-#         except AttributeError:
-#             self._lBasicFeatures=None
-#             
-#         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-#             lR=sequenceOfFeatures()
-#             for f in self._lBasicFeatures.getSequences():
-#                 if f.isAvailable():
-#                     lR.addFeature(f)
-#             return lR
-# 
-#         self._featureFunction(self._featureFunctionTH,self._lFeatureList,self._subObjects)
-      
-
-#     def getSetofFeaturesInit(self,TH,lAttributes,myObject):
-#         from spm.feature import sequenceOfFeatures
-#         
-#         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-#             lR=sequenceOfFeatures()
-#             for f in self._lBasicFeatures.getSequences():
-#                 if f.isAvailable():
-#                     lR.addFeature(f)
-#             return lR
-#         x= sequenceOfFeatures()
-#         return x              
-        
     def setSequenceOfFeatures(self,l):
         self._lBasicFeatures = l
         
@@ -97,14 +66,13 @@ class sequenceAPI():
             
     def getSetofFeatures(self):
         return self._lBasicFeatures
-#         from spm.feature import sequenceOfFeatures
-#         
-#         if self._lBasicFeatures and len(self._lBasicFeatures.getSequences()) > 0:
-#             lR=sequenceOfFeatures()
-#             for f in self._lBasicFeatures.getSequences():
-#                 if f.isAvailable():
-#                     lR.addFeature(f)
-#             return lR
-#         x= sequenceOfFeatures()
+
+    def getCanonicalFeatures(self): return self._canonicalFeatures
+    def addCanonicalFeatures(self,f ):
+        if self._canonicalFeatures is None:
+            self._canonicalFeatures=[]
+        if f not in self._canonicalFeatures:
+            self._canonicalFeatures.append(f)
+            
         
         

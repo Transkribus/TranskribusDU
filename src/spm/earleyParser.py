@@ -24,12 +24,13 @@ class Production(object):
 
 class Rule(object):
     def __init__(self, name, *productions):
-        self.name = name
+        self.data=name
+        self.name =  str(name)
         self.productions = list(productions)
     def __str__(self):
         return self.name
     def __repr__(self):
-        return "%s -> %s" % (self.name, " | ".join(repr(p) for p in self.productions))
+        return "%s -> %s" % (self.name, " | ".join(str(p) for p in self.productions))
     def add(self, *productions):
         self.productions.extend(productions)
 
@@ -151,14 +152,15 @@ def parse(rule, lSeq):
             for state in col:
                 lS.append(state)
         return -1,lS
-
+import sys
+sys.setrecursionlimit(100000)
 def build_trees(state,MAX=-1):
-    return build_trees_helper([], state, len(state.rules) - 1, state.end_column,MAX)
-#     try:
-#         return build_trees_helper([], state, len(state.rules) - 1, state.end_column,MAX)
-#     except RuntimeError:
-#         # recursion level issue (for long sequence: >600)
-#         return build_trees_helper([], state, len(state.rules) - 1, state.end_column,MAX=2)
+#     return build_trees_helper([], state, len(state.rules) - 1, state.end_column,MAX)
+    try:
+        return build_trees_helper([], state, len(state.rules) - 1, state.end_column,MAX)
+    except RuntimeError:
+        # recursion level issue (for long sequence: >600)
+        return build_trees_helper([], state, len(state.rules) - 1, state.end_column,MAX=2)
 
 def build_trees_helper(children, state, rule_index, end_column,MAX=-1):
     if rule_index < 0:
@@ -170,14 +172,14 @@ def build_trees_helper(children, state, rule_index, end_column,MAX=-1):
     
     rule = state.rules[rule_index]
     outputs = []
-    for st in end_column: #[:MAX]:
+    for st in end_column[:MAX]:
         if st is state:
             break
         if st is state or not st.completed() or st.name != rule.name:
             continue
         if start_column is not None and st.start_column != start_column:
             continue
-        for sub_tree in build_trees(st):
+        for sub_tree in build_trees(st)[:100]:
             for node in build_trees_helper([sub_tree] + children, state, rule_index - 1, st.start_column,MAX):
 #                 print node.print_()
                 outputs.append(node)
