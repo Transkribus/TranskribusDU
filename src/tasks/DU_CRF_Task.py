@@ -28,7 +28,7 @@ import os, glob
 from optparse import OptionParser
 
 from sklearn.linear_model import LogisticRegression
-from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV
 
 from common.trace import traceln
 
