@@ -36,13 +36,13 @@ from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformer
 from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
-from FeatureDefinitionGraph import FeatureDefinitionGraph
+from FeatureDefinition import FeatureDefinition
 
-class FeatureDefinition_PageXml_StandardOnes(FeatureDefinitionGraph):
+class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
     
     def __init__(self, n_tfidf_node=None, t_ngrams_node=None, b_tfidf_node_lc=None
                      , n_tfidf_edge=None, t_ngrams_edge=None, b_tfidf_edge_lc=None): 
-        FeatureDefinitionGraph.__init__(self)
+        FeatureDefinition.__init__(self)
         
         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
         self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc = n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc
