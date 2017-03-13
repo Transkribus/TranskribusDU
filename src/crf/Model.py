@@ -91,6 +91,8 @@ class Model:
             self._lMdlBaseline =  self._loadIfFresh(sBaselineFile, expiration_timestamp, self.gzip_cPickle_load)
         except ModelException:
             print 'no baseline model found : %s' %(sBaselineFile) 
+        self.loadTransformers(expiration_timestamp)
+            
         return self    
             
     def _loadIfFresh(self, sFilename, expiration_timestamp, loadFun):

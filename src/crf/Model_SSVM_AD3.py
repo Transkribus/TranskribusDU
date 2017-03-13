@@ -70,7 +70,6 @@ class Model_SSVM_AD3(Model):
         """
         Model.load(self, expiration_timestamp)
         self.ssvm = self._loadIfFresh(self.getModelFilename(), expiration_timestamp, lambda x: SaveLogger(x).load())
-        self.loadTransformers(expiration_timestamp)
         return self
     
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
@@ -120,7 +119,12 @@ class Model_SSVM_AD3(Model):
         traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
-        
+
+        #cleaning useless data that takes MB on disk
+        self.ssvm.alphas = None  
+        self.ssvm.constraints_ = None
+        self.ssvm.inference_cache_ = None    
+        traceln("\t\t(model made slimmer)")        
         #the baseline model(s) if any
         self._trainBaselines(lX, lY)
         
