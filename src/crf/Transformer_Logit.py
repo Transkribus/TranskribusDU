@@ -101,7 +101,7 @@ class NodeTransformerLogit(Transformer):
                                                                         #, max_features=10000
                                                                         , analyzer = 'char'
                                                                         , ngram_range=self.t_ngrams_node)) #(2,6)), #we can use it separately from the pipleline once fitted
-                                       , ('word_selector'  , SelectKBest(chi2, k=self.n_feat_node))
+#                                        , ('word_selector'  , SelectKBest(chi2, k=self.n_feat_node))
                                        ])
         # the y
         if lAllNode==None: lAllNode = [nd for g in lGraph for nd in g.lNode]
@@ -185,20 +185,28 @@ class EdgeTransformerLogit(Transformer):
         """
         return the 2 logit scores
         """
-        lEdgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge]
-        nbEdgeClass = len(lEdgeClass)
-        
-        nbFeatPerNode = 2*self.nbClass              #for each class: is_of_class? is_neighbor_of_class?
-        nbFeatPerEdgeClass = 2 * nbFeatPerNode      #2 nodes
-        d_iEdgeClass = { cls:i*nbFeatPerEdgeClass for i,cls in enumerate(lEdgeClass) }  #shift by edge class
-        
-        a = np.zeros( ( len(lEdge), nbEdgeClass * nbFeatPerEdgeClass ), dtype=np.float64) 
-        
-        #slow but safer to code
-        for i, edge in enumerate(lEdge):
-            iEdgeClass = d_iEdgeClass[edge.__class__] 
-            for nd, iNode in [ (edge.A, 0), (edge.B, nbFeatPerNode)]:
-                a[i, iEdgeClass+iNode:iEdgeClass+iNode+nbFeatPerNode] = self.transfNodeLogit.transform([nd])
+        if True:
+            aA = self.transfNodeLogit.transform( [edge.A for edge in lEdge] )
+            aB = self.transfNodeLogit.transform( [edge.B for edge in lEdge] )
+            a = np.hstack([aA, aB])
+            del aA, aB
+            assert a.shape == (len(lEdge), 2 * 2 * self.nbClass)
+        else:
+            #not so clever to distinguish by edge type since the neighbor mask is ignoring the type of edge
+            lEdgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge]
+            nbEdgeClass = len(lEdgeClass)
+            
+            nbFeatPerNode = 2*self.nbClass              #for each class: is_of_class? is_neighbor_of_class?
+            nbFeatPerEdgeClass = 2 * nbFeatPerNode      #2 nodes
+            d_iEdgeClass = { cls:i*nbFeatPerEdgeClass for i,cls in enumerate(lEdgeClass) }  #shift by edge class
+            
+            a = np.zeros( ( len(lEdge), nbEdgeClass * nbFeatPerEdgeClass ), dtype=np.float64) 
+            
+            #slow but safer to code
+            for i, edge in enumerate(lEdge):
+                iEdgeClass = d_iEdgeClass[edge.__class__] 
+                for nd, iNode in [ (edge.A, 0), (edge.B, nbFeatPerNode)]:
+                    a[i, iEdgeClass+iNode:iEdgeClass+iNode+nbFeatPerNode] = self.transfNodeLogit.transform([nd])
             
 #         for i, edg in enumerate(lEdge):
 #             print i, edg, a[i]
