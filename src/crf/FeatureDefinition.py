@@ -31,7 +31,8 @@ class FeatureDefinition:
     """
     A class to sub-class to define which features from a Tranformer class, you want for node and edges
     """
-    def __init__(self): pass
+    def __init__(self, nbClass=None): 
+        self.nbClass = nbClass  #number of node classes (also called 'labels', and 'states' in pystruct)
 
     def getTransformers(self):
         """
@@ -42,7 +43,7 @@ class FeatureDefinition:
     def fitTranformers(self, lGraph):
         """
         Fit the transformers using the graphs
-        return True 
+        return True
         """
         lAllNode = [nd for g in lGraph for nd in g.lNode]
         self._node_transformer.fit(lAllNode)
