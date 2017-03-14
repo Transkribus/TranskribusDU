@@ -42,6 +42,7 @@ class Graph:
     _lNodeType       = []       #the list of node types for this class of graph
     _dLabelByCls     = None     #dictionary across node types
     _dClsByLabel     = None     #dictionary across node types
+    _nbLabelTot      = 0        #total number of labels
     
     #--- CONSTRAINTS
     _lPageConstraintDef = None  #optionnal page-level constraints
@@ -50,6 +51,9 @@ class Graph:
         self.lNode = lNode
         self.lEdge = lEdge
         self.doc   = None
+        
+        self.bNodeIndexed  = None   #did we already assign a unique index to each node?
+        self.aNeighborClassMask = None   #did we compute the neighbor class mask already?
         
     # --- Node Types -------------------------------------------------
     @classmethod
@@ -76,6 +80,7 @@ class Graph:
             
         cls._lNodeType.append(nodeType)
         assert lsAllLabel == cls.getLabelNameList(), "Internal error"
+        cls._nbLabelTot = len(lsAllLabel)
         
         #and make convenience data structures
         cls._dLabelByCls = { i:sLabel for i,sLabel in enumerate(lsAllLabel) }         
@@ -205,7 +210,7 @@ class Graph:
             if iVerbose>=2: traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
             
             lPrevPageNode = lPageNode
-        if iVerbose: traceln("\t- %d nodes,  %d edges)"%(len(self.lNode), len(self.lEdge)) )
+        if iVerbose: traceln("\t\t (%d nodes,  %d edges)"%(len(self.lNode), len(self.lEdge)) )
         
         return self
 
@@ -239,7 +244,20 @@ class Graph:
                 assert  isinstance(edge, Edge.VerticalEdge)
                 a.lVNeighbor.append(b)
                 b.lVNeighbor.append(a)
-    
+
+    def getNeighborClassMask(self):
+        """
+        record for each node a boolean for each label, indicating if the node is neighbor with a node having that label
+        """    
+        if self.aNeighborClassMask is None:
+            self.aNeighborClassMask = np.zeros((len(self.lNode), self._nbLabelTot), dtype=np.int8)
+            if not self.bNodeIndexed: self._indexNodes()
+            for edge in self.lEdge:
+                a, b = edge.A, edge.B
+                self.aNeighborClassMask[a.index][b.cls] = 1
+                self.aNeighborClassMask[b.index][a.cls] = 1
+        return self.aNeighborClassMask
+        
     def detachFromDOM(self):
         """
         Detach the graph from the DOM node, which can then be freed
@@ -259,8 +277,9 @@ class Graph:
         return 3 Numpy matrices
         """
         node_features = node_transformer.transform(self.lNode)
-        edges = self._indexNodes_and_BuildEdgeMatrix()
+        edges = self._BuildEdgeMatrix()
         edge_features = edge_transformer.transform(self.lEdge)
+        
         return (node_features, edges, edge_features)       
     
     def buildLabelMatrix(self):
@@ -269,16 +288,18 @@ class Graph:
         """
         Y = np.array( [nd.cls for nd in self.lNode] , dtype=np.uint8)
         return Y
-    
-    def _indexNodes_and_BuildEdgeMatrix(self):
+
+    def _indexNodes(self):
+        for i, nd in enumerate(self.lNode): nd.index = i
+        self.bNodeIndexed = True
+            
+    def _BuildEdgeMatrix(self):
         """
         - add an index attribute to nodes
         - build an edge matrix on this basis
         - return the edge matrix (a 2-columns matrix)
         """
-        for i, nd in enumerate(self.lNode):
-            nd.index = i
-
+        if not self.bNodeIndexed: self._indexNodes()
         edges = np.empty( (len(self.lEdge), 2) , dtype=np.int32)
         for i, edge in enumerate(self.lEdge):
             edges[i,0] = edge.A.index
