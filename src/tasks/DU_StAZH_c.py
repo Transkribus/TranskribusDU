@@ -92,7 +92,7 @@ class DU_StAZH_c(DU_CRF_Task):
                                     , 'n_feat_edge'     : 250   #number of ngrams to extract by chi2
                                     , 't_ngrams_edge'   : (2,4)
                                     , 'b_edge_lc'       : False    
-                                    , 'n_jobs'      : 1         #n_jobs when fitting the internal Logit model by grid search
+                                    , 'n_jobs'      : 1         #n_jobs when fitting the internal Logit feat extractor model by grid search
                               }
                              , dLearnerConfig = {
                                    'C'                : .1 
