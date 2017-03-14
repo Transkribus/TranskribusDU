@@ -116,7 +116,7 @@ class Model_SSVM_AD3(Model):
         traceln("\t\t solver parameters:"
                     , " inference_cache=",self.inference_cache
                     , " C=",self.C, " tol=",self.tol, " n_jobs=",self.njobs)
-        traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
+        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
 
@@ -162,7 +162,7 @@ class Model_SSVM_AD3(Model):
         
         traceln("\t- computing features on test set")
         lX, lY = self.transformGraphs(lGraph, True)
-        traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
+        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         traceln("\t done")
 
         traceln("\t- predicting on test set")
@@ -201,12 +201,13 @@ class Model_SSVM_AD3(Model):
         
         for sFilename in lsFilename:
             [g] = loadFun(sFilename) #returns a singleton list
+            [X], [Y] = self.transformGraphs([g], True)
             
             if lLabelName == None:
                 lLabelName = g.getLabelNameList()
+                traceln("\t\t #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
             else:
                 assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
-            [X], [Y] = self.transformGraphs([g], True)
             if g.getPageConstraint():
                 lConstraints = g.instanciatePageConstraints()
                 [Y_pred] = self._ssvm_ad3plus_predict([X], [lConstraints])
@@ -238,7 +239,7 @@ class Model_SSVM_AD3(Model):
         [X] = self.transformGraphs([graph])
         bConstraint  = graph.getPageConstraint()
         
-        traceln("\t  #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
+        traceln("\t\t #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
         if bConstraint:
             [Y] = self._ssvm_ad3plus_predict([X], [graph.instanciatePageConstraints()])
         else:
