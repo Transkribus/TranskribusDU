@@ -185,6 +185,51 @@ class Model_SSVM_AD3(Model):
         
         return tstRpt
 
+    def testFiles(self, lsFilename, loadFun):
+        """
+        Test the model using those files. The corresponding graphs are loaded using the loadFun function (which must return a singleton list).
+        It reports results on stderr
+        
+        if some baseline model(s) were set, they are also tested
+        
+        Return a Report object
+        """
+        lX, lY, lY_pred  = [], [], []
+        lLabelName   = None
+        bConstraint  = None
+        traceln("\t- predicting on test set")
+        
+        for sFilename in lsFilename:
+            [g] = loadFun(sFilename) #returns a singleton list
+            
+            if lLabelName == None:
+                lLabelName = g.getLabelNameList()
+            else:
+                assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
+            [X], [Y] = self.transformGraphs([g], True)
+            if g.getPageConstraint():
+                lConstraints = g.instanciatePageConstraints()
+                [Y_pred] = self._ssvm_ad3plus_predict([X], [lConstraints])
+            else:
+                [Y_pred] = self.ssvm.predict([X])
+            lX     .append(X)
+            lY     .append(Y)
+            lY_pred.append(Y_pred)
+            del g   #this can be very large
+            gc.collect() 
+        traceln("\t done")
+
+        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName)
+        
+        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName)
+        tstRpt.attach(lBaselineTestReport)
+        
+        #do some garbage collection
+        del lX, lY
+        gc.collect()
+        
+        return tstRpt
+
     def predict(self, graph):
         """
         predict the class of each node of the graph
