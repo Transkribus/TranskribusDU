@@ -283,6 +283,17 @@ class Model:
         """
         raise Exception("Method must be overridden")
 
+    def testFiles(self, lsFilename, loadFun):
+        """
+        Test the model using those files. The corresponding graphs are loaded using the loadFun function (which must return a singleton list).
+        It reports results on stderr
+        
+        if some baseline model(s) were set, they are also tested
+        
+        Return a Report object
+        """
+        raise Exception("Method must be overridden")
+
     def predict(self, graph):
         """
         predict the class of each node of the graph
