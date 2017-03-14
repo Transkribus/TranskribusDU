@@ -69,10 +69,12 @@ class FeatureDefinition_PageXml_LogitExtractor(FeatureDefinition):
 #         tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_node_lc, max_features=self.n_feat_node
 #                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
 #                                                                                   , dtype=np.float64)
+
+        #we keep a ref onto it because its fitting needs not only all the nodes, but also additional info, available on the graph objects
+        self._node_transf_logit = NodeTransformerLogit(nbClass, self.n_feat_node, self.t_ngrams_node, self.b_node_lc, n_jobs=n_jobs)
         
         node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
-                                    ("text", NodeTransformerLogit(nbClass, self.n_feat_node, self.t_ngrams_node, self.b_node_lc, n_jobs=n_jobs)
-                                     )
+                                    ("text", self._node_transf_logit)
                                     , 
                                     ("textlen", Pipeline([
                                                          ('selector', NodeTransformerTextLen()),
@@ -107,7 +109,7 @@ class FeatureDefinition_PageXml_LogitExtractor(FeatureDefinition):
 #                                                          ])
 #                                        )                                          
                                       ])
-    
+
         lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                       ("1hot", Pipeline([
                                                          ('1hot', Edge1HotFeatures(PageNumberSimpleSequenciality()))
@@ -122,57 +124,7 @@ class FeatureDefinition_PageXml_LogitExtractor(FeatureDefinition):
                                                          ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
                                                          ])
                                         )
-#                                     , ("sourcetext0", Pipeline([
-#                                                        ('selector', EdgeTransformerSourceText(0)),
-#                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_edge_lc, max_features=self.n_feat_edge
-#                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
-#                                                                                  , dtype=np.float64)),
-#                                                        ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-#                                                        ])
-#                                        )
-#                                     , ("targettext0", Pipeline([
-#                                                        ('selector', EdgeTransformerTargetText(0)),
-#                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_edge_lc, max_features=self.n_feat_edge
-#                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge
-#                                                                                  #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
-#                                                                                  , dtype=np.float64)),
-#                                                        ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-#                                                        ])
-#                                        )
-#                                     , ("sourcetext1", Pipeline([
-#                                                        ('selector', EdgeTransformerSourceText(1)),
-#                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_edge_lc, max_features=self.n_feat_edge
-#                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
-#                                                                                  , dtype=np.float64)),
-#                                                        ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-#                                                        ])
-#                                        )
-#                                     , ("targettext1", Pipeline([
-#                                                        ('selector', EdgeTransformerTargetText(1)),
-#                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_edge_lc, max_features=self.n_feat_edge
-#                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge
-#                                                                                  #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
-#                                                                                  , dtype=np.float64)),
-#                                                        ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-#                                                        ])
-#                                        )
-#                                     , ("sourcetext2", Pipeline([
-#                                                        ('selector', EdgeTransformerSourceText(2)),
-#                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_edge_lc, max_features=self.n_feat_edge
-#                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
-#                                                                                  , dtype=np.float64)),
-#                                                        ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-#                                                        ])
-#                                        )
-#                                     , ("targettext2", Pipeline([
-#                                                        ('selector', EdgeTransformerTargetText(2)),
-#                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_edge_lc, max_features=self.n_feat_edge
-#                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge
-#                                                                                  #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
-#                                                                                  , dtype=np.float64)),
-#                                                        ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-#                                                        ])
-#                                        )                        
+                                    , ("nodetext", EdgeTransformerLogit(nbClass, self._node_transf_logit))
                         ]
                         
         edge_transformer = FeatureUnion( lEdgeFeature )
@@ -188,6 +140,7 @@ class FeatureDefinition_PageXml_LogitExtractor(FeatureDefinition):
         """
         lAllNode = [nd for g in lGraph for nd in g.lNode]
         self._node_transformer.fit(lAllNode)
+        self._node_transf_logit.fitByGraph(lGraph, lAllNode)
         del lAllNode #trying to free the memory!
         
         lAllEdge = [edge for g in lGraph for edge in g.lEdge]
