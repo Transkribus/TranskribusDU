@@ -59,9 +59,10 @@ where:
 - states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
 - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
 """
-DU_GRAPH.setPageConstraint( [    ('ATMOSTONE', nt, 'pnum' , False)    #0 or 1 catch_word per page
-                               , ('ATMOSTONE', nt, 'title'    , False)    #0 or 1 heading pare page
-                             ] )
+if False:
+    DU_GRAPH.setPageConstraint( [    ('ATMOSTONE', nt, 'pnum' , False)    #0 or 1 catch_word per page
+                                   , ('ATMOSTONE', nt, 'title'    , False)    #0 or 1 heading pare page
+                                 ] )
 
 # ===============================================================================================================
 
