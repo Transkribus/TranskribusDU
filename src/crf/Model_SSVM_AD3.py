@@ -70,7 +70,6 @@ class Model_SSVM_AD3(Model):
         """
         Model.load(self, expiration_timestamp)
         self.ssvm = self._loadIfFresh(self.getModelFilename(), expiration_timestamp, lambda x: SaveLogger(x).load())
-        self.loadTransformers(expiration_timestamp)
         return self
     
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
@@ -117,10 +116,15 @@ class Model_SSVM_AD3(Model):
         traceln("\t\t solver parameters:"
                     , " inference_cache=",self.inference_cache
                     , " C=",self.C, " tol=",self.tol, " n_jobs=",self.njobs)
-        traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
+        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
-        
+
+        #cleaning useless data that takes MB on disk
+        self.ssvm.alphas = None  
+        self.ssvm.constraints_ = None
+        self.ssvm.inference_cache_ = None    
+        traceln("\t\t(model made slimmer)")        
         #the baseline model(s) if any
         self._trainBaselines(lX, lY)
         
@@ -158,7 +162,7 @@ class Model_SSVM_AD3(Model):
         
         traceln("\t- computing features on test set")
         lX, lY = self.transformGraphs(lGraph, True)
-        traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
+        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         traceln("\t done")
 
         traceln("\t- predicting on test set")
@@ -181,6 +185,52 @@ class Model_SSVM_AD3(Model):
         
         return tstRpt
 
+    def testFiles(self, lsFilename, loadFun):
+        """
+        Test the model using those files. The corresponding graphs are loaded using the loadFun function (which must return a singleton list).
+        It reports results on stderr
+        
+        if some baseline model(s) were set, they are also tested
+        
+        Return a Report object
+        """
+        lX, lY, lY_pred  = [], [], []
+        lLabelName   = None
+        bConstraint  = None
+        traceln("\t- predicting on test set")
+        
+        for sFilename in lsFilename:
+            [g] = loadFun(sFilename) #returns a singleton list
+            [X], [Y] = self.transformGraphs([g], True)
+            
+            if lLabelName == None:
+                lLabelName = g.getLabelNameList()
+                traceln("\t\t #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
+            else:
+                assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
+            if g.getPageConstraint():
+                lConstraints = g.instanciatePageConstraints()
+                [Y_pred] = self._ssvm_ad3plus_predict([X], [lConstraints])
+            else:
+                [Y_pred] = self.ssvm.predict([X])
+            lX     .append(X)
+            lY     .append(Y)
+            lY_pred.append(Y_pred)
+            del g   #this can be very large
+            gc.collect() 
+        traceln("\t done")
+
+        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName)
+        
+        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName)
+        tstRpt.attach(lBaselineTestReport)
+        
+        #do some garbage collection
+        del lX, lY
+        gc.collect()
+        
+        return tstRpt
+
     def predict(self, graph):
         """
         predict the class of each node of the graph
@@ -189,7 +239,7 @@ class Model_SSVM_AD3(Model):
         [X] = self.transformGraphs([graph])
         bConstraint  = graph.getPageConstraint()
         
-        traceln("\t  #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
+        traceln("\t\t #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
         if bConstraint:
             [Y] = self._ssvm_ad3plus_predict([X], [graph.instanciatePageConstraints()])
         else:

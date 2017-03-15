@@ -20,7 +20,7 @@
     
     
     Developed  for the EU project READ. The READ project has received funding 
-    from the European Union�s Horizon 2020 research and innovation programme 
+    from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
     
 """
@@ -28,7 +28,17 @@ import os, glob
 from optparse import OptionParser
 
 from sklearn.linear_model import LogisticRegression
-from sklearn.grid_search import GridSearchCV
+
+#sklearn has changed and sklearn.grid_search.GridSearchCV will disappear in next release or so
+#so it is recommended to use instead sklearn.model_selection
+#BUT on Linux, unplickling of the model fails
+#=> change only on Windows
+#JLM 2017-03-10
+import sys
+if sys.platform == "win32":
+    from sklearn.model_selection import GridSearchCV
+else:
+    from sklearn.grid_search import GridSearchCV
 
 from common.trace import traceln
 
@@ -305,12 +315,19 @@ See DU_StAZH_b.py
         lPageConstraint = DU_GraphClass.getPageConstraint()
         if lPageConstraint: 
             for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
-            
-        self.traceln("- loading test graphs")
-        lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-        self.traceln(" %d graphs loaded"%len(lGraph_tst))
 
-        oReport = self._mdl.test(lGraph_tst)
+        if False:
+            self.traceln("- loading test graphs")
+            lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
+            self.traceln(" %d graphs loaded"%len(lGraph_tst))
+            oReport = self._mdl.test(lGraph_tst)
+        else:
+            #lower memory footprint
+            self.traceln("- Testing...")
+            lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
+            self.traceln(" %d graphs loaded"%len(lGraph_tst))
+            oReport = self._mdl.testFiles(lFilename_tst, lambda s: DU_GraphClass.loadGraphs([s], bDetach=True, bLabelled=True, iVerbose=1))
+            
         return oReport
 
     def predict(self, lsColDir):

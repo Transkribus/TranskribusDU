@@ -98,6 +98,8 @@ class Model:
             self.loadTransformers(expiration_timestamp) #Fix this
         except ModelException:
             print 'no baseline model found : %s' %(sBaselineFile) 
+        self.loadTransformers(expiration_timestamp)
+            
         return self    
             
     def _loadIfFresh(self, sFilename, expiration_timestamp, loadFun):
@@ -294,6 +296,17 @@ class Model:
     def test(self, lGraph):
         """
         Test the model using those graphs and report results on stderr
+        
+        if some baseline model(s) were set, they are also tested
+        
+        Return a Report object
+        """
+        raise Exception("Method must be overridden")
+
+    def testFiles(self, lsFilename, loadFun):
+        """
+        Test the model using those files. The corresponding graphs are loaded using the loadFun function (which must return a singleton list).
+        It reports results on stderr
         
         if some baseline model(s) were set, they are also tested
         

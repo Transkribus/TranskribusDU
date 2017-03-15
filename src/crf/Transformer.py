@@ -35,6 +35,9 @@ class Transformer(BaseEstimator, TransformerMixin):
     def fit(self, x, y=None):
         return self
 
+    def transform(self, l):
+        assert False, "Specialise this method!"
+        
 class SparseToDense(Transformer):
     def __init__(self):
         Transformer.__init__(self)
