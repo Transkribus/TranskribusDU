@@ -30,6 +30,8 @@ import numpy as np
 
 from sklearn.feature_selection.base import SelectorMixin
 
+import pdb
+
 def _clean_nans(scores):
     """
     Fixes Issue #1240: NaNs can't be properly compared, so change them to the
@@ -170,8 +172,11 @@ def mutual_information(Xbin,q,npmi_norm=False):
 class SelectRobinBest(BaseEstimator,SelectorMixin):
 
     def __init__(self,score_func,k=100):
+        super(SelectRobinBest, self).__init__()
         self.score_func = score_func # Score function by class
         self.k=k
+        self.themask=[]
+
 
     def _check_params(self, X, y):
         #TODO Check Sparse Matrix ?
@@ -195,6 +200,8 @@ class SelectRobinBest(BaseEstimator,SelectorMixin):
         self : object
             Returns self.
         """
+
+        print('Fitting RoundRobin')
         X, y = check_X_y(X, y, ['csr', 'csc'])
 
         if not callable(self.score_func):
@@ -218,14 +225,74 @@ class SelectRobinBest(BaseEstimator,SelectorMixin):
             raise ValueError('Should Give Sparse Matrix Here')
 
 
+        #pdb.set_trace()
+
 
         #TODO Improve this
         self.Y=Y
         self.scores_=[]
         for i in xrange(nclasses):
+            print('Computing Scores .....')
             self.scores_.append(self.score_func(Xbin, np.squeeze(Y[:,i].T )))
 
+
+        print('Selecting Features')
+        self.select_feat()
+        self.toto='123'
+
+        print('Nb features selected',self.themask.sum())
+
         return self
+
+    def select_feat(self):
+
+        check_is_fitted(self, 'scores_')
+        if self.k == 'all':
+            self.themask=np.ones(self.scores_.shape, dtype=bool)
+            return self.themask
+        else:
+            #Select k by class
+            nb_classes=self.Y.shape[1]
+            n_feat =self.scores_[0].shape
+            k_by_class = self.k/nb_classes
+            #print 'nb_classes',nb_classes,k_by_class,self.k
+            mask = np.zeros(n_feat, dtype=bool)
+            ###################################################
+            S=[]
+            for i in xrange(self.Y.shape[1]):
+                scores = _clean_nans(self.scores_[i])
+                # Request a stable sort. Mergesort takes more memory (~40MB per
+                # megafeature on x86-64).
+                #mask[np.argsort(scores, kind="mergesort")[-self.k:]] = 1
+                sindx =np.argsort(scores, kind="mergesort")
+                S.append(list(sindx))
+                #mask[np.argsort(scores, kind="mergesort")[-k_by_class:]] = 1
+
+
+            nb_sel=0
+            current_class=0
+            #Should save this and do it once ....
+            #Why does it call it multiple times
+            print("Number of Feat",n_feat)
+            lk =min(self.k,n_feat[0])
+            while nb_sel< lk :
+                #Find a feature for the current class
+                not_found=True
+                while not_found:
+                    #print(nb_sel,current_class,lk)
+                    feat_index = S[current_class].pop()
+                    if mask[feat_index]==0:
+                        mask[feat_index]=1
+                        nb_sel+=1
+                        break
+                current_class = (current_class+1)% nb_classes
+
+
+
+            self.themask=mask
+            self.scores_.append(mask)
+            return self.themask
+
 
     def _get_support_mask(self):
         """
@@ -242,18 +309,9 @@ class SelectRobinBest(BaseEstimator,SelectorMixin):
         if self.k == 'all':
             return np.ones(self.scores_.shape, dtype=bool)
         else:
-            #Select k by class
-            nb_classes=self.Y.shape[1]
-            k_by_class = self.k/nb_classes
-            #print 'nb_classes',nb_classes,k_by_class,self.k
-            mask = np.zeros(self.scores_[0].shape, dtype=bool)
-            for i in xrange(self.Y.shape[1]):
-                scores = _clean_nans(self.scores_[i])
-                # Request a stable sort. Mergesort takes more memory (~40MB per
-                # megafeature on x86-64).
-                #mask[np.argsort(scores, kind="mergesort")[-self.k:]] = 1
-                mask[np.argsort(scores, kind="mergesort")[-k_by_class:]] = 1
-            return mask
+            return self.themask
+            #return self.scores_[-1]
+            #return self.select_feat()
 
 
 
