@@ -294,8 +294,7 @@ See DU_StAZH_b.py
         else:
             #lower memory footprint
             self.traceln("- Testing...")
-            lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-            self.traceln(" %d graphs loaded"%len(lGraph_tst))
+            self.traceln(" %d graphs to load, one by one"%len(lFilename_tst))
             oReport = self._mdl.testFiles(lFilename_tst, lambda s: DU_GraphClass.loadGraphs([s], bDetach=True, bLabelled=True, iVerbose=1))
             
         return oReport
