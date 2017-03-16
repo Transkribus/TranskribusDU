@@ -206,7 +206,7 @@ class Model_SSVM_AD3(Model):
         for sFilename in lsFilename:
             [g] = loadFun(sFilename) #returns a singleton list
             [X], [Y] = self.transformGraphs([g], True)
-            
+
             if lLabelName == None:
                 lLabelName = g.getLabelNameList()
                 traceln("\t\t #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
@@ -216,10 +216,16 @@ class Model_SSVM_AD3(Model):
                 lConstraints = g.instanciatePageConstraints()
                 [Y_pred] = self._ssvm_ad3plus_predict([X], [lConstraints])
             else:
+                #since we pass a single graph, let force n_jobs to 1 !!
+                n_jobs = self.ssvm.n_jobs
+                self.ssvm.n_jobs = 1
                 [Y_pred] = self.ssvm.predict([X])
+                self.ssvm.n_jobs = n_jobs
+
             lX     .append(X)
             lY     .append(Y)
             lY_pred.append(Y_pred)
+            g.detachFromDOM()
             del g   #this can be very large
             gc.collect() 
         traceln("\t done")
@@ -244,10 +250,13 @@ class Model_SSVM_AD3(Model):
         bConstraint  = graph.getPageConstraint()
         
         traceln("\t\t #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
+        n_jobs = self.ssvm.n_jobs
+        self.ssvm.n_jobs = 1
         if bConstraint:
             [Y] = self._ssvm_ad3plus_predict([X], [graph.instanciatePageConstraints()])
         else:
             [Y] = self.ssvm.predict([X])
+        self.ssvm.n_jobs = n_jobs
             
         return Y
         
