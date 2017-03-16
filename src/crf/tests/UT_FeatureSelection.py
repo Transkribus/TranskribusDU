@@ -181,7 +181,7 @@ class UT_FeatureSelection(unittest.TestCase):
         #Select the best two per class
         #Chi2 return score and p_value ; we just keep the score
         chi_score = lambda x,y : chi2(x,y)[0]
-        feat_selector=SelectRobinBest(chi_score, k=6)
+        feat_selector=SelectRobinBest(chi_score, k=4)
         text_pipeline = Pipeline([('tf', self.cvect),('word_selector',feat_selector)])
         text_pipeline.fit(self.X_list,self.Y_list)
 
@@ -192,7 +192,30 @@ class UT_FeatureSelection(unittest.TestCase):
         I2S_array =np.array(cvect.get_feature_names())
         fs=text_pipeline.named_steps['word_selector']
         selected_indices=fs.get_support(indices=True)
+        self.assertTrue(len(selected_indices)==4)
         print(I2S_array[selected_indices])
+
+    def test_rr_large_nb_feat(self):
+        #Select the best two per class
+        #Chi2 return score and p_value ; we just keep the score
+        chi_score = lambda x,y : chi2(x,y)[0]
+        feat_selector=SelectRobinBest(chi_score, k=10000)
+        text_pipeline = Pipeline([('tf', self.cvect),('word_selector',feat_selector)])
+        text_pipeline.fit(self.X_list,self.Y_list)
+
+        #Test Something Here
+        #embed()
+        cvect=text_pipeline.named_steps['tf']
+        #Index to Word String array
+        I2S_array =np.array(cvect.get_feature_names())
+        fs=text_pipeline.named_steps['word_selector']
+        selected_indices=fs.get_support(indices=True)
+        self.assertTrue(len(selected_indices)==len(I2S_array))
+        print(I2S_array[selected_indices])
+
+    #def TEST save transformers ....
+
+
 
 
 

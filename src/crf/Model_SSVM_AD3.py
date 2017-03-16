@@ -127,7 +127,11 @@ class Model_SSVM_AD3(Model):
         traceln("\t\t(model made slimmer)")        
         #the baseline model(s) if any
         self._trainBaselines(lX, lY)
-        
+
+        #Cleaning SSVM
+        self.ssvm.alphas = None
+        self.ssvm.constraints_ = None
+        self.ssvm.inference_cache_ = None
         #do some garbage collection
         del lX, lY
         gc.collect()
