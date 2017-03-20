@@ -69,10 +69,32 @@ class FeatureDefinition_PageXml_LogitExtractor(FeatureDefinition):
 #         tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_node_lc, max_features=self.n_feat_node
 #                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
 #                                                                                   , dtype=np.float64)
-
-        #we keep a ref onto it because its fitting needs not only all the nodes, but also additional info, available on the graph objects
-        self._node_transf_logit = NodeTransformerLogit(nbClass, self.n_feat_node, self.t_ngrams_node, self.b_node_lc, n_jobs=n_jobs)
+        """
+        I tried to parallelize this code but I'm getting an error on Windows:
         
+  File "c:\Local\meunier\git\TranskribusDU\src\crf\FeatureDefinition_PageXml_logit.py", line 144, in fitTranformers
+    self._node_transformer.fit(lAllNode)
+  File "C:\Anaconda2\lib\site-packages\sklearn\pipeline.py", line 709, in fit
+    for _, trans, _ in self._iter())
+  File "C:\Anaconda2\lib\site-packages\sklearn\externals\joblib\parallel.py", line 768, in __call__
+    self.retrieve()
+  File "C:\Anaconda2\lib\site-packages\sklearn\externals\joblib\parallel.py", line 719, in retrieve
+    raise exception
+TypeError: can't pickle PyCapsule objects        
+
+(virtual_python_pystruct) (C:\Anaconda2) c:\tmp_READ\tuto>python -c "import sklearn; print sklearn.__version__"
+0.18.1
+        => I force n_jobs to 1
+        
+        """
+        n_jobs = 1
+        
+        
+        n_jobs_NodeTransformerLogit = max(1, n_jobs/2)  #half of the jobs for the NodeTransformerLogit, the rets for the others
+        
+        #we keep a ref onto it because its fitting needs not only all the nodes, but also additional info, available on the graph objects
+        self._node_transf_logit = NodeTransformerLogit(nbClass, self.n_feat_node, self.t_ngrams_node, self.b_node_lc, n_jobs=n_jobs_NodeTransformerLogit)
+
         node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                     ("text", self._node_transf_logit)
                                     , 
@@ -108,7 +130,7 @@ class FeatureDefinition_PageXml_LogitExtractor(FeatureDefinition):
 #                                                          #THIS ONE MUST BE LAST, because it include a placeholder column for the doculent-level tfidf
 #                                                          ])
 #                                        )                                          
-                                      ])
+                                      ], n_jobs=max(1, n_jobs - n_jobs_NodeTransformerLogit))
 
         lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                       ("1hot", Pipeline([
@@ -127,7 +149,7 @@ class FeatureDefinition_PageXml_LogitExtractor(FeatureDefinition):
                                     , ("nodetext", EdgeTransformerLogit(nbClass, self._node_transf_logit))
                         ]
                         
-        edge_transformer = FeatureUnion( lEdgeFeature )
+        edge_transformer = FeatureUnion( lEdgeFeature, n_jobs=n_jobs )
           
         #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
         self._node_transformer = node_transformer

@@ -212,15 +212,15 @@ class Model_SSVM_AD3(Model):
                 traceln("\t\t #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
             else:
                 assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
+            n_jobs = self.ssvm.n_jobs
+            self.ssvm.n_jobs = 1
             if g.getPageConstraint():
                 lConstraints = g.instanciatePageConstraints()
                 [Y_pred] = self._ssvm_ad3plus_predict([X], [lConstraints])
             else:
                 #since we pass a single graph, let force n_jobs to 1 !!
-                n_jobs = self.ssvm.n_jobs
-                self.ssvm.n_jobs = 1
                 [Y_pred] = self.ssvm.predict([X])
-                self.ssvm.n_jobs = n_jobs
+            self.ssvm.n_jobs = n_jobs
 
             lX     .append(X)
             lY     .append(Y)
