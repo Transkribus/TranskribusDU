@@ -103,8 +103,49 @@ def tasks():
         ALL_PERF.append(task_perf)
     return ALL_PERF
 
-def read_report(train,test,feat_select,nb_feat,report_dir='./reports'):
-    model_name=Dodge_Tasks.get_model_name(train,feat_select,nb_feat)
+
+def crf_tasks():
+    sel_collections = ['DVD1', 'DVD4',
+               'Plans_for_Grenoble2',
+               'Plans_for_Grenoble3',
+               'Plans_for_Grenoble5',
+               'Plans_for_Grenoble7',]
+
+    AD=list(itertools.product(sel_collections,sel_collections,))
+    AD=filter(lambda x : x[0]!=x[1],AD)
+
+    #Models
+    #M=[('tf',500),('tf',1000),('tf',10000),('chi2',500),('chi2',1000),('mi_rr',500),('mi_rr',1000)]
+    #M=[('tf',500),('tf',1000),('tf',10000),('chi2',500),('chi2',1000),('mi_rr',500),('mi_rr',1000),('chi2_rr',500),('chi2_rr',1000)]
+    M=[('tf',500,''),('tf',1000,''),('chi2',500,''),('chi2',1000,''),('chi2_rr',500,''),('chi2_rr',1000,''),('tf',500,'crf'),('tf',1000,'crf'),('chi2',500,'crf'),('chi2',1000,'crf')]
+
+
+    #Measure Accuracy, Macro Average Precision Macro F1
+    ALL_PERF=[]
+    for i,c in enumerate(AD):
+        train,test=c[0],c[1]
+        task_perf =[i,train,test]
+        for feat_select,nb_feat,mid in M:
+            m_perf = read_report(train,test,feat_select,nb_feat,mid)
+            for p in [m_perf[0],m_perf[2]]:
+                task_perf.append(p)
+        ALL_PERF.append(task_perf)
+
+    #Compute Headers Her
+    AD=list(itertools.product(M,['ACC','F1']))
+    H=['id','train','test']
+    for models,eval_metric in AD:
+        if models[2]=='crf':
+            H.append('crf_'+str(models[0])+'_'+str(models[1])+':'+eval_metric )
+        else:
+            H.append(str(models[0])+'_'+str(models[1])+':'+eval_metric )
+
+
+    return ALL_PERF,H
+
+
+def read_report(train,test,feat_select,nb_feat,mid='',report_dir='./reports'):
+    model_name=Dodge_Tasks.get_model_name(train,feat_select,nb_feat,mid)
 
     repname='Train_'+model_name+'_TEST_'+test+'.pickle'
 
@@ -116,7 +157,9 @@ def read_report(train,test,feat_select,nb_feat,report_dir='./reports'):
         perf =[np.nan,np.nan,np.nan]
 
         perf[0]=report.fScore
-        perf[1]=np.mean(report.average_precision)
+        if hasattr(report,'average_precision'):
+            perf[1]=np.mean(report.average_precision)
+
 
         #Recompute f1
         confmat=report.aConfusionMatrix
@@ -129,7 +172,7 @@ def read_report(train,test,feat_select,nb_feat,report_dir='./reports'):
         print Precision
         print Recall
 
-        F1        = 2*Precision*Recall/(Precision+Recall)
+        F1        = 2*Precision*Recall/(eps+Precision+Recall)
         perf[2]=np.mean(F1)
         return perf
 
@@ -187,6 +230,14 @@ if __name__=='__main__':
             f=open('/home/sclincha/Desktop/exp_dodge.csv','w')
             df.to_csv(f)
             f.close()
+
+        elif mode=='gencrfreport':
+            A,H=crf_tasks()
+            df=pd.DataFrame(A,columns=H)
+            f=open('/home/sclincha/Desktop/exp_dodge_crf.csv','w')
+            df.to_csv(f)
+            f.close()
+
 
         else:
             raise ValueError('Invalid Mode')

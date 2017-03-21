@@ -198,7 +198,7 @@ class Model_SSVM_AD3(Model):
         
         Return a Report object
         """
-        lX, lY, lY_pred  = [], [], []
+        lX, lY, lY_pred,lY_pred_bl  = [], [], [],[]
         lLabelName   = None
         bConstraint  = None
         traceln("\t- predicting on test set")
@@ -222,18 +222,23 @@ class Model_SSVM_AD3(Model):
                 [Y_pred] = self.ssvm.predict([X])
             self.ssvm.n_jobs = n_jobs
 
-            lX     .append(X)
+            #lX     .append(X)
             lY     .append(Y)
             lY_pred.append(Y_pred)
+
+
             g.detachFromDOM()
             del g   #this can be very large
-            gc.collect() 
+            del X
+            gc.collect()
+
+
         traceln("\t done")
 
         tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName)
         
-        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName)
-        tstRpt.attach(lBaselineTestReport)
+        #lBaselineTestReport = self._testBaselines(lX, lY, lLabelName)
+        #tstRpt.attach(lBaselineTestReport)
         
         #do some garbage collection
         del lX, lY

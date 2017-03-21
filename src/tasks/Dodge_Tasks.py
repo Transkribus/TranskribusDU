@@ -25,6 +25,8 @@ import DU_Dodge
 
 from DU_BL_Task import DU_BL_Task
 from DU_CRF_Task import DU_CRF_Task,DU_CRF_FS_Task
+import dodge_graph
+from DU_Dodge_c import DU_Dodge_c
 #print("- classes: ", DU_Dodge.DU_DODGE_GRAPH.getLabelNameList())
 
 try:
@@ -121,7 +123,7 @@ class DU_BL_Dodge(DU_BL_Task):
             paramsFeatSelect['n_tfidf_node']=nb_feat
 
             DU_BL_Task.__init__(self, sModelName, sModelDir,
-                                DU_Dodge.DU_DODGE_GRAPH,
+                                dodge_graph.DU_GRAPH,
                                 dFeatureConfig=paramsFeatSelect,
                                 dLearnerConfig=dLearnerConfig,
                                 sComment=sComment
@@ -131,7 +133,7 @@ class DU_BL_Dodge(DU_BL_Task):
             paramsBaseline['n_tfidf_node']=nb_feat
 
             DU_BL_Task.__init__(self, sModelName, sModelDir,
-                                DU_Dodge.DU_DODGE_GRAPH,
+                                dodge_graph.DU_GRAPH,
                                 dFeatureConfig=paramsBaseline,
                                 dLearnerConfig=dLearnerConfig,
                                 sComment=sComment
@@ -151,7 +153,7 @@ class DU_CRF_FS_Dodge(DU_CRF_FS_Task):
             paramsFeatSelect['n_tfidf_node']=nb_feat
 
             DU_CRF_FS_Task.__init__(self, sModelName, sModelDir,
-                                DU_Dodge.DU_DODGE_GRAPH,
+                                dodge_graph.DU_GRAPH,
                                 dFeatureConfig=paramsFeatSelect,
                                 dLearnerConfig=dLearnerConfig,
                                 sComment=sComment
@@ -161,7 +163,7 @@ class DU_CRF_FS_Dodge(DU_CRF_FS_Task):
             paramsBaseline['n_tfidf_node']=nb_feat
 
             DU_CRF_FS_Task.__init__(self, sModelName, sModelDir,
-                                DU_Dodge.DU_DODGE_GRAPH,
+                                dodge_graph.DU_GRAPH,
                                 dFeatureConfig=paramsBaseline,
                                 dLearnerConfig=dLearnerConfig,
                                 sComment=sComment
@@ -177,30 +179,65 @@ def simpleTest():
     modelName = 'baselineDodge_3'
     modeldir = 'UT_model'
     #Baseline Model
-    #doer = DU_BL_Dodge(modelName, modeldir,'chi2_rr',500)
-    #doer.addBaseline_LogisticRegression()
-    #doer.addFixedLR()
-    #doer.load()
-    #doer = DU_Dodge.DU_Dodge(modelName, modeldir)
 
-    #By Default Do Feature Selection with chi2
-    #doer = DU_Dodge.DU_Dodge_CRF_FS(modelName, modeldir)
-    #First Check Test with Dodge
-    doer = DU_Dodge.DU_Dodge(modelName,modeldir)
-    #Remove Previous file in anya
-    #doer.rm()
-    doer.load()
+    use_bl_model=True
+    use_crf_model=True
 
-    listTest = getDodgeFileList1()
+    if use_bl_model:
 
-    print("- classes: ", DU_Dodge.DU_DODGE_GRAPH.getLabelNameList())
+        doer = DU_BL_Dodge(modelName, modeldir,'chi2_rr',500)
+        #doer.addBaseline_LogisticRegression()
+        doer.addFixedLR()
+        doer.rm()
+        #doer.load()
+        #doer = DU_Dodge.DU_Dodge(modelName, modeldir)
 
-    #report=doer.train_save_test(listTrain, [], bWarm=False, filterFilesRegexp=False)
-    #report = doer.test(listTest,filterFilesRegexp=False)
+        #By Default Do Feature Selection with chi2
+        #doer = DU_Dodge.DU_Dodge_CRF_FS(modelName, modeldir)
+        #First Check Test with Dodge
+        #doer = DU_Dodge.DU_Dodge(modelName,modeldir)
+        #Remove Previous file in anya
+        #doer.rm()
+        #doer.load()
 
-    rep=doer.test_files(listTest,filterFilesRegexp=False)
-    print rep
-    print rep[0]
+        listTest = getDodgeFileList1()
+
+        print("- classes: ", dodge_graph.DU_GRAPH.getLabelNameList())
+
+        report=doer.train_save_test(listTrain, [], bWarm=False, filterFilesRegexp=False)
+        #report = doer.test(listTest,filterFilesRegexp=False)
+
+        #This is a copy of the test function ... not clean that
+        repname='Debug_Report'
+        tstReport=doer.test(listTrain,filterFilesRegexp=False,test_sequential=False)
+        rep=tstReport[0]
+        rep.name=repname
+        print rep
+
+
+    if use_crf_model:
+        doer = DU_Dodge.DU_Dodge(modelName,modeldir)
+        #Remove Previous file in anya
+        doer.rm()
+        #doer.load()
+
+        listTest = getDodgeFileList1()
+
+        print("- classes: ", dodge_graph.DU_GRAPH.getLabelNameList())
+
+        report=doer.train_save_test(listTrain, [], bWarm=False, filterFilesRegexp=False)
+        #report = doer.test(listTest,filterFilesRegexp=False)
+
+        #This is a copy of the test function ... not clean that
+        repname='Debug_Report_CRF'
+
+        tstReport=doer.test(listTrain,filterFilesRegexp=False)
+
+        #rep=tstReport[0]
+        rep=tstReport
+        rep.name=repname
+        print(rep)
+
     #Ytrue,Reports=doer.test_seq(listTest,filterFilesRegexp=False)
 
     #embed()
@@ -232,15 +269,18 @@ def train_dodge_collection(collection_name,feat_select=None,nb_feat=500,model_id
     listTrain = get_collection(collection_name)
     print(feat_select,nb_feat,model_id)
 
+
+    MODEL_DIR='DODGE_TRAIN'
+    '''
     if feat_select:
         model_name=get_model_name(collection_name,feat_select,nb_feat,model_id)
         print("Training...",collection_name,feat_select,nb_feat)
         if model_id=='' or model_id=='bl':
-            doer = DU_BL_Dodge(model_name, 'DODGE_TRAIN',feat_select=feat_select,nb_feat=nb_feat)
+            doer = DU_BL_Dodge(model_name, MODEL_DIR,feat_select=feat_select,nb_feat=nb_feat)
 
         elif model_id=='crf':
             #This is not fully supported
-            doer = DU_CRF_FS_Dodge(model_name,'DODGE_TRAIN',feat_select=feat_select,nb_feat=nb_feat)
+            doer = DU_CRF_FS_Dodge(model_name,MODEL_DIR,feat_select=feat_select,nb_feat=nb_feat)
 
         else:
             raise ValueError('Invalid Model')
@@ -249,18 +289,19 @@ def train_dodge_collection(collection_name,feat_select=None,nb_feat=500,model_id
 
         if model_id=='' or model_id=='bl':
             model_name=get_model_name(collection_name,'tf',500,model_id)
-            doer = DU_BL_Dodge(model_name, 'DODGE_TRAIN')
+            doer = DU_BL_Dodge(model_name,MODEL_DIR)
 
 
         elif model_id=='crf':
             model_name=get_model_name(collection_name,'tf',500,model_id)
             #This is not fully supported
-            doer = DU_Dodge.DU_Dodge(model_name,'DODGE_TRAIN')
+            doer = DU_Dodge.DU_Dodge(model_name,MODEL_DIR)
 
 
         else:
             raise ValueError('Invalid Model')
-
+    '''
+    doer = create_model(collection_name,model_id,feat_select=feat_select,nb_feat=nb_feat,model_dir=MODEL_DIR)
     doer.addBaseline_LogisticRegression()
     report=doer.train_save_test(listTrain, [], bWarm=False, filterFilesRegexp=False)
     print(report)
@@ -269,32 +310,36 @@ def train_dodge_collection(collection_name,feat_select=None,nb_feat=500,model_id
 #Kind of Factory
 def create_model(collection_name,model_id='',feat_select=None,nb_feat=500,model_dir='DODGE_TRAIN'):
 
-    if feat_select:
-        model_name=get_model_name(collection_name,feat_select,nb_feat,model_id)
-        print('Creating Model:',collection_name,model_id,feat_select,nb_feat)
-        if model_id=='' or model_id=='bl':
-            doer = DU_BL_Dodge(model_name, model_dir,feat_select=feat_select,nb_feat=nb_feat)
-
-        elif model_id=='crf':
-            #TODO FIX This is not fully supported with all feature selection
-            #This is just chi2scare
-            doer = DU_CRF_FS_Dodge(model_name,model_dir,feat_select=feat_select,nb_feat=nb_feat)
-            #doer._mdl.n_jobs=1
-        else:
-            raise ValueError('Invalid Model')
-
+    if model_id=='crf_c':
+        model_name=get_model_name(collection_name,'tf',0,model_id)
+        doer = DU_Dodge_c(model_name,model_dir)
+        return doer
     else:
-        if model_id=='' or model_id=='bl':
 
-            model_name=get_model_name(collection_name,'tf',500,model_id)
-            doer = DU_BL_Dodge(model_name, model_dir)
+        if feat_select:
+            model_name=get_model_name(collection_name,feat_select,nb_feat,model_id)
+            print('Creating Model:',collection_name,model_id,feat_select,nb_feat)
+            if model_id=='' or model_id=='bl':
+                doer = DU_BL_Dodge(model_name, model_dir,feat_select=feat_select,nb_feat=nb_feat)
 
-        elif model_id=='crf':
-            model_name=get_model_name(collection_name,'tf',500,model_id)
-            #This is not fully supported
-            doer = DU_Dodge.DU_Dodge(model_name,model_dir,feat_select=feat_select,nb_feat=nb_feat)
-            #doer._mdl.n_jobs=1
-    return doer
+            elif model_id=='crf':
+                #TODO FIX This is not fully supported with all feature selection
+                #This is just chi2scare
+                doer = DU_CRF_FS_Dodge(model_name,model_dir,feat_select=feat_select,nb_feat=nb_feat)
+            else:
+                raise ValueError('Invalid Model')
+
+        else:
+            if model_id=='' or model_id=='bl':
+
+                model_name=get_model_name(collection_name,'tf',500,model_id)
+                doer = DU_BL_Dodge(model_name, model_dir)
+
+            elif model_id=='crf':
+                model_name=get_model_name(collection_name,'tf',500,model_id)
+
+                doer = DU_Dodge.DU_Dodge(model_name,model_dir,feat_select=feat_select,nb_feat=nb_feat)
+        return doer
 
 
 
@@ -336,14 +381,23 @@ def test_model(model_name,model_dir,target_collection,model_id=''):
         collection_name,feat_select,nb_feat,model_id=parse_model_name(model_name)
         doer = create_model(collection_name,model_id=model_id,feat_select=feat_select,nb_feat=nb_feat,model_dir=model_dir)
         doer.load()
-        doer._mdl.n_jobs=1
         #tstReport = doer.test(listTest,filterFilesRegexp=False)
         #TODO
         #This break the baseline Models ..
-        tstReport=doer.test_files(listTest,filterFilesRegexp=False)
-        #rep=tstReport[0]
-        rep=tstReport
-        rep.name=repname
+        #tstReport=doer.test_files(listTest,filterFilesRegexp=False)
+        #Should Do the seq test for the baseline model
+        if model_id=='':
+            tstReport=doer.test(listTest,filterFilesRegexp=False,test_sequential=False)
+            rep=tstReport[0]
+            rep.name=repname
+
+        else:
+            #Do the sequential test here
+            tstReport=doer.test(listTest,filterFilesRegexp=False)
+            #FIXME this is broken here as I did not generate the baseline report here
+            #rep=tstReport[0]
+            rep=tstReport
+            rep.name=repname
 
         print('Saving files in reports')
         f=open(report_fname,'w')
@@ -387,6 +441,7 @@ def create_training_plan_pickle():
             for k in [500,1000]:
                 for mid in ['']:
                     AD_tmp.append((coll,fs,k,mid))
+        AD_tmp.append((coll,'tf','0','crf_c'))
 
     AD=AD_tmp
     AD=sorted(AD,key= lambda x : x[0])
@@ -462,8 +517,8 @@ def qsub_test_plan(taskid,mem="48G"):
     exp_name = 'DT'+str(taskid)
     #cmd_str='qsub -l h='(floriad|alabama|alaska|ontario)  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name+ ' -l vf=32G,h_vmem=32G '\
     #cmd_str='qsub -l h=\'(florida|alabama|ohio|alaska|ontario|arizona|california|nevada|chichet|oregon|montana|colorado|kansas|iowa|indiana)\'  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=48G,h_vmem=48G ' +exec_path +' '+str(taskid)
-    #cmd_str='qsub  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=64G,h_vmem=64G ' +exec_path +' '+str(taskid)
-    cmd_str='qsub  -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=1G,h_vmem=64G ' +exec_path +' '+str(taskid)
+    cmd_str='qsub  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=1G,h_vmem=32G ' +exec_path +' '+str(taskid)
+    #cmd_str='qsub  -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=1G,h_vmem=32G ' +exec_path +' '+str(taskid)
     print cmd_str
     os.system(cmd_str)
 
@@ -474,7 +529,7 @@ def qsub_train_plan(taskid):
     exp_name = 'DS'+str(taskid)
     #cmd_str='qsub -l h='(floriad|alabama|alaska|ontario)  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name+ ' -l vf=32G,h_vmem=32G '\
     #cmd_str='qsub -l h=\'(florida|alabama|ohio|alaska|ontario|arizona|california|nevada|chichet|oregon|montana|colorado|kansas|iowa|indiana)\'  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=48G,h_vmem=48G ' +exec_path +' '+str(taskid)
-    cmd_str='qsub  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=64G,h_vmem=64G ' +exec_path +' '+str(taskid)
+    cmd_str='qsub  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=1G,h_vmem=64G ' +exec_path +' '+str(taskid)
     #cmd_str='qsub  -l h=\'(texas|dakota)\' -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=200G,h_vmem=200G ' +exec_path +' '+str(taskid)
     #cmd_str='qsub  -l h=\'(texas|dakota|alerta|ontario|sirac)\' -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=128G ' +exec_path +' '+str(taskid)
     #cmd_str='qsub   -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=64G,h_vmem=64G ' +exec_path +' '+str(taskid)
@@ -513,101 +568,6 @@ def get_model_name(collection,feat_select,nb_feat,mid=''):
         return string.join([collection,feat_select,str(nb_feat),mid],':')
 
 
-
-
-
-def get_crf_jobid():
-    Z=pickle.load(open('dodge_train_crf_plan.pickle'))
-    L=[]
-    for task_index in Z:
-        model_src,feat_select,nb_feat,mid=Z[task_index]
-        if mid=='crf':
-            L.append(task_index)
-    return L
-
-
-def train_crf_jobs_on_machine(joblist):
-    for taskid in joblist:
-        os.system('python Dodge_Tasks.py make_train dodge_train_crf_plan.pickle '+str(taskid)+' >& /opt/scratch/MLS/sclincha/sge_logs/'+str(taskid)+'.log  &' )
-
-
-
-def get_crf_test_jobid():
-    Z=pickle.load(open('dodge_test_plan.pickle'))
-    CRF_jobs = filter(lambda x : x[1][3]=='crf',Z.items())
-    CRF_jobid=[x[0] for x in CRF_jobs]
-    return CRF_jobid
-
-
-
-
-
-def test_crf_jobs_on_machine(joblist):
-    for taskid in joblist:
-        print(taskid)
-        os.system('python Dodge_Tasks.py make_test dodge_test_plan.pickle '+str(taskid)+'  >& logs/'+str(taskid)+'.log  &' )
-        time.sleep(0.1)
-
-
-
-def run_chi2_mi_exp():
-    Z=pickle.load(open('dodge_train_plan.pickle'))
-    for task_index in Z:
-        model_src,feat_select,nb_feat=Z[task_index]
-        model_name=get_model_name(model_src,feat_select,nb_feat)
-
-        if feat_select=='chi2' or feat_select =='mi_rr':
-            qsub_train_plan(task_index)
-            time.sleep(0.1)
-
-def run_train_tf(tf_feat=1000):
-    Z=pickle.load(open('dodge_train_plan.pickle'))
-    for task_index in Z:
-        model_src,feat_select,nb_feat=Z[task_index]
-        model_name=get_model_name(model_src,feat_select,nb_feat)
-
-        if feat_select=='tf' and nb_feat ==tf_feat:
-            qsub_train_plan(task_index)
-            time.sleep(0.5)
-
-
-def train_missing_models():
-    Z=pickle.load(open('dodge_train_crf_plan.pickle'))
-    for task_index in Z:
-        model_src,feat_select,nb_feat,mid=Z[task_index]
-        model_name=get_model_name(model_src,feat_select,nb_feat,mid=mid)
-        if mid !='crf':
-            model_file =os.path.join("./DODGE_TRAIN",model_name+'_baselines.pkl')
-            print model_file
-            if os.path.exists(model_file) is False:
-                qsub_train_plan(task_index)
-                time.sleep(0.1)
-
-def retrain_rr_models():
-    Z=pickle.load(open('dodge_train_crf_plan.pickle'))
-    for task_index in Z:
-        model_src,feat_select,nb_feat,mid=Z[task_index]
-        model_name=get_model_name(model_src,feat_select,nb_feat,mid=mid)
-        if feat_select.endswith('rr'):
-            print(model_name)
-            qsub_train_plan(task_index)
-            time.sleep(0.1)
-
-
-
-def run_missing_exp():
-    #TODO Memory
-    Z=pickle.load(open('dodge_test_plan.pickle'))
-    for task_index in Z:
-        model_src,feat_select,nb_feat,mid,test_collection=Z[task_index]
-        model_name=get_model_name(model_src,feat_select,nb_feat,mid)
-        #model_dir='DODGE_TRAIN'
-
-        repname='Train_'+model_name+'_TEST_'+test_collection
-        report_fname=os.path.join('reports',repname+'.pickle')
-        print(model_name,' testing on ',test_collection)
-        if os.path.exists(report_fname) is False:
-            qsub_test_plan(task_index)
 
 
 
