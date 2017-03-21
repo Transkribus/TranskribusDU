@@ -145,4 +145,4 @@ if __name__ == "__main__":
         doer.load()
         lsOutputFilename = doer.predict(lRun)
         traceln("Done, see in:\n  %s"%lsOutputFilename)
-    
+
