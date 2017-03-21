@@ -42,30 +42,9 @@ from crf.FeatureDefinition_PageXml_logit import FeatureDefinition_PageXml_LogitE
 
 # ===============================================================================================================
 #DEFINING THE CLASS OF GRAPH WE USE
-DU_GRAPH = Graph_DSXml
-nt = NodeType_DS("Ddg"                   #some short prefix because labels below are prefixed with it
-                      , ['title', 'pnum']   #EXACTLY as in GT data!!!!
-                      , []      #no ignored label/ One of those above or nothing, otherwise Exception!!
-                      , True    #no label means OTHER
-                      )
-nt.setXpathExpr( ".//BLOCK"        #how to find the nodes
-               )
-DU_GRAPH.addNodeType(nt)
 
-"""
-The constraints must be a list of tuples like ( <operator>, <NodeType>, <states>, <negated> )
-where:
-- operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
-- states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
-- negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
-"""
-if False:
-    DU_GRAPH.setPageConstraint( [    ('ATMOSTONE', nt, 'pnum' , False)    #0 or 1 catch_word per page
-                                   , ('ATMOSTONE', nt, 'title'    , False)    #0 or 1 heading pare page
-                                 ] )
 
-# ===============================================================================================================
-
+import dodge_graph
  
 class DU_Dodge_c(DU_CRF_Task):
     """
@@ -80,7 +59,7 @@ class DU_Dodge_c(DU_CRF_Task):
         
         DU_CRF_Task.__init__(self
                              , sModelName, sModelDir
-                             , DU_GRAPH
+                             , dodge_graph.DU_GRAPH
                              , dFeatureConfig = {
                                     'nbClass'    : 3
                                   , 'n_feat_node'    : 500
@@ -89,7 +68,7 @@ class DU_Dodge_c(DU_CRF_Task):
                                   , 'n_feat_edge'    : 250
                                   , 't_ngrams_edge'   : (2,4)
                                   , 'b_edge_lc' : False    
-                                  , 'n_jobs'      : 1         #n_jobs when fitting the internal Logit feat extractor model by grid search
+                                  , 'n_jobs'      : 4         #n_jobs when fitting the internal Logit feat extractor model by grid search
                               }
                              , dLearnerConfig = {
                                    'C'                : .1 

@@ -291,7 +291,7 @@ See DU_StAZH_b.py
             
         return oReport
 
-    def test(self, lsTstColDir,filterFilesRegexp=True):
+    def test(self, lsTstColDir,test_sequential=True,filterFilesRegexp=True):
         """
         test the model
         return a TestReport object
@@ -316,11 +316,13 @@ See DU_StAZH_b.py
         if lPageConstraint: 
             for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
 
-        if False:
+        if test_sequential is False:
+            #Load All
             self.traceln("- loading test graphs")
             lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
             self.traceln(" %d graphs loaded"%len(lGraph_tst))
             oReport = self._mdl.test(lGraph_tst)
+
         else:
             #lower memory footprint
             self.traceln("- Testing...")
@@ -355,7 +357,7 @@ See DU_StAZH_b.py
         for sFilename in lFilename:
             if sFilename.endswith(du_postfix): continue #:)
             [g] = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
-            
+
             if lPageConstraint:
                 self.traceln("\t- prediction with logical constraints: %s"%sFilename)
             else:

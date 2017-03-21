@@ -40,6 +40,9 @@ from crf.NodeType_DSXml   import NodeType_DS
 from DU_CRF_Task import DU_CRF_Task,DU_CRF_FS_Task
 
 
+import dodge_graph
+
+'''
 # ===============================================================================================================
 #DEFINING THE CLASS OF GRAPH WE USE
 DU_DODGE_GRAPH = Graph_DSXml
@@ -59,11 +62,14 @@ where:
 - states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
 - negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
 """
-DU_DODGE_GRAPH.setPageConstraint([('ATMOSTONE', nt, 'pnum' , False)  #0 or 1 catch_word per page
-                               , ('ATMOSTONE', nt, 'title'    , False)  #0 or 1 heading pare page
-                                  ])
+
+
+#DU_DODGE_GRAPH.setPageConstraint([('ATMOSTONE', nt, 'pnum' , False)  #0 or 1 catch_word per page
+#                               , ('ATMOSTONE', nt, 'title'    , False)  #0 or 1 heading pare page
+#                                  ])
 
 # ===============================================================================================================
+'''
 
  
 class DU_Dodge(DU_CRF_Task):
@@ -81,7 +87,7 @@ class DU_Dodge(DU_CRF_Task):
         
         DU_CRF_Task.__init__(self
                              , sModelName, sModelDir
-                             , DU_DODGE_GRAPH
+                             , dodge_graph.DU_GRAPH
                              , dFeatureConfig = {
                                     'n_tfidf_node'    : 500
                                   , 't_ngrams_node'   : (2,4)
@@ -135,7 +141,7 @@ class DU_Dodge_CRF_FS(DU_CRF_FS_Task):
                               }
                              , dLearnerConfig = {
                                    'C'                : .1
-                                 , 'njobs'            : 4
+                                 , 'njobs'            : 1
                                  , 'inference_cache'  : 50
                                  #, 'tol'              : .1
                                  , 'tol'              : .05

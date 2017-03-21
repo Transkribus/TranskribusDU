@@ -155,7 +155,7 @@ TypeError: can't pickle PyCapsule objects
         self._node_transformer = node_transformer
         self._edge_transformer = edge_transformer
 
-    def fitTranformers(self, lGraph):
+    def fitTranformers(self, lGraph,lY=None):
         """
         Fit the transformers using the graphs
         return True 
