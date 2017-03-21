@@ -225,7 +225,8 @@ See DU_StAZH_b.py
         mdl = self.cModelClass(self.sModelName, self.sModelDir)
         
         if not bWarm:
-            if os.path.exists(mdl.getModelFilename()): raise crf.Model.ModelException("Model exists on disk already, either remove it first or warm-start the training.")
+            if os.path.exists(mdl.getModelFilename()): 
+                raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
             
         mdl.configureLearner(**self.config_learner_kwargs)
         mdl.setBaselineModelList(self._lBaselineModel)

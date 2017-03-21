@@ -263,9 +263,9 @@ class Graph:
         Detach the graph from the DOM node, which can then be freed
         """
         if self.doc != None:
-        for nd in self.lNode: nd.detachFromDOM()
-        self.doc.freeDoc()
-        self.doc = None
+            for nd in self.lNode: nd.detachFromDOM()
+            self.doc.freeDoc()
+            self.doc = None
 
 
     # --- Numpy matrices --------------------------------------------------------
