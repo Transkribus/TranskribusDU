@@ -101,10 +101,10 @@ class verticalZonestemplateClass(templateClass):
                             # go to empty state
                             obs[-1,j] = 1.0
                         if np.isinf(obs[i,j]):
-                            print i,j,score
+#                             print i,j,score
                             obs[i,j]=64000
                         if np.isnan(obs[i,j]):
-                            print i,j,score
+#                             print i,j,score
                             obs[i,j]=10e-3                                                        
 #             print lRegCuts, lCuts, normalized(obs)
             return obs / np.amax(obs)
