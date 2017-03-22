@@ -28,7 +28,17 @@ import os, glob
 from optparse import OptionParser
 
 from sklearn.linear_model import LogisticRegression
-from sklearn.grid_search import GridSearchCV
+
+#sklearn has changed and sklearn.grid_search.GridSearchCV will disappear in next release or so
+#so it is recommended to use instead sklearn.model_selection
+#BUT on Linux, unplickling of the model fails
+#=> change only on Windows
+#JLM 2017-03-10
+import sys
+if sys.platform == "win32":
+    from sklearn.model_selection import GridSearchCV
+else:
+    from sklearn.grid_search import GridSearchCV
 
 from common.trace import traceln
 
@@ -215,7 +225,8 @@ See DU_StAZH_b.py
         mdl = self.cModelClass(self.sModelName, self.sModelDir)
         
         if not bWarm:
-            if os.path.exists(mdl.getModelFilename()): raise crf.Model.ModelException("Model exists on disk already, either remove it first or warm-start the training.")
+            if os.path.exists(mdl.getModelFilename()): 
+                raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
             
         mdl.configureLearner(**self.config_learner_kwargs)
         mdl.setBaselineModelList(self._lBaselineModel)

@@ -70,7 +70,6 @@ class Model_SSVM_AD3(Model):
         """
         Model.load(self, expiration_timestamp)
         self.ssvm = self._loadIfFresh(self.getModelFilename(), expiration_timestamp, lambda x: SaveLogger(x).load())
-        self.loadTransformers(expiration_timestamp)
         return self
     
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
@@ -117,10 +116,15 @@ class Model_SSVM_AD3(Model):
         traceln("\t\t solver parameters:"
                     , " inference_cache=",self.inference_cache
                     , " C=",self.C, " tol=",self.tol, " n_jobs=",self.njobs)
-        traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
+        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
         
+        #cleaning useless data that takes MB on disk
+        self.ssvm.alphas = None  
+        self.ssvm.constraints_ = None
+        self.ssvm.inference_cache_ = None    
+        traceln("\t\t(model made slimmer)")        
         #the baseline model(s) if any
         self._trainBaselines(lX, lY)
         
@@ -129,6 +133,20 @@ class Model_SSVM_AD3(Model):
         gc.collect()
         return 
 
+    def _ssvm_ad3plus_predict(self, lX, lConstraints):
+        """
+        Since onlt ad3+ is able to deal with constraints, we use it!
+        but training must have been done with ad3 or ad3+
+        """
+        assert self.ssvm.model.inference_method in ['ad3', 'ad3+'], "AD3+ is the only inference method supporting those constraints. Training with ad3 or ad3+ is required"
+        
+        #we use ad3+ for this particular inference
+        _inf = self.ssvm.model.inference_method
+        self.ssvm.model.inference_method = "ad3+"
+        lY = self.ssvm.predict(lX, constraints=lConstraints)
+        self.ssvm.model.inference_method = _inf            
+        return lY
+    
     #no need to define def save(self):
     #because the SSVM is saved while being trained, and the attached baeline models are saved by the parent class
                     
@@ -144,18 +162,70 @@ class Model_SSVM_AD3(Model):
         
         traceln("\t- computing features on test set")
         lX, lY = self.transformGraphs(lGraph, True)
-        traceln("\t  #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
+        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         traceln("\t done")
 
         traceln("\t- predicting on test set")
         if bConstraint:
             lConstraints = [g.instanciatePageConstraints() for g in lGraph]
-            lY_pred = self.ssvm.predict(lX, constraints=lConstraints)
+            lY_pred = self._ssvm_ad3plus_predict(lX, lConstraints)
         else:
             lY_pred = self.ssvm.predict(lX)
              
         traceln("\t done")
         
+        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName)
+        
+        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName)
+        tstRpt.attach(lBaselineTestReport)
+        
+        #do some garbage collection
+        del lX, lY
+        gc.collect()
+        
+        return tstRpt
+
+    def testFiles(self, lsFilename, loadFun):
+        """
+        Test the model using those files. The corresponding graphs are loaded using the loadFun function (which must return a singleton list).
+        It reports results on stderr
+        
+        if some baseline model(s) were set, they are also tested
+        
+        Return a Report object
+        """
+        lX, lY, lY_pred  = [], [], []
+        lLabelName   = None
+        bConstraint  = None
+        traceln("\t- predicting on test set")
+        
+        for sFilename in lsFilename:
+            [g] = loadFun(sFilename) #returns a singleton list
+            [X], [Y] = self.transformGraphs([g], True)
+
+            if lLabelName == None:
+                lLabelName = g.getLabelNameList()
+                traceln("\t\t #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
+            else:
+                assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
+            n_jobs = self.ssvm.n_jobs
+            self.ssvm.n_jobs = 1
+            if g.getPageConstraint():
+                lConstraints = g.instanciatePageConstraints()
+                [Y_pred] = self._ssvm_ad3plus_predict([X], [lConstraints])
+            else:
+                #since we pass a single graph, let force n_jobs to 1 !!
+                [Y_pred] = self.ssvm.predict([X])
+            self.ssvm.n_jobs = n_jobs
+
+            lX     .append(X)
+            lY     .append(Y)
+            lY_pred.append(Y_pred)
+            g.detachFromDOM()
+            del g   #this can be very large
+            gc.collect() 
+        traceln("\t done")
+
         tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName)
         
         lBaselineTestReport = self._testBaselines(lX, lY, lLabelName)
@@ -175,11 +245,14 @@ class Model_SSVM_AD3(Model):
         [X] = self.transformGraphs([graph])
         bConstraint  = graph.getPageConstraint()
         
-        traceln("\t  #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
+        traceln("\t\t #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
+        n_jobs = self.ssvm.n_jobs
+        self.ssvm.n_jobs = 1
         if bConstraint:
-            [Y] = self.ssvm.predict([X], constraints=[graph.instanciatePageConstraints()])
+            [Y] = self._ssvm_ad3plus_predict([X], [graph.instanciatePageConstraints()])
         else:
             [Y] = self.ssvm.predict([X])
+        self.ssvm.n_jobs = n_jobs
             
         return Y
         
