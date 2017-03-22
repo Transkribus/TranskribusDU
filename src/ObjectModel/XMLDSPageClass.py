@@ -3,8 +3,8 @@
 
     XML page object class 
     
-    Herv� D�jean
-    cpy Xerox 2009
+    Hervé Déjean
+    cpy Xerox 2009, 2017
     
     a class for page object from a XMLDocument
 
@@ -443,6 +443,30 @@ class  XMLDSPageClass(XMLDSObjectClass):
         return self.getSetofFeatures()           
                  
         
+    def getSetOf2DAttributes(self,TH,lAttribute,myObject):
+        """
+            features: 2D (x,y) blocks in the page
+        """
+        from spm.feature import TwoDFeature
+     
+        if self._lBasicFeatures is None:
+            self._lBasicFeatures = []
+        # needed to keep canonical values!
+        elif self.getSetofFeatures() != []:
+            return self.getSetofFeatures()
+   
+
+        for elt in self.getAllNamedObjects(myObject):            
+            feature = TwoDFeature()
+            feature.setName('2D')
+            feature.setTH(TH)
+            feature.addNode(self)
+            feature.setObjectName(self.getName())
+            feature.setValue((round(elt.getX()),round(elt.getY())))
+            feature.setType(feature.COMPLEX)
+            self.addFeature(feature)  
+      
+        return self.getSetofFeatures()          
 
     def getSetOfFeaturesBB(self,TH,lAttributes,myObject):
         """
