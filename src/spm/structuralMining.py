@@ -53,7 +53,9 @@ class sequenceMiner(Component.Component):
     
         self.tag = ds_xml.sTEXT
         
-        # contiguity threshold
+        # sequentiality TH
+        self.fKleenePlusTH = 1.5
+        # eq  threshold
         self._TH = 0 
         
         # maximal sequence size
@@ -71,7 +73,10 @@ class sequenceMiner(Component.Component):
         self._TH = th
         
     def getTH(self): return self._TH
-         
+    
+    def setKleenePlusTH(self,th): self.fKleenePlusTH = th
+    def getKleenePlusTH(self): return self.fKleenePlusTH
+    
     def setSDC(self,s): self.sdc = s
     def getSDC(self): return self.sdc
            
@@ -84,7 +89,7 @@ class sequenceMiner(Component.Component):
     def getMaxSequenceLength(self): return self.maxSeqLength
     
     
-    def generateMSPSData(self,lseq,lfeatures,mis=0.01):
+    def generateMSPSData(self,lseq,lfeatures,mis=0.01,L1Support=[]):
         """
         data.txt
          <{18, 23, 37, 44}{18, 46}{17, 42, 44, 49}> per line    
@@ -106,8 +111,9 @@ class sequenceMiner(Component.Component):
                     for fea in item.getCanonicalFeatures():
                         ## to avoid TH= 30 and 315 + 285 select! introduce issues with spm!
                         oldth=fea.getTH()
-                        fea.setTH(0)
-                        if fea in lfeatures:
+                        fea.setTH(1)
+                        if fea in lfeatures and not fea in L1Support:
+#                             print fea, lfeatures.index(fea)
                             tmpitem.append(fea)
                         fea.setTH(oldth)
                 else:
@@ -363,7 +369,9 @@ class sequenceMiner(Component.Component):
 #             print p, len(p), self.getMinSequenceLength(), len(p) >= self.getMinSequenceLength(), len(p) <= self.getMaxSequenceLength()
             for i in p:
                 i.sort(key=lambda x:x.getValue())
-            
+                
+        # s= None !!!?? how 
+        lPatterns =  filter(lambda (p,s):s is not None,lPatterns)    
         lPatterns= map(lambda (p,s): (p, round(1.0*len(p)*s/self.getMaxSequenceLength())),lPatterns)    
 
         return lPatterns
@@ -381,20 +389,36 @@ class sequenceMiner(Component.Component):
             ?? REGROUP FEATURES PER node 
             when enriching, consider only features from other nodes?
         """
+        ll=[]
         lFeatures = {}
         for elt in lList:
             elt._canonicalFeatures=None
 #             if self.bDebug: print "\t",elt, str(elt.getSetofFeatures())
             for feature in elt.getSetofFeatures():
 #                 print '\t\t',elt,feature
+                ll.append(feature.getValue())
                 try:lFeatures[feature].append(feature)
                 except KeyError: lFeatures[feature] = [feature]
+            
+#         from sklearn import  mixture
+#         print ll    
+#         ll= np.array(ll).reshape(-1,1)
+#         for n in range(1,20):
+#             if len(ll)> n:
+#                 gmm=mixture.GaussianMixture(n_components=n)
+#                 gmm.fit(ll)
+#                 print gmm.bic(ll)
+#                 print gmm.means_
+#                 print gmm.covariances_
+                
+                
         sortedItems = map(lambda x: (x, len(lFeatures[x])), lFeatures)
         sortedItems.sort(key=itemgetter(1), reverse=True)    
         
         lCovered = []
         lMergedFeatures = {}
         for i, (f, _) in enumerate(sortedItems):
+#             print f, lFeatures[f]
             if f.getID() not in map(lambda x: x.getID(), lCovered):
                 lMergedFeatures[f] = lFeatures[f]
                 lCovered.append(f)
@@ -416,7 +440,7 @@ class sequenceMiner(Component.Component):
         lCanonicalFeatures = list()
         # creation of the canonical features
         for f, s in sortedItems:
-#             print '\t',f,s
+#             print '\t',f,s, lMergedFeatures[f]
             ## update the value if numerical feature: take the mean and not the most frequent!!
             cf  = featureObject()
             cf.setName(f.getName())
@@ -426,8 +450,16 @@ class sequenceMiner(Component.Component):
             cf.setTH(f.getTH())
             if f.getType() == featureObject.NUMERICAL:
                 lvalues=map(lambda x:x.getValue(),lMergedFeatures[f])
-                lweights= map(lambda x:1.0*x/len(lMergedFeatures[f]),lvalues)
-                myValue =  round(np.average(lvalues,weights=lweights),0)
+                ## now values can be tuples!!
+                try:             lweights = map(lambda x:1.0*x/len(lMergedFeatures[f]),lvalues)
+                except TypeError:
+                    lvalues=map(lambda x:x.getValue()[0],lMergedFeatures[f])
+                    lweights = map(lambda x:1.0*x/len(lMergedFeatures[f]),lvalues)
+                try:
+                    myValue =  round(np.average(lvalues,weights=lweights),0)
+                except ZeroDivisionError:
+                    # Weights sum to zero, can't be normalized
+                    myValue=f.getValue()
             else:
                 myValue=f.getValue()
 #             print '\t\t', myValue, lMergedFeatures[f]
@@ -471,7 +503,7 @@ class sequenceMiner(Component.Component):
                     elt.addCanonicalFeatures(f.getCanonical())
                     assert f.getCanonical() is not None
                     for n in f.getNodes():
-                        f.getCanonical().addNode(n)  
+                        f.getCanonical().addNode(n)
             elt._lBasicFeatures = filter(lambda x:x not in ltbd,  elt.getSetofFeatures())
             if self.bDebug: print elt, elt.getSetofFeatures(), elt.getCanonicalFeatures()
         
@@ -485,8 +517,11 @@ class sequenceMiner(Component.Component):
             ftotalElts+=l
         for cf in lCanonicalFeatures:
             cf.setWeight(cf.getWeight()/ftotalElts)
-#             print cf, cf.getWeight()
+        
+        
         lCanonicalFeatures.sort(key=lambda x:x.getWeight(),reverse=True)
+        lCanonicalFeatures = filter(lambda x:len(x.getNodes()) >= TH,lCanonicalFeatures)
+
         return lCanonicalFeatures
     
     
@@ -515,7 +550,7 @@ class sequenceMiner(Component.Component):
 
 
 
-    def testTreeKleeneageTemplates(self,dTemplatesCnd,lElts):
+    def testTreeKleeneageTemplates(self,dTemplatesCnd,lElts,iterMax=5):
         """
             test a set of patterns
             select those which are kleene+ 
@@ -528,6 +563,7 @@ class sequenceMiner(Component.Component):
             but need to apply seqrule for completion or relax parsing
             
         """
+        lFullPattern=[]
         lFullTemplates=[]
         dScoreFullTemplate={}
         lTemplates = []
@@ -536,24 +572,30 @@ class sequenceMiner(Component.Component):
             iCpt=0
             iFound = 0
             lenMax = len(dTemplatesCnd[templateType])
-            while iCpt < lenMax  and iFound < 5:
+            while iCpt < lenMax  and iFound < iterMax:
 #             for _,_, mytemplate in dTemplatesCnd[templateType][:4]:
                 _,_, mytemplate  = dTemplatesCnd[templateType][iCpt]
                 ## need to test kleene+: if not discard?
                 isKleenePlus ,parseRes,lseq = self.parseWithTreeTemplate(mytemplate,lElts,bReplace=False)
                 ## assess and keep if kleeneplus
                 if isKleenePlus:
-                    iFound+= 1
-                    lFullTemplates.append(mytemplate)
-                    dScoreFullTemplate[mytemplate]=len(parseRes[1])
-                    print 'add kleenedPlus template', mytemplate,len(parseRes[1])
-                    ## traverse the tree template to list the termnimal pattern
-#                     print mytemplate,'\t\t', mytemplate,len(parseRes[1])
-                    lterm= mytemplate.getTerminalTemplates()
-                    for template in lterm:
-                        if template not in lTemplates:
-                            lTemplates.append(template)
-                            dScoredTemplates[template] = len(parseRes[1])
+                    ### if len=2 and [b,a] already exists: skip it !!
+                    ### also if a bigger pattern contains it ???  (but not TA!!)
+                    if len(mytemplate.getPattern())==2 and [mytemplate.getPattern()[1],mytemplate.getPattern()[0]] in  lFullPattern:
+                        print 'mirrored already in', mytemplate
+                    else:
+                        lFullTemplates.append(mytemplate)
+                        lFullPattern.append(mytemplate.getPattern())
+                        iFound+= 1  
+                        dScoreFullTemplate[mytemplate]=len(parseRes[1])                        
+                        print 'add kleenedPlus template', mytemplate,len(parseRes[1])
+                        ## traverse the tree template to list the termnimal pattern
+    #                     print mytemplate,'\t\t', mytemplate,len(parseRes[1])
+                        lterm= mytemplate.getTerminalTemplates()
+                        for template in lterm:
+                            if template not in lTemplates:
+                                lTemplates.append(template)
+                                dScoredTemplates[template] = len(parseRes[1])
                 iCpt += 1
                 
         lFullTemplates.sort(key=lambda x:dScoreFullTemplate[x],reverse=True)
@@ -591,20 +633,21 @@ class sequenceMiner(Component.Component):
                         if w is not None:
                             if nextT is template:
                                 w +=  dScoredTemplates[template]
-                            if True or nextT == template:
-                                transProb[dTemplateIndex[template],dTemplateIndex[nextT]] = w +  transProb[dTemplateIndex[template],dTemplateIndex[nextT]]
+                            ##
+                            if  (nextT == template) or (nextT.getParent() == template.getParent()):
+                                                                                            # w+
+                                transProb[dTemplateIndex[template],dTemplateIndex[nextT]] =   1 #+ transProb[dTemplateIndex[template],dTemplateIndex[nextT]]
                             if np.isinf(transProb[dTemplateIndex[template],dTemplateIndex[nextT]]):
                                 transProb[dTemplateIndex[template],dTemplateIndex[nextT]] = 64000
                 except IndexError:pass
         
-#         transProb /= totalSum
         #all states point to None
 #         transProb = np.zeros((N,N), dtype = np.float16)
 #         for i in range(0,N):
 #             transProb[i,i]=10
-        transProb[:,-1] = 1.0 #/totalSum
+        transProb[:,-1] = 0.10 #/totalSum
         #last: None: to all
-        transProb[-1,:] = 1.0 #/totalSum
+        transProb[-1,:] = 0.10 #/totalSum
         mmax =  np.amax(transProb)
         if np.isinf(mmax):
             mmax=64000
@@ -672,7 +715,7 @@ class sequenceMiner(Component.Component):
                 elt.computeSetofFeatures()
 #                 print elt, elt.getSetofFeatures()
 
-        # what is missing is the correspondance between rule name (sX) and template element
+        # what is missing is the correspondence between rule name (sX) and template element
         ## provide a template to seqGen ? instead if recursive list (mvpatern)
         
 #         for e in lElts:
@@ -692,8 +735,9 @@ class sequenceMiner(Component.Component):
                 nbSeq+=1
                 if bReplace:
                     lNewSequence = self.replaceEltsByParsing(lNewSequence,lElts,xx,mytemplate.getPattern())            
-            isKleenePlus = nbSeq > 0 and nbKleeneInSeq / nbSeq > 1.66
-#             print mytemplate, nbSeq, nbKleeneInSeq, nbKleeneInSeq / nbSeq
+            isKleenePlus = nbSeq > 0 and nbKleeneInSeq / nbSeq >= self.getKleenePlusTH()
+            ### retrun nbKleeneInSeq / nbSeq and let decide at smpcomponent level (if pattern is mirrored: keep it if nbKleeneInSeq / nbSeq near 1.66 )
+            print mytemplate, nbSeq, nbKleeneInSeq, nbKleeneInSeq / nbSeq
         return isKleenePlus,parsingRes, lNewSequence
 
     def populateElementWithTreeParsing(self,mytemplate,parsings,dMtoSingleFeature):
