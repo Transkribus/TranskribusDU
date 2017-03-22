@@ -41,6 +41,7 @@ sHttpHost = "ds.grenoble.xrce.xerox.com"  #server hosting the collections for on
 
 copyright = "Copyright 2005-2016 XEROX"
 extXML = ".xml"
+extDSXML= '.ds_xml'
 extGZXML = ".xml.gz"
 extRunFile = ".run"
 extHtmFile = ".htm"
@@ -503,7 +504,7 @@ class Component:
 			self.testDirInit(dir)  #raise a ComponentException if the structure is not valid
 			lTestFile = []
 			for fn in os.listdir(self.testDirXML):
-				if fn.endswith(extXML) or fn.endswith(extGZXML):
+				if fn.endswith(extXML) or fn.endswith(extDSXML) or fn.endswith(extGZXML):
 					lTestFile.append(fn)
 				else:
 					traceln("--- WARNING: skipping file (not XML?): %s"%fn)

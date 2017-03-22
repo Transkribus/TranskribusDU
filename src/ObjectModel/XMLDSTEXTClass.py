@@ -70,7 +70,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
             try:
                 myObject= XMLDSTOKENClass(elt)
                 self.addObject(myObject)
-                myObject.setPage(self)
+                myObject.setPage(self.getParent().getPage())
                 myObject.fromDom(elt)
             except: pass #print 'issue with token'
           
@@ -116,6 +116,24 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
             b.setParent(self)
             self.setBaseline(b)
             b.computePoints()
+          
+    def getTokens(self):
+        """
+            if dom tokens: rturn them
+            else split content
+        """
+        if self.getAllNamedObjects(XMLDSTOKENClass) != []:
+            return self.getAllNamedObjects(XMLDSTOKENClass)
+        else:
+            for token in self.getContent().split():
+                oT=XMLDSTOKENClass()
+                oT.setParent(self)
+                oT.setPage(self.getPage())
+                self.addObject(oT)
+                oT.setContent(token)
+            return self.getAllNamedObjects(XMLDSTOKENClass)
+
+          
             
     def getSetOfFeaturesXPos(self,TH,lAttr,myObject):
 
@@ -176,6 +194,8 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
                 try:lHisto[attr]
                 except KeyError:lHisto[attr] = {}
                 if elt.hasAttribute(attr):
+#                     if elt.getWidth() >500:
+#                         print elt.getName(),attr, elt.getAttribute(attr) #, elt.getNode()
                     try:
                         try:lHisto[attr][round(float(elt.getAttribute(attr)))].append(elt)
                         except KeyError: lHisto[attr][round(float(elt.getAttribute(attr)))] = [elt]
@@ -209,6 +229,20 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
                 feature.setValue(self.getContent().split()[0])
                 feature.setType(ftype)
                 self.addFeature(feature)            
+        
+        if 'tokens' in lAttributes:
+            if len(self.getContent()):
+                for token in self.getContent().split():
+                    if len(token) > 4:
+                        ftype= featureObject.EDITDISTANCE
+                        feature = featureObject()
+                        feature.setName('token')
+                        feature.setTH(TH)
+                        feature.addNode(self)
+                        feature.setObjectName(self)
+                        feature.setValue(token.lower())
+                        feature.setType(ftype)
+                        self.addFeature(feature)         
         
         if 'xc' in lAttributes:
             ftype= featureObject.NUMERICAL
