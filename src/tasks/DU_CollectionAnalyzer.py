@@ -129,7 +129,7 @@ class CollectionAnalyzer:
         """
         self.lDoc = self.hPageCountPerDoc.getFirstKeyList()  #all doc are listed here
         self.hTagCountPerDoc.addFirstKeys(self.lDoc)         #to make sure we have all of them listed, even those without tags of interest
-        #self.lTag = self.hTagCountPerDoc.getAllSecondKeys()  #all tag of interest observed in dataset
+        self.lObservedTag = self.hTagCountPerDoc.getAllSecondKeys()  #all tag of interest observed in dataset
         
         self.lNbPage = list()
         for doc in self.lDoc:
@@ -145,7 +145,13 @@ class CollectionAnalyzer:
     def load(self, filename):
         with open(filename, "rb")as fd: 
             self.hPageCountPerDoc, self.hTagCountPerDoc, self.hLblCountPerTag = pickle.load(fd)
-        
+    
+    def prcnt(self, num, totnum, sFmt="%f%%"):
+        if totnum==0:
+            return "n/a"
+        else:
+            return sFmt % (num*100.0/totnum)
+            
     def report(self):
         """
         report on accumulated data so far
@@ -157,23 +163,29 @@ class CollectionAnalyzer:
             print "\t---- %40s  %6d pages"%(doc, nb)
         
         print
-        print " ----- %d objects of interest: %s"%(len(self.lTag), self.lTag)
+        print " ----- %d objects of interest (%d observed): %s"%(len(self.lTag), len(self.lObservedTag), self.lTag)
         for doc in self.lDoc:
             print "\t---- %s  %6d occurences"%(doc, self.hTagCountPerDoc.getSumByFirstKey(doc))
-            for tag in self.lTag: 
+            for tag in self.lObservedTag: 
                 print "\t\t--%20s  %6d occurences" %(tag, self.hTagCountPerDoc.getCount(doc, tag))
         print
-        for tag in self.lTag: 
+        for tag in self.lObservedTag: 
             print "\t-- %s  %6d occurences" %(tag, self.hTagCountPerDoc.getSumBySecondKey(tag))
             for doc in self.lDoc:
                 print "\t\t---- %40s  %6d occurences"%(doc, self.hTagCountPerDoc.getCount(doc, tag))
 
         print
+        print " ----- Label frequency for ALL %d objects of interest: %s"%(len(self.lTag), self.lTag)
         for tag in self.lTag: 
-            print "\t-- %s  %6d occurences  %-d labelled" %(tag, self.hTagCountPerDoc.getSumBySecondKey(tag)
-                                                                , self.hLblCountPerTag.getSumByFirstKey(tag))
+            totnb           = self.hTagCountPerDoc.getSumBySecondKey(tag)
+            totnblabeled    = self.hLblCountPerTag.getSumByFirstKey(tag)
+            print "\t-- %s  %6d occurences  %d labelled" %(tag, totnb, totnblabeled)
             for lbl in self.hLblCountPerTag.getSecondKeyList(tag):
-                print "\t\t- %20s  %6d occurences"%(lbl, self.hLblCountPerTag.getCount(tag, lbl))
+                nb = self.hLblCountPerTag.getCount(tag, lbl)
+                print "\t\t- %20s  %6d occurences\t(%5s)  (%5s)"%(lbl, nb, self.prcnt(nb, totnb, "%.0f%%"), self.prcnt(nb, totnblabeled, "%.0f%%"))
+            nb = totnb - totnblabeled
+            lbl="<unlabeled>"
+            print "\t\t- %20s  %6d occurences\t(%5s)"%(lbl, nb, self.prcnt(nb, totnb, "%.0f%%"))
             
         print "-"*60
         return ""
@@ -253,16 +265,25 @@ if __name__ == "__main__":
     # --- 
     print sys.argv
     
+    bMODEUN = True
+    
     #parse the command line
     (options, args) = parser.parse_args()
     # --- 
     try:
         sRootDir, sDocPattern, sPagePattern  = args[0:3]
-        ls = args[3:]
-        ltTagAttr = zip(ls[slice(0, len(ls), 2)], ls[slice(1, len(ls), 2)])
+        if bMODEUN:
+            #all tag supporting the attribute type in PageXml 2003
+            ltTagAttr = [ (name, "type") for name in ["Page", "TextRegion", "GraphicRegion", "CharRegion", "RelationType"]]
+        else:
+            ls = args[3:]
+            ltTagAttr = zip(ls[slice(0, len(ls), 2)], ls[slice(1, len(ls), 2)])
         print sRootDir, sDocPattern, sPagePattern, ltTagAttr
     except:
-        print "Usage: %s sRootDir sDocPattern sPagePattern [Tag Attr]+"%(sys.argv[0] )
+        if bMODEUN:
+            print "Usage: %s sRootDir sDocPattern sPagePattern"%(sys.argv[0] )
+        else:
+            print "Usage: %s sRootDir sDocPattern sPagePattern [Tag Attr]+"%(sys.argv[0] )
         exit(1)
 
     doer = PageXmlCollectionAnalyzer(sDocPattern, sPagePattern, ltTagAttr)
