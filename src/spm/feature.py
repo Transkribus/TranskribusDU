@@ -228,6 +228,25 @@ class  featureObject(object):
     
         
 
+
+class TwoDFeature(featureObject):
+    """
+        self.value is define as a tuple: (x,y) 
+    """
+    
+    def __eq__(self,other):
+        try: other.getClassName()
+        except AttributeError:return False
+        if self.getClassName() == other.getClassName():
+            if self.getName() == other.getName() and len(self.getValue()) == len(other.getValue()):
+                # assume the same semantical order
+                for i,x in enumerate(self.getValue()):
+                    if abs(float(x) - float(other.getValue()[i])) >self.getTH():
+                        return False
+                return True
+            return False
+        return False
+                
 class multiValueFeatureObject(featureObject):
     """
     
