@@ -63,9 +63,15 @@ class pageVerticalMiner(Component.Component):
         
         # TH for sequentiality detection (see structuralMining)
         self.fKleenPlusTH =1.5
-        
+
+        # pattern provided manually        
         self.bManual = False
+        
+        # evaluation using the baseline
         self.baselineMode = 0
+        
+        # do not use graphical lines
+        self.bNOGline = False
         
     def setParams(self, dParams):
         """
@@ -86,7 +92,10 @@ class pageVerticalMiner(Component.Component):
 
         if dParams.has_key('baseline'):
             self.baselineMode = dParams['baseline']     
-    
+        
+        if dParams.has_key('nogline'):
+            self.bNOGline = dParams['nogline']              
+            
     def minePageDimensions(self,lPages):
         """
             use page dimensions to build highest structure
@@ -385,17 +394,18 @@ class pageVerticalMiner(Component.Component):
             
             # GRAPICAL LINES 
             gl = []
-            for graphline in page.getAllNamedObjects(XMLDSGRAPHLINEClass):
-                if graphline.getHeight() > graphline.getWidth() and graphline.getHeight() > 50:
-                    gl.append(graphline)
-                    # create a feature
-                    f = featureObject()
-                    f.setType(featureObject.NUMERICAL)
-                    f.setTH(self.THNUMERICAL)
-                    f.setWeight(graphline.getHeight())
-                    f.setName("x")
-                    f.setValue(round(graphline.getX()))
-                    graphline.addFeature(f)
+            if not self.bNOGline:
+                for graphline in page.getAllNamedObjects(XMLDSGRAPHLINEClass):
+                    if graphline.getHeight() > graphline.getWidth() and graphline.getHeight() > 50:
+                        gl.append(graphline)
+                        # create a feature
+                        f = featureObject()
+                        f.setType(featureObject.NUMERICAL)
+                        f.setTH(self.THNUMERICAL)
+                        f.setWeight(graphline.getHeight())
+                        f.setName("x")
+                        f.setValue(round(graphline.getX()))
+                        graphline.addFeature(f)
                     
                                     
             seqGen = sequenceMiner()
@@ -888,7 +898,7 @@ class pageVerticalMiner(Component.Component):
                 
                 ## V ZONES
                 # length 1
-                lT1, lScore1,score1 = self.processVSegmentation(lPages[nbPage:nbPage+NBATCH],[],bTAMode=False,iMinLen=1,iMaxLen=2)
+                lT1, lScore1,score1 = self.processVSegmentation(lPages[nbPage:nbPage+NBATCH],[],bTAMode=False,iMinLen=1,iMaxLen=1)
                 print nbPage, nbPage+NBATCH, lT1, score1
                 print '\t',lScore1
                 sys.stdout.flush()
@@ -900,7 +910,7 @@ class pageVerticalMiner(Component.Component):
     #             sys.stdout.flush()
                 lOneSupport=[]
                 print "LENGTH = 2"
-                if bTable or len(lOneSupport) > 4:
+                if bTable or len(lOneSupport) > 8:
                     score2=0
                     lT2=None
                     lScore2=[]
@@ -935,8 +945,12 @@ class pageVerticalMiner(Component.Component):
                                 p.getVerticalTemplates().remove(deltemplate)
                             except ValueError:pass  # page not associated  
                 print "#",lPages[nbPage:nbPage+NBATCH], bTwo , lT
-                
+            
+            
+            # for visu    
             self.tagAsRegion(lPages)
+            ## final step: finetuning and creation of separator???
+            ## consider tokens and find best line 
         
                 
     def processVSegmentation(self,lPages,lNegativePatterns,bTAMode= False,iMinLen=1, iMaxLen=1):
@@ -988,8 +1002,8 @@ class pageVerticalMiner(Component.Component):
             chronoOn()
             print "generation..."
             sys.stdout.flush()
-            lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.2,L1Support=[])
-#             lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.2,L1Support=lOneSupport)
+#             lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.2,L1Support=[])
+            lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.2,L1Support=lOneSupport)
 
             sys.stdout.flush()
             ## if many MIS=1.0 -> table with many columns!
@@ -1023,7 +1037,7 @@ class pageVerticalMiner(Component.Component):
     #         print 'patterns:', dTemplatesCnd
             chronoOn()
             seqGen.setKleenePlusTH(self.fKleenPlusTH)
-            _, lVTemplates,tranprob = seqGen.testTreeKleeneageTemplates(dTemplatesCnd, lPages,iterMax=53)
+            _, lVTemplates,tranprob = seqGen.testTreeKleeneageTemplates(dTemplatesCnd, lPages,iterMax=5)
             print "chronoParsing", chronoOff()
     
             ## merge if similar patterns (see testV/nn)
@@ -1698,7 +1712,7 @@ class pageVerticalMiner(Component.Component):
     
     def testREFVerticalSegmentation(self,srefData,srunData, bVisual):
         """
-            Test found template and reftemplate
+            Test found reftemplate and reftemplate
         """ 
         
         cntOk = cntErr = cntMissed = 0
@@ -1946,6 +1960,7 @@ if __name__ == "__main__":
     docM.add_option("--TH", dest="THNUM", action="store", type="int", help="TH as eq delta", metavar="NN")
     docM.add_option("--KTH", dest="KLEENETH", action="store", type="float", help="TH for sequentiality", metavar="NN")
     docM.add_option("--baseline", dest="baseline", type='int', default=0, action="store", help="baseline method",metavar="N")
+    docM.add_option("--nogl", dest="nogline",  action="store_true",default=False ,help="no graphical line used")
         
     #parse the command line
     dParams, args = docM.parseCommandLine()
@@ -1958,3 +1973,4 @@ if __name__ == "__main__":
     if doc and docM.getOutputFileName() != "-":
         docM.writeDom(doc, True)
 
+        
