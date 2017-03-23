@@ -240,23 +240,21 @@ class PageXml:
     formatCustomAttr = classmethod(formatCustomAttr)
         
         
-    def makeText(cls, nd):
+    def makeText(cls, nd, ctxt=None):
         """
         build the text of a sub-tree by considering that textual nodes are tokens to be concatenated, with a space as separator
         return None if no textual node found
         """
-        ctxt = nd.doc.xpathNewContext()
-        ctxt.setContextNode(nd)
-        lnText = ctxt.xpathEval('.//text()')
-        s = None
-        for ntext in lnText:
-            stext = ntext.content.strip()
-            try:
-                if stext: s = s + " " + stext
-            except TypeError:
-                s = stext
-        ctxt.xpathFreeContext()
-        return s
+        try:
+            ctxt.setContextNode(nd)
+            lsText = [ntext.content.decode('utf-8') for ntext in ctxt.xpathEval('.//text()')]
+        except AttributeError:
+            ctxt = nd.doc.xpathNewContext()
+            ctxt.setContextNode(nd)
+            lsText = [ntext.content.decode('utf-8') for ntext in ctxt.xpathEval('.//text()')]
+            ctxt.xpathFreeContext()
+
+        return " ".join(lsText)
     makeText = classmethod(makeText)
 
 
