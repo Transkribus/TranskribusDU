@@ -117,9 +117,15 @@ class CollectionAnalyzer:
         self.lDoc           = None    #all doc names
         self.lNbPage        = None
         
-    def run(self, sDir):
+    def runPageXml(self, sDir):
         """
-        process one folder
+        process one folder per document
+        """
+        assert False, "Method must be specialized"
+
+    def runMultiPageXml(self, sDir):
+        """
+        process one PXML per document
         """
         assert False, "Method must be specialized"
     
@@ -214,7 +220,7 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
         self.sPagePattern   = sPagePattern
         self.ltTagAttr      = ltTagAttr
 
-    def run(self, sRootDir):
+    def runPageXml(self, sRootDir):
         lFolder = [os.path.basename(folder) for folder in glob.iglob(os.path.join(sRootDir, self.sDocPattern)) 
                                 if os.path.isdir(os.path.join(sRootDir, folder))]
         lFolder.sort()
@@ -228,22 +234,47 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
             self.seenDocPageCount(docdir, len(lPageFile))
             for sPageFile in lPageFile: 
                 print ".",
-                self.parsePage(sRootDir, docdir, sPageFile)
+                doc = libxml2.parseFile(os.path.join(sRootDir, docdir, sPageFile))
+                ctxt = doc.xpathNewContext()
+                ctxt.xpathRegisterNs("pg", "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15")
+                ctxt.setContextNode(doc.getRootElement())
+
+                self.parsePage(doc, ctxt, docdir)
+                
+                ctxt.xpathFreeContext()
+                doc.freeDoc()
             print
             sys.stdout.flush()
             
-    def parsePage(self, sRootDir, sDocDir, sPageFile):
-        doc = libxml2.parseFile(os.path.join(sRootDir, sDocDir, sPageFile))
-        ctxt = doc.xpathNewContext()
-        ctxt.xpathRegisterNs("pg", "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15")
+    def runMultiPageXml(self, sRootDir):
+        print os.path.join(sRootDir, self.sDocPattern)
+        print glob.glob(os.path.join(sRootDir, self.sDocPattern))
+        lDocFile = [os.path.basename(filename) for filename in glob.iglob(os.path.join(sRootDir, self.sDocPattern)) 
+                                if os.path.isfile(os.path.join(sRootDir, filename))]
+        lDocFile.sort()
+        print "Documents: ", lDocFile
+        
+        for docFile in lDocFile:
+            print "Document ", docFile
+            doc = libxml2.parseFile(os.path.join(sRootDir, docFile))
+            ctxt = doc.xpathNewContext()
+            ctxt.xpathRegisterNs("pg", "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15")
+            lNdPage = ctxt.xpathEval("//pg:Page")
+            self.seenDocPageCount(docFile, len(lNdPage))
+            for ndPage in lNdPage:
+                print ".",
+                ctxt.setContextNode(ndPage)
+                self.parsePage(doc, ctxt, docFile)
+            print
+            sys.stdout.flush()
+
+    def parsePage(self, doc, ctxt, name):
         for tag, attr in self.ltTagAttr:
-            lNdTag = ctxt.xpathEval("//pg:%s"%tag)
+            lNdTag = ctxt.xpathEval(".//pg:%s"%tag)
             for nd in lNdTag:
-                self.seenDocTag(sDocDir, tag)
+                self.seenDocTag(name, tag)
                 lbl = nd.prop(attr)
                 if lbl: self.seenTagLabel(tag, lbl)
-        ctxt.xpathFreeContext()
-        doc.freeDoc()
         
         
 if __name__ == "__main__":
@@ -265,30 +296,50 @@ if __name__ == "__main__":
     # --- 
     print sys.argv
     
-    bMODEUN = True
+#     bMODEUN = True
     
     #parse the command line
     (options, args) = parser.parse_args()
     # --- 
     try:
-        sRootDir, sDocPattern, sPagePattern  = args[0:3]
-        if bMODEUN:
-            #all tag supporting the attribute type in PageXml 2003
-            ltTagAttr = [ (name, "type") for name in ["Page", "TextRegion", "GraphicRegion", "CharRegion", "RelationType"]]
-        else:
-            ls = args[3:]
-            ltTagAttr = zip(ls[slice(0, len(ls), 2)], ls[slice(1, len(ls), 2)])
+        try:
+            sRootDir, sDocPattern, sPagePattern  = args[0:3]
+            bMultiPageXml = False 
+        except:
+            sRootDir, sDocPattern  = args[0:2]
+            bMultiPageXml = True 
+            sPagePattern = None
+
+        #all tag supporting the attribute type in PageXml 2003
+        ltTagAttr = [ (name, "type") for name in ["Page", "TextRegion", "GraphicRegion", "CharRegion", "RelationType"]]
         print sRootDir, sDocPattern, sPagePattern, ltTagAttr
     except:
-        if bMODEUN:
-            print "Usage: %s sRootDir sDocPattern sPagePattern"%(sys.argv[0] )
-        else:
-            print "Usage: %s sRootDir sDocPattern sPagePattern [Tag Attr]+"%(sys.argv[0] )
+        print "Usage: %s sRootDir sDocPattern [sPagePattern]"%(sys.argv[0] )
         exit(1)
+            
+#         if bMODEUN:
+#             #all tag supporting the attribute type in PageXml 2003
+#             ltTagAttr = [ (name, "type") for name in ["Page", "TextRegion", "GraphicRegion", "CharRegion", "RelationType"]]
+#         else:
+#             ls = args[3:]
+#             ltTagAttr = zip(ls[slice(0, len(ls), 2)], ls[slice(1, len(ls), 2)])
+#         print sRootDir, sDocPattern, sPagePattern, ltTagAttr
+#     except:
+# #         if bMODEUN:
+# #             print "Usage: %s sRootDir sDocPattern [sPagePattern]"%(sys.argv[0] )
+# #         else:
+# #             print "Usage: %s sRootDir sDocPattern [sPagePattern] [Tag Attr]+"%(sys.argv[0] )
+#         exit(1)
 
     doer = PageXmlCollectionAnalyzer(sDocPattern, sPagePattern, ltTagAttr)
     doer.start()
-    doer.run(sRootDir)
+    if bMultiPageXml:
+        print "--- MultiPageXml ---"
+        doer.runMultiPageXml(sRootDir)
+    else:
+        print "--- PageXml ---"
+        doer.runPageXml(sRootDir)
+        
     doer.end()
     sReport = doer.report()
     
