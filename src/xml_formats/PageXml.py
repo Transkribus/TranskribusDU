@@ -685,3 +685,56 @@ class Metadata:
         
     
     
+if __name__ == "__main__":
+    
+    import sys, glob, optparse
+    usage = """
+%s dirname+
+Utility to create a set of MultipageXml XML files from a set of folders, each containing several PageXml files.
+""" % sys.argv[0]
+
+    parser = optparse.OptionParser(usage=usage)
+    
+    parser.add_option("--format", dest='bIndent',  action="store_true"
+                      , help="reformat/reindent the input")    
+    parser.add_option("--compress", dest='bCompress',  action="store_true"
+                      , help="Turn on gzip compression of output")    
+    (options, args) = parser.parse_args()
+
+    try:
+        lsDir = args
+        lsDir[0]
+    except:
+        parser.print_help()
+        parser.exit(1, "")
+    
+    print "TODO: ", lsDir
+    
+    for sDir in lsDir:
+        if not os.path.isdir(sDir):
+            print "skipping %s (not a directory)"%sDir
+            continue
+        
+        print "Processing %s..."%sDir,
+        l =      glob.glob(os.path.join(sDir, "*.xml"))
+        l.extend(glob.glob(os.path.join(sDir, "*.pxml")))
+        l.extend(glob.glob(os.path.join(sDir, "*.xml.gz")))
+        l.extend(glob.glob(os.path.join(sDir, "*.pxml.gz")))
+        l.sort()
+        print "   %d pages"%len(l)
+        
+        doc = MultiPageXml.makeMultiPageXml(l)
+        
+        filename = sDir + ".mpxml"
+        if options.bCompress: 
+            doc.setDocCompressMode(9)
+        else:
+            doc.setDocCompressMode(0)
+        
+        doc.saveFormatFileEnc(filename, "utf-8", bool(options.bIndent))
+        doc.freeDoc()
+        
+        print "\t done: %s"%filename
+        
+    print "DONE"
+        
