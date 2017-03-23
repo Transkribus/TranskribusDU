@@ -779,7 +779,7 @@ class pageVerticalMiner(Component.Component):
             select the n 'best' cuts per pages
         """
         
-        NBEST = 3
+        NBEST = self.baselineMode
         
         for lPages in lLPages:
             
