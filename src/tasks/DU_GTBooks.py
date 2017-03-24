@@ -54,7 +54,22 @@ nbClass = len(lLabels)
 """
 if you play with a toy collection, which does not have all expected classes, you can reduce those.
 """
-lActuallySeen = [0, 4, 7, 9, 10]
+lActuallySeen = [4, 7, 9, 10]
+#lActuallySeen = [4, 6]
+"""
+                0-            TOC-entry    5940 occurences       (   2%)  (   2%)
+                1-              caption     707 occurences       (   0%)  (   0%)
+                2-           catch-word     201 occurences       (   0%)  (   0%)
+                3-               footer      11 occurences       (   0%)  (   0%)
+                4-             footnote   36942 occurences       (  11%)  (  11%)
+                5-   footnote-continued    1890 occurences       (   1%)  (   1%)
+                6-               header   15910 occurences       (   5%)  (   5%)
+                7-              heading   18032 occurences       (   6%)  (   6%)
+                8-           marginalia    4292 occurences       (   1%)  (   1%)
+                9-          page-number   40236 occurences       (  12%)  (  12%)
+               10-            paragraph  194927 occurences       (  60%)  (  60%)
+               11-       signature-mark    4894 occurences       (   2%)  (   2%)
+"""
 # lActuallySeen = None
 if lActuallySeen:
     print "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING"
@@ -154,9 +169,15 @@ if __name__ == "__main__":
     
     traceln("- classes: ", DU_GRAPH.getLabelNameList())
     
-    lTrn, lTst, lRun = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun]] 
+    lTrn, lTst, lRun, lFold = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun, options.lFold]] 
 
-    if lTrn:
+    if lFold:
+        loTstRpt = doer.nfold_eval(lFold, 3, .25, None, options.warm)
+        import crf.Model
+        sReportPickleFilename = os.path.join(sModelDir, sModelName, "__report.txt")
+        traceln("Results are in %s"%sReportPickleFilename)
+        crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
+    elif lTrn:
         doer.train_save_test(lTrn, lTst, options.warm)
     elif lTst:
         doer.load()
