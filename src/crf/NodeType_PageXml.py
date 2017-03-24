@@ -42,6 +42,9 @@ class NodeType_PageXml(NodeType):
     #Namespace, of PageXml, at least
     dNS = {"pc":PageXml.NS_PAGE_XML}
 
+    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True):
+        NodeType.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther)
+
     def setXpathExpr(self, (sxpNode, sxpTextual)):
         self.sxpNode    = sxpNode
         self.sxpTextual = sxpTextual
@@ -58,7 +61,7 @@ class NodeType_PageXml(NodeType):
                 sLabel = self.dXmlLabel2Label[sXmlLabel]
             except KeyError:
                 #not a label of interest
-                if self.bIgnoreSome and sXmlLabel not in self.lsXmlIgnoredLabel: 
+                if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
                     raise ValueError("Invalid label in node %s"%str(domnode))
         except KeyError:
             #no label at all
@@ -91,12 +94,8 @@ class NodeType_PageXml(NodeType):
         lNdBlock = ctxt.xpathEval(self.sxpNode) #all relevant nodes of the page
 
         for ndBlock in lNdBlock:
-            ctxt.setContextNode(ndBlock)
             domid = ndBlock.prop("id")
-            lNdText = ctxt.xpathEval(self.sxpTextual)
-            assert len(lNdText) == 1 , "STRANGE; I expected only one useful TextEquiv below this node..."
-            
-            sText = PageXml.makeText(lNdText[0])
+            sText = self._get_GraphNodeText(doc, domNdPage, ndBlock, ctxt)
             if sText == None:
                 sText = ""
                 traceln("Warning: no text in node %s"%domid) 
@@ -145,8 +144,95 @@ class NodeType_PageXml(NodeType):
         
         raise StopIteration()        
         
+    def _get_GraphNodeText(self, doc, domNdPage, ndBlock, ctxt=None):
+        """
+        Extract the text of a DOM node
+        
+        Get the DOM, the DOM page node, the page object DOM node, and optionally an xpath context
+
+        return a unicode string
+        """    
+        ctxt.setContextNode(ndBlock)
+        lNdText = ctxt.xpathEval(self.sxpTextual)
+        if len(lNdText) != 1:
+            if len(lNdText) <= 0:
+                raise ValueError("I found no useful TextEquiv below this node... \n%s"%str(ndBlock))
+            else:
+                raise ValueError("I expected exactly one useful TextEquiv below this node. Got many... \n%s"%str(ndBlock))
+        
+        return PageXml.makeText(lNdText[0])
+        
+        
+        
+class NodeType_PageXml_type(NodeType_PageXml):
+    """
+    In some PageXml, the label is in the type attribute! 
+    
+    Use this class for those cases!
+    """
+    
+    sLabelAttr = "type"
+
+    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True):
+        NodeType.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther)
+            
+    def parseDomNodeLabel(self, domnode, defaultCls=None):
+        """
+        Parse and set the graph node label and return its class index
+        raise a ValueError if the label is missing while bOther was not True, or if the label is neither a valid one nor an ignored one
+        """
+        sLabel = self.sDefaultLabel
+        try:
+            sXmlLabel = domnode.prop(self.sLabelAttr)
+            try:
+                sLabel = self.dXmlLabel2Label[sXmlLabel]
+            except KeyError:
+                #not a label of interest
+                if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
+                    raise ValueError("Invalid label in node %s"%str(domnode))
+        except KeyError:
+            #no label at all
+            if not self.sDefaultLabel: raise ValueError("Missing label in node %s"%str(domnode))
+        
+        return sLabel
 
 
+    def setDomNodeLabel(self, domnode, sLabel):
+        """
+        Set the DOM node label in the format-dependent way
+        """
+        if sLabel != self.sDefaultLabel:
+            domnode.setProp(self.sLabelAttr, self.dLabel2XmlLabel[sLabel])
+        return sLabel
+    
+#---------------------------------------------------------------------------------------------------------------------------    
+class NodeType_PageXml_type_GTBooks(NodeType_PageXml_type):
+    """
+    In those PageXml, the text is not always is in the type attribute! 
+    
+    Use this class for GTBooks!
+    """
+    
+
+    def _get_GraphNodeText(self, doc, domNdPage, ndBlock, ctxt=None):
+        """
+        Extract the text of a DOM node
+        
+        Get the DOM, the DOM page node, the page object DOM node, and optionally an xpath context
+
+        return a unicode string
+        """    
+        ctxt.setContextNode(ndBlock)
+        lNdText = ctxt.xpathEval(self.sxpTextual)
+        if len(lNdText) != 1:
+            if len(lNdText) > 1: raise ValueError("More than 1 textual content for this node: %s"%str(ndBlock))
+            
+            #let's try to get th etext of the words, and concatenate...
+            traceln("Warning: no text in node %s => looking at words!"%ndBlock.prop("id")) 
+            lsText = [ntext.content.decode('utf-8').strip() for ntext in ctxt.xpathEval('.//pc:Word/pc:TextEquiv//text()')] #if we have both PlainText and UnicodeText in XML, :-/
+            return " ".join(lsText)
+        
+        return PageXml.makeText(lNdText[0])
 
 # --- AUTO-TESTS --------------------------------------------------------------------------------------------
 def test_getset():
