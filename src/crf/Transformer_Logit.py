@@ -106,7 +106,10 @@ class NodeTransformerLogit(Transformer):
         # the y
         if lAllNode==None: lAllNode = [nd for g in lGraph for nd in g.lNode]
         y = np.array([nd.cls for nd in lAllNode], dtype=np.int)
-        assert self.nbClass == len(np.unique(y)), "ERROR: some class is not represented in the training set"
+        if self.nbClass != len(np.unique(y)):
+            print("Classes seen are: %s"%np.unique(y).tolist())
+            print self.nbClass
+            raise ValueError("ERROR: some class is not represented in the training set")
         
         #fitting the textual feature extractor
         self.text_pipeline.fit(lAllNode, y)
