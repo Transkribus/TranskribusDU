@@ -418,6 +418,7 @@ See DU_StAZH_b.py
                 self.traceln(" %d graphs loaded"%len(lGraph_tst))
         
                 oReport = mdl.test(lGraph_tst)
+                crf.Model.Model.gzip_cPickle_dump(os.path.join(self.sModelDir, self.sModelName+"_fold%d.pkl"%iFold), oReport)
             else:
                 oReport = None, None
             loTstRpt.append(oReport)
