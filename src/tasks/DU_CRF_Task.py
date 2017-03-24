@@ -110,7 +110,7 @@ See DU_StAZH_b.py
 
     #---  COMMAND LINE PARSZER --------------------------------------------------------------------
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
-        usage = "%s <model-name> <model-directory> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+"%sys_argv0
+        usage = "%s <model-directory> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+"%sys_argv0
         description = """ 
         Train or test or remove the given model or predict using the given model.
         The data is given as a list of DS directories.
