@@ -36,7 +36,7 @@ class TestReport:
     A class that encapsulates the result of a classification test
     """
     
-    def __init__(self, name, l_Y_pred, l_Y, lsClassName=None):
+    def __init__(self, name, l_Y_pred, l_Y, lsClassName=None, lsDocName=None):
         """
         takes a test name, a prediction and a groundtruth or 2 lists of that stuff
         optionnally the list f class names
@@ -46,42 +46,45 @@ class TestReport:
         - the classification report
         - the global accuracy score
         
+        NOTE:   Baseline models may not know the number of classes, nor the docnames...
+                But since these TestReport are attachd to th emain one, we have the info!
         """
         #Content of this object (computed below!!)
         self.t = time.time()
-        self.name = name
-        self.fScore = None                  #global accuracy score
-        self.aConfusionMatrix = None        #confusion matrix (np.array)
-        self.sClassificationReport = ""     #formatted P/R/F per class
-        self.lsSeenClassName = []           #sub-list of class names seen in that test, ordered by class index, if any class name list was provided. 
-        
+        self.name          = name
+        self.lsDocName     = lsDocName
+        self.lsClassName   = lsClassName
+        self.nbClass       = len(self.lsClassName) if self.lsClassName else None
         self.lBaselineTestReport = []       #TestReport for baseline methods, if any
         
-        # --- 
-        assert type(l_Y_pred) == type(l_Y), "Internal error: when creating a tets report, both args must be of same type (list of np.array or np.array)"
         if type(l_Y_pred) == types.ListType:
-            Y_pred = np.hstack(l_Y_pred)
-            Y      = np.hstack(l_Y)
+            self.l_Y_pred = l_Y_pred
+            self.l_Y      = l_Y
         else:
-            Y_pred = l_Y_pred
-            Y      = l_Y
-        
-        #we need to include all clasname that appear in the dataset or in the predicted labels (well... I guess so!)
-        if lsClassName:
-            setSeenCls = set()
-            for _Y in [Y, Y_pred]:
-                setSeenCls = setSeenCls.union( np.unique(_Y).tolist() )
-            self.lsSeenClassName = [ cls for (i, cls) in enumerate(lsClassName) if i in setSeenCls]
-            
-            
-        self.aConfusionMatrix = confusion_matrix(Y, Y_pred)
+            self.l_Y_pred = [l_Y_pred]
+            self.l_Y      = [l_Y]
 
-        if self.lsSeenClassName:
-            self.sClassificationReport = classification_report(Y, Y_pred, target_names=self.lsSeenClassName)
-        else:
-            self.sClassificationReport = classification_report(Y, Y_pred)
+        #Computing the classes that are observed or that were expected to be observed
+        aSeenCls = np.unique(self.l_Y_pred[0])
+        for _Y in self.l_Y_pred[1:]: aSeenCls = np.unique( np.hstack([aSeenCls, np.unique(_Y)]) )
+        for _Y in self.l_Y:          aSeenCls = np.unique( np.hstack([aSeenCls, np.unique(_Y)]) )
+        aSeenCls.sort()
+        self.lSeenCls = aSeenCls.tolist()
         
-        self.fScore = accuracy_score(Y, Y_pred)
+        # --- 
+        assert type(l_Y_pred) == type(l_Y), "Internal error: when creating a test report, both args must be of same type (list of np.array or np.array)"
+        assert len(l_Y) == len(l_Y_pred), "Internal error"
+        if lsDocName: assert len(l_Y) == len(lsDocName), "Internal error"
+        # --- 
+        
+#         self.fScore = None                  #global accuracy score
+#         self.aConfusionMatrix = None        #confusion matrix (np.array)
+#         self.laConfusionMatrix = None
+#         self.sClassificationReport = ""     #formatted P/R/F per class
+#         self.lsSeenClassName = []           #sub-list of class names seen in that test, ordered by class index, if any class name list was provided. 
+        
+
+
     
     def attach(self, loTstRpt):
         """
@@ -93,6 +96,53 @@ class TestReport:
             self.lBaselineTestReport.append(loTstRpt)
         return self.lBaselineTestReport
     
+    # ------------------------------------------------------------------------------------------------------------------
+    def getTestName(self):          return self.name
+    def getNbClass(self):           return self.nbClass
+    def getClassNameList(self):     return self.lsClassName
+    def getSeenClassNameList(self): return [clsName for (i, clsName) in enumerate(self.lsClassName) if i in self.lSeenCls] if self.lsClassName else None
+    def getDocNameList(self):       return self.lsDocName
+    
+    def getFlat_Y_YPred(self):
+        """
+        Might be a good idea to cache those values, which are useful for further calls, and del them afterward.
+        """
+        return np.hstack(self.l_Y), np.hstack(self.l_Y_pred)
+    
+    def getConfusionMatrix(self, tY_Ypred = None):
+        """
+        Return a confusion matrix covering all classes (not only those observed in this particular test)
+        if you have the flat Y and Y_pred, pass them!
+        """
+        Y, Y_pred = tY_Ypred if tY_Ypred else self.getFlat_Y_YPred()
+        confumat = confusion_matrix(Y, Y_pred, labels=(range(self.nbClass) if self.nbClass else None))
+        if not tY_Ypred: del Y, Y_pred
+        return confumat
+    
+    def getConfusionMatrixByDocument(self):
+        """
+        List of confusion matrices, one for each document in the test set
+        """
+        return [ confusion_matrix(_Y, _Y_pred, range(self.nbClass) if self.nbClass else None) for _Y, _Y_pred in zip(self.l_Y, self.l_Y_pred) ]
+    
+    def getClassificationReport(self, tY_Ypred = None):
+        """
+        return the score and the (textual) classification report
+        """
+        Y, Y_pred = tY_Ypred if tY_Ypred else self.getFlat_Y_YPred()
+        if self.lsClassName:
+            #we need to include all clasname that appear in the dataset or in the predicted labels (well... I guess so!)
+            lsSeenClassName = self.getSeenClassNameList()
+            sClassificationReport = classification_report(Y, Y_pred, target_names=lsSeenClassName)
+        else:
+            sClassificationReport = classification_report(Y, Y_pred)
+        
+        fScore = accuracy_score(Y, Y_pred)    
+        if not tY_Ypred: del Y, Y_pred
+        
+        return fScore, sClassificationReport
+
+    # ------------------------------------------------------------------------------------------------------------------
     def toString(self, bShowBaseline=True, bBaseline=False):
         """
         return a nicely indented test report
@@ -117,17 +167,21 @@ class TestReport:
             sSpace  = ""
         sSepEnd = "-"*len(sSepBeg)
         
-        s1 = str(self.aConfusionMatrix)
-        if self.lsSeenClassName:
-            iMaxClassNameLen = max([len(s) for s in self.lsSeenClassName])            
+        tY_Ypred = self.getFlat_Y_YPred()
+        
+        s1 = str(self.getConfusionMatrix(tY_Ypred))
+        
+        if self.lsClassName:
+            lsSeenClassName = self.getSeenClassNameList()
+            iMaxClassNameLen = max([len(s) for s in lsSeenClassName])            
             lsLine = s1.split("\n")    
             sFmt = "%%%ds  %%s"%iMaxClassNameLen     #producing something like "%20s  %s"
-            assert len(lsLine) == len(self.lsSeenClassName)
-            s1 = "\n".join( [sFmt%(sLabel, sLine) for (sLabel, sLine) in zip(self.lsSeenClassName, lsLine)])    
+            assert len(lsLine) == len(lsSeenClassName)
+            s1 = "\n".join( [sFmt%(sLabel, sLine) for (sLabel, sLine) in zip(lsSeenClassName, lsLine)])    
 
-        s2 = self.sClassificationReport
+        fScore, s2 = self.getClassificationReport(tY_Ypred)
         
-        s3 = "(unweighted) Accuracy score = %.2f"% self.fScore
+        s3 = "(unweighted) Accuracy score = %.2f"% fScore
         
         if bShowBaseline:
             if self.lBaselineTestReport:
@@ -143,7 +197,7 @@ class TestReport:
 %(space)s  Line=True class, column=Prediction
 %(s1)s
 
-s%(s2)s
+%(s2)s
 %(space)s%(s3)s
 %(sBaselineReport)s
 %(space)s%(sSepEnd)s
