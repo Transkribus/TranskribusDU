@@ -129,6 +129,12 @@ See DU_StAZH_b.py
                           , help="Run a model on the given non-annotated collection.")    
         parser.add_option("--fold", dest='lFold',  action="append", type="string"
                           , help="Evaluate by cross-validation a model on the given annotated collection.")    
+        parser.add_option("--fold-init", dest='iFoldInitNum',  action="store", type="int"
+                          , help="Initialize the file lists for parallel cross-validating a model on the given annotated collection. Indicate the number of folds.")    
+        parser.add_option("--fold-run", dest='iFoldRunNum',  action="store", type="int"
+                          , help="Run one fold, prepared by --fold-init options. Indicate the fold by its number.")    
+        parser.add_option("--fold-finish", dest='bFoldFinish',  action="store_true"
+                          , help="Evaluate by cross-validation a model on the given annotated collection.")    
         parser.add_option("-w", "--warm", dest='warm',  action="store_true"
                           , help="Attempt to warm-start the training")   
         parser.add_option("--rm", dest='rm',  action="store_true"
@@ -342,7 +348,150 @@ See DU_StAZH_b.py
 
         return lsOutputFilename
 
-    def nfold_eval(self, lsTrnColDir, n_splits=3, test_size=0.25, random_state=None, bWarm=False):
+    #-----  NFOLD STUFF
+    def _nfold_Init(self, lsTrnColDir, n_splits=3, test_size=0.25, random_state=None, bStoreOnDisk=False):
+        """
+        initialize a cross-validation
+        if bStoreOnDisk is true, store the details of each fold on disk, for paralell execution of each
+        return a splitter object, training file timestamp and list 
+        """
+        self.traceln("-"*50)
+        traceln("---------- INITIALIZING CROSS-VALIDATION ----------")
+        self.traceln("Model files '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
+        sConfigFile = os.path.join(self.sModelDir, self.sModelName+".py")
+        self.traceln("  Configuration file: %s"%sConfigFile)
+        self.traceln("Evaluating with collection(s):", lsTrnColDir)
+        self.traceln("-"*50)
+        
+        #list the train files
+        ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
+        self.traceln("       %d train documents" % len(lFilename_trn))
+        
+        splitter = ShuffleSplit(n_splits, test_size, random_state)
+        
+        if bStoreOnDisk:
+            
+            fnCrossValidDetails = os.path.join(self.sModelDir, self.sModelName+"_fold_def.pkl")
+            crf.Model.Model.gzip_cPickle_dump(fnCrossValidDetails
+                                              , (lsTrnColDir, n_splits, test_size, random_state))
+            
+            for i, (train_index, test_index) in enumerate(splitter.split(lFilename_trn)):
+                iFold = i + 1
+                traceln("---------- FOLD %d ----------"%iFold)
+                lFoldFilename_trn = [lFilename_trn[i] for i in train_index]
+                lFoldFilename_tst = [lFilename_trn[i] for i in test_index]
+                traceln("--- Train with: %s"%lFoldFilename_trn)
+                traceln("--- Test  with: %s"%lFoldFilename_tst)
+                
+                fnFoldDetails = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_def.pkl"%iFold)
+                oFoldDetails  = (iFold, ts_trn, lFilename_trn, train_index, test_index)
+                crf.Model.Model.gzip_cPickle_dump(fnFoldDetails, oFoldDetails)
+                #store the list for TRN and TST in a human readable form
+                for name, lFN in [('trn', lFoldFilename_trn), ('tst', lFoldFilename_tst)]:
+                    with open(os.path.join(self.sModelDir, self.sModelName+"_fold_%d_def_%s.txt"%(iFold, name)), "w") as fd:
+                        fd.write("\n".join(lFN))
+                traceln("--- Fold info stored in : %s"%fnFoldDetails)
+                
+        return splitter, ts_trn, lFilename_trn
+
+    def _nfold_RunFoldFromDisk(self, iFold, bWarm=False):
+        """
+        Run the fold iFold
+        Store results on disk
+        """
+        fnFoldDetails = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_def.pkl"%iFold)
+        traceln("--- Loading fold info from : %s"% fnFoldDetails)
+        oFoldDetails = crf.Model.Model.gzip_cPickle_load(fnFoldDetails)
+        (iFold_stored, ts_trn, lFilename_trn, train_index, test_index) = oFoldDetails
+        assert iFold_stored == iFold, "Internal error. Inconsistent fold details on disk."
+        
+        oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm)
+        
+        fnFoldResults = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_TestReport.pkl"%iFold)
+        crf.Model.Model.gzip_cPickle_dump(fnFoldResults, oReport)
+        traceln(" - Done (fold %d)"%iFold)
+        
+        return oReport
+
+    def _nfold_Finish(self):
+        traceln("---------- SHOWING RESULTS OF CROSS-VALIDATION ----------")
+        
+        fnCrossValidDetails = os.path.join(self.sModelDir, self.sModelName+"_fold_def.pkl")
+        (lsTrnColDir, n_splits, test_size, random_state) = crf.Model.Model.gzip_cPickle_load(fnCrossValidDetails)
+        
+        loReport = []
+        for i in range(n_splits):
+            iFold = i + 1
+            fnFoldResults = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_TestReport.pkl"%iFold)
+            try:
+                oReport = crf.Model.Model.gzip_cPickle_load(fnFoldResults)
+                loReport.append(oReport)
+            except:
+                traceln("WARNING: fold %d has NOT FINISHED or FAILED: %s"%iFold)
+
+        for oReport in loReport:
+            print oReport
+                        
+        return loReport
+
+    def _nfold_RunFold(self, iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=False):
+        """
+        Run this fold
+        Return a TestReport object
+        """
+        traceln("---------- RUNNING FOLD %d ----------"%iFold)
+        lFoldFilename_trn = [lFilename_trn[i] for i in train_index]
+        lFoldFilename_tst = [lFilename_trn[i] for i in test_index]
+        traceln("--- Train with: %s"%lFoldFilename_trn)
+        traceln("--- Test  with: %s"%lFoldFilename_tst)
+        
+        self.traceln("- creating a %s model"%self.cModelClass)
+        sFoldModelName = self.sModelName+"_fold_%d"%iFold
+        
+        mdl = self.cModelClass(sFoldModelName, self.sModelDir)
+        
+        if os.path.exists(mdl.getModelFilename()) and not bWarm: 
+            raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
+            
+        mdl.configureLearner(**self.config_learner_kwargs)
+        mdl.setBaselineModelList(self._lBaselineModel)
+        mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
+        self.traceln("\t - configuration: ", self.config_learner_kwargs )
+
+        self.traceln("- loading training graphs")
+        lGraph_trn = self.cGraphClass.loadGraphs(lFoldFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
+        self.traceln(" %d graphs loaded"%len(lGraph_trn))
+
+        self.traceln("- retrieving or creating feature extractors...")
+        try:
+            mdl.loadTransformers(ts_trn)
+        except crf.Model.ModelException:
+            fe = self.cFeatureDefinition(**self.config_extractor_kwargs)         
+            fe.fitTranformers(lGraph_trn)
+            fe.cleanTransformers()
+            mdl.setTranformers(fe.getTransformers())
+            mdl.saveTransformers()
+        self.traceln(" done")
+        
+        self.traceln("- training model...")
+        mdl.train(lGraph_trn, True, ts_trn)
+        mdl.save()
+        self.traceln(" done")
+        # OK!!
+        self._mdl = mdl
+        
+        if lFoldFilename_tst:
+            self.traceln("- loading test graphs")
+            lGraph_tst = self.cGraphClass.loadGraphs(lFoldFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
+            self.traceln(" %d graphs loaded"%len(lGraph_tst))
+    
+            oReport = mdl.test(lGraph_tst)
+        else:
+            oReport = None
+        
+        return oReport
+    
+    def nfold_Eval(self, lsTrnColDir, n_splits=3, test_size=0.25, random_state=None):
         """
         n-fold evaluation on the training data
         
@@ -354,75 +503,16 @@ See DU_StAZH_b.py
             - save the model
         - return a list of TestReports
         """
-        self.traceln("-"*50)
-        self.traceln("Model files '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
-        sConfigFile = os.path.join(self.sModelDir, self.sModelName+".py")
-        self.traceln("  Configuration file: %s"%sConfigFile)
-        self.traceln("Evaluating with collection(s):", lsTrnColDir)
-        self.traceln("-"*50)
         
-        #list the train files
-        ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
-        self.traceln("       %d train documents" % len(lFilename_trn))
+        splitter, ts_trn, lFilename_trn = self._nfold_Init(lsTrnColDir, n_splits, test_size, random_state)
         
-        DU_GraphClass = self.cGraphClass
         loTstRpt = []
         
-        splitter = ShuffleSplit(n_splits, test_size, random_state)
-        for iFold, (train_index, test_index) in enumerate(splitter.split(lFilename_trn)):
-            traceln("---------- FOLD %d ----------"%(iFold+1))
-            lFoldFilename_trn = [lFilename_trn[i] for i in train_index]
-            lFoldFilename_tst = [lFilename_trn[i] for i in test_index]
-            traceln("--- Train with: %s"%lFoldFilename_trn)
-            traceln("--- Test  with: %s"%lFoldFilename_tst)
-            
-            self.traceln("- creating a %s model"%self.cModelClass)
-            mdl = self.cModelClass(self.sModelName+"_fold%d"%(iFold+1), self.sModelDir)
-            
-            if bWarm:
-                assert random_state == None, "Cannot warm_start with random_state != None"
-            else:
-                if os.path.exists(mdl.getModelFilename()): 
-                    raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
-                
-            mdl.configureLearner(**self.config_learner_kwargs)
-            mdl.setBaselineModelList(self._lBaselineModel)
-            mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
-            self.traceln("\t - configuration: ", self.config_learner_kwargs )
-    
-            self.traceln("- loading training graphs")
-            lGraph_trn = DU_GraphClass.loadGraphs(lFoldFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
-            self.traceln(" %d graphs loaded"%len(lGraph_trn))
-    
-            self.traceln("- retrieving or creating feature extractors...")
-            try:
-                mdl.loadTransformers(ts_trn)
-            except crf.Model.ModelException:
-                fe = self.cFeatureDefinition(**self.config_extractor_kwargs)         
-                fe.fitTranformers(lGraph_trn)
-                fe.cleanTransformers()
-                mdl.setTranformers(fe.getTransformers())
-                mdl.saveTransformers()
-            self.traceln(" done")
-            
-            self.traceln("- training model...")
-            mdl.train(lGraph_trn, True, ts_trn)
-            mdl.save()
-            self.traceln(" done")
-            # OK!!
-            self._mdl = mdl
-            
-            if lFoldFilename_tst:
-                self.traceln("- loading test graphs")
-                lGraph_tst = DU_GraphClass.loadGraphs(lFoldFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-                self.traceln(" %d graphs loaded"%len(lGraph_tst))
-        
-                oReport = mdl.test(lGraph_tst)
-                crf.Model.Model.gzip_cPickle_dump(os.path.join(self.sModelDir, self.sModelName+"_fold%d.pkl"%iFold), oReport)
-            else:
-                oReport = None, None
+        for i, (train_index, test_index) in enumerate(splitter.split(lFilename_trn)):
+            oReport = self._nfold_RunFold(i+1, ts_trn, lFilename_trn, train_index, test_index)
+            traceln(oReport)
             loTstRpt.append(oReport)
-            
+        
         return loTstRpt
 
     #----------------------------------------------------------------------------------------------------------    
