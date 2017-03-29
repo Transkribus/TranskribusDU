@@ -70,7 +70,7 @@ lActuallySeen = [4, 7, 9, 10]
                10-            paragraph  194927 occurences       (  60%)  (  60%)
                11-       signature-mark    4894 occurences       (   2%)  (   2%)
 """
-# lActuallySeen = None
+lActuallySeen = None
 if lActuallySeen:
     print "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING"
     lIgnoredLabels  = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
@@ -132,12 +132,12 @@ class DU_GTBooks(DU_CRF_Task):
                               }
                              , dLearnerConfig = {
                                    'C'                : .1 
-                                 , 'njobs'            : 2
+                                 , 'njobs'            : 5
                                  , 'inference_cache'  : 50
                                  #, 'tol'              : .1
                                  , 'tol'              : .05
                                  , 'save_every'       : 50     #save every 50 iterations,for warm start
-                                 , 'max_iter'         : 20
+                                 , 'max_iter'         : 1000
                                  }
                              , sComment=sComment
                              , cFeatureDefinition=FeatureDefinition_GTBook
@@ -155,10 +155,12 @@ if __name__ == "__main__":
     # --- 
     #parse the command line
     (options, args) = parser.parse_args()
+
     # --- 
     try:
         sModelDir, sModelName = args
     except Exception as e:
+        traceln("Specify a model folder and a model name!")
         _exit(usage, 1, e)
         
     doer = DU_GTBooks(sModelName, sModelDir)
@@ -171,10 +173,31 @@ if __name__ == "__main__":
     
     lTrn, lTst, lRun, lFold = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun, options.lFold]] 
 
+    if options.iFoldInitNum or options.iFoldRunNum or options.bFoldFinish:
+        if options.iFoldInitNum:
+            """
+            initialization of a cross-validation
+            """
+            splitter, ts_trn, lFilename_trn = doer._nfold_Init(lFold, options.iFoldInitNum, test_size=0.25, random_state=None, bStoreOnDisk=True)
+        elif options.iFoldRunNum:
+            """
+            Run one fold
+            """
+            oReport = doer._nfold_RunFoldFromDisk(options.iFoldRunNum, options.warm)
+            traceln(oReport)
+        elif options.bFoldFinish:
+            s = doer._nfold_Finish()
+            traceln(s)
+        else:
+            assert False, "Internal error"    
+        #no more processing!!
+        exit(0)
+        #-------------------
+        
     if lFold:
-        loTstRpt = doer.nfold_eval(lFold, 3, .25, None, options.warm)
+        loTstRpt = doer.nfold_Eval(lFold, 3, .25, None)
         import crf.Model
-        sReportPickleFilename = os.path.join(sModelDir, sModelName, "__report.txt")
+        sReportPickleFilename = os.path.join(sModelDir, sModelName + "__report.txt")
         traceln("Results are in %s"%sReportPickleFilename)
         crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
     elif lTrn:
