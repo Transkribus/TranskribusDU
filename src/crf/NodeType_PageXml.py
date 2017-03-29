@@ -104,7 +104,11 @@ class NodeType_PageXml(NodeType):
             #now we need to infer the bounding box of that object
             lXY = PageXml.getPointList(ndBlock)  #the polygon
             plg = Polygon(lXY)
-            x1,y1, x2,y2 = plg.fitRectangle()
+            try:
+                x1,y1, x2,y2 = plg.fitRectangle()
+            except ZeroDivisionError:
+                traceln("Warning: ignoring invalid polygon id=%s page=%s"%(ndBlock.prop("id"), page.pnum))
+                continue
             if True:
                 #we reduce a bit this rectangle, to ovoid overlap
                 w,h = x2-x1, y2-y1
@@ -228,7 +232,7 @@ class NodeType_PageXml_type_GTBooks(NodeType_PageXml_type):
             if len(lNdText) > 1: raise ValueError("More than 1 textual content for this node: %s"%str(ndBlock))
             
             #let's try to get th etext of the words, and concatenate...
-            traceln("Warning: no text in node %s => looking at words!"%ndBlock.prop("id")) 
+            # traceln("Warning: no text in node %s => looking at words!"%ndBlock.prop("id")) 
             lsText = [ntext.content.decode('utf-8').strip() for ntext in ctxt.xpathEval('.//pc:Word/pc:TextEquiv//text()')] #if we have both PlainText and UnicodeText in XML, :-/
             return " ".join(lsText)
         
