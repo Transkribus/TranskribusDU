@@ -150,7 +150,7 @@ class Model_SSVM_AD3(Model):
     #no need to define def save(self):
     #because the SSVM is saved while being trained, and the attached baeline models are saved by the parent class
                     
-    def test(self, lGraph):
+    def test(self, lGraph, lsDocName=None):
         """
         Test the model using those graphs and report results on stderr
         if some baseline model(s) were set, they are also tested
@@ -174,9 +174,9 @@ class Model_SSVM_AD3(Model):
              
         traceln("\t done")
         
-        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName)
+        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsDocName)
         
-        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName)
+        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName, lsDocName=lsDocName)
         tstRpt.attach(lBaselineTestReport)
         
         #do some garbage collection
@@ -226,9 +226,9 @@ class Model_SSVM_AD3(Model):
             gc.collect() 
         traceln("\t done")
 
-        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName)
+        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsFilename)
         
-        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName)
+        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName, lsDocName=lsFilename)
         tstRpt.attach(lBaselineTestReport)
         
         #do some garbage collection
