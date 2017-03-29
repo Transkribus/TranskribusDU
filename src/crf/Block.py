@@ -201,13 +201,13 @@ class Block:
         y1 = float(y)
         #we must accept 0 width or 0 height blocks
         if w < 0:
-            traceln("WARNING: negative width textbox - x taken as right-x")
+            #traceln("WARNING: negative width textbox - x taken as right-x")
             x2 = x1
             x1 = x2 + w
         else:
             x2 = x1+w            
         if h < 0:
-            traceln("WARNING: negative height textbox - y taken as bottom-y")
+            #traceln("WARNING: negative height textbox - y taken as bottom-y")
             y2 = y1
             y1 = y2+h
         else:
