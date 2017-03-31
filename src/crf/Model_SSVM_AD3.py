@@ -119,7 +119,7 @@ class Model_SSVM_AD3(Model):
         traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
-
+        
         #cleaning useless data that takes MB on disk
         self.ssvm.alphas = None  
         self.ssvm.constraints_ = None

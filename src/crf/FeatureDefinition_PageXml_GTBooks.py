@@ -36,22 +36,18 @@
     
 """
 
-import numpy as np
-
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.preprocessing import StandardScaler
-from sklearn.feature_extraction.text import TfidfVectorizer
 
-from crf.Transformer import SparseToDense
-from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH, NodeTransformerNeighbors, Node1HotFeatures
-from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
+from crf.Transformer_PageXml import NodeTransformerTextLen, NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures
+from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures_v2, EdgeNumericalSelector
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
 from FeatureDefinition import FeatureDefinition
 
 from Transformer_Logit import NodeTransformerLogit, EdgeTransformerLogit
 
-class FeatureDefinition_PageXml_LogitExtractor(FeatureDefinition):
+class FeatureDefinition_GTBook(FeatureDefinition):
 
     """
     We will fit a logistic classifier
@@ -104,7 +100,7 @@ TypeError: can't pickle PyCapsule objects
                                                          ])
                                        )
                                     , ("xywh", Pipeline([
-                                                         ('selector', NodeTransformerXYWH()),
+                                                         ('selector', NodeTransformerXYWH_v2()),
                                                          ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
                                                          ])
                                        )
@@ -138,7 +134,7 @@ TypeError: can't pickle PyCapsule objects
                                                          ])
                                         )
                                     , ("boolean", Pipeline([
-                                                         ('boolean', EdgeBooleanFeatures())
+                                                         ('boolean', EdgeBooleanFeatures_v2())
                                                          ])
                                         )
                                     , ("numerical", Pipeline([
@@ -155,7 +151,7 @@ TypeError: can't pickle PyCapsule objects
         self._node_transformer = node_transformer
         self._edge_transformer = edge_transformer
 
-    def fitTranformers(self, lGraph,lY=None):
+    def fitTranformers(self, lGraph):
         """
         Fit the transformers using the graphs
         return True 
@@ -190,3 +186,5 @@ TypeError: can't pickle PyCapsule objects
 #         for i in [2, 3, 4, 5, 6, 7]:
 #             self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
         return self._node_transformer, self._edge_transformer        
+
+    

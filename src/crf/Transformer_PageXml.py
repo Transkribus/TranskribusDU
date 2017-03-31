@@ -4,6 +4,8 @@
     Node and edge feature transformers to extract features for PageXml
     
     Copyright Xerox(C) 2016 JL. Meunier
+    
+    v2 March 2017 JLM
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,6 +32,8 @@ from Transformer import Transformer
 from Edge import HorizontalEdge, VerticalEdge, SamePageEdge, CrossPageEdge
 
 fEPSILON = 10
+
+fEPSILON_v2 = 1.5 /210     #1.5mm to the width of a A4 page
 
 #------------------------------------------------------------------------------------------------------
 class NodeTransformerText(Transformer):
@@ -104,6 +108,29 @@ class NodeTransformerXYWH(Transformer):
                 xb1, xb2    = x1    , x2
                 xnb1, xnb2  = xn1   , xn2
             a[i, :] = [xb1, xb2     , x1, y2, x2-x1, y2-y1   , xnb1, xnb2   , xn1, yn2, xn2-xn1, yn2-yn1] 
+        return a
+
+class NodeTransformerXYWH_v2(Transformer):
+    """
+    we will get a list of block and need to send back what StandardScaler needs for in-place scaling, a numpy array!.
+    So we return a numpy array  
+    """
+    def transform(self, lNode):
+#         a = np.empty( ( len(lNode), 5 ) , dtype=np.float64)
+#         for i, blk in enumerate(lNode): a[i, :] = [blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1, blk.fontsize]        #--- 2 3 4 5 6 
+        a = np.empty( ( len(lNode), 2+4+4 ) , dtype=np.float64)
+        for i, blk in enumerate(lNode): 
+            page = blk.page
+            x1,y1,x2,y2 = blk.x1, blk.y1, blk.x2, blk.y2
+            w,h = float(page.w), float(page.h)
+            #Normalize by page with and height to range (-1, +1]
+            xn1, yn1, xn2, yn2 = 2*x1/w-1, 2*y1/h-1, 2*x2/w-1, 2*y2/h-1
+            #generate X-from-binding
+            if page.bEven:
+                xnb1, xnb2  = -xn2 , -xn1
+            else:
+                xnb1, xnb2  =  xn1 , xn2
+            a[i, :] = [xnb1, xnb2    , xn1, yn1, xn2-xn1, yn2-yn1    , xn1*xn1, yn1*yn1, xn2*xn2, yn2*yn2] 
         return a
 
 #------------------------------------------------------------------------------------------------------
@@ -318,6 +345,44 @@ class EdgeBooleanFeatures(Transformer):
                 a[i, z + 4] = 1.0
             if abs(A.y2-B.y2) <= fEPSILON:
                 a[i, z + 5] = 1.0       
+        #_debug(lEdge, a)
+        return a
+
+class EdgeBooleanFeatures_v2(Transformer):
+    """
+    we will get a list of edges and return a boolean array, directly
+
+    vertical-, horizontal- centered  (at epsilon precision, epsilon typically being 5pt ?)
+    left-, top-, right-, bottom- justified  (at epsilon precision)
+    """
+    def transform(self, lEdge):
+        #DISC a = np.zeros( ( len(lEdge), 16 ) , dtype=np.float64)
+        a = - np.ones( ( len(lEdge), 3*6 ) , dtype=np.float64)
+        for i, edge in enumerate(lEdge):
+            if isinstance(edge, VerticalEdge):
+                z=0
+            elif isinstance(edge, HorizontalEdge):
+                z=6
+            elif isinstance(edge, CrossPageEdge):
+                z=12
+            
+            A,B = edge.A, edge.B        
+            
+            thH = fEPSILON_v2 * (A.page.w+B.page.w) / 2.0
+            thV = fEPSILON_v2 * (A.page.h+B.page.h) / 2.0
+            
+            #-- centering
+            if A.x1 + A.x2 - (B.x1 + B.x2) <= thH:     #horizontal centered
+                a[i, z + 0] = 1.0
+            if A.y1 + A.y2 - (B.y1 + B.y2) <= thV:     #V centered
+                a[i, z + 1] = 1.0
+            
+            #justified
+            if abs(A.x1-B.x1) <= thH:   a[i, z + 2] = 1.0
+            if abs(A.y1-B.y1) <= thV:   a[i, z + 3] = 1.0
+            if abs(A.x2-B.x2) <= thH:   a[i, z + 4] = 1.0
+            if abs(A.y2-B.y2) <= thV:   a[i, z + 5] = 1.0
+                   
         #_debug(lEdge, a)
         return a
 
