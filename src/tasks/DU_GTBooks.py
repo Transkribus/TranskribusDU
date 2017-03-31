@@ -186,8 +186,8 @@ if __name__ == "__main__":
             oReport = doer._nfold_RunFoldFromDisk(options.iFoldRunNum, options.warm)
             traceln(oReport)
         elif options.bFoldFinish:
-            s = doer._nfold_Finish()
-            traceln(s)
+            tstReport = doer._nfold_Finish()
+            traceln(tstReport)
         else:
             assert False, "Internal error"    
         #no more processing!!
