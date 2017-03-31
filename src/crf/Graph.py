@@ -244,7 +244,7 @@ class Graph:
                 assert  isinstance(edge, Edge.VerticalEdge)
                 a.lVNeighbor.append(b)
                 b.lVNeighbor.append(a)
-
+    
     def getNeighborClassMask(self):
         """
         record for each node a boolean for each label, indicating if the node is neighbor with a node having that label
@@ -280,7 +280,6 @@ class Graph:
         node_features = node_transformer.transform(self.lNode)
         edges = self._BuildEdgeMatrix()
         edge_features = edge_transformer.transform(self.lEdge)
-        
         return (node_features, edges, edge_features)       
     
     def buildLabelMatrix(self):
@@ -289,7 +288,7 @@ class Graph:
         """
         Y = np.array( [nd.cls for nd in self.lNode] , dtype=np.uint8)
         return Y
-
+    
     def _indexNodes(self):
         for i, nd in enumerate(self.lNode): nd.index = i
         self.bNodeIndexed = True

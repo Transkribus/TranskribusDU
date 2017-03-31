@@ -40,7 +40,7 @@ class NodeType:
     dClsByLabel     = None
     nCls            = None
     
-    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther=True):
+    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True):
         """
         Those labels MUST BE THE SAME AS FOUND IN THE DATASET !!
         
@@ -63,7 +63,6 @@ class NodeType:
         
         self.lsXmlLabel        = lsLabel
         self.lsXmlIgnoredLabel = lsIgnoredLabel
-        self.bIgnoreSome       = (lsIgnoredLabel != "*")
              
         self.lsLabel        = [self.getInternalLabelName(s) for s in lsLabel]
 
@@ -112,8 +111,7 @@ class NodeType:
         """
         raise Exception("Method must be overridden")
 
-    @classmethod
-    def _iter_GraphNode(cls, doc, domNdPage, page):
+    def _iter_GraphNode(self, doc, domNdPage, page):
         """
         Parse a DOM page
         
@@ -123,3 +121,12 @@ class NodeType:
         """    
         raise Exception("Method must be overridden")
                         
+    def _get_GraphNodeText(self, doc, domNdPage, domNd, ctxt=None):
+        """
+        Extract the text of a DOM node
+        
+        Get the DOM, the DOM page node, the page object DOM node, and optionally an xpath context
+
+        return a unicode string
+        """    
+        raise Exception("Method must be overridden")

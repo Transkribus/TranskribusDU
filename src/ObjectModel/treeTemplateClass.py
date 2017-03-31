@@ -148,7 +148,10 @@ class treeTemplateClass(templateClass):
             find the best solution assuming reg=x
             dynamic programing (viterbi path)
             
+            
+            
         """
+        from sklearn.preprocessing import normalize
         def buildObs(lRegCuts,lCuts):
             N=len(lRegCuts)+1
             obs = np.zeros((N,len(lCuts)), dtype=np.float16)
@@ -157,11 +160,12 @@ class treeTemplateClass(templateClass):
                     # are features compatible?
                     if x.getType() == refx.getType():
                         ## numerical 
+#                         print x, refx, abs(x.getValue()-refx.getValue()) , refx.getTH()
                         if abs(x.getValue()-refx.getValue()) < refx.getTH():
                             obs[i,j]=  x.getWeight() * ( refx.getTH() - ( abs(x.getValue()-refx.getValue()))) / refx.getTH()
 #                             print x,refx, obs[i,j], ( refx.getTH() - ( abs(x.getValue()-refx.getValue()))) / refx.getTH(), x.getWeight(), refx.getTH(),  ( refx.getTH() - ( abs(x.getValue()-refx.getValue()))),abs(x.getValue()-refx.getValue()) 
-#                         elif abs(x.getValue()-refx.getValue()) < (refx.getTH() * 2 ):
-#                             obs[i,j]=  x.getWeight() * ( (refx.getTH() * 2) - ( abs(x.getValue()-refx.getValue()))) / ( refx.getTH() * 2 )
+                        elif abs(x.getValue()-refx.getValue()) < (refx.getTH() * 2 ):
+                            obs[i,j]=  x.getWeight() * ( (refx.getTH() * 2) - ( abs(x.getValue()-refx.getValue()))) / ( refx.getTH() * 2 )
                         ## STRING
                         ### TODO
                         else:
@@ -187,16 +191,20 @@ class treeTemplateClass(templateClass):
         transProb = np.zeros((N,N), dtype = np.float16)
         for i  in range(N-1):
             transProb[i,i]=1.0
-            transProb[i,i+1]=1.0 
+            transProb[i,i+1]=0.75
+            try:transProb[i,i+2]=0.5
+            except IndexError:pass  
         transProb[:,-1,]=1.0 
         transProb[-1,:]=1.0  
         
-#         print transProb        
+#         print transProb  
+#         print transProb/transProb.sum(axis=1)[:,None]
         initialProb = np.ones(N)
         initialProb = np.reshape(initialProb,(N,1))
         
                 
         obs = buildObs(lRegCuts,lCuts)
+#         print lCuts 
 #         print obs
         d = viterbi.Decoder(initialProb, transProb, obs)
         states,score =  d.Decode(np.arange(len(lCuts)))
