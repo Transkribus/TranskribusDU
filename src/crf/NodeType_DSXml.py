@@ -39,6 +39,9 @@ class NodeType_DS(NodeType):
     #Namespace, of PageXml, at least
     dNS = {}
 
+    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True):
+        NodeType.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther)
+        
     def setXpathExpr(self, sxpNode): #, sxpTextual)):
         self.sxpNode    = sxpNode
 #         self.sxpTextual = sxpTextual    #always in TOKENs in DS XML
@@ -60,7 +63,7 @@ class NodeType_DS(NodeType):
                 sLabel = self.dXmlLabel2Label[sXmlLabel]
             except KeyError:
                 #not a label of interest
-                if self.bIgnoreSome and sXmlLabel not in self.lsXmlIgnoredLabel: 
+                if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
                     raise ValueError("Invalid label in node %s"%str(domnode))            
 
         if not sLabel: raise ValueError("Missing label in node %s"%str(domnode))
