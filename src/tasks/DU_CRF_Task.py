@@ -49,6 +49,8 @@ from xml_formats.PageXml import MultiPageXml
 import crf.FeatureDefinition
 from crf.FeatureDefinition_PageXml_std import FeatureDefinition_PageXml_StandardOnes
 
+from crf.TestReport import TestReportConfusion
+
 class DU_CRF_Task:
     """
 Document Understanding class that relies on CRF (learning with SSVM and inference with AD3, thru the pystruct library
@@ -425,14 +427,19 @@ See DU_StAZH_b.py
             fnFoldResults = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_TestReport.pkl"%iFold)
             try:
                 oReport = crf.Model.Model.gzip_cPickle_load(fnFoldResults)
+                
                 loReport.append(oReport)
             except:
                 traceln("WARNING: fold %d has NOT FINISHED or FAILED: %s"%iFold)
 
-        for oReport in loReport:
-            print oReport
-                        
-        return loReport
+        oNFoldReport = TestReportConfusion.newFromReportList(self.sModelName+" (ALL %d FOLDS)"%n_splits, loReport) #a test report based on the confusion matrix
+
+        fnCrossValidDetails = os.path.join(self.sModelDir, self.sModelName+"_folds_STATS.txt")
+        with open(fnCrossValidDetails, "w") as fd:
+            for oReport in loReport: fd.write(str(oReport))
+            fd.write(str(oNFoldReport))
+            
+        return oNFoldReport
 
     def _nfold_RunFold(self, iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=False):
         """
@@ -488,6 +495,10 @@ See DU_StAZH_b.py
             oReport = mdl.test(lGraph_tst)
         else:
             oReport = None
+
+        fnFoldReport = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_STATS.txt"%iFold)
+        with open(fnFoldReport, "w") as fd:
+            fd.write(str(oReport))
         
         return oReport
     
