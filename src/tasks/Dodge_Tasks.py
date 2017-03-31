@@ -55,15 +55,15 @@ def picklefile(fname):
     return pickle.load(open(fname))
 
 def get_collection(collection_name,prefix=_prefix_root):
-    path_collection =os.path.join(prefix,collection_name,'test_gl','out')
+    path_collection =os.path.join(prefix,collection_name,'test_gl','out_R33')
     ls_res=commands.getoutput('ls '+path_collection+'/GraphML_R33*ds.xml')
     return ls_res.split('\n')
 
 
 def getDodgeFileList0():
-    return [#'/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2298385_000_SP_ds.xml',
+    return ['/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2298385_000_SP_ds.xml',
             #'/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2304654_000_SP_ds.xml',
-            '/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2305189_000_SP_ds.xml',
+            '/opt/project/dodge/data/plan/DVD1/test_gl/out/GraphML_R33_v06a_2305189_000_SP_ds.xml', #Smallest
             ]
 
 
@@ -182,6 +182,7 @@ def simpleTest():
 
     use_bl_model=True
     use_crf_model=True
+    use_crf_c_model=True
 
     if use_bl_model:
 
@@ -209,7 +210,7 @@ def simpleTest():
 
         #This is a copy of the test function ... not clean that
         repname='Debug_Report'
-        tstReport=doer.test(listTrain,filterFilesRegexp=False,test_sequential=False)
+        tstReport=doer.test(listTest,filterFilesRegexp=False,test_sequential=False)
         rep=tstReport[0]
         rep.name=repname
         print rep
@@ -231,12 +232,36 @@ def simpleTest():
         #This is a copy of the test function ... not clean that
         repname='Debug_Report_CRF'
 
-        tstReport=doer.test(listTrain,filterFilesRegexp=False)
+        tstReport=doer.test(listTest,filterFilesRegexp=False)
 
         #rep=tstReport[0]
         rep=tstReport
         rep.name=repname
         print(rep)
+
+    if use_crf_c_model:
+        doer = DU_Dodge_c(modelName,modeldir)
+        #Remove Previous file in anya
+        doer.rm()
+        #doer.load()
+
+        listTest = getDodgeFileList1()
+
+        print("- classes: ", dodge_graph.DU_GRAPH.getLabelNameList())
+
+        report=doer.train_save_test(listTrain, [], bWarm=False, filterFilesRegexp=False)
+        #report = doer.test(listTest,filterFilesRegexp=False)
+
+        #This is a copy of the test function ... not clean that
+        repname='Debug_Report_CRF_c'
+
+        tstReport=doer.test(listTest,filterFilesRegexp=False)
+
+        #rep=tstReport[0]
+        rep=tstReport
+        rep.name=repname
+        print(rep)
+
 
     #Ytrue,Reports=doer.test_seq(listTest,filterFilesRegexp=False)
 
@@ -441,7 +466,9 @@ def create_training_plan_pickle():
             for k in [500,1000]:
                 for mid in ['']:
                     AD_tmp.append((coll,fs,k,mid))
-        AD_tmp.append((coll,'tf','0','crf_c'))
+
+    for coll in sel_collections:
+        AD_tmp.append((coll,'tf',0,'crf_c'))
 
     AD=AD_tmp
     AD=sorted(AD,key= lambda x : x[0])
@@ -517,7 +544,7 @@ def qsub_test_plan(taskid,mem="48G"):
     exp_name = 'DT'+str(taskid)
     #cmd_str='qsub -l h='(floriad|alabama|alaska|ontario)  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name+ ' -l vf=32G,h_vmem=32G '\
     #cmd_str='qsub -l h=\'(florida|alabama|ohio|alaska|ontario|arizona|california|nevada|chichet|oregon|montana|colorado|kansas|iowa|indiana)\'  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=48G,h_vmem=48G ' +exec_path +' '+str(taskid)
-    cmd_str='qsub  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=1G,h_vmem=32G ' +exec_path +' '+str(taskid)
+    cmd_str='qsub  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=1G,h_vmem=64G ' +exec_path +' '+str(taskid)
     #cmd_str='qsub  -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=1G,h_vmem=32G ' +exec_path +' '+str(taskid)
     print cmd_str
     os.system(cmd_str)

@@ -68,16 +68,16 @@ class DU_Dodge_c(DU_CRF_Task):
                                   , 'n_feat_edge'    : 250
                                   , 't_ngrams_edge'   : (2,4)
                                   , 'b_edge_lc' : False    
-                                  , 'n_jobs'      : 4         #n_jobs when fitting the internal Logit feat extractor model by grid search
+                                  , 'n_jobs'      : 8         #n_jobs when fitting the internal Logit feat extractor model by grid search
                               }
                              , dLearnerConfig = {
                                    'C'                : .1 
-                                 , 'njobs'            : 4
+                                 , 'njobs'            : 8
                                  , 'inference_cache'  : 50
                                  #, 'tol'              : .1
                                  , 'tol'              : .05
                                  , 'save_every'       : 50     #save every 50 iterations,for warm start
-                                 , 'max_iter'         : 250
+                                 , 'max_iter'         : 1000
                                  }
                              , sComment=sComment
                              , cFeatureDefinition=FeatureDefinition_PageXml_LogitExtractor
@@ -107,7 +107,7 @@ if __name__ == "__main__":
         doer.rm()
         sys.exit(0)
     
-    traceln("- classes: ", DU_GRAPH.getLabelNameList())
+    traceln("- classes: ", dodge_graph.DU_GRAPH.getLabelNameList())
     
     
     #Add the "out" subdir if needed

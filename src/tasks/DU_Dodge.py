@@ -104,7 +104,7 @@ class DU_Dodge(DU_CRF_Task):
                                  #, 'tol'              : .1
                                  , 'tol'              : .05
                                  , 'save_every'       : 50     #save every 50 iterations,for warm start
-                                 , 'max_iter'         : 250
+                                 , 'max_iter'         : 1000
                                  }
                              , sComment=sComment
                              , cFeatureDefinition=None  #SO THAT WE USE THE SAME FEATURES AS FOR PageXml (because it is the features by default)
