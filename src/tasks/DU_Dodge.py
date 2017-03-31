@@ -78,6 +78,8 @@ class DU_Dodge(DU_CRF_Task):
     , working on a DS XML document at BLOCK level
     , with the below labels 
     """
+    #sXmlFilenamePattern = "*_ds.xml"
+    #sXmlFilenamePattern ="GraphML_R33*_ds.xml"
     sXmlFilenamePattern = "*_ds.xml"
 
     #=== CONFIGURATION ====================================================================
@@ -102,7 +104,7 @@ class DU_Dodge(DU_CRF_Task):
                                  #, 'tol'              : .1
                                  , 'tol'              : .05
                                  , 'save_every'       : 50     #save every 50 iterations,for warm start
-                                 , 'max_iter'         : 250
+                                 , 'max_iter'         : 1000
                                  }
                              , sComment=sComment
                              , cFeatureDefinition=None  #SO THAT WE USE THE SAME FEATURES AS FOR PageXml (because it is the features by default)
@@ -182,7 +184,6 @@ if __name__ == "__main__":
     
     
     #Add the "out" subdir if needed
-
     lTrn, lTst, lRun = [_checkFindColDir(lsDir, "out") for lsDir in [options.lTrn, options.lTst, options.lRun]] 
     #print lTrn
     if lTrn:
