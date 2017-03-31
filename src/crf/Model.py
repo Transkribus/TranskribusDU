@@ -241,8 +241,11 @@ class Model:
             Y_flat = np.hstack(lY)
             lTstRpt = list()
             for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
+                chronoOn()
                 Y_pred_flat = mdl.predict(X_flat)
+                traceln("\t\t [%.1fs] done\n"%chronoOff())
                 lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat, lLabelName, lsDocName=lsDocName) )
+                
                 del Y_pred_flat
             del X_flat, Y_flat
         return lTstRpt                                                                              
