@@ -160,6 +160,12 @@ class Graph:
     
     # --- Graph building --------------------------------------------------------
     @classmethod
+    def getNodeEdgeTotalNumber(cls, lGraph):
+        nbNode = sum(len(g.lNode) for g in lGraph)
+        nbEdge = sum(len(g.lEdge) for g in lGraph)
+        return nbNode, nbEdge
+            
+    @classmethod
     def loadGraphs(cls, lsFilename, bNeighbourhood=True, bDetach=False, bLabelled=False, iVerbose=0):
         """
         Load one graph per file, and detach its DOM
