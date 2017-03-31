@@ -36,6 +36,7 @@ from pystruct.models import EdgeFeatureGraphCRF
 from common.trace import traceln
 from common.chrono import chronoOn, chronoOff
 from Model import Model
+from Graph import Graph
 from TestReport import TestReport
 
 class Model_SSVM_AD3(Model):
@@ -81,8 +82,11 @@ class Model_SSVM_AD3(Model):
         return nothing
         """
         traceln("\t- computing features on training set")
+        traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
+        chronoOn()
         lX, lY = self.transformGraphs(lGraph, True)
-        traceln("\t done")
+        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
+        traceln("\t [%.1fs] done\n"%chronoOff())
 
         traceln("\t- retrieving or creating model...")
         self.ssvm = None
@@ -116,7 +120,6 @@ class Model_SSVM_AD3(Model):
         traceln("\t\t solver parameters:"
                     , " inference_cache=",self.inference_cache
                     , " C=",self.C, " tol=",self.tol, " n_jobs=",self.njobs)
-        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
         
@@ -161,18 +164,20 @@ class Model_SSVM_AD3(Model):
         bConstraint  = lGraph[0].getPageConstraint()
         
         traceln("\t- computing features on test set")
+        chronoOn()
         lX, lY = self.transformGraphs(lGraph, True)
         traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
-        traceln("\t done")
-
+        traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
+        traceln("\t [%.1fs] done\n"%chronoOff())
+        
         traceln("\t- predicting on test set")
+        chronoOn()
         if bConstraint:
             lConstraints = [g.instanciatePageConstraints() for g in lGraph]
             lY_pred = self._ssvm_ad3plus_predict(lX, lConstraints)
         else:
             lY_pred = self.ssvm.predict(lX)
-             
-        traceln("\t done")
+        traceln("\t [%.1fs] done\n"%chronoOff())
         
         tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsDocName)
         
