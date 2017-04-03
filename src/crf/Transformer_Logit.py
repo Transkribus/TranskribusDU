@@ -48,7 +48,7 @@ else:
 from Transformer import Transformer
 from Transformer_PageXml import  NodeTransformerTextEnclosed
 
-from Edge import HorizontalEdge, VerticalEdge, SamePageEdge, CrossPageEdge
+from Edge import HorizontalEdge, VerticalEdge, SamePageEdge, CrossPageEdge, CrossMirrorPageEdge
 
 dGridSearch_CONF = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for Logit training
 dGridSearch_CONF = {'C':[0.1] }  #Grid search parameters for Logit training
@@ -147,12 +147,12 @@ class NodeTransformerLogit(Transformer):
         """
         return the 2 logit scores
         """
-        a = np.zeros( ( len(lNode), 2*self.nbClass ), dtype=np.float64)     #for each class: is_of_class? is_neighbor_of_class?
+        a = np.zeros( ( len(lNode), 3*self.nbClass ), dtype=np.float64)     #for each class: is_of_class? is_neighbor_of_class on same page or accross page?
         
         x = self.text_pipeline.transform(lNode)
 
         a[...,0:self.nbClass]                   = self.mdl_main     .predict_proba(x)
-        a[...,  self.nbClass:2*self.nbClass]    = self.mdl_neighbor .predict_proba(x)
+        a[...,  self.nbClass:3*self.nbClass]    = self.mdl_neighbor .predict_proba(x)
 #         for i, nd in enumerate(lNode):
 #             print i, nd, a[i]
         if DEBUG: print a
@@ -184,35 +184,15 @@ class EdgeTransformerLogit(Transformer):
         self.nbClass = nbClass
         self.transfNodeLogit = ndTrnsfLogit #fitted node transformer
         
-    def transform(self, lEdge):
+    def transform(self, lEdge, bMirrorPage=True):
         """
         return the 2 logit scores
         """
-        if True:
-            aA = self.transfNodeLogit.transform( [edge.A for edge in lEdge] )
-            aB = self.transfNodeLogit.transform( [edge.B for edge in lEdge] )
-            a = np.hstack([aA, aB])
-            del aA, aB
-            assert a.shape == (len(lEdge), 2 * 2 * self.nbClass)
-        else:
-            #not so clever to distinguish by edge type since the neighbor mask is ignoring the type of edge
-            lEdgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge]
-            nbEdgeClass = len(lEdgeClass)
-            
-            nbFeatPerNode = 2*self.nbClass              #for each class: is_of_class? is_neighbor_of_class?
-            nbFeatPerEdgeClass = 2 * nbFeatPerNode      #2 nodes
-            d_iEdgeClass = { cls:i*nbFeatPerEdgeClass for i,cls in enumerate(lEdgeClass) }  #shift by edge class
-            
-            a = np.zeros( ( len(lEdge), nbEdgeClass * nbFeatPerEdgeClass ), dtype=np.float64) 
-            
-            #slow but safer to code
-            for i, edge in enumerate(lEdge):
-                iEdgeClass = d_iEdgeClass[edge.__class__] 
-                for nd, iNode in [ (edge.A, 0), (edge.B, nbFeatPerNode)]:
-                    a[i, iEdgeClass+iNode:iEdgeClass+iNode+nbFeatPerNode] = self.transfNodeLogit.transform([nd])
-            
-#         for i, edg in enumerate(lEdge):
-#             print i, edg, a[i]
+        aA = self.transfNodeLogit.transform( [edge.A for edge in lEdge] )
+        aB = self.transfNodeLogit.transform( [edge.B for edge in lEdge] )
+        a = np.hstack([aA, aB])
+        del aA, aB
+        assert a.shape == (len(lEdge), 2 * 2 * self.nbClass)
         
         return a
 
