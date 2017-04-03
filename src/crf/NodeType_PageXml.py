@@ -122,12 +122,9 @@ class NodeType_PageXml(NodeType):
 
             #and create a Block
             assert ndBlock
-            blk = Block(page.pnum, (x1, y1, x2-x1, y2-y1), sText, orientation, classIndex, self, ndBlock, domid=domid)
+            blk = Block(page, (x1, y1, x2-x1, y2-y1), sText, orientation, classIndex, self, ndBlock, domid=domid)
             assert blk.node
             
-            #link it to its page
-            blk.page = page
-
             if TEST_getPageXmlBlock:
                 #dump a modified XML to view the rectangles
                 import util.xml_utils
