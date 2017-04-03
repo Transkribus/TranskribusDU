@@ -430,7 +430,7 @@ See DU_StAZH_b.py
                 
                 loReport.append(oReport)
             except:
-                traceln("WARNING: fold %d has NOT FINISHED or FAILED: %s"%iFold)
+                traceln("WARNING: fold %d has NOT FINISHED or FAILED"%iFold)
 
         oNFoldReport = TestReportConfusion.newFromReportList(self.sModelName+" (ALL %d FOLDS)"%n_splits, loReport) #a test report based on the confusion matrix
 

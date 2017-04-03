@@ -36,7 +36,7 @@ class TestReport:
     A class that encapsulates the result of a classification test
     """
     
-    def __init__(self, name, l_Y_pred, l_Y, lsClassName=None, lsDocName=None):
+    def __init__(self, name, l_Y_pred, l_Y, lsClassName, lsDocName=None):
         """
         takes a test name, a prediction and a groundtruth or 2 lists of that stuff
         optionally the list f class names
@@ -62,10 +62,11 @@ class TestReport:
             self.l_Y_pred = [l_Y_pred]
             self.l_Y      = [l_Y]
 
-        #Computing the classes that are observed or that were expected to be observed
+        #Computing the classes that are observed 
         aSeenCls = np.unique(self.l_Y_pred[0])
         for _Y in self.l_Y_pred[1:]: aSeenCls = np.unique( np.hstack([aSeenCls, np.unique(_Y)]) )
-        for _Y in self.l_Y:          aSeenCls = np.unique( np.hstack([aSeenCls, np.unique(_Y)]) )
+#         #... or that were expected to be observed
+#         for _Y in self.l_Y:          aSeenCls = np.unique( np.hstack([aSeenCls, np.unique(_Y)]) )
         aSeenCls.sort()
         self.lSeenCls = aSeenCls.tolist()
         
@@ -78,14 +79,6 @@ class TestReport:
             if lsDocName: assert len(l_Y) == len(lsDocName), "Internal error"
         # --- 
         
-#         self.fScore = None                  #global accuracy score
-#         self.aConfusionMatrix = None        #confusion matrix (np.array)
-#         self.laConfusionMatrix = None
-#         self.sClassificationReport = ""     #formatted P/R/F per class
-#         self.lsSeenClassName = []           #sub-list of class names seen in that test, ordered by class index, if any class name list was provided. 
-        
-
-
     
     def attach(self, loTstRpt):
         """
@@ -101,7 +94,6 @@ class TestReport:
     def getTestName(self):              return self.name
     def getNbClass(self):               return self.nbClass
     def getClassNameList(self):         return self.lsClassName
-    def getSeenClassNameList(self):     return [clsName for (i, clsName) in enumerate(self.lsClassName) if i in self.lSeenCls] if self.lsClassName else None
     def getDocNameList(self):           return self.lsDocName
     def getBaselineTestReports(self):   return self.lBaselineTestReport
     
@@ -127,9 +119,7 @@ class TestReport:
         """
         if aConfuMat is None: aConfuMat = self.getConfusionMatrix()
         if self.lsClassName:
-            #we need to include all clasname that appear in the dataset or in the predicted labels (well... I guess so!)
-            lsSeenClassName = self.getSeenClassNameList()
-            sClassificationReport = confusion_classification_report(aConfuMat, target_names=lsSeenClassName)
+            sClassificationReport = confusion_classification_report(aConfuMat, target_names=self.lsClassName)
         else:
             sClassificationReport = confusion_classification_report(aConfuMat)
         
@@ -144,14 +134,6 @@ class TestReport:
         if bShowBaseline, includes any attached report(s), with proper indentation
         if bBaseline: report for a baseline method
         """
-        #not nice because of formatting of numbers possibly different per line
-#         if lsClassName:
-#             #Let's show the class names
-#             s1 = ""
-#             for sLabel, aLine in zip(lsSeenClassName, a):
-#                 s1 += "%20s %s\n"%(sLabel, aLine)
-#         else:
-#             s1 = str(a)
         if bBaseline:
             sSpace  = " "*8
             sSepBeg = "\n" + sSpace + "~" * 30
@@ -170,12 +152,11 @@ class TestReport:
         np.set_printoptions(np_dFmt)
         
         if self.lsClassName:
-            lsSeenClassName = self.getSeenClassNameList()
-            iMaxClassNameLen = max([len(s) for s in lsSeenClassName])            
+            iMaxClassNameLen = max([len(s) for s in self.lsClassName])            
             lsLine = s1.split("\n")    
             sFmt = "%%%ds  %%s"%iMaxClassNameLen     #producing something like "%20s  %s"
-            assert len(lsLine) == len(lsSeenClassName)
-            s1 = "\n".join( [sFmt%(sLabel, sLine) for (sLabel, sLine) in zip(lsSeenClassName, lsLine)])    
+            assert len(lsLine) == len(self.lsClassName), "Internal error: expected one line per class name"
+            s1 = "\n".join( [sFmt%(sLabel, sLine) for (sLabel, sLine) in zip(self.lsClassName, lsLine)])    
 
         fScore, s2 = self.getClassificationReport(aConfuMat)
         
@@ -216,7 +197,7 @@ class TestReportConfusion(TestReport):
     A class that encapsulates the result of a classification test, by using the confusion matrices
     """
     
-    def __init__(self, name, laConfuMat, lsClassName=None, lsDocName=None):
+    def __init__(self, name, laConfuMat, lsClassName, lsDocName=None):
         """
         takes a test name, a list of confusiopn matrices
         optionally the list f class names
@@ -260,9 +241,6 @@ class TestReportConfusion(TestReport):
             
         return oret
 
-    def getSeenClassNameList(self): 
-        return self.lsClassName
-                
     def getConfusionMatrix(self):
         """
         Return a confusion matrix covering all classes (not only those observed in this particular test)
@@ -280,9 +258,7 @@ class TestReportConfusion(TestReport):
         """
         if aConfuMat is None: aConfuMat = self.getConfusionMatrix()
         if self.lsClassName:
-            #we need to include all clasname that appear in the dataset or in the predicted labels (well... I guess so!)
-            lsSeenClassName = self.getSeenClassNameList()
-            sClassificationReport = confusion_list_classification_report(self.laConfuMat, target_names=lsSeenClassName)
+            sClassificationReport = confusion_list_classification_report(self.laConfuMat, target_names=self.lsClassName)
         else:
             sClassificationReport = confusion_list_classification_report(self.laConfuMat)
         
