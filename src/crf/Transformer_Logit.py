@@ -192,7 +192,7 @@ class EdgeTransformerLogit(Transformer):
         aB = self.transfNodeLogit.transform( [edge.B for edge in lEdge] )
         a = np.hstack([aA, aB])
         del aA, aB
-        assert a.shape == (len(lEdge), 2 * 2 * self.nbClass)
+        assert a.shape == (len(lEdge), 2 * 3 * self.nbClass) #src / target nodes, same_page/cross_page_neighbors/class
         
         return a
 
