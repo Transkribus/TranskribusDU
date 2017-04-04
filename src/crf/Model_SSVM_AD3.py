@@ -233,8 +233,18 @@ class Model_SSVM_AD3(Model):
 
         tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsFilename)
         
-        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName, lsDocName=lsFilename)
+        lBaselineTestReport = self._testBaselinesEco(lX, lY, lLabelName, lsDocName=lsFilename)
         tstRpt.attach(lBaselineTestReport)
+        
+#         if True:
+#             #experimental code, not so interesting...
+#             node_transformer, _ = self.getTransformers()
+#             try:
+#                 _testable_extractor_ = node_transformer._testable_extractor_
+#                 lExtractorTestReport = _testable_extractor_.testEco(lX, lY)
+#                 tstRpt.attach(lExtractorTestReport)
+#             except AttributeError:
+#                 pass
         
         #do some garbage collection
         del lX, lY
