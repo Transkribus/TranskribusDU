@@ -35,7 +35,7 @@ from sklearn.utils.class_weight import compute_class_weight
 from common.trace import  traceln
 from common.chrono import chronoOn, chronoOff
 
-from TestReport import TestReport
+from TestReport import TestReport, TestReportConfusion
 
 class ModelException(Exception):
     """
@@ -231,7 +231,7 @@ class Model:
     def _testBaselines(self, lX, lY, lLabelName=None, lsDocName=None):
         """
         test the baseline models, 
-        return a test report list
+        return a test report list, one per baseline method
         """
         if lsDocName: assert len(lX) == len(lsDocName), "Internal error"
         
@@ -239,15 +239,31 @@ class Model:
         if self._lMdlBaseline:
             X_flat = np.vstack( [node_features for (node_features, _, _) in lX] )
             Y_flat = np.hstack(lY)
-            lTstRpt = list()
             for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
                 chronoOn()
                 Y_pred_flat = mdl.predict(X_flat)
                 traceln("\t\t [%.1fs] done\n"%chronoOff())
                 lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat, lLabelName, lsDocName=lsDocName) )
                 
-                del Y_pred_flat
-            del X_flat, Y_flat
+            del X_flat, Y_flat, Y_pred_flat
+        return lTstRpt                                                                              
+    
+    def _testBaselinesEco(self, lX, lY, lLabelName=None, lsDocName=None):
+        """
+        test the baseline models, WITHOUT MAKING A HUGE X IN MEMORY
+        return a test report list, one per baseline method
+        """
+        if lsDocName: assert len(lX) == len(lsDocName), "Internal error"
+        lTstRpt = []
+        for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
+            chronoOn()
+            #using a COnfusionMatrix-based test report object, we can accumulate results
+            oTestReportConfu = TestReportConfusion(str(mdl), list(), lLabelName, lsDocName=lsDocName)
+            for X,Y in zip(lX, lY):
+                Y_pred = mdl.predict(X)
+                oTestReportConfu.accumulate( TestReport(str(mdl), Y_pred, Y, lLabelName, lsDocName=lsDocName) )
+            traceln("\t\t [%.1fs] done\n"%chronoOff())
+            lTstRpt.append( oTestReportConfu )
         return lTstRpt                                                                              
     
     def predictBaselines(self, X):
