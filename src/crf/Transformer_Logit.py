@@ -48,10 +48,10 @@ else:
 from Transformer import Transformer
 from Transformer_PageXml import  NodeTransformerTextEnclosed
 
-from Edge import HorizontalEdge, VerticalEdge, SamePageEdge, CrossPageEdge, CrossMirrorPageEdge
+from TestReport import TestReport, TestReportConfusion
 
 dGridSearch_CONF = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for Logit training
-dGridSearch_CONF = {'C':[0.1] }  #Grid search parameters for Logit training
+dGridSearch_CONF = {'C':[0.01, 0.1, 1.0, 2.0] }  #Grid search parameters for Logit training
 
 DEBUG=0
 
@@ -133,11 +133,7 @@ class NodeTransformerLogit(Transformer):
         gslr = GridSearchCV(lr , self.dGridSearch_LR_conf, refit=True, n_jobs=self.n_jobs)        
         self.mdl_neighbor = OneVsRestClassifier(gslr, n_jobs=self.n_jobs)
         self.mdl_neighbor.fit(x, y)
-#         y_pred = self.mdl_neighbor.predict(x)
-#         import TestReport
-#         for i in range(y_pred.shape[1]):
-#             o = TestReport.TestReport(i, y_pred[i], y[i])
-#             print o
+
         del x, y
         if DEBUG: print self.mdl_neighbor
 
@@ -158,6 +154,37 @@ class NodeTransformerLogit(Transformer):
         if DEBUG: print a
         return a
 
+#     def testEco(self,lX, lY):
+#         """
+#         we test 2 Logit: one to predict the node class, another to predict the class of the neighborhood
+#         and return a list of TestReport objects
+#             [ ClassPredictor_Test_Report
+#             , SamePageNeighborClassPredictor_Test_Report for each class
+#             , CrossPageNeighborClassPredictor_Test_Report for each class
+#             ]
+#         """
+#         loTstRpt = []
+# ZZZZZ        
+#         #extracting textual features
+#         X = self.text_pipeline.transform(lAllNode)
+# 
+#         # the Y
+#         Y = np.array([nd.cls for nd in lAllNode], dtype=np.int)
+#         Y_pred = self.mdl_main.predict(X)
+#         oTstRptMain = TestReportConfusion.newFromYYpred("TransformerLogit_main", Y_pred, Y, map(str, range(self.nbClass)))
+#         loTstRpt.append(oTstRptMain)
+#         
+#         #the Y for neighboring
+#         Y = np.vstack([g.getNeighborClassMask() for g in lGraph])  #we get this from the graph object. 
+#         Y_pred = self.mdl_neighbor.predict(X)
+#         nbCol = Y_pred.shape[1]
+#         lsClassName = lGraph[0].getNeighborClassNameList()
+#         assert nbCol == len(lsClassName)
+#         for i, sClassName in enumerate(lsClassName):
+#             oTstRpt = TestReportConfusion.newFromYYpred(sClassName, Y_pred[:,i], Y[:,i], ["no", "yes"])
+#             loTstRpt.append(oTstRpt)
+#         
+#         return loTstRpt
 
 #------------------------------------------------------------------------------------------------------
 class EdgeTransformerLogit(Transformer):
