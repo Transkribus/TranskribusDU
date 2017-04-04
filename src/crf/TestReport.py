@@ -237,9 +237,17 @@ class TestReportConfusion(TestReport):
             assert len(oTestRpt.getBaselineTestReports()) == len(oret.lBaselineTestReport), "Error: cannot aggregate TestReport with heterogeneous number of baselines."
             for oBsln, oBsln0 in zip(oTestRpt.getBaselineTestReports(), o0.getBaselineTestReports()):
                 assert oBsln.name == oBsln0.name, "Error: cannot aggregate TestReport with heterogeneous baselines." 
-            oret._aggregate(oTestRpt)
+            oret.accumulate(oTestRpt)
             
         return oret
+
+    @classmethod
+    def newFromYYpred(cls, name, Y, Y_pred, lsClassName, lsDocName=None):
+        """
+        Creator
+        """
+        confumat = confusion_matrix(Y, Y_pred, range(len(lsClassName)))
+        return TestReportConfusion(name, [confumat], lsClassName, lsDocName=lsDocName)
 
     def getConfusionMatrix(self):
         """
@@ -275,9 +283,9 @@ class TestReportConfusion(TestReport):
 #             p, r, f1, a, s = confusion_PRFAS(aConfuMat)
 #             report += 
             
-    def _aggregate(self, oTestRpt):
+    def accumulate(self, oTestRpt):
         """
-        Absorb this TestReport object in the current one.
+        Absorb this TestReport object into the current one.
         """
         if self.nbClass:
             assert not(oTestRpt.nbClass is None)    , "Internal Error: cannot aggregate a TestReport with unknown number of classes into this TestReport with known number of classes."
@@ -287,10 +295,10 @@ class TestReportConfusion(TestReport):
 
         #aggregate the results per baseline method        
         for i, oBslnRpt in enumerate(oTestRpt.lBaselineTestReport):
-            self.lBaselineTestReport[i]._aggregate(oBslnRpt)
+            self.lBaselineTestReport[i].accumulate(oBslnRpt)
 
         if self.lsDocName:
-            assert oTestRpt.lsDocName, "Internal Error: one object has no list of documen,t name. Cannot aggregate with doc name."
+            assert oTestRpt.lsDocName, "Internal Error: one object has no list of document name. Cannot aggregate with doc name."
             self.lsDocName.extend(oTestRpt.getDocNameList())
             
             
