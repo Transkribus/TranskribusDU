@@ -75,33 +75,6 @@ class treeTemplateClass(templateClass):
         else:
             pass
 
-#     def buildTreeFromPattern(self,pattern):
-#         """
-#              create a tree structure corresponding to pattern
-#         """
-#         self.setPattern(pattern)
-# #         print 'creation:',self.getPattern()
-#         if isinstance(pattern,list):
-#             if self.getChildren() is not None:
-#                 if  'list' not in map(lambda x:type(x.getPattern()).__name__, self.getChildren()):
-#                     #terminal
-#                     ctemplate  = treeTemplateClass()
-#                     ctemplate.setPattern(pattern)
-#                     self.addChild(ctemplate)
-#                     ctemplate.setParent(self)                
-#                 else:
-#                     for child in self.getPattern():
-#         #                 print 'child',child
-#                         ctemplate  = treeTemplateClass()
-#         #                 ctemplate.setPattern(child)
-#                         ctemplate.buildTreeFromPattern(child)
-#                         self.addChild(ctemplate)
-#                         ctemplate.setParent(self)
-#         #             print '--',self.getChildren()
-#         else:
-#             pass
-#             #terminal
-            
     
     def getTerminalTemplates(self):
         """
@@ -151,7 +124,6 @@ class treeTemplateClass(templateClass):
             
             
         """
-        from sklearn.preprocessing import normalize
         def buildObs(lRegCuts,lCuts):
             N=len(lRegCuts)+1
             obs = np.zeros((N,len(lCuts)), dtype=np.float16)
@@ -161,11 +133,13 @@ class treeTemplateClass(templateClass):
                     if x.getType() == refx.getType():
                         ## numerical 
 #                         print x, refx, abs(x.getValue()-refx.getValue()) , refx.getTH()
-                        if abs(x.getValue()-refx.getValue()) < refx.getTH():
-                            obs[i,j]=  x.getWeight() * ( refx.getTH() - ( abs(x.getValue()-refx.getValue()))) / refx.getTH()
+#                         print x, refx, "dist=%s"%x.getDistance(refx)
+                        dist =  x.getDistance(refx)
+                        if dist < refx.getTH():
+                            obs[i,j]=  x.getWeight() * ( refx.getTH() - ( dist)) / refx.getTH()
 #                             print x,refx, obs[i,j], ( refx.getTH() - ( abs(x.getValue()-refx.getValue()))) / refx.getTH(), x.getWeight(), refx.getTH(),  ( refx.getTH() - ( abs(x.getValue()-refx.getValue()))),abs(x.getValue()-refx.getValue()) 
-                        elif abs(x.getValue()-refx.getValue()) < (refx.getTH() * 2 ):
-                            obs[i,j]=  x.getWeight() * ( (refx.getTH() * 2) - ( abs(x.getValue()-refx.getValue()))) / ( refx.getTH() * 2 )
+                        elif dist < (refx.getTH() * 2 ):
+                            obs[i,j]=  x.getWeight() * ( (refx.getTH() * 2) - ( dist)) / ( refx.getTH() * 2 )
                         ## STRING
                         ### TODO
                         else:
@@ -268,7 +242,7 @@ class treeTemplateClass(templateClass):
 #         print self.getPattern(), lobjectFeatures
         self.getPattern().sort(key=lambda x:x.getValue())
 #         print self.getPattern(), anobject, lobjectFeatures
-        bestReg, curScore = self.findBestMatch(self.getPattern(),lobjectFeatures)
+        bestReg, curScore = self.findBestMatch(self.getPattern(), lobjectFeatures)
 #         print bestReg
         ltmp = self.getPattern()[:]
         ltmp.append('EMPTY')
@@ -276,9 +250,9 @@ class treeTemplateClass(templateClass):
         lMissing = np.array(ltmp)[lMissingIndex].tolist()
         lMissing = filter(lambda x: x!= 'EMPTY',lMissing)
         result = np.array(ltmp)[bestReg].tolist()
-        lFinres= filter(lambda (x,y): x!= 'EMPTY',zip(result,lobjectFeatures))
+        lFinres= filter(lambda (x,y): x!= 'EMPTY',zip(result, lobjectFeatures))
         if lFinres != []:
-            score1 = self.computeScore(len(self.getPattern()),lFinres,lobjectFeatures)
+            score1 = self.computeScore(len(self.getPattern()), lFinres, lobjectFeatures)
             lFinres =  self.selectBestUniqueMatch(lFinres)
         # for estimating missing?
 #         self.selectBestAnchor(lFinres) 
