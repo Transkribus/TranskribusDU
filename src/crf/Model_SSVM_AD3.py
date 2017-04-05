@@ -288,7 +288,6 @@ if __name__ == "__main__":
     
     print "Model: ", ssvm
     print "Number of iterations: ", len(ssvm.objective_curve_)
-    print "Number of iterations: ", len(ssvm.objective_curve_)
     if len(ssvm.objective_curve_) != len(ssvm.primal_objective_curve_):
         print "WARNNG: unextected data, result below might be wrong!!!!"
     last_objective, last_primal_objective  = ssvm.objective_curve_[-1], ssvm.primal_objective_curve_[-1]
