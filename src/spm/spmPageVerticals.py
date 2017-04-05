@@ -28,9 +28,6 @@ from ObjectModel.XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
 from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
 from ObjectModel.XMLDSTOKENClass import XMLDSTOKENClass
 from ObjectModel.XMLDSPageClass import XMLDSPageClass
-from ObjectModel.singlePageTemplateClass import singlePageTemplateClass
-from ObjectModel.doublePageTemplateClass import doublePageTemplateClass
-from ObjectModel.verticalZonesTemplateClass import verticalZonestemplateClass    
 from ObjectModel.treeTemplateClass import treeTemplateClass
 
 class pageVerticalMiner(Component.Component):
@@ -102,7 +99,7 @@ class pageVerticalMiner(Component.Component):
             
             need iterations!
         """
-        self.THNUMERICAL = 40
+        self.THNUMERICAL = 60  # 2 cml
         
         ## initialization for iter 0
         for i,page, in enumerate(lPages):
@@ -119,14 +116,14 @@ class pageVerticalMiner(Component.Component):
             
         for _,p in enumerate(lPages):
             p.lFeatureForParsing=p.getSetofFeatures()
-            
+#             print p, p.lFeatureForParsing
         icpt=0
         lCurList=lPages[:]
         lTerminalTemplates=[]
         while icpt <=0:
             if icpt > 0: 
                 seqGen.setMaxSequenceLength(1)
-                print '***'*20
+#                 print '***'*20
                 seqGen.bDebug = False
                 for elt in lCurList:
                     if elt.getSetofFeatures() is None:
@@ -134,12 +131,10 @@ class pageVerticalMiner(Component.Component):
                         elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['virtual'],myLevel=XMLDSPageClass)
                         elt.computeSetofFeatures()
                         elt.lFeatureForParsing=elt.getCanonicalFeatures()
+#                         print elt, elt.lFeatureForParsing
                     else:
                         elt.setSequenceOfFeatures(elt.lFeatureForParsing)
                 lSortedFeatures  = seqGen.featureGeneration(lCurList,1)
-#                 for cf in lSortedFeatures:
-#                     l = sum(x.getHeight() for x in cf.getNodes())        
-#                     cf.setWeight(l)                  
             lmaxSequence = seqGen.generateItemsets(lCurList)
             seqGen.bDebug = False
             
@@ -149,18 +144,10 @@ class pageVerticalMiner(Component.Component):
             if lPatterns is None:
                 return [lPages]
             
-            for p,support  in lPatterns:
-                if support > 1: #and len(p) == 4:
-                    print p, support, len(p[0])  
             # ignore unigram:  covered by previous steps 
             if icpt <3:lPatterns  = filter(lambda (p,s):len(p[0])>1,lPatterns)
             lPatterns.sort(key=lambda (x,y):y, reverse=True)
 
-#             print "List of patterns and their support:"
-#             for p,support  in lPatterns:
-#                 if support > 1:
-#                     print p, support
-            
             seqGen.bDebug = False
             seqGen.THRULES = 0.8
             lSeqRules = seqGen.generateSequentialRules(lPatterns)
@@ -174,7 +161,7 @@ class pageVerticalMiner(Component.Component):
                 icpt=9e9
                 break
             
-            isKleenePlus,lTerminalTemplates,tranprob = seqGen.testTreeKleeneageTemplates(dTemplatesCnd, lCurList)
+            _,lTerminalTemplates,_ = seqGen.testTreeKleeneageTemplates(dTemplatesCnd, lCurList)
 #             print tranprob
 #             self.pageSelectFinalTemplates(lTerminalTemplates,tranprob,lCurList)
             
@@ -183,7 +170,7 @@ class pageVerticalMiner(Component.Component):
                 for _,_, mytemplate in dTemplatesCnd[templateType][:2]:
                     mytemplate.print_()
 #                     _,lCurList = self.parseWithTemplate(mytemplate,lCurList,bReplace=True)
-                    bKleenePlus,_,lCurList = seqGen.parseWithTreeTemplate(mytemplate, lCurList, bReplace=True)    
+                    _,_,lCurList = seqGen.parseWithTreeTemplate(mytemplate, lCurList, bReplace=True)    
                     for elt in lCurList:
                         if elt.getSetofFeatures() is None:
                             elt.resetFeatures()
@@ -192,8 +179,6 @@ class pageVerticalMiner(Component.Component):
                             elt.lFeatureForParsing=elt.getSetofFeatures()
             
             icpt +=1
-#             print 'curList:',lCurList
-#         print "final hierarchy"
 #         self.printTreeView(lCurList)
         lList = self.getFlatStructure(lCurList)
 #         print lList
@@ -313,7 +298,7 @@ class pageVerticalMiner(Component.Component):
                         template  = treeTemplateClass()
                         template.setPattern(pattern)
                         template.buildTreeFromPattern(pattern)
-                        template.setType('lineTemplate')
+                        template.setType('VTemplate') # ??
                         try:dTemplatesTypes[template.__class__.__name__].append((pattern, support, template))
                         except KeyError: dTemplatesTypes[template.__class__.__name__] = [(pattern,support,template)]                      
         
@@ -344,7 +329,7 @@ class pageVerticalMiner(Component.Component):
             lPageProfiles[self.kContentSize].append(surface)
         return lPageProfiles
         
-    def minePageVerticalFeature(self,lPages,lFeatureList):
+    def minePageVerticalFeature(self,lPages,lFeatureList,level=XMLDSTEXTClass):
         """
             get page features for  vertical zones: find vertical regular vertical Blocks/text structure
             
@@ -384,7 +369,7 @@ class pageVerticalMiner(Component.Component):
             for elt in lElts:
                 elt.resetFeatures()
                 elt._canonicalFeatures = None
-                elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=lFeatureList,myLevel=XMLDSTEXTClass)
+                elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=lFeatureList,myLevel=level)
 #                 elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=lFeatureList,myLevel=XMLDSTOKENClass)
  
                 elt.computeSetofFeatures()
@@ -406,6 +391,7 @@ class pageVerticalMiner(Component.Component):
                         f.setName("x")
                         f.setValue(round(graphline.getX()))
                         graphline.addFeature(f)
+                        
                     
                                     
             seqGen = sequenceMiner()
@@ -475,10 +461,9 @@ class pageVerticalMiner(Component.Component):
                     print  'skip!',p, fi, fi.getWeight()
             
             p.lf_XCut.sort(key=lambda x:x.getWeight(),reverse=True)
-            p.lf_XCut = p.lf_XCut[:15]
+            p.lf_XCut = p.lf_XCut   #[:15]
             p.lf_XCut.sort(key=lambda x:x.getValue())
-            if self.bDebug :print p, map(lambda x:(x.getCanonical().getValue(),x.getCanonical().getWeight()),p.lf_XCut)          
-        
+            if self.bDebug : print p, map(lambda x:(x.getCanonical().getValue(),x.getCanonical().getWeight()),p.lf_XCut)          
     
     def getTerminals(self,node):
         """
@@ -722,7 +707,8 @@ class pageVerticalMiner(Component.Component):
             lProfiles =  self.computeObjectProfile(lp)
             lS = self.segmentWithProfile(lp,lProfiles[self.kContentSize])
             lNewSub.extend(lS)
-    
+        print lNewSub
+        
         return lNewSub
             
 
@@ -850,7 +836,7 @@ class pageVerticalMiner(Component.Component):
             
             self.tagAsRegion(lPages) 
         
-    def iterativeProcessVSegmentation(self,lLPages):
+    def iterativeProcessVSegmentation(self, lLPages):
         """
             process lPages by batch 
            
@@ -867,15 +853,16 @@ class pageVerticalMiner(Component.Component):
             collect information for cut !!  a la specbook!!!
         """
         
+        setFullListTemplates= set() 
         for lPages in lLPages:
-            print lPages
+#             print lPages
             #Width 
             self.THNUMERICAL = 50
             self.minePageVerticalFeature(lPages, ['width'])
             lT, lScore,score = self.processVSegmentation(lPages,[],bTAMode=True,iMinLen=1,iMaxLen=1)
-            print score, lT, lScore
+#             print score, lT, lScore
             
-            # if w borad enough:  assume one column for the main body part (+marginalia?)
+            # if w board enough:  assume one column for the main body part (+marginalia?)
             # here segmentation of lPages if needed (put outside of this loop)
             ## if coverage low: noisy? not the right way to deal with this document??
             ###   -> reduce batch ?
@@ -885,13 +872,12 @@ class pageVerticalMiner(Component.Component):
             for p  in lPages:
                 p.resetVerticalTemplate()
 
-#             self.bDebug=False
+#             self.bDebug=True
             # V positions
             NBATCH = 100
             for nbPage in range(0,len(lPages),NBATCH):
-                
-                print nbPage, nbPage + NBATCH
-                print lPages[nbPage:nbPage+NBATCH]
+#                 print nbPage, nbPage + NBATCH
+#                 print lPages[nbPage:nbPage+NBATCH]
                 sys.stdout.flush()
                 print "LENGTH = 1"
                 self.minePageVerticalFeature(lPages[nbPage:nbPage+NBATCH], ['x','x2'])
@@ -902,15 +888,15 @@ class pageVerticalMiner(Component.Component):
                 print nbPage, nbPage+NBATCH, lT1, score1
                 print '\t',lScore1
                 sys.stdout.flush()
-                
-                bTable = lT1 is not None and lT1 !=[] and len(lT1[0].getPattern()) > 0 #6
+
+                bTable = lT1 is not None and lT1 !=[] and len(lT1[0].getPattern()) > 6
                 
                 ##"  If parsing structure K+ has good coverage: skip length2?
                 # if high enough score: skip len=2?
     #             sys.stdout.flush()
                 lOneSupport=[]
                 print "LENGTH = 2"
-                if bTable or len(lOneSupport) > 8:
+                if len( lPages) >1 and bTable or len(lOneSupport) > 8:
                     score2=0
                     lT2=None
                     lScore2=[]
@@ -926,6 +912,9 @@ class pageVerticalMiner(Component.Component):
                     #  segment and relearn : if better score: keep the cut 
                     print nbPage, nbPage+NBATCH, lT2, score2    
                     print '\t',lScore2
+#                     for ii,(_,score) in enumerate(lScore2):
+#                         print '\t',ii,score
+                    
                     
                 bTwo=False
                 lT=None
@@ -944,13 +933,31 @@ class pageVerticalMiner(Component.Component):
                             try:
                                 p.getVerticalTemplates().remove(deltemplate)
                             except ValueError:pass  # page not associated  
+                
                 print "#",lPages[nbPage:nbPage+NBATCH], bTwo , lT
             
             
+            ## final step: finetuning and creation of separator???
+            ## consider tokens and find best line: even correction with new nomacs??
+            
+#             self.correctionStep(lPages)
+
             # for visu    
             self.tagAsRegion(lPages)
-            ## final step: finetuning and creation of separator???
-            ## consider tokens and find best line 
+
+            ## build full list of templates
+            ### smooth: see bar 13685:  if subpatterns  (due to content break)
+            for p in lPages:
+                #  what is stored in VerticalTemplate: the terminal element: take the parent for the full template
+                ## this is needed by the Viterbi/matching step
+                for t in p.getVerticalTemplates():
+                    parentTemplate = t.getParent()
+                    setFullListTemplates.add(parentTemplate)
+                    parentTemplate.bIsMirrored = self.isMirroredPattern(parentTemplate.getPattern())
+        
+#         print setFullListTemplates
+
+        return setFullListTemplates
         
                 
     def processVSegmentation(self,lPages,lNegativePatterns,bTAMode= False,iMinLen=1, iMaxLen=1):
@@ -994,16 +1001,19 @@ class pageVerticalMiner(Component.Component):
         lmaxSequence = seqGen.generateItemsets(lPages)
         lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.2)
         
-        lOneSupport  = self.testHighSupport(lSeq)
-        print lOneSupport
-        if len(lOneSupport) < 5:
+        # if one page: what to do ??
+        if len(lPages)>1:
+            lOneSupport  = self.testHighSupport(lSeq)
+        else : lOneSupport=[]
+        print 'OneSupport: ', lOneSupport
+        if len(lOneSupport) < 7:
             # MIS also for patterns, not only item!!
             ## can be used to assess the noise level or here
             chronoOn()
             print "generation..."
             sys.stdout.flush()
-#             lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.2,L1Support=[])
-            lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.2,L1Support=lOneSupport)
+            lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.2,L1Support=[])
+#             lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.2,L1Support=lOneSupport)
 
             sys.stdout.flush()
             ## if many MIS=1.0 -> table with many columns!
@@ -1044,6 +1054,7 @@ class pageVerticalMiner(Component.Component):
             ## usually +1 element 
         
         else:
+            ### if length=2 how to build the pattern!!!!!
             ## TABLE:
             tableTemplate=treeTemplateClass()
             lOneSupport.sort(key=lambda x:x.getValue())
@@ -1064,18 +1075,18 @@ class pageVerticalMiner(Component.Component):
         
         
     
-    def scoreTemplate(self,lTemplates,transProb,lPages):
-        """
-        """
-        for template in lTemplates:
-            transProb = np.zeros((2,2), dtype = np.float16)
-            for i in range(0,2):
-                transProb[i,i]=10
-            transProb[:,-1] = 1.0 #/totalSum
-            transProb[-1,:] = 1.0 #/totalSum
-            mmax =  np.amax(transProb)
-            
-            print self.selectFinalTemplate([template], transProb/mmax, lPages)
+#     def scoreTemplate(self,lTemplates,transProb,lPages):
+#         """
+#         """
+#         for template in lTemplates:
+#             transProb = np.zeros((2,2), dtype = np.float16)
+#             for i in range(0,2):
+#                 transProb[i,i]=10
+#             transProb[:,-1] = 1.0 #/totalSum
+#             transProb[-1,:] = 1.0 #/totalSum
+#             mmax =  np.amax(transProb)
+#             
+#             print self.selectFinalTemplate([template], transProb/mmax, lPages)
             
             
     def selectFinalTemplate(self,lTemplates,transProb,lPages):
@@ -1198,92 +1209,164 @@ class pageVerticalMiner(Component.Component):
             [A,B,C] [C,B,A]
             
             left must be different from right !
+            
+            
+            AT LEAST 3 VALUES  -> 2 values define one region: if mirrored: 2 regions needed!
         """
-        if len(pattern) != 2 or len(pattern[0]) != len(pattern[1]) or (pattern[0] == pattern[1]): 
+        if len(pattern) != 2 or len(pattern[0]) != len(pattern[1]) or (pattern[0] == pattern[1]) or len(pattern[0]) < 3: 
             return False
         else:
+            
             inv1 =  pattern[1][:]
             inv1.reverse()
             lcouple1= zip(inv1,inv1[1:])
             lw1= map(lambda (x,y):abs(y.getValue()-x.getValue()),lcouple1)
-            lcouple0= zip(pattern[0],pattern[0][1:])
-            lw0= map(lambda (x,y):abs(y.getValue()-x.getValue()),lcouple0)
+            lcouple0 = zip(pattern[0],pattern[0][1:])
+            lw0 = map(lambda (x,y):abs(y.getValue()-x.getValue()),lcouple0)
             final = set(map(lambda (x,y): abs(x-y) < self.THNUMERICAL * 2,zip(lw0,lw1)))
+            print pattern, final, lw0, lw1
             return  set(final) == set([True])
     
-    def isVZonePattern(self,pattern,iNbCol=3,iNbColMax=None):
+#     def isVZonePattern(self,pattern,iNbCol=3,iNbColMax=None):
+#         """
+#             is pattern a regular zone pattern:
+#                 one or two elements, each with the same number of cuts, at least 2
+#             return corresponding template class
+#         """
+# 
+#         if iNbColMax == None:
+#             linterval=range(iNbCol,20)
+#         else: 
+#             linterval=range(iNbCol,iNbCol+1)
+#         if len(pattern) > 2:
+#             return None
+#         # at least 3 elements
+#         if len(pattern) == 2 and pattern[0] != pattern[1] and  len(pattern[0])  == len(pattern[1])  and len(pattern[0]) > 2 and len(pattern[0]) in linterval:
+#             bitemplate=doublePageTemplateClass()
+#             bitemplate.setPattern(pattern)
+#             bitemplate.leftPage = verticalZonestemplateClass()
+#             bitemplate.leftPage.setType('leftpage')
+#             bitemplate.leftPage.setPattern(pattern[0])
+#             bitemplate.leftPage.setParent(bitemplate)
+#             
+#             bitemplate.rightPage = verticalZonestemplateClass()
+#             bitemplate.rightPage.setType('rightpage')
+#             bitemplate.rightPage.setPattern(pattern[1])
+#             bitemplate.rightPage.setParent(bitemplate)
+#             
+#             #regular grid or not: tested in verticalZonestemplateClass
+#             
+#             return bitemplate
+#         
+#         elif len(pattern) == 1 and len(pattern[0]) in linterval:
+#             template = singlePageTemplateClass()
+#             template.mainZone = verticalZonestemplateClass()
+#             template.mainZone.setPattern(pattern[0])
+#             template.mainZone.setParent(template)
+#             return template
+    
+    
+    
+    ##########CORRECTION STEP #################
+    def correctionStep(self,lPages):
         """
-            is pattern a regular zone pattern:
-                one or two elements, each with the same number of cuts, at least 2
-            return corresponding template class
+            correct segmentation wrt template
+            - according to the template:
+                look at token levels the bets cuts?
+                resegment text if needed
+                
+            
+            still need to consider graphline 
         """
-
-        if iNbColMax == None:
-            linterval=range(iNbCol,20)
-        else: 
-            linterval=range(iNbCol,iNbCol+1)
-        if len(pattern) > 2:
-            return None
-        # at least 3 elements
-        if len(pattern) == 2 and pattern[0] != pattern[1] and  len(pattern[0])  == len(pattern[1])  and len(pattern[0]) > 2 and len(pattern[0]) in linterval:
-            bitemplate=doublePageTemplateClass()
-            bitemplate.setPattern(pattern)
-            bitemplate.leftPage = verticalZonestemplateClass()
-            bitemplate.leftPage.setType('leftpage')
-            bitemplate.leftPage.setPattern(pattern[0])
-            bitemplate.leftPage.setParent(bitemplate)
-            
-            bitemplate.rightPage = verticalZonestemplateClass()
-            bitemplate.rightPage.setType('rightpage')
-            bitemplate.rightPage.setPattern(pattern[1])
-            bitemplate.rightPage.setParent(bitemplate)
-            
-            #regular grid or not: tested in verticalZonestemplateClass
-            
-            return bitemplate
         
-        elif len(pattern) == 1 and len(pattern[0]) in linterval:
-            template = singlePageTemplateClass()
-            template.mainZone = verticalZonestemplateClass()
-            template.mainZone.setPattern(pattern[0])
-            template.mainZone.setParent(template)
-            return template
+        for page in lPages:
+#             lText = page.getAllNamedObjects(XMLDSTEXTClass)
+            lTokens = page.getAllNamedObjects(XMLDSTOKENClass)
+#             xTokenHisto = Counter(map(lambda x:round(x.getX()),lTokens))
+#             print page, xTokenHisto.most_common(15)
+            prevcuts= page.lf_XCut 
+            self.minePageVerticalFeature([page], ['x','x2'], level=XMLDSTOKENClass)
+            page.lFeatureForParsing  = page.lf_XCut
+            print page, prevcuts 
+            print map(lambda x:(x,x.getWeight()),page.lFeatureForParsing)
+            if lTokens != []:
+                for template in page.getVerticalTemplates():
+                    sys.stdout.flush()
+                    registeredPoints, lMissing, score = template.registration(page)
+                    if registeredPoints is not None:
+                        lfinalCuts= map(lambda (x,y):y,filter(lambda (x,y): x!= 'EMPTY',registeredPoints))
+                        print page,registeredPoints, lMissing, score
+                        page.resetVSeparator(template)
+                        page.addVSeparator(template,lfinalCuts)
+    
     
     ####   delete page break ##########################
     
-    def flattencontent(self,lPages):
+    
+    def flattencontent(self,lPages,lTemplates):
         """
             build reading order according to templates
+            
+            for each template create a stream
+            
+            if bigram (mirrored) 
+                take 0 as ref; and reverse 1
         """
-        
-        llRO=[]
-        lRO=[]
-        for i, page in enumerate(lPages)[:-1]:
-            if page.getVerticalTemplates() is not None:
-                curtemplate = page.getVerticalTemplates()[0]
-                #next page:
-                npage= lPages[i+1]
-                if npage.getVerticalTemplates() is not None:
-                    ntemplate= npage.getVerticalTemplates()[0]
-                    
-                    # find matching between template:
-                    lMatch = curtemplate.findMatch(ntemplate)
-                    if lMatch is not None:
-                        # 
-                        pass
-                        
-                    else: 
-                        # if no matching: stop
-                        llRO.append(lRO)
-                        lRO=[]                        
-                    
-                else:
-                    llRO.append(lRO)
-                    lRO=[]
+        lTemplateRO={}
+        for template in lTemplates:
+            # how many stream?
+            # unigram
+            if template.getChildren() is None:
+                N=len(template.getPattern())
             else:
-                llRO.append(lRO)
-                lRO=[]   
-         
+                # get first child length
+                N=len(template.getChildren()[0].getPattern())
+            lTemplateRO[template]= [ [] for i in range(0,N+1)]
+            print template, lTemplateRO[template]
+            
+#         return 
+        for  page in lPages:
+            for template in page.getVerticalTemplates():
+                ## what is stored if the ternimal: need to access the parent
+                page.createVerticalZones(template)
+                
+                parentTemplate= template.getParent()
+                bReverse=False
+                ## need a real test for  isMirrored(self)
+                print parentTemplate,parentTemplate.isMirrored()
+                if parentTemplate.isMirrored():
+                    bReverse = template.getPattern() == parentTemplate.getPattern()[1]
+                lregions= page.getVerticalObjects(template)
+                if bReverse:
+                    lregions.reverse()
+                print page, bReverse
+                for i,region in enumerate(lregions):
+                    lTemplateRO[parentTemplate][i].append(region)
+#                     print page, i,  parentTemplate,lTemplateRO[parentTemplate][i].getContent().encode('utf-8')
+
+            
+        ## need a 2D smoothing for line: need to find the line grid and match it against the page.    
+        ## baseline method! if overlap :merge?
+        ### build blocks for pageTemplate: get headers,...
+        ## from block -> create lines (allow for merge and ordering) 
+        # once blocks: pageTemplate
+
+
+        ### now patterns with indentation
+        for tem in lTemplateRO:
+            print "###################################", tem
+            for i,lreg in enumerate(lTemplateRO[tem]):
+                print "%d\t\t%s"%(i,"")
+                for reg in lreg:
+                    lElts= reg.getObjects()
+                    for elt in lElts:
+                        ## compute justification    
+                        print elt.getPage(), elt.getContent().encode('utf-8'), elt.computeJustification(TH=20)
+                    
+#                     self.processLines()
+                    
+        ## call spmLine  with indepatterns , recursive  
+        
     
     ############################# DOM TAGGING ###################
     def tagDomWithBestTemplate(self,lPages):
@@ -1515,7 +1598,9 @@ class pageVerticalMiner(Component.Component):
             if self.baselineMode > 0:
                 self.baselineSegmentation(lSubPagesList)
             else:
-                self.iterativeProcessVSegmentation(lSubPagesList)
+                lTemplates = self.iterativeProcessVSegmentation(lSubPagesList)
+                ## in this package?? current yes
+                self.flattencontent(self.lPages,lTemplates)
 #             self.processVSegmentation(self.lPages)
             print 'chronoprocessing: ', chronoOff()
         
@@ -1932,11 +2017,10 @@ class pageVerticalMiner(Component.Component):
         If we want to compute the error differently, we must define out own testInit testRecord, testReport
         """
         dicTestByTask = dict()
-#         dicTestByTask['Region']= self.testVerticalSegmentation(Self, srefData, srunData,'REGION')
-        dicTestByTask['VREFzones']= self.testREFVerticalSegmentation(srefData, srunData,bVisual)
+#         dicTestByTask['VREFzones']= self.testREFVerticalSegmentation(srefData, srunData,bVisual)
         dicTestByTask['Vzones']= self.testVerticalSegmentation(srefData, srunData,bVisual)
-        dicTestByTask['VRUNREFzones']= self.testRUNREFVerticalSegmentation(srefData, srunData,bVisual)
-        dicTestByTask['templateType']= self.testTemplateType(srefData, srunData,bVisual)
+#         dicTestByTask['VRUNREFzones']= self.testRUNREFVerticalSegmentation(srefData, srunData,bVisual)
+#         dicTestByTask['templateType']= self.testTemplateType(srefData, srunData,bVisual)
     
         return dicTestByTask
         
