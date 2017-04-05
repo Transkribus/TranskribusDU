@@ -80,7 +80,8 @@ See DU_StAZH_b.py
     sMetadata_Creator = "XRCE Document Understanding CRF-based - v0.2"
     sMetadata_Comments = ""
     
-    dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
+    #dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
+    dGridSearch_LR_conf = {'C':[0.01, 0.1, 1.0, 10.0] }  #Grid search parameters for LR baseline method training
     
     sXmlFilenamePattern = "*[0-9]"+MultiPageXml.sEXT    #how to find the Xml files
 
@@ -166,6 +167,7 @@ See DU_StAZH_b.py
         lr = LogisticRegression(class_weight='balanced')
         mdl = GridSearchCV(lr , self.dGridSearch_LR_conf)        
         self._lBaselineModel.append(mdl)
+        return mdl
 
     #----------------------------------------------------------------------------------------------------------   
     # in case you want no output at all on stderr
