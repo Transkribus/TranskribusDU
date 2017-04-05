@@ -294,4 +294,9 @@ if __name__ == "__main__":
     last_objective, last_primal_objective  = ssvm.objective_curve_[-1], ssvm.primal_objective_curve_[-1]
     print("final primal objective: %f gap: %f" % (last_primal_objective, last_primal_objective - last_objective))
     
+    import matplotlib.pyplot as plt
+    plt.plot(ssvm.loss_curve_)
+    plt.ylabel("Loss")
+    plt.show()
+    
     
