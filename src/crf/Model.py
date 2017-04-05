@@ -52,7 +52,7 @@ class Model:
         self.sName = sName
         
         if os.path.exists(sModelDir):
-            assert os.path.isdir(sModelDir)
+            assert os.path.isdir(sModelDir), "%s exists and is not a directory"%sModelDir
         else:
             os.mkdir(sModelDir)
         self.sDir = sModelDir

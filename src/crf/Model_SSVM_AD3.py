@@ -271,4 +271,27 @@ class Model_SSVM_AD3(Model):
             
         return Y
         
-# --- AUTO-TESTS ------------------------------------------------------------------
+# --- MAIN: DISPLAY STORED MODEL INFO ------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import sys
+    try:
+        sModelDir, sModelName = sys.argv[1:3]
+    except:
+        print "Usage: %s <model-dir> <model-name>"
+        print "Display some info regarding the stored model"
+        
+    mdl = Model_SSVM_AD3(sModelName, sModelDir)
+    print "Loading %s"%mdl.getModelFilename()
+    # mdl.load()  #loads all sub-models!!
+    ssvm = mdl._loadIfFresh(mdl.getModelFilename(), None, lambda x: SaveLogger(x).load())
+    
+    print "Model: ", ssvm
+    print "Number of iterations: ", len(ssvm.objective_curve_)
+    print "Number of iterations: ", len(ssvm.objective_curve_)
+    if len(ssvm.objective_curve_) != len(ssvm.primal_objective_curve_):
+        print "WARNNG: unextected data, result below might be wrong!!!!"
+    last_objective, last_primal_objective  = ssvm.objective_curve_[-1], ssvm.primal_objective_curve_[-1]
+    print("final primal objective: %f gap: %f" % (last_primal_objective, last_primal_objective - last_objective))
+    
+    
