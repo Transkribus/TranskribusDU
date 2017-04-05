@@ -270,7 +270,22 @@ class Model_SSVM_AD3(Model):
         self.ssvm.n_jobs = n_jobs
             
         return Y
-        
+
+    def getModelInfo(self):
+        """
+        Get some basic model info
+        if bPlot is True: plot the loss curve
+        Return a textual report
+        """
+        s =  "Model: %s\n" % self.ssvm
+        s += "Number of iterations: %s\n" % len(self.ssvm.objective_curve_)
+        if len(self.ssvm.objective_curve_) != len(self.ssvm.primal_objective_curve_):
+            s += "WARNNG: unextected data, result below might be wrong!!!!\n"
+        last_objective, last_primal_objective  = self.ssvm.objective_curve_[-1], self.ssvm.primal_objective_curve_[-1]
+        s += "final primal objective: %f gap: %f\n" % (last_primal_objective, last_primal_objective - last_objective)
+    
+        return s
+    
 # --- MAIN: DISPLAY STORED MODEL INFO ------------------------------------------------------------------
 
 if __name__ == "__main__":
@@ -283,19 +298,17 @@ if __name__ == "__main__":
         
     mdl = Model_SSVM_AD3(sModelName, sModelDir)
     print "Loading %s"%mdl.getModelFilename()
-    # mdl.load()  #loads all sub-models!!
-    ssvm = mdl._loadIfFresh(mdl.getModelFilename(), None, lambda x: SaveLogger(x).load())
-    
-    print "Model: ", ssvm
-    print "Number of iterations: ", len(ssvm.objective_curve_)
-    if len(ssvm.objective_curve_) != len(ssvm.primal_objective_curve_):
-        print "WARNNG: unextected data, result below might be wrong!!!!"
-    last_objective, last_primal_objective  = ssvm.objective_curve_[-1], ssvm.primal_objective_curve_[-1]
-    print("final primal objective: %f gap: %f" % (last_primal_objective, last_primal_objective - last_objective))
+    if False:
+        mdl.load()  #loads all sub-models!!
+    else:
+        mdl.ssvm = mdl._loadIfFresh(mdl.getModelFilename(), None, lambda x: SaveLogger(x).load())
+
+    print mdl.getModelInfo()
     
     import matplotlib.pyplot as plt
-    plt.plot(ssvm.loss_curve_)
+    plt.plot(mdl.ssvm.loss_curve_)
     plt.ylabel("Loss")
     plt.show()
+
     
     

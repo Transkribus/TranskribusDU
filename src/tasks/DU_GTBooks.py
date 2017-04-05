@@ -143,7 +143,7 @@ class DU_GTBooks(DU_CRF_Task):
                              , cFeatureDefinition=FeatureDefinition_GTBook
                              )
         
-        self.addBaseline_LogisticRegression()    #use a LR model as baseline
+        self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
     #=== END OF CONFIGURATION =============================================================
 
 
@@ -202,6 +202,10 @@ if __name__ == "__main__":
         crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
     elif lTrn:
         doer.train_save_test(lTrn, lTst, options.warm)
+        try:    traceln("Baseline best estimator: %s"%doer.bsln_mdl.best_params_)   #for GridSearch
+        except: pass
+        traceln(" --- CRF Model ---")
+        traceln(doer.getModelInfo())
     elif lTst:
         doer.load()
         tstReport = doer.test(lTst)
