@@ -377,7 +377,7 @@ class sequenceMiner(Component.Component):
         return lPatterns
         
 
-    def featureGeneration(self, lList, TH=2):
+    def featureGeneration(self, lList, TH=2,featureType =featureObject) :
         """
             lList: global list : all elements 
             generate a set of features for the elements.
@@ -418,7 +418,7 @@ class sequenceMiner(Component.Component):
         lCovered = []
         lMergedFeatures = {}
         for i, (f, _) in enumerate(sortedItems):
-#             print f, lFeatures[f]
+#             print f, lFeatures[f], f.getID()
             if f.getID() not in map(lambda x: x.getID(), lCovered):
                 lMergedFeatures[f] = lFeatures[f]
                 lCovered.append(f)
@@ -442,7 +442,7 @@ class sequenceMiner(Component.Component):
         for f, s in sortedItems:
 #             print '\t',f,s, lMergedFeatures[f]
             ## update the value if numerical feature: take the mean and not the most frequent!!
-            cf  = featureObject()
+            cf  = featureType()  # featureObject
             cf.setName(f.getName())
             cf.setType(f.getType())
             cf.setObjectName(None)
@@ -606,7 +606,7 @@ class sequenceMiner(Component.Component):
             
         dTemplateIndex = {}
         for i,template in enumerate(lTemplates):
-            print i, template
+#             print i, template
             dTemplateIndex[template]=i
         
             
