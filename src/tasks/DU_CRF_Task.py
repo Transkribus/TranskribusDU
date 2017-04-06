@@ -24,7 +24,7 @@
     under grant agreement No 674943.
     
 """
-import os, glob
+import os, glob, datetime
 from optparse import OptionParser
 
 from sklearn.linear_model import LogisticRegression
@@ -142,6 +142,17 @@ See DU_StAZH_b.py
                           , help="Attempt to warm-start the training")   
         parser.add_option("--rm", dest='rm',  action="store_true"
                           , help="Remove all model files")   
+        parser.add_option("--crf-max_iter", dest='crf_max_iter',  action="store", type="int"
+                          , help="CRF training parameter max_iter")    
+        parser.add_option("--crf-C", dest='crf_C',  action="store", type="int"
+                          , help="CRF training parameter C")    
+        parser.add_option("--crf-tol", dest='crf_tol',  action="store", type="int"
+                          , help="CRF training parameter tol")    
+        parser.add_option("--crf-njobs", dest='crf_njobs',  action="store", type="int"
+                          , help="CRF training parameter njobs")
+        parser.add_option("--crf-inference_cache", dest='crf_inference_cache',  action="store", type="int"
+                          , help="CRF training parameter inference_cache")    
+
         return usage, description, parser
     getBasicTrnTstRunOptionParser = classmethod(getBasicTrnTstRunOptionParser)
            
@@ -437,8 +448,17 @@ See DU_StAZH_b.py
         oNFoldReport = TestReportConfusion.newFromReportList(self.sModelName+" (ALL %d FOLDS)"%n_splits, loReport) #a test report based on the confusion matrix
 
         fnCrossValidDetails = os.path.join(self.sModelDir, self.sModelName+"_folds_STATS.txt")
-        with open(fnCrossValidDetails, "w") as fd:
-            for oReport in loReport: fd.write(str(oReport))
+        with open(fnCrossValidDetails, "a") as fd:
+            #BIG banner
+            fd.write("\n\n")
+            fd.write("#"*80+"\n")
+            fd.write("# AGGREGATING FOLDS RESULTS  " + "%s\n"%datetime.datetime.now().isoformat())
+            fd.write("#"*80+"\n\n")
+            
+            for oReport in loReport: 
+                fd.write(str(oReport))
+                fd.write("%s\n"%(" _"*30))
+
             fd.write(str(oNFoldReport))
             
         return oNFoldReport
