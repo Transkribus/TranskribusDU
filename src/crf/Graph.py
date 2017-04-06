@@ -32,6 +32,7 @@ import libxml2
 from common.trace import traceln
 
 import Edge
+from crf.Edge import SamePageEdge
 
 class Graph:
     """
@@ -160,6 +161,12 @@ class Graph:
     
     # --- Graph building --------------------------------------------------------
     @classmethod
+    def getNodeEdgeTotalNumber(cls, lGraph):
+        nbNode = sum(len(g.lNode) for g in lGraph)
+        nbEdge = sum(len(g.lEdge) for g in lGraph)
+        return nbNode, nbEdge
+            
+    @classmethod
     def loadGraphs(cls, lsFilename, bNeighbourhood=True, bDetach=False, bLabelled=False, iVerbose=0):
         """
         Load one graph per file, and detach its DOM
@@ -228,34 +235,40 @@ class Graph:
         """
         record the lists of hotizontal-, vertical- and cross-page neighbours for each node
         """
-        for blk in self.lNode:
-            blk.lHNeighbor = list()
-            blk.lVNeighbor = list()
-            blk.lCPNeighbor = list()        
         for edge in self.lEdge:
             a, b = edge.A, edge.B
-            if isinstance(edge, Edge.CrossPageEdge):
-                a.lCPNeighbor.append(b)
-                b.lCPNeighbor.append(a)
-            elif isinstance(edge, Edge.HorizontalEdge):
-                a.lHNeighbor.append(b)
-                b.lHNeighbor.append(a)
+            if isinstance(edge, Edge.SamePageEdge):
+                if isinstance(edge, Edge.HorizontalEdge):
+                    a.lHNeighbor.append(b)
+                    b.lHNeighbor.append(a)
+                else:
+                    a.lVNeighbor.append(b)
+                    b.lVNeighbor.append(a)
             else:
-                assert  isinstance(edge, Edge.VerticalEdge)
-                a.lVNeighbor.append(b)
-                b.lVNeighbor.append(a)
+                if isinstance(edge, Edge.CrossPageEdge):
+                    a.lCPNeighbor.append(b)
+                    b.lCPNeighbor.append(a)
+                else:
+                    a.lCMPNeighbor.append(b)
+                    b.lCMPNeighbor.append(a)
     
     def getNeighborClassMask(self):
         """
         record for each node a boolean for each label, indicating if the node is neighbor with a node having that label
+        , one same page or oaccross page
         """    
         if self.aNeighborClassMask is None:
-            self.aNeighborClassMask = np.zeros((len(self.lNode), self._nbLabelTot), dtype=np.int8)
+            self.aNeighborClassMask = np.zeros((len(self.lNode), self._nbLabelTot*2), dtype=np.int8)
             if not self.bNodeIndexed: self._indexNodes()
             for edge in self.lEdge:
                 a, b = edge.A, edge.B
-                self.aNeighborClassMask[a.index][b.cls] = 1
-                self.aNeighborClassMask[b.index][a.cls] = 1
+                if isinstance(edge, SamePageEdge):
+                    self.aNeighborClassMask[a.index, b.cls] = 1
+                    self.aNeighborClassMask[b.index, a.cls] = 1
+                else:
+                    self.aNeighborClassMask[a.index, self._nbLabelTot+b.cls] = 1
+                    self.aNeighborClassMask[b.index, self._nbLabelTot+a.cls] = 1
+                    
         return self.aNeighborClassMask
         
     def detachFromDOM(self):

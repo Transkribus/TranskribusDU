@@ -25,13 +25,14 @@ DEBUG=1
 
 class Block:
         
-    def __init__(self,pnum, (x, y, w, h), text, orientation, cls, nodeType, domnode=None, domid=None):
+    def __init__(self, page, (x, y, w, h), text, orientation, cls, nodeType, domnode=None, domid=None):
         """
         pnum is an int
         orientation is an int, usually in [0-3]
         cls is the node label, is an int in N+
         """
-        self.pnum = int(pnum)
+        self.page = page
+        self.pnum = int(page.pnum)
         self.setBB(self.xywhtoxyxy(x, y, w, h))
         self.text = text
         try:
@@ -49,13 +50,10 @@ class Block:
         self.sconf = "" #new in v08
         
         #neighbouring relationship
-        self.lHNeighbor     = None
-        self.lVNeighbor     = None
-        self.lCPNeighbor    = None
-
-        #container
-        self.page = None
-        
+        self.lHNeighbor     = list()
+        self.lVNeighbor     = list()
+        self.lCPNeighbor    = list()
+        self.lCMPNeighbor   = list()
 
     def setFontSize(self, fFontSize):
         self.fontsize = fFontSize
@@ -151,6 +149,42 @@ class Block:
         else:
             return 0.0       
 
+    def significantOverlapMirror(self, b, pageWidth=None, fThreshold=0.25):
+        """
+        The significance of an overlap is the ratio of the area of overlap divided by the area of union
+        Return the percentage of overlap if above threshold or 0.0   (which is False)
+        """
+        if pageWidth is None: pageWidth = self.page.w
+        
+        #any overlap?
+        ovr = 0.0
+        a = self
+        #MIRROR EFFECT
+        ax2, ax1 = pageWidth-a.x1, pageWidth-a.x2
+        #Any horizontal overlap?
+        w = min(ax2, b.x2) - max(ax1, b.x1)
+        if w > 0:
+            #any vertical overlap?
+            h = min(a.y2, b.y2) - max(a.y1, b.y1)
+            if h > 0:
+                #ok, overlap or inclusion of one text box into the other
+                ovArea = h * w
+                aArea = (ax2-ax1) * (a.y2-a.y1)
+                bArea = (b.x2-b.x1) * (b.y2-b.y1)
+                unionArea = aArea + bArea - ovArea
+#                 if self.text == "S2.0":
+#                     print self.text, b.text, float(ovArea)/unionArea 
+                ovr = float(ovArea)/unionArea
+            else:
+                return 0.0
+        else:
+            return 0.0
+        
+        if ovr >= fThreshold:
+            return ovr
+        else:
+            return 0.0       
+
     def fitIn(self, (x1, y1, x2, y2)):
         """
         return true if this object fits in the given bounding box
@@ -201,13 +235,13 @@ class Block:
         y1 = float(y)
         #we must accept 0 width or 0 height blocks
         if w < 0:
-            traceln("WARNING: negative width textbox - x taken as right-x")
+            #traceln("WARNING: negative width textbox - x taken as right-x")
             x2 = x1
             x1 = x2 + w
         else:
             x2 = x1+w            
         if h < 0:
-            traceln("WARNING: negative height textbox - y taken as bottom-y")
+            #traceln("WARNING: negative height textbox - y taken as bottom-y")
             y2 = y1
             y1 = y2+h
         else:
@@ -235,7 +269,7 @@ class Block:
     findPageNeighborEdges = classmethod(findPageNeighborEdges)
     
     # ---- Internal stuff ---
-    def findConsecPageOverlapEdges(cls, lPrevPageEdgeBlk, lPageBlk, epsilon = 1):
+    def findConsecPageOverlapEdges(cls, lPrevPageEdgeBlk, lPageBlk, bMirror=True, epsilon = 1):
         """
         find block that overlap from a page to the other, and have same orientation
         """
@@ -244,8 +278,11 @@ class Block:
         lEdge = list()
         for prevBlk in lPrevPageEdgeBlk:
             orient = prevBlk.orientation
+            prevBlkPageWidth = prevBlk.page.w
             for blk in lPageBlk:
-                if orient == blk.orientation and prevBlk.significantOverlap(blk): lEdge.append( Edge.CrossPageEdge(prevBlk, blk) ) 
+                if orient == blk.orientation:
+                    if             prevBlk.significantOverlap(blk)                                  : lEdge.append( Edge.CrossPageEdge      (prevBlk, blk) )
+                    if bMirror and prevBlk.significantOverlapMirror(blk, pageWidth=prevBlkPageWidth): lEdge.append( Edge.CrossMirrorPageEdge(prevBlk, blk) )
         
 #         #maybe faster on LAAARGE bnumber of blocks but complicated and in practice no quantified time advantage... :-/
 #         
@@ -291,7 +328,7 @@ class Block:
         
         return lEdge 
     findConsecPageOverlapEdges = classmethod(findConsecPageOverlapEdges)
-    
+
     # ------------------------------------------------------------------------------------------------------------------------------------        
     def rotateMinus90deg(self):
         #assert self.x1 < self.x2 and self.y1 < self.y2

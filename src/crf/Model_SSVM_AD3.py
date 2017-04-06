@@ -36,6 +36,7 @@ from pystruct.models import EdgeFeatureGraphCRF
 from common.trace import traceln
 from common.chrono import chronoOn, chronoOff
 from Model import Model
+from Graph import Graph
 from TestReport import TestReport
 
 class Model_SSVM_AD3(Model):
@@ -81,8 +82,11 @@ class Model_SSVM_AD3(Model):
         return nothing
         """
         traceln("\t- computing features on training set")
+        traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
+        chronoOn()
         lX, lY = self.transformGraphs(lGraph, True)
-        traceln("\t done")
+        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
+        traceln("\t [%.1fs] done\n"%chronoOff())
 
         traceln("\t- retrieving or creating model...")
         self.ssvm = None
@@ -116,9 +120,10 @@ class Model_SSVM_AD3(Model):
         traceln("\t\t solver parameters:"
                     , " inference_cache=",self.inference_cache
                     , " C=",self.C, " tol=",self.tol, " n_jobs=",self.njobs)
-        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
+        
+        traceln(self.getModelInfo())
         
         #cleaning useless data that takes MB on disk
         self.ssvm.alphas = None  
@@ -150,7 +155,7 @@ class Model_SSVM_AD3(Model):
     #no need to define def save(self):
     #because the SSVM is saved while being trained, and the attached baeline models are saved by the parent class
                     
-    def test(self, lGraph):
+    def test(self, lGraph, lsDocName=None):
         """
         Test the model using those graphs and report results on stderr
         if some baseline model(s) were set, they are also tested
@@ -161,22 +166,24 @@ class Model_SSVM_AD3(Model):
         bConstraint  = lGraph[0].getPageConstraint()
         
         traceln("\t- computing features on test set")
+        chronoOn()
         lX, lY = self.transformGraphs(lGraph, True)
         traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
-        traceln("\t done")
-
+        traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
+        traceln("\t [%.1fs] done\n"%chronoOff())
+        
         traceln("\t- predicting on test set")
+        chronoOn()
         if bConstraint:
             lConstraints = [g.instanciatePageConstraints() for g in lGraph]
             lY_pred = self._ssvm_ad3plus_predict(lX, lConstraints)
         else:
             lY_pred = self.ssvm.predict(lX)
-             
-        traceln("\t done")
+        traceln("\t [%.1fs] done\n"%chronoOff())
         
-        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName)
+        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsDocName)
         
-        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName)
+        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName, lsDocName=lsDocName)
         tstRpt.attach(lBaselineTestReport)
         
         #do some garbage collection
@@ -226,10 +233,20 @@ class Model_SSVM_AD3(Model):
             gc.collect() 
         traceln("\t done")
 
-        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName)
+        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsFilename)
         
-        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName)
+        lBaselineTestReport = self._testBaselinesEco(lX, lY, lLabelName, lsDocName=lsFilename)
         tstRpt.attach(lBaselineTestReport)
+        
+#         if True:
+#             #experimental code, not so interesting...
+#             node_transformer, _ = self.getTransformers()
+#             try:
+#                 _testable_extractor_ = node_transformer._testable_extractor_
+#                 lExtractorTestReport = _testable_extractor_.testEco(lX, lY)
+#                 tstRpt.attach(lExtractorTestReport)
+#             except AttributeError:
+#                 pass
         
         #do some garbage collection
         del lX, lY
@@ -255,5 +272,45 @@ class Model_SSVM_AD3(Model):
         self.ssvm.n_jobs = n_jobs
             
         return Y
+
+    def getModelInfo(self):
+        """
+        Get some basic model info
+        if bPlot is True: plot the loss curve
+        Return a textual report
+        """
+        s =  "_crf_ Model: %s\n" % self.ssvm
+        s += "_crf_ Number of iterations: %s\n" % len(self.ssvm.objective_curve_)
+        if len(self.ssvm.objective_curve_) != len(self.ssvm.primal_objective_curve_):
+            s += "_crf_ WARNNG: unextected data, result below might be wrong!!!!\n"
+        last_objective, last_primal_objective  = self.ssvm.objective_curve_[-1], self.ssvm.primal_objective_curve_[-1]
+        s += "_crf_ final primal objective: %f gap: %f\n" % (last_primal_objective, last_primal_objective - last_objective)
+    
+        return s
+    
+# --- MAIN: DISPLAY STORED MODEL INFO ------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import sys
+    try:
+        sModelDir, sModelName = sys.argv[1:3]
+    except:
+        print "Usage: %s <model-dir> <model-name>"
+        print "Display some info regarding the stored model"
         
-# --- AUTO-TESTS ------------------------------------------------------------------
+    mdl = Model_SSVM_AD3(sModelName, sModelDir)
+    print "Loading %s"%mdl.getModelFilename()
+    if False:
+        mdl.load()  #loads all sub-models!!
+    else:
+        mdl.ssvm = mdl._loadIfFresh(mdl.getModelFilename(), None, lambda x: SaveLogger(x).load())
+
+    print mdl.getModelInfo()
+    
+    import matplotlib.pyplot as plt
+    plt.plot(mdl.ssvm.loss_curve_)
+    plt.ylabel("Loss")
+    plt.show()
+
+    
+    
