@@ -115,7 +115,7 @@ class DU_GTBooks(DU_CRF_Task):
     sXmlFilenamePattern = "*.mpxml"
     
     #=== CONFIGURATION ====================================================================
-    def __init__(self, sModelName, sModelDir, sComment=None): 
+    def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
         
         DU_CRF_Task.__init__(self
                              , sModelName, sModelDir
@@ -131,13 +131,13 @@ class DU_GTBooks(DU_CRF_Task):
                                   , 'n_jobs'      : 1         #n_jobs when fitting the internal Logit feat extractor model by grid search
                               }
                              , dLearnerConfig = {
-                                   'C'                : .1 
-                                 , 'njobs'            : 5
-                                 , 'inference_cache'  : 50
+                                   'C'                : .1   if C               is None else C
+                                 , 'njobs'            : 5    if njobs           is None else njobs
+                                 , 'inference_cache'  : 50   if inference_cache is None else inference_cache
                                  #, 'tol'              : .1
-                                 , 'tol'              : .05
+                                 , 'tol'              : .05  if tol             is None else tol
                                  , 'save_every'       : 50     #save every 50 iterations,for warm start
-                                 , 'max_iter'         : 1000
+                                 , 'max_iter'         : 1000 if njobs           is None else njobs
                                  }
                              , sComment=sComment
                              , cFeatureDefinition=FeatureDefinition_GTBook
@@ -163,7 +163,12 @@ if __name__ == "__main__":
         traceln("Specify a model folder and a model name!")
         _exit(usage, 1, e)
         
-    doer = DU_GTBooks(sModelName, sModelDir)
+    doer = DU_GTBooks(sModelName, sModelDir,
+                      C                 = options.crf_C,
+                      tol               = options.crf_tol,
+                      njobs             = options.crf_njobs,
+                      max_iter          = options.crf_max_iter,
+                      inference_cache   = options.crf_inference_cache)
     
     if options.rm:
         doer.rm()
