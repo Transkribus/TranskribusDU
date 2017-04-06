@@ -144,9 +144,9 @@ See DU_StAZH_b.py
                           , help="Remove all model files")   
         parser.add_option("--crf-max_iter", dest='crf_max_iter',  action="store", type="int"
                           , help="CRF training parameter max_iter")    
-        parser.add_option("--crf-C", dest='crf_C',  action="store", type="int"
+        parser.add_option("--crf-C", dest='crf_C',  action="store", type="float"
                           , help="CRF training parameter C")    
-        parser.add_option("--crf-tol", dest='crf_tol',  action="store", type="int"
+        parser.add_option("--crf-tol", dest='crf_tol',  action="store", type="float"
                           , help="CRF training parameter tol")    
         parser.add_option("--crf-njobs", dest='crf_njobs',  action="store", type="int"
                           , help="CRF training parameter njobs")
