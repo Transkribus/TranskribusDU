@@ -139,7 +139,7 @@ See DU_StAZH_b.py
         parser.add_option("--fold-finish", dest='bFoldFinish',  action="store_true"
                           , help="Evaluate by cross-validation a model on the given annotated collection.")    
         parser.add_option("-w", "--warm", dest='warm',  action="store_true"
-                          , help="Attempt to warm-start the training")   
+                          , help="To make warm-startable model and warm-start if a model exist already.")   
         parser.add_option("--rm", dest='rm',  action="store_true"
                           , help="Remove all model files")   
         parser.add_option("--crf-max_iter", dest='crf_max_iter',  action="store", type="int"
