@@ -126,10 +126,11 @@ class Model_SSVM_AD3(Model):
         traceln(self.getModelInfo())
         
         #cleaning useless data that takes MB on disk
-        self.ssvm.alphas = None  
-        self.ssvm.constraints_ = None
-        self.ssvm.inference_cache_ = None    
-        traceln("\t\t(model made slimmer)")        
+        if not bWarmStart:
+            self.ssvm.alphas = None  
+            self.ssvm.constraints_ = None
+            self.ssvm.inference_cache_ = None    
+            traceln("\t\t(model made slimmer. Not sure you can efficiently warm-start it later on. See option -w.)")        
         #the baseline model(s) if any
         self._trainBaselines(lX, lY)
         
