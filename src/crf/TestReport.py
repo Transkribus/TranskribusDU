@@ -170,7 +170,7 @@ class TestReport:
         else:
             sBaselineReport = ""
         
-        return """%(space)s%(sSepBeg)s 
+        sReport = """%(space)s%(sSepBeg)s 
 %(space)s%(sTitle)s: %(name)s
 
 %(space)s  Line=True class, column=Prediction
@@ -183,8 +183,13 @@ class TestReport:
 %(space)s%(sSepEnd)s
 """ % {"space":sSpace, "sSepBeg":sSepBeg
        , "sTitle":sTitle, "name":self.name
-       , "s1":s1, "s2":s2, "s3":s3, "sBaselineReport":sBaselineReport, "sSepEnd":sSepEnd}        
+       , "s1":s1, "s2":s2, "s3":s3, "sBaselineReport":sBaselineReport, "sSepEnd":sSepEnd}    
+
+        #indent the baseline    
+        if bBaseline: sReport = '\n'.join(['\t'+_s for _s in sReport.split('\n')])
         
+        return sReport
+    
     def __str__(self):
         """
         return a nicely formatted string containing all the info of this test report object
