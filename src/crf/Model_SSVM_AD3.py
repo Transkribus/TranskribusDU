@@ -123,6 +123,8 @@ class Model_SSVM_AD3(Model):
         self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
         
+        traceln(self.getModelInfo())
+        
         #cleaning useless data that takes MB on disk
         self.ssvm.alphas = None  
         self.ssvm.constraints_ = None
@@ -277,12 +279,12 @@ class Model_SSVM_AD3(Model):
         if bPlot is True: plot the loss curve
         Return a textual report
         """
-        s =  "Model: %s\n" % self.ssvm
-        s += "Number of iterations: %s\n" % len(self.ssvm.objective_curve_)
+        s =  "_crf_ Model: %s\n" % self.ssvm
+        s += "_crf_ Number of iterations: %s\n" % len(self.ssvm.objective_curve_)
         if len(self.ssvm.objective_curve_) != len(self.ssvm.primal_objective_curve_):
-            s += "WARNNG: unextected data, result below might be wrong!!!!\n"
+            s += "_crf_ WARNNG: unextected data, result below might be wrong!!!!\n"
         last_objective, last_primal_objective  = self.ssvm.objective_curve_[-1], self.ssvm.primal_objective_curve_[-1]
-        s += "final primal objective: %f gap: %f\n" % (last_primal_objective, last_primal_objective - last_objective)
+        s += "_crf_ final primal objective: %f gap: %f\n" % (last_primal_objective, last_primal_objective - last_objective)
     
         return s
     
