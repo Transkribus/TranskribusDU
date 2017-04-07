@@ -207,7 +207,7 @@ class Block:
     def getXYOverlap(self, tb):
         """
         Return the horizontal and vertical distances between the closest corners of the object.
-        if both value are negative, the objects overlap each other.
+        if both value are POSITIVE, the objects overlap each other.
         return (x-distance, y-distance)
         """
         return min(self.x2, tb.x2) - max(self.x1, tb.x1), min(self.y2, tb.y2) - max(self.y1, tb.y1)
