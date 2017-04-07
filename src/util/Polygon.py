@@ -130,8 +130,7 @@ class Polygon:
         return x1,y1, x2,y2
         
 
-# def test_trigo():    
-if __name__ == "__main__":
+def test_trigo():    
     print [(3673, 1721), (3744, 1742), (3944, 1729), (3946, 1764), (3740, 1777), (3664, 1755)]
     p = Polygon([(3673, 1721), (3744, 1742), (3944, 1729), (3946, 1764), (3740, 1777), (3664, 1755)])
     fA, (xg, yg) =p.getArea_and_CenterOfMass()
