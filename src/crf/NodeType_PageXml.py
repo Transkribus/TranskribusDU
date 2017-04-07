@@ -207,7 +207,7 @@ class NodeType_PageXml_type(NodeType_PageXml):
         return sLabel
     
 #---------------------------------------------------------------------------------------------------------------------------    
-class NodeType_PageXml_type_GTBooks(NodeType_PageXml_type):
+class NodeType_PageXml_type_NestedText(NodeType_PageXml_type):
     """
     In those PageXml, the text is not always is in the type attribute! 
     

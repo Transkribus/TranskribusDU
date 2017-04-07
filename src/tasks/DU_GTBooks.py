@@ -25,7 +25,6 @@
     
 """
 import sys, os
-from crf import FeatureDefinition_PageXml_GTBooks
 
 try: #to ease the use without proper Python installation
     import TranskribusDU_version
@@ -37,9 +36,9 @@ from common.trace import traceln
 from tasks import _checkFindColDir, _exit
 
 from crf.Graph_MultiPageXml import Graph_MultiPageXml
-from crf.NodeType_PageXml   import NodeType_PageXml_type_GTBooks
+from crf.NodeType_PageXml   import NodeType_PageXml_type_NestedText
 from DU_CRF_Task import DU_CRF_Task
-from crf.FeatureDefinition_PageXml_GTBooks import FeatureDefinition_GTBook
+from crf.FeatureDefinition_PageXml_logit_v2 import FeatureDefinition_PageXml_LogitExtractorV2
 
 # ===============================================================================================================
 
@@ -81,7 +80,7 @@ if lActuallySeen:
 
 #DEFINING THE CLASS OF GRAPH WE USE
 DU_GRAPH = Graph_MultiPageXml
-nt = NodeType_PageXml_type_GTBooks("gtb"                   #some short prefix because labels below are prefixed with it
+nt = NodeType_PageXml_type_NestedText("gtb"                   #some short prefix because labels below are prefixed with it
                       , lLabels
                       , lIgnoredLabels
                       , False    #no label means OTHER
@@ -140,7 +139,7 @@ class DU_GTBooks(DU_CRF_Task):
                                  , 'max_iter'         : 1000 if njobs           is None else njobs
                                  }
                              , sComment=sComment
-                             , cFeatureDefinition=FeatureDefinition_GTBook
+                             , cFeatureDefinition=FeatureDefinition_PageXml_LogitExtractorV2
                              )
         
         self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
