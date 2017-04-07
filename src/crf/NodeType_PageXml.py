@@ -135,8 +135,8 @@ class NodeType_PageXml(NodeType):
                 ndTextLine.setProp("width", str(x2-x1))
                 ndTextLine.setProp("height", str(y2-y1))
                 ndTextLine.setContent(sText)
-                #ndCoord = util.xml_utils.addElement(doc, ndTextLine, "Coords")
-                #PageXml.setPoints(ndCoord, PageXml.getPointsFromBB(x1,y1,x2,y2))
+                ndCoord = util.xml_utils.addElement(doc, ndTextLine, "Coords")
+                PageXml.setPoints(ndCoord, PageXml.getPointsFromBB(x1,y1,x2,y2))
             yield blk
             
         ctxt.xpathFreeContext()       
@@ -205,6 +205,14 @@ class NodeType_PageXml_type(NodeType_PageXml):
         if sLabel != self.sDefaultLabel:
             domnode.setProp(self.sLabelAttr, self.dLabel2XmlLabel[sLabel])
         return sLabel
+
+class NodeType_PageXml_type_woText(NodeType_PageXml_type):
+    """
+            for document wo HTR: no text
+    """
+    def _get_GraphNodeText(self, doc, domNdPage, ndBlock, ctxt=None):
+        return u""
+
     
 #---------------------------------------------------------------------------------------------------------------------------    
 class NodeType_PageXml_type_NestedText(NodeType_PageXml_type):
