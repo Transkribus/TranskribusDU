@@ -154,7 +154,10 @@ TypeError: can't pickle PyCapsule objects
         #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
         self._node_transformer = node_transformer
         self._edge_transformer = edge_transformer
-
+        
+#         #dirty trick to enable testing the logit models
+#         self._node_transformer._testable_extractor_ = self._node_transf_logit
+        
     def fitTranformers(self, lGraph):
         """
         Fit the transformers using the graphs
@@ -191,4 +194,3 @@ TypeError: can't pickle PyCapsule objects
 #             self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
         return self._node_transformer, self._edge_transformer        
 
-    

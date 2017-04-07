@@ -115,12 +115,9 @@ class NodeType_DS(NodeType):
                 
             #and create a Block
             assert ndBlock
-            blk = Block(page.pnum, (x1, y1, w, h), sText, orientation, classIndex, self, ndBlock, domid=domid)
+            blk = Block(page, (x1, y1, w, h), sText, orientation, classIndex, self, ndBlock, domid=domid)
             assert blk.node
             
-            #link it to its page
-            blk.page = page
-
             yield blk
             
         ctxt.xpathFreeContext()       

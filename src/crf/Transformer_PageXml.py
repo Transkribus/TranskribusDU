@@ -29,7 +29,7 @@
 import numpy as np
 
 from Transformer import Transformer
-from Edge import HorizontalEdge, VerticalEdge, SamePageEdge, CrossPageEdge
+from Edge import HorizontalEdge, VerticalEdge, SamePageEdge, CrossPageEdge, CrossMirrorPageEdge
 
 fEPSILON = 10
 
@@ -143,16 +143,13 @@ class NodeTransformerNeighbors(Transformer):
 #         for i, blk in enumerate(lNode): a[i, :] = [blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1, blk.fontsize]        #--- 2 3 4 5 6 
         a = np.empty( ( len(lNode), 3+3 ) , dtype=np.float64)
         for i, blk in enumerate(lNode): 
-            #number of horizontal/vertical/crosspage neighbors
-            a[i,0] = len(blk.lHNeighbor)
-            a[i,1] = len(blk.lVNeighbor)
-            a[i,2] = len(blk.lCPNeighbor)
-            #number of horizontal/vertical/crosspage neighbors occuring after this block
             ax1, ay1, apnum = blk.x1, blk.y1, blk.pnum
-            a[i,3] = sum(1 for _b in blk.lHNeighbor  if _b.x1 > ax1)
-            a[i,4] = sum(1 for _b in blk.lVNeighbor  if _b.y1 > ay1)
-            a[i,5] = sum(1 for _b in blk.lCPNeighbor if _b.pnum > apnum)
+            #number of horizontal/vertical/crosspage neighbors
+            a[i,0:3] = len(blk.lHNeighbor), len(blk.lVNeighbor), len(blk.lCPNeighbor)
             #number of horizontal/vertical/crosspage neighbors occuring after this block
+            a[i,3:6] = (sum(1 for _b in blk.lHNeighbor  if _b.x1 > ax1), 
+                        sum(1 for _b in blk.lVNeighbor  if _b.y1 > ay1), 
+                        sum(1 for _b in blk.lCPNeighbor if _b.pnum > apnum))
             #better to give direct info
             a[i,0:3] = a[i,0:3] - a[i,3:6]
         
@@ -171,14 +168,13 @@ class Node1HotFeatures(Transformer):
         
         for i, blk in enumerate(lNode): 
             s = blk.text
-            if s.isalnum(): a[i, 0] = 1.0 
-            if s.isalpha(): a[i, 1] = 1.0 
-            if s.isdigit(): a[i, 2] = 1.0 
-            if s.islower(): a[i, 3] = 1.0
-            if s.istitle(): a[i, 4] = 1.0 
-            if s.isupper(): a[i, 5] = 1.0
-            if blk.pnum%2 == 0: a[i, 6] = 1.0 #odd/even page number
-            
+            a[i,0:7] = ( s.isalnum(),
+                         s.isalpha(),
+                         s.isdigit(),
+                         s.islower(),
+                         s.istitle(),
+                         s.isupper(),
+                         blk.pnum%2 == 0)
             #new in READ
             #are we in page 1 or 2 or next ones?
             a[i, 6 +max(1 , min(3, blk.pnum))]      = 1.0  #  a[i, 7-8-9 ]
@@ -205,37 +201,63 @@ class Node1HotFeatures(Transformer):
 #------------------------------------------------------------------------------------------------------
     
 # --- EDGES
-class EdgeTransformerSourceText(Transformer):
+
+class EdgeTransformerByClassIndex(Transformer):
+    """
+    We are interested only in 1 class of edge
+    """
+    def __init__(self, n, bMirrorPage=True):
+        Transformer.__init__(self)
+        if bMirrorPage:
+            self._edgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge, CrossMirrorPageEdge][n]
+        else:
+            self._edgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge][n]
+
+class EdgeTransformerSourceText(EdgeTransformerByClassIndex):
     """
     we will get a list of edges and need to send back what a textual feature extractor (TfidfVectorizer) needs.
     So we return a list of strings, of the source node of the edge
     """
-    def __init__(self, n):
-        Transformer.__init__(self)
-        self._edgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge][n]
-        
     def transform(self, lEdge):
         #return map(lambda x: x.A.text, lEdge)
 #         return map(lambda x: "{%s}"%x.A.text, lEdge)
         return map(lambda edge: "{%s}"%edge.A.text if isinstance(edge, self._edgeClass) else "_", lEdge)
 
 #------------------------------------------------------------------------------------------------------
-class EdgeTransformerTargetText(Transformer):
+class EdgeTransformerTargetText(EdgeTransformerByClassIndex):
     """
     we will get a list of edges and need to send back what a textual feature extractor (TfidfVectorizer) needs.
     So we return a list of strings, of the source node of the edge
     """
-    def __init__(self, n):
-        Transformer.__init__(self)
-        self._edgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge][n]
-
     def transform(self, lEdge):
         #return map(lambda x: x.B.text, lEdge)
 #         return map(lambda x: "{%s}"%x.B.text, lEdge)
         return map(lambda edge: "{%s}"%edge.B.text if isinstance(edge, self._edgeClass) else "_", lEdge)
 
 #------------------------------------------------------------------------------------------------------
-class Edge1HotFeatures(Transformer):
+
+class EdgeTransformerClassShifter(Transformer):
+    """
+    We assign one range of feature per Edge class
+    """
+    
+    nbFEAT = None   #must be specialized!!!
+    
+    def __init__(self, bMirrorPage=True):
+        Transformer.__init__(self)
+        if bMirrorPage:
+            lEdgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge, CrossMirrorPageEdge]
+        else:
+            lEdgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge]
+            
+        self._nbEdgeFeat = self.nbFEAT * len(lEdgeClass)
+        self._dEdgeClassIndexShift = { cls:i*self.nbFEAT for i,cls in enumerate(lEdgeClass) }
+            
+    def fit(self, x, y=None):
+        return self
+
+
+class Edge1HotFeatures(EdgeTransformerClassShifter):
     """
     we will get a list of edges and return a boolean array, directly
 
@@ -247,39 +269,26 @@ class Edge1HotFeatures(Transformer):
     TODO crossing ruling-line
 
     """
-    def __init__(self, pageNumSequenciality):
-        Transformer.__init__(self)
-        self.sqnc = pageNumSequenciality
-    def fit(self, x, y=None):
-        return self
     
+    nbFEAT = 18
+    
+    def __init__(self, pageNumSequenciality, bMirrorPage=True):
+        EdgeTransformerClassShifter.__init__(self, bMirrorPage)
+        self.sqnc = pageNumSequenciality
+            
     def transform(self, lEdge):
-        a = np.zeros( ( len(lEdge), 3 + 17*3 ) , dtype=np.float64)
+        #a = np.zeros( ( len(lEdge), 3 + 17*3 ) , dtype=np.float64)
+        a = np.zeros( ( len(lEdge), self._nbEdgeFeat), dtype=np.float64)
         for i, edge in enumerate(lEdge):
             #-- vertical / horizontal / virtual / cross-page / not-neighbor
-            if isinstance(edge, VerticalEdge):
-                a[i,0] = 1.0
-                z = 0
-            elif isinstance(edge, HorizontalEdge):
-                a[i,1] = 1.0
-                z = 17
-            elif isinstance(edge, CrossPageEdge):
-                a[i,2] = 1.0
-                z = 34
-            else:
-                assert False, "INTERNAL ERROR: unknown type of edge"
-            
-# 14/12/2016 - useless because of A[i, 0:1]            
-#             #-- same or consecutive page
-#             A,B = edge.A, edge.B        
-#             if A.pnum == B.pnum: 
-#                 a[i,3] = 1.0
+            z = self._dEdgeClassIndexShift[edge.__class__]
+            a[i, z] = 1.0
             
             A,B = edge.A, edge.B        
             
             #sequenciality, either None, or increasing or decreasing
             sA, sB = A.text, B.text
-            if sA == sB: a[i, z + 3] = 1.0
+            if sA == sB: a[i, z + 1] = 1.0
             if self.sqnc.isPossibleSequence(sA, sB):
                 fInSequence = 1.0
             elif self.sqnc.isPossibleSequence(sB, sA): 
@@ -288,106 +297,84 @@ class Edge1HotFeatures(Transformer):
                 fInSequence = 0.0
                 
             if A.pnum == B.pnum:
+                a[i, z + 2] = fInSequence          #-1, 0, +1
+                a[i, z + 3] = abs(fInSequence)     # 0 or 1
+            else:
                 a[i, z + 4] = fInSequence          #-1, 0, +1
                 a[i, z + 5] = abs(fInSequence)     # 0 or 1
-            else:
-                a[i, z + 6] = fInSequence          #-1, 0, +1
-                a[i, z + 7] = abs(fInSequence)     # 0 or 1
-             
-            if sA.isalnum(): a[i, z +  8] = 1.0
-            if sA.isalpha(): a[i, z +  9] = 1.0
-            if sA.isdigit(): a[i, z + 10] = 1.0
-            if sA.islower(): a[i, z + 11] = 1.0
-            if sA.istitle(): a[i, z + 12] = 1.0
-            if sA.isupper(): a[i, z + 13] = 1.0  
-                       
-            if sB.isalnum(): a[i, z + 14] = 1.0
-            if sB.isalpha(): a[i, z + 15] = 1.0
-            if sB.isdigit(): a[i, z + 16] = 1.0
-            if sB.islower(): a[i, z + 17] = 1.0
-            if sB.istitle(): a[i, z + 18] = 1.0
-            if sB.isupper(): a[i, z + 19] = 1.0  
+            
+            a[i, z +  6:z + self.nbFEAT] = (sA.isalnum(),
+                                            sA.isalpha(),
+                                            sA.isdigit(),
+                                            sA.islower(),
+                                            sA.istitle(),
+                                            sA.isupper(),
+                                            sB.isalnum(),
+                                            sB.isalpha(),
+                                            sB.isdigit(),
+                                            sB.islower(),
+                                            sB.istitle(),
+                                            sB.isupper()
+                                )
 
         return a
 
 #------------------------------------------------------------------------------------------------------
-class EdgeBooleanFeatures(Transformer):
+class EdgeBooleanFeatures(EdgeTransformerClassShifter):
     """
     we will get a list of edges and return a boolean array, directly
 
     vertical-, horizontal- centered  (at epsilon precision, epsilon typically being 5pt ?)
     left-, top-, right-, bottom- justified  (at epsilon precision)
     """
+    nbFEAT = 6
+    
     def transform(self, lEdge):
         #DISC a = np.zeros( ( len(lEdge), 16 ) , dtype=np.float64)
-        a = - np.ones( ( len(lEdge), 3*6 ) , dtype=np.float64)
+        a = - np.ones( ( len(lEdge), self._nbEdgeFeat ) , dtype=np.float64)
         for i, edge in enumerate(lEdge):
-            if isinstance(edge, VerticalEdge):
-                z=0
-            elif isinstance(edge, HorizontalEdge):
-                z=6
-            elif isinstance(edge, CrossPageEdge):
-                z=12
+            z = self._dEdgeClassIndexShift[edge.__class__]
             
             A,B = edge.A, edge.B        
-            #-- centering
-            if A.x1 + A.x2 - (B.x1 + B.x2) <= 2 * fEPSILON:     #horizontal centered
-                a[i, z + 0] = 1.0
-            if A.y1 + A.y2 - (B.y1 + B.y2) <= 2 * fEPSILON:     #V centered
-                a[i, z + 1] = 1.0
-            
-            #justified
-            if abs(A.x1-B.x1) <= fEPSILON:
-                a[i, z + 2] = 1.0
-            if abs(A.y1-B.y1) <= fEPSILON:
-                a[i, z + 3] = 1.0
-            if abs(A.x2-B.x2) <= fEPSILON:
-                a[i, z + 4] = 1.0
-            if abs(A.y2-B.y2) <= fEPSILON:
-                a[i, z + 5] = 1.0       
-        #_debug(lEdge, a)
+            a[i,z:z+self.nbFEAT] = ( A.x1 + A.x2 - (B.x1 + B.x2) <= 2 * fEPSILON, # centering
+                                     A.y1 + A.y2 - (B.y1 + B.y2) <= 2 * fEPSILON, 
+                                     abs(A.x1-B.x1) <= fEPSILON,                  #justified
+                                     abs(A.y1-B.y1) <= fEPSILON,
+                                     abs(A.x2-B.x2) <= fEPSILON,
+                                     abs(A.y2-B.y2) <= fEPSILON
+                                     )
         return a
 
-class EdgeBooleanFeatures_v2(Transformer):
+class EdgeBooleanFeatures_v2(EdgeTransformerClassShifter):
     """
     we will get a list of edges and return a boolean array, directly
 
     vertical-, horizontal- centered  (at epsilon precision, epsilon typically being 5pt ?)
     left-, top-, right-, bottom- justified  (at epsilon precision)
     """
+    nbFEAT = 6
+    
     def transform(self, lEdge):
         #DISC a = np.zeros( ( len(lEdge), 16 ) , dtype=np.float64)
-        a = - np.ones( ( len(lEdge), 3*6 ) , dtype=np.float64)
+        a = - np.ones( ( len(lEdge), self._nbEdgeFeat ) , dtype=np.float64)
         for i, edge in enumerate(lEdge):
-            if isinstance(edge, VerticalEdge):
-                z=0
-            elif isinstance(edge, HorizontalEdge):
-                z=6
-            elif isinstance(edge, CrossPageEdge):
-                z=12
+            z = self._dEdgeClassIndexShift[edge.__class__]
             
             A,B = edge.A, edge.B        
-            
             thH = fEPSILON_v2 * (A.page.w+B.page.w) / 2.0
-            thV = fEPSILON_v2 * (A.page.h+B.page.h) / 2.0
-            
-            #-- centering
-            if A.x1 + A.x2 - (B.x1 + B.x2) <= thH:     #horizontal centered
-                a[i, z + 0] = 1.0
-            if A.y1 + A.y2 - (B.y1 + B.y2) <= thV:     #V centered
-                a[i, z + 1] = 1.0
-            
-            #justified
-            if abs(A.x1-B.x1) <= thH:   a[i, z + 2] = 1.0
-            if abs(A.y1-B.y1) <= thV:   a[i, z + 3] = 1.0
-            if abs(A.x2-B.x2) <= thH:   a[i, z + 4] = 1.0
-            if abs(A.y2-B.y2) <= thV:   a[i, z + 5] = 1.0
-                   
-        #_debug(lEdge, a)
+            thV = fEPSILON_v2 * (A.page.h+B.page.h) / 2.0            
+
+            a[i,z:z+self.nbFEAT] = ( A.x1 + A.x2 - (B.x1 + B.x2) <= thH, # centering
+                                     A.y1 + A.y2 - (B.y1 + B.y2) <= thH, 
+                                     abs(A.x1-B.x1) <= thH,              #justified
+                                     abs(A.y1-B.y1) <= thH,
+                                     abs(A.x2-B.x2) <= thH,
+                                     abs(A.y2-B.y2) <= thH
+                                     )
         return a
 
 #------------------------------------------------------------------------------------------------------
-class EdgeNumericalSelector(Transformer):
+class EdgeNumericalSelector(EdgeTransformerClassShifter):
     """
     we will get a list of block and need to send back what StandardScaler needs for in-place scaling, a numpy array!.
 
@@ -396,18 +383,14 @@ class EdgeNumericalSelector(Transformer):
     identical content in [0, 1] as ratio of lcs to "union"
     max( lcs, 25)
     """
+    nbFEAT = 8
+    
     def transform(self, lEdge):
         #no font size a = np.zeros( ( len(lEdge), 5 ) , dtype=np.float64)
 #         a = np.zeros( ( len(lEdge), 7 ) , dtype=np.float64)
-        a = np.zeros( ( len(lEdge), 3*8 ) , dtype=np.float64)
+        a = np.zeros( ( len(lEdge), self._nbEdgeFeat ) , dtype=np.float64)
         for i, edge in enumerate(lEdge):
-            if isinstance(edge, VerticalEdge):
-                z=0
-            elif isinstance(edge, HorizontalEdge):
-                z=8
-            elif isinstance(edge, CrossPageEdge):
-                z=16
-
+            z = self._dEdgeClassIndexShift[edge.__class__]
             A,B = edge.A, edge.B        
             
             #overlap
@@ -438,8 +421,6 @@ class EdgeNumericalSelector(Transformer):
                     a[i, z+6] = norm_length
                 a[i, z+7] = norm_length    #normalised length whatever direction it has
                     
-            #if A.txt == B.txt: a[i, z+ 4] = 1.0
-            
 #             #fontsize
 #             a[i, z+5] = B.fontsize - A.fontsize
 #             a[i, z+6] = (B.fontsize+1) / (A.fontsize+1)
