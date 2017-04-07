@@ -47,7 +47,7 @@ from FeatureDefinition import FeatureDefinition
 
 from Transformer_Logit import NodeTransformerLogit, EdgeTransformerLogit
 
-class FeatureDefinition_GTBook(FeatureDefinition):
+class FeatureDefinition_PageXml_LogitExtractorV2(FeatureDefinition):
 
     """
     We will fit a logistic classifier

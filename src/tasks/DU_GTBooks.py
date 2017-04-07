@@ -25,7 +25,6 @@
     
 """
 import sys, os
-from crf import FeatureDefinition_PageXml_GTBooks
 
 try: #to ease the use without proper Python installation
     import TranskribusDU_version
@@ -37,9 +36,9 @@ from common.trace import traceln
 from tasks import _checkFindColDir, _exit
 
 from crf.Graph_MultiPageXml import Graph_MultiPageXml
-from crf.NodeType_PageXml   import NodeType_PageXml_type_GTBooks
+from crf.NodeType_PageXml   import NodeType_PageXml_type_NestedText
 from DU_CRF_Task import DU_CRF_Task
-from crf.FeatureDefinition_PageXml_GTBooks import FeatureDefinition_GTBook
+from crf.FeatureDefinition_PageXml_logit_v2 import FeatureDefinition_PageXml_LogitExtractorV2
 
 # ===============================================================================================================
 
@@ -54,8 +53,23 @@ nbClass = len(lLabels)
 """
 if you play with a toy collection, which does not have all expected classes, you can reduce those.
 """
-lActuallySeen = [0, 4, 7, 9, 10]
-# lActuallySeen = None
+lActuallySeen = [4, 7, 9, 10]
+#lActuallySeen = [4, 6]
+"""
+                0-            TOC-entry    5940 occurences       (   2%)  (   2%)
+                1-              caption     707 occurences       (   0%)  (   0%)
+                2-           catch-word     201 occurences       (   0%)  (   0%)
+                3-               footer      11 occurences       (   0%)  (   0%)
+                4-             footnote   36942 occurences       (  11%)  (  11%)
+                5-   footnote-continued    1890 occurences       (   1%)  (   1%)
+                6-               header   15910 occurences       (   5%)  (   5%)
+                7-              heading   18032 occurences       (   6%)  (   6%)
+                8-           marginalia    4292 occurences       (   1%)  (   1%)
+                9-          page-number   40236 occurences       (  12%)  (  12%)
+               10-            paragraph  194927 occurences       (  60%)  (  60%)
+               11-       signature-mark    4894 occurences       (   2%)  (   2%)
+"""
+lActuallySeen = None
 if lActuallySeen:
     print "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING"
     lIgnoredLabels  = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
@@ -66,7 +80,7 @@ if lActuallySeen:
 
 #DEFINING THE CLASS OF GRAPH WE USE
 DU_GRAPH = Graph_MultiPageXml
-nt = NodeType_PageXml_type_GTBooks("gtb"                   #some short prefix because labels below are prefixed with it
+nt = NodeType_PageXml_type_NestedText("gtb"                   #some short prefix because labels below are prefixed with it
                       , lLabels
                       , lIgnoredLabels
                       , False    #no label means OTHER
@@ -100,7 +114,7 @@ class DU_GTBooks(DU_CRF_Task):
     sXmlFilenamePattern = "*.mpxml"
     
     #=== CONFIGURATION ====================================================================
-    def __init__(self, sModelName, sModelDir, sComment=None): 
+    def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
         
         DU_CRF_Task.__init__(self
                              , sModelName, sModelDir
@@ -116,19 +130,19 @@ class DU_GTBooks(DU_CRF_Task):
                                   , 'n_jobs'      : 1         #n_jobs when fitting the internal Logit feat extractor model by grid search
                               }
                              , dLearnerConfig = {
-                                   'C'                : .1 
-                                 , 'njobs'            : 2
-                                 , 'inference_cache'  : 50
+                                   'C'                : .1   if C               is None else C
+                                 , 'njobs'            : 5    if njobs           is None else njobs
+                                 , 'inference_cache'  : 50   if inference_cache is None else inference_cache
                                  #, 'tol'              : .1
-                                 , 'tol'              : .05
+                                 , 'tol'              : .05  if tol             is None else tol
                                  , 'save_every'       : 50     #save every 50 iterations,for warm start
-                                 , 'max_iter'         : 20
+                                 , 'max_iter'         : 1000 if njobs           is None else njobs
                                  }
                              , sComment=sComment
-                             , cFeatureDefinition=FeatureDefinition_GTBook
+                             , cFeatureDefinition=FeatureDefinition_PageXml_LogitExtractorV2
                              )
         
-        self.addBaseline_LogisticRegression()    #use a LR model as baseline
+        self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
     #=== END OF CONFIGURATION =============================================================
 
 
@@ -140,13 +154,20 @@ if __name__ == "__main__":
     # --- 
     #parse the command line
     (options, args) = parser.parse_args()
+
     # --- 
     try:
         sModelDir, sModelName = args
     except Exception as e:
+        traceln("Specify a model folder and a model name!")
         _exit(usage, 1, e)
         
-    doer = DU_GTBooks(sModelName, sModelDir)
+    doer = DU_GTBooks(sModelName, sModelDir,
+                      C                 = options.crf_C,
+                      tol               = options.crf_tol,
+                      njobs             = options.crf_njobs,
+                      max_iter          = options.crf_max_iter,
+                      inference_cache   = options.crf_inference_cache)
     
     if options.rm:
         doer.rm()
@@ -154,10 +175,41 @@ if __name__ == "__main__":
     
     traceln("- classes: ", DU_GRAPH.getLabelNameList())
     
-    lTrn, lTst, lRun = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun]] 
+    lTrn, lTst, lRun, lFold = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun, options.lFold]] 
 
-    if lTrn:
+    if options.iFoldInitNum or options.iFoldRunNum or options.bFoldFinish:
+        if options.iFoldInitNum:
+            """
+            initialization of a cross-validation
+            """
+            splitter, ts_trn, lFilename_trn = doer._nfold_Init(lFold, options.iFoldInitNum, test_size=0.25, random_state=None, bStoreOnDisk=True)
+        elif options.iFoldRunNum:
+            """
+            Run one fold
+            """
+            oReport = doer._nfold_RunFoldFromDisk(options.iFoldRunNum, options.warm)
+            traceln(oReport)
+        elif options.bFoldFinish:
+            tstReport = doer._nfold_Finish()
+            traceln(tstReport)
+        else:
+            assert False, "Internal error"    
+        #no more processing!!
+        exit(0)
+        #-------------------
+        
+    if lFold:
+        loTstRpt = doer.nfold_Eval(lFold, 3, .25, None)
+        import crf.Model
+        sReportPickleFilename = os.path.join(sModelDir, sModelName + "__report.txt")
+        traceln("Results are in %s"%sReportPickleFilename)
+        crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
+    elif lTrn:
         doer.train_save_test(lTrn, lTst, options.warm)
+        try:    traceln("Baseline best estimator: %s"%doer.bsln_mdl.best_params_)   #for GridSearch
+        except: pass
+        traceln(" --- CRF Model ---")
+        traceln(doer.getModelInfo())
     elif lTst:
         doer.load()
         tstReport = doer.test(lTst)

@@ -85,6 +85,8 @@ class SamePageEdge(Edge):
 
 class CrossPageEdge(Edge): pass    
 
+class CrossMirrorPageEdge(Edge): pass    
+
 class VirtualEdge(Edge): pass    
 
 # --- SamePageEdge SUB-CLASSES ----------------------------
