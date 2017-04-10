@@ -106,7 +106,7 @@ class DU_BL_Task(DU_CRF_Task):
         self.traceln("\t - configuration: ", self.config_learner_kwargs )
 
         self.traceln("- loading training graphs")
-        lGraph_trn = DU_GraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
+        lGraph_trn = DU_GraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1,bNeighbourhood=True)
         self.traceln(" %d graphs loaded"%len(lGraph_trn))
 
         self.traceln("- retrieving or creating feature extractors...")
@@ -137,6 +137,12 @@ class DU_BL_Task(DU_CRF_Task):
             self.traceln(" %d graphs loaded"%len(lGraph_tst))
 
             oReport = mdl.test(lGraph_tst)
+
+
+
+
+
+
             print(oReport)
             for rep in oReport:
                 print(rep)
@@ -157,4 +163,71 @@ class DU_BL_Task(DU_CRF_Task):
         lr = LogisticRegression(class_weight='balanced')
         glr = GridSearchCV(lr , self.dGridSearch_LR_conf)
         self._lBaselineModel=[glr]
+
+
+
+
+
+    # === CONFIGURATION ====================================================================
+
+
+ # === CONFIGURATION ====================================================================
+
+
+class   DU_Baseline(DU_BL_Task):
+
+    dFeatureConfig_Baseline = {'n_tfidf_node': 500
+    , 't_ngrams_node': (2, 4)
+    , 'b_tfidf_node_lc': False
+    , 'n_tfidf_edge': 250
+    , 't_ngrams_edge': (2, 4)
+    , 'b_tfidf_edge_lc': False,
+                           }
+
+    dFeatureConfig_FeatSelect = {'n_tfidf_node': 500
+    , 't_ngrams_node': (2, 4)
+    , 'b_tfidf_node_lc': False
+    , 'n_tfidf_edge': 250
+    , 't_ngrams_edge': (2, 4)
+    , 'b_tfidf_edge_lc': False
+    , 'text_neighbors':False
+    }
+
+    dLearnerConfig={  'C': .1
+                            , 'njobs': 1
+                            , 'inference_cache': 50
+                            , 'tol': .1
+                            , 'save_every': 50  # save every 50 iterations,for warm start
+                            , 'max_iter': 250
+                        }
+     # === CONFIGURATION ====================================================================
+    def __init__(self, sModelName, sModelDir,DU_GRAPH,logitID,sComment=None):
+
+        if logitID=='logit_0':
+            paramsBaseline=dict(self.dFeatureConfig_Baseline)
+            DU_BL_Task.__init__(self, sModelName, sModelDir,DU_GRAPH,
+                                dFeatureConfig=paramsBaseline,dLearnerConfig=self.dLearnerConfig,sComment=sComment)
+
+
+        elif logitID=='logit_1':
+            paramsFeatSelect=dict(self.dFeatureConfig_FeatSelect)
+            paramsFeatSelect['feat_select']='chi2'
+            paramsFeatSelect['n_tfidf_node']=500
+
+            DU_BL_Task.__init__(self, sModelName, sModelDir,DU_GRAPH,
+                                dFeatureConfig=paramsFeatSelect,dLearnerConfig=self.dLearnerConfig,sComment=sComment)
+        elif logitID=='logit_2':
+            paramsFeatSelect=dict(self.dFeatureConfig_FeatSelect)
+            paramsFeatSelect['feat_select']='chi2'
+            paramsFeatSelect['text_neighbors']=True
+
+            DU_BL_Task.__init__(self, sModelName, sModelDir,DU_GRAPH,
+                                dFeatureConfig=paramsFeatSelect,dLearnerConfig=self.dLearnerConfig,sComment=sComment)
+        else:
+            #TODO Takes all n_grams
+            raise ValueError('Invalid modelID',logitID)
+
+
+        self.addFixedLR()
+
 

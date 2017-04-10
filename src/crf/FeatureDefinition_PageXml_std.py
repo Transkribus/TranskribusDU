@@ -110,57 +110,7 @@ class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
                                                          ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
                                                          ])
                                         )
-                                    , ("sourcetext0", Pipeline([
-                                                       ('selector', EdgeTransformerSourceText(0)),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )
-                                    , ("targettext0", Pipeline([
-                                                       ('selector', EdgeTransformerTargetText(0)),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge
-                                                                                 #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )
-                                    , ("sourcetext1", Pipeline([
-                                                       ('selector', EdgeTransformerSourceText(1)),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )
-                                    , ("targettext1", Pipeline([
-                                                       ('selector', EdgeTransformerTargetText(1)),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge
-                                                                                 #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )
-                                    , ("sourcetext2", Pipeline([
-                                                       ('selector', EdgeTransformerSourceText(2)),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )
-                                    , ("targettext2", Pipeline([
-                                                       ('selector', EdgeTransformerTargetText(2)),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge
-                                                                                 #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )                        
+
                         ]
                         
         edge_transformer = FeatureUnion( lEdgeFeature )
