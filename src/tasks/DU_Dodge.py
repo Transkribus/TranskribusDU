@@ -113,7 +113,7 @@ class DU_Dodge(DU_CRF_Task):
         self.addBaseline_LogisticRegression()    #use a LR model as baseline
     #=== END OF CONFIGURATION =============================================================
 
-
+#DODGE CRF with Feature selection on the node
 class DU_Dodge_CRF_FS(DU_CRF_FS_Task):
     """
     We will do a CRF model for a DU task
@@ -129,7 +129,7 @@ class DU_Dodge_CRF_FS(DU_CRF_FS_Task):
 
         DU_CRF_FS_Task.__init__(self
                              , sModelName, sModelDir
-                             , DU_DODGE_GRAPH
+                             , dodge_graph.DU_GRAPH
                              , dFeatureConfig = {
                                     'n_tfidf_node'    : 500
                                   , 't_ngrams_node'   : (2,4)
@@ -155,9 +155,42 @@ class DU_Dodge_CRF_FS(DU_CRF_FS_Task):
         self.addBaseline_LogisticRegression()    #use a LR model as baseline
     #=== END OF CONFIGURATION =============================================================
 
+#DU DODGE CRF with uniform class weight
+class DU_Dodge_CRF_UW(DU_CRF_FS_Task):
 
+    sXmlFilenamePattern = "*_ds.xml"
 
+    #=== CONFIGURATION ====================================================================
+    def __init__(self, sModelName, sModelDir, sComment=None):
 
+        DU_CRF_FS_Task.__init__(self
+                             , sModelName, sModelDir
+                             , dodge_graph.DU_GRAPH
+                             , dFeatureConfig = {
+                                    'n_tfidf_node'    : 500
+                                  , 't_ngrams_node'   : (2,4)
+                                  , 'b_tfidf_node_lc' : False
+                                  , 'n_tfidf_edge'    : 250
+                                  , 't_ngrams_edge'   : (2,4)
+                                  , 'b_tfidf_edge_lc' : False
+                                  , 'feat_select':'chi2'
+                              }
+                             , dLearnerConfig = {
+                                   'C'                : .1
+                                 , 'njobs'            : 1
+                                 , 'inference_cache'  : 50
+                                 #, 'tol'              : .1
+                                 , 'tol'              : .05
+                                 , 'save_every'       : 50     #save every 50 iterations,for warm start
+                                 , 'max_iter'         : 250
+                                 ,'uniform_classweight':True
+                                 }
+                             , sComment=sComment
+                             , cFeatureDefinition=None  #SO THAT WE USE THE SAME FEATURES AS FOR PageXml (because it is the features by default)
+                             )
+
+        self.addBaseline_LogisticRegression()    #use a LR model as baseline
+    #=== END OF CONFIGURATION =============================================================
 
 
 if __name__ == "__main__":
@@ -197,3 +230,4 @@ if __name__ == "__main__":
         doer.load()
         lsOutputFilename = doer.predict(lRun)
         traceln("Done, see in:\n  %s"%lsOutputFilename)
+

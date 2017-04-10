@@ -117,8 +117,8 @@ def crf_tasks():
     #Models
     #M=[('tf',500),('tf',1000),('tf',10000),('chi2',500),('chi2',1000),('mi_rr',500),('mi_rr',1000)]
     #M=[('tf',500),('tf',1000),('tf',10000),('chi2',500),('chi2',1000),('mi_rr',500),('mi_rr',1000),('chi2_rr',500),('chi2_rr',1000)]
-    M=[('tf',500,''),('tf',1000,''),('chi2',500,''),('chi2',1000,''),('chi2_rr',500,''),('chi2_rr',1000,''),('tf',500,'crf'),
-       ('tf',1000,'crf'),('chi2',500,'crf'),('chi2',1000,'crf'),('tf',0,'crf_c')]
+    M=[('tf',500,''),('tf',1000,''),('chi2',500,''),('chi2',1000,''),('chi2_rr',500,''),('chi2_rr',1000,''),('tf',500,'crf'),('tf',500,'crf_uw'),
+       ('tf',1000,'crf'),('chi2',500,'crf'),('chi2',1000,'crf'),('tf',0,'crf_c'),('tf',0,'crf_c_uw')]
 
 
     #Measure Accuracy, Macro Average Precision Macro F1
@@ -235,7 +235,8 @@ if __name__=='__main__':
         elif mode=='gencrfreport':
             A,H=crf_tasks()
             df=pd.DataFrame(A,columns=H)
-            f=open('/home/sclincha/Desktop/ITER4/exp_dodge_crf_iter4.csv','w')
+            #f=open('/home/sclincha/Desktop/ITER4/exp_dodge_crf_iter4.csv','w')
+            f=open('iter5/exp_dodge_crf_iter5.csv','w')
             df.to_csv(f)
             f.close()
 
@@ -252,6 +253,7 @@ if __name__=='__main__':
         A,H=crf_tasks()
         df=pd.DataFrame(A,columns=H)
 
+        '''
         sel_columns=['chi2_500:ACC','crf_tf_500:ACC','crf_chi2_500:ACC','crf_c_tf_0:ACC']
         df_sel = df[sel_columns]
         plot_diff(df_sel,ylim=[0.85,1.05],ylabel='Accuracy')
@@ -259,7 +261,15 @@ if __name__=='__main__':
         sel_columns=['chi2_500:F1','crf_tf_500:F1','crf_chi2_500:F1','crf_c_tf_0:F1']
         df_sel = df[sel_columns]
         plot_diff(df_sel,ylim=[0.2,1],ylabel='Macro Average F1')
+        '''
 
+        sel_columns=['crf_tf_500:ACC','crf_uw_tf_500:ACC','crf_tf_500:F1','crf_uw_tf_500:F1',]
+        df_sel = df[sel_columns]
+        plot_diff(df_sel,ylim=[0.2,1.1],ylabel='Accuracy and F1')
+
+        sel_columns=['crf_c_tf_0:ACC','crf_c_uw_tf_0:ACC','crf_c_tf_0:F1','crf_c_uw_tf_0:F1',]
+        df_sel = df[sel_columns]
+        plot_diff(df_sel,ylim=[0.2,1.1],ylabel='Accuracy and F1')
 
         embed()
         print('Embed ...')
