@@ -32,7 +32,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.feature_extraction.text import TfidfVectorizer,CountVectorizer
 
 from crf.Transformer import SparseToDense
-from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH, NodeTransformerNeighbors, Node1HotFeatures
+from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH, NodeTransformerNeighbors, Node1HotFeatures,NodeTransformerNeighborsAllText
 from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
@@ -60,31 +60,31 @@ def chi2_scores(X,y):
 class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
 
     def __init__(self, n_tfidf_node=None, t_ngrams_node=None, b_tfidf_node_lc=None
-                     , n_tfidf_edge=None, t_ngrams_edge=None, b_tfidf_edge_lc=None,feat_select=None):
+                     , n_tfidf_edge=None, t_ngrams_edge=None, b_tfidf_edge_lc=None,feat_select=None,text_neighbors=False):
         FeatureDefinition.__init__(self)
 
         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
         self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc = n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc
 
-
+        self.text_neighbors=text_neighbors
 
         #TODO assert n_tfidf_node is int ...
-
         #tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=10000
         #                                                                         , analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
 
         if feat_select=='chi2':
             feat_selector=SelectKBest(chi2, k=self.n_tfidf_node)
-
+            feat_selector_neigh=SelectKBest(chi2, k=self.n_tfidf_node)
 
         elif feat_select == 'mi_rr':
             print('Using Mutual Information Round Robin as Feature Selection')
             feat_selector=SelectRobinBest(mutual_information,k=self.n_tfidf_node)
-
+            feat_selector_neigh=SelectRobinBest(mutual_information,k=self.n_tfidf_node)
 
         elif feat_select =='chi2_rr':
             #chi_score = lambda x,y : chi2(x,y)[0] #this can not be pickled ...
             feat_selector=SelectRobinBest(chi2_scores, k=self.n_tfidf_node)
+            feat_selector_neigh=SelectRobinBest(chi2_scores, k=self.n_tfidf_node)
 
         elif feat_select=='tf' or feat_select is None:
             feat_selector=None
@@ -94,8 +94,7 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
 
 
         if feat_selector:
-            tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=10000
-                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
+            tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc,max_features=10000, analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
 
             text_pipeline = Pipeline([('selector', NodeTransformerTextEnclosed()),
                                                ('tf', tdifNodeTextVectorizer), #we can use it separately from the pipleline once fitted
@@ -112,11 +111,7 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
                                                ])
 
 
-
-
-
-        node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
-                                    ("text", text_pipeline)
+        node_transformer_ops =[("text", text_pipeline)
                                     ,
                                     ("textlen", Pipeline([
                                                          ('selector', NodeTransformerTextLen()),
@@ -136,11 +131,31 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
                                     , ("1hot", Pipeline([
                                                          ('1hot', Node1HotFeatures())  #does the 1-hot encoding directly
                                                          ])
-                                       )
-        ])
+                                      )]
 
+        if text_neighbors and feat_selector:
+            print('############   ADDING the feature TEXT NEIGHBORS Youjhou!!')
+            neighborsTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc,analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
+            neighbors_text_pipeline = Pipeline([('selector', NodeTransformerNeighborsAllText()),
+                                               ('tf_neighbors', neighborsTextVectorizer),
+                                                ('feat_selector',feat_selector_neigh),
+                                               ('todense', SparseToDense())
+                                               ])
 
+            node_transformer_ops.append(('text_neighbors',neighbors_text_pipeline))
+            '''
+            node_transformer_ops.append(('text_neighbors',
+                                         Pipeline([ ('selector_1',NodeTransformerNeighborsAllText()),
+                                             ('tf', neighborsTextVectorizer),
+                                             ('todense', SparseToDense())
+                                             ])
+                                         ))
+            '''
 
+        print(node_transformer_ops)
+        node_transformer = FeatureUnion(node_transformer_ops)
+
+        #Minimal EdgeFeature Here
         lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                       ("1hot", Pipeline([
                                                          ('1hot', Edge1HotFeatures(PageNumberSimpleSequenciality()))
@@ -155,62 +170,10 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
                                                          ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
                                                          ])
                                         )
-                                    , ("sourcetext0", Pipeline([
-                                                       ('selector', EdgeTransformerSourceText(0)),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )
-                                    , ("targettext0", Pipeline([
-                                                       ('selector', EdgeTransformerTargetText(0)),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge
-                                                                                 #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )
-                                    , ("sourcetext1", Pipeline([
-                                                       ('selector', EdgeTransformerSourceText(1)),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )
-                                    , ("targettext1", Pipeline([
-                                                       ('selector', EdgeTransformerTargetText(1)),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge
-                                                                                 #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )
-                                    , ("sourcetext2", Pipeline([
-                                                       ('selector', EdgeTransformerSourceText(2)),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )
-                                    , ("targettext2", Pipeline([
-                                                       ('selector', EdgeTransformerTargetText(2)),
-                                                       ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
-                                                                                 , analyzer = 'char', ngram_range=self.t_ngrams_edge
-                                                                                 #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
-                                                                                 , dtype=np.float64)),
-                                                       ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
-                                                       ])
-                                       )
                         ]
 
 
-        edge_transformer = FeatureUnion( lEdgeFeature )
-        #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
+        edge_transformer = FeatureUnion(lEdgeFeature)
         self._node_transformer = node_transformer
         self._edge_transformer = edge_transformer
         self.tfidfNodeTextVectorizer = tdifNodeTextVectorizer
@@ -231,9 +194,7 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
         """
         #TODO Better Cleaning for feature selection
         self._node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
-        for i in [2, 3, 4, 5, 6, 7]:
-            self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
-
+        
         return self._node_transformer
 
 

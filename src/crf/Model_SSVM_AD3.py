@@ -46,6 +46,8 @@ class Model_SSVM_AD3(Model):
     tol              = .1
     save_every       = 50     #save every 50 iterations,for warm start
     max_iter         = 1000
+    uniform_classweight=False
+
     
     def __init__(self, sName, sModelDir):
         """
@@ -53,14 +55,15 @@ class Model_SSVM_AD3(Model):
         """
         Model.__init__(self, sName, sModelDir)
         self.ssvm = None
-        
-    def configureLearner(self, inference_cache=None, C=None, tol=None, njobs=None, save_every=None, max_iter=None):
+
+    def configureLearner(self, inference_cache=None, C=None, tol=None, njobs=None, save_every=None, max_iter=None,uniform_classweight=None):
         if None != inference_cache  : self.inference_cache   = inference_cache
         if None != C                : self.C                 = C
         if None != tol              : self.tol               = tol
         if None != njobs            : self.njobs             = njobs
         if None != save_every       : self.save_every        = save_every
         if None != max_iter         : self.max_iter          = max_iter
+        if None != uniform_classweight : self.uniform_classweight = uniform_classweight
 
     def load(self, expiration_timestamp=None):
         """
@@ -102,8 +105,12 @@ class Model_SSVM_AD3(Model):
             traceln("\t\t- computing class weight:")
             clsWeights = self.computeClassWeight(lY)
             traceln("\t\t\t%s"%clsWeights)
-            
-            crf = EdgeFeatureGraphCRF(inference_method='ad3', class_weight=clsWeights)
+
+            traceln("\t\t- using uniform weight:",self.uniform_classweight)
+            if self.uniform_classweight:
+                crf = EdgeFeatureGraphCRF(inference_method='ad3')
+            else:
+                crf = EdgeFeatureGraphCRF(inference_method='ad3', class_weight=clsWeights)
     
             self.ssvm = OneSlackSSVM(crf
                                 , inference_cache=self.inference_cache, C=self.C, tol=self.tol, n_jobs=self.njobs

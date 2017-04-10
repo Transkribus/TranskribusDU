@@ -86,6 +86,45 @@ class DU_Dodge_c(DU_CRF_Task):
         self.addBaseline_LogisticRegression()    #use a LR model as baseline
     #=== END OF CONFIGURATION =============================================================
 
+#Uniform Weight for the CRF
+class DU_Dodge_c_UW(DU_CRF_Task):
+    sXmlFilenamePattern = "*_ds.xml"
+
+    #=== CONFIGURATION ====================================================================
+    def __init__(self, sModelName, sModelDir, sComment=None):
+
+        DU_CRF_Task.__init__(self
+                             , sModelName, sModelDir
+                             , dodge_graph.DU_GRAPH
+                             , dFeatureConfig = {
+                                    'nbClass'    : 3
+                                  , 'n_feat_node'    : 500
+                                  , 't_ngrams_node'   : (2,4)
+                                  , 'b_node_lc' : False
+                                  , 'n_feat_edge'    : 250
+                                  , 't_ngrams_edge'   : (2,4)
+                                  , 'b_edge_lc' : False
+                                  , 'n_jobs'      : 8         #n_jobs when fitting the internal Logit feat extractor model by grid search
+                              }
+                             , dLearnerConfig = {
+                                   'C'                : .1
+                                 , 'njobs'            : 8
+                                 , 'inference_cache'  : 50
+                                 #, 'tol'              : .1
+                                 , 'tol'              : .05
+                                 , 'save_every'       : 50     #save every 50 iterations,for warm start
+                                 , 'max_iter'         : 1000
+                                 ,'uniform_classweight':True
+                             }
+                             , sComment=sComment
+                             , cFeatureDefinition=FeatureDefinition_PageXml_LogitExtractor
+                             )
+
+        self.addBaseline_LogisticRegression()    #use a LR model as baseline
+
+
+
+
 
 if __name__ == "__main__":
 
