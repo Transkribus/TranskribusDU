@@ -383,7 +383,7 @@ class EdgeNumericalSelector(EdgeTransformerClassShifter):
     identical content in [0, 1] as ratio of lcs to "union"
     max( lcs, 25)
     """
-    nbFEAT = 8
+    nbFEAT = 11
     
     def transform(self, lEdge):
         #no font size a = np.zeros( ( len(lEdge), 5 ) , dtype=np.float64)
@@ -408,18 +408,20 @@ class EdgeNumericalSelector(EdgeTransformerClassShifter):
                 a[i, z+2] =  float( lcs / (na+nb-lcs) )
             except ZeroDivisionError:
                 pass
-            a[i, z+3] = min(lcs, 50.0)
-            a[i, z+4] = min(lcs, 100.0)
+            a[i, z+3:z+5] = min(lcs, 50.0), min(lcs, 100.0)
+            #a[i, z+4] = min(lcs, 100.0)
             
-            #new in READ: the length of a same-page edge, along various normalisation schemes
+            #new in READ: the length of a same-page edge
             if isinstance(edge, SamePageEdge):
                 if isinstance(edge, VerticalEdge):
                     norm_length = edge.length / float(edge.A.page.h)
-                    a[i, z+5] = norm_length
+                    norm_length2 = norm_length * norm_length
+                    #                Horiz.       Vert.           Any direction    Horiz.       Vert.           Any direction
+                    a[i,z+5:z+11] = (0.0        , norm_length   , norm_length   , 0.0          , norm_length2  , norm_length2)
                 else:
                     norm_length = edge.length / float(edge.A.page.w)
-                    a[i, z+6] = norm_length
-                a[i, z+7] = norm_length    #normalised length whatever direction it has
+                    norm_length2 = norm_length * norm_length
+                    a[i,z+5:z+11] = (norm_length, 0.0           , norm_length   , norm_length2 , 0.0           , norm_length2)
                     
 #             #fontsize
 #             a[i, z+5] = B.fontsize - A.fontsize
