@@ -108,7 +108,7 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
             if bLabelled: g.parseDomLabels()
 #             if bDetach: g.detachFromDOM()
             
-            lPrevPageNode = lPageNode
+#             lPrevPageNode = lPageNode
             if iVerbose: traceln("\t\t (%d nodes,  %d edges)"%(len(g.lNode), len(g.lEdge)) )
         
         return lGraph     
@@ -168,7 +168,7 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
         lNdPage = ctxt.xpathEval(Graph_MultiSinglePageXml.sxpPage)   #all pages
         pnum = 0
         pagecnt = len(lNdPage)
-        for ndPage in lNdPage[3:5]:
+        for ndPage in lNdPage:
             pnum += 1
             iPageWidth  = int( ndPage.prop("imageWidth") )
             iPageHeight = int( ndPage.prop("imageHeight") )
