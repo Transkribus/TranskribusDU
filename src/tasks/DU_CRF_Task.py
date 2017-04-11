@@ -107,7 +107,9 @@ See DU_StAZH_b.py
     def setModelClass(self, cModelClass): 
         self.cModelClass = cModelClass
         assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
-        
+    def getModel(self):
+        return self._mdl
+    
     def setFeatureDefinition(self, cFeatureDefinition): 
         self.cFeatureDefinition = cFeatureDefinition
         assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
