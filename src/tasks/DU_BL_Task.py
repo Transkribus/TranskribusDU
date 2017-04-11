@@ -191,6 +191,8 @@ class   DU_Baseline(DU_BL_Task):
     , 't_ngrams_edge': (2, 4)
     , 'b_tfidf_edge_lc': False
     , 'text_neighbors':False
+    ,'n_tfidf_node_neighbors':500
+    ,'XYWH_v2':False
     }
 
     dLearnerConfig={  'C': .1
@@ -223,6 +225,29 @@ class   DU_Baseline(DU_BL_Task):
 
             DU_BL_Task.__init__(self, sModelName, sModelDir,DU_GRAPH,
                                 dFeatureConfig=paramsFeatSelect,dLearnerConfig=self.dLearnerConfig,sComment=sComment)
+
+        elif logitID=='logit_3':
+            paramsFeatSelect=dict(self.dFeatureConfig_FeatSelect)
+            #No feature selections for the node text feature
+            paramsFeatSelect['n_tfidf_node']=100000
+            #But Chi2 Feature selection of text feature
+            paramsFeatSelect['text_neighbors']=True
+            paramsFeatSelect['n_tfidf_node_neighbors']=500
+            DU_BL_Task.__init__(self, sModelName, sModelDir,DU_GRAPH,
+                                dFeatureConfig=paramsFeatSelect,dLearnerConfig=self.dLearnerConfig,sComment=sComment)
+
+        elif logitID=='logit_4':
+            paramsFeatSelect=dict(self.dFeatureConfig_FeatSelect)
+            #No feature selections for the node text feature
+            paramsFeatSelect['n_tfidf_node']=100000
+            #But Chi2 Feature selection of text feature
+            paramsFeatSelect['text_neighbors']=True
+            paramsFeatSelect['n_tfidf_node_neighbors']=500
+            paramsFeatSelect['XYWH_v2']=True
+            DU_BL_Task.__init__(self, sModelName, sModelDir,DU_GRAPH,
+                                dFeatureConfig=paramsFeatSelect,dLearnerConfig=self.dLearnerConfig,sComment=sComment)
+
+
         else:
             #TODO Takes all n_grams
             raise ValueError('Invalid modelID',logitID)
