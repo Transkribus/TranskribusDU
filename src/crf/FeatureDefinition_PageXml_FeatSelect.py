@@ -32,7 +32,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.feature_extraction.text import TfidfVectorizer,CountVectorizer
 
 from crf.Transformer import SparseToDense
-from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH, NodeTransformerNeighbors, Node1HotFeatures,NodeTransformerNeighborsAllText
+from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH, NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures,NodeTransformerNeighborsAllText
 from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
@@ -60,13 +60,17 @@ def chi2_scores(X,y):
 class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
 
     def __init__(self, n_tfidf_node=None, t_ngrams_node=None, b_tfidf_node_lc=None
-                     , n_tfidf_edge=None, t_ngrams_edge=None, b_tfidf_edge_lc=None,feat_select=None,text_neighbors=False):
+                     , n_tfidf_edge=None, t_ngrams_edge=None, b_tfidf_edge_lc=None
+                     ,feat_select=None,text_neighbors=False, n_tfidf_node_neighbors=500
+                     ,XYWH_v2=False):
         FeatureDefinition.__init__(self)
 
         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
         self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc = n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc
 
         self.text_neighbors=text_neighbors
+        self.n_tfidf_node_neighbors=n_tfidf_node_neighbors
+        self.XYWH_v2=XYWH_v2
 
         #TODO assert n_tfidf_node is int ...
         #tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=10000
@@ -74,7 +78,6 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
 
         if feat_select=='chi2':
             feat_selector=SelectKBest(chi2, k=self.n_tfidf_node)
-            feat_selector_neigh=SelectKBest(chi2, k=self.n_tfidf_node)
 
         elif feat_select == 'mi_rr':
             print('Using Mutual Information Round Robin as Feature Selection')
@@ -111,16 +114,10 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
                                                ])
 
 
-        node_transformer_ops =[("text", text_pipeline)
-                                    ,
+        node_transformer_ops =[("text", text_pipeline) ,
                                     ("textlen", Pipeline([
                                                          ('selector', NodeTransformerTextLen()),
                                                          ('textlen', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
-                                                         ])
-                                       )
-                                    , ("xywh", Pipeline([
-                                                         ('selector', NodeTransformerXYWH()),
-                                                         ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
                                                          ])
                                        )
                                     , ("neighbors", Pipeline([
@@ -133,8 +130,24 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
                                                          ])
                                       )]
 
-        if text_neighbors and feat_selector:
+        if self.XYWH_v2 is True:
+            feat_xy=("xywh", Pipeline([('selector', NodeTransformerXYWH_v2()),
+                               ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                              ]) )
+
+        else:
+            feat_xy=("xywh", Pipeline([('selector', NodeTransformerXYWH()),
+                               ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                              ]) )
+
+        node_transformer_ops.append(feat_xy)
+
+
+
+        if text_neighbors:
             print('############   ADDING the feature TEXT NEIGHBORS Youjhou!!')
+            #BY DEFAULT we use chi2
+            feat_selector_neigh=SelectKBest(chi2, k=self.n_tfidf_node_neighbors)
             neighborsTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc,analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
             neighbors_text_pipeline = Pipeline([('selector', NodeTransformerNeighborsAllText()),
                                                ('tf_neighbors', neighborsTextVectorizer),

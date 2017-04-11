@@ -3,6 +3,8 @@
 from Model import Model,ModelException
 from common.trace import traceln
 import types
+import numpy as np
+from TestReport import TestReport
 
 
 class BaselineModel(Model):
@@ -53,3 +55,45 @@ class BaselineModel(Model):
         traceln("\t- computing features on test set")
         lX, lY = self.transformGraphs(lGraph, True)
         return self._testBaselines(lX,lY)
+
+    def testFiles(self, lsFilename, loadFun):
+        """
+        Test the model using those files. The corresponding graphs are loaded using the loadFun function (which must return a singleton list).
+        It reports results on stderr
+
+        if some baseline model(s) were set, they are also tested
+
+        Return a Report object
+        """
+        lX, lY, lY_pred,lY_pred_bl  = [], [], [],[]
+        lLabelName   = None
+        bConstraint  = None
+        traceln("\t- predicting on test set")
+
+        for sFilename in lsFilename:
+            [g] = loadFun(sFilename) #returns a singleton list
+            X, Y = self.transformGraphs([g], True)
+
+            if lLabelName == None:
+                lLabelName = g.getLabelNameList()
+                #traceln("\t\t #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
+            else:
+                assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
+
+            X_node = [node_features for (node_features, _, _) in X]
+            Y_pred = self.predictBaselines(X_node[0])
+
+            lY.append(Y[0])
+            traceln(" saving the first baseline predictions ....")
+            lY_pred.append(Y_pred[0]) #Choose with Y_pred is a list of predictions of feach model
+
+
+            g.detachFromDOM()
+            del g   #this can be very large
+            del X,X_node
+
+
+        traceln("\t done")
+        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName)
+        del lX, lY
+        return tstRpt
