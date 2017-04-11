@@ -277,7 +277,6 @@ class Model_SSVM_AD3(Model):
     def getModelInfo(self):
         """
         Get some basic model info
-        if bPlot is True: plot the loss curve
         Return a textual report
         """
         s =  "_crf_ Model: %s\n" % self.ssvm
