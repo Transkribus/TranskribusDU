@@ -23,10 +23,10 @@ import DU_Dodge
 #print('After')
 #print sys.argv[0]
 
-from DU_BL_Task import DU_BL_Task
+from DU_BL_Task import DU_BL_Task,DU_Baseline
 from DU_CRF_Task import DU_CRF_Task,DU_CRF_FS_Task
 import dodge_graph
-from DU_Dodge_c import DU_Dodge_c
+from DU_Dodge_c import DU_Dodge_c, DU_Dodge_c_UW
 #print("- classes: ", DU_Dodge.DU_DODGE_GRAPH.getLabelNameList())
 
 try:
@@ -171,6 +171,10 @@ class DU_CRF_FS_Dodge(DU_CRF_FS_Task):
 
 
 
+class  DU_Baseline_Dodge(DU_Baseline):
+
+    def __init__(self, sModelName, sModelDir,logitID,sComment=None):
+        DU_Baseline.__init__(self,sModelName,sModelDir,dodge_graph.DU_GRAPH,logitID,sComment=sComment)
 
 
 
@@ -334,58 +338,52 @@ def train_dodge_collection(collection_name,feat_select=None,nb_feat=500,model_id
 
 #Kind of Factory
 def create_model(collection_name,model_id='',feat_select=None,nb_feat=500,model_dir='DODGE_TRAIN'):
-
     if model_id=='crf_c':
         model_name=get_model_name(collection_name,'tf',0,model_id)
         doer = DU_Dodge_c(model_name,model_dir)
         return doer
-    else:
 
-        if feat_select:
-            model_name=get_model_name(collection_name,feat_select,nb_feat,model_id)
-            print('Creating Model:',collection_name,model_id,feat_select,nb_feat)
-            if model_id=='' or model_id=='bl':
-                doer = DU_BL_Dodge(model_name, model_dir,feat_select=feat_select,nb_feat=nb_feat)
-
-            elif model_id=='crf':
-                #TODO FIX This is not fully supported with all feature selection
-                #This is just chi2scare
-                doer = DU_CRF_FS_Dodge(model_name,model_dir,feat_select=feat_select,nb_feat=nb_feat)
-            else:
-                raise ValueError('Invalid Model')
-
-        else:
-            if model_id=='' or model_id=='bl':
-
-                model_name=get_model_name(collection_name,'tf',500,model_id)
-                doer = DU_BL_Dodge(model_name, model_dir)
-
-            elif model_id=='crf':
-                model_name=get_model_name(collection_name,'tf',500,model_id)
-
-                doer = DU_Dodge.DU_Dodge(model_name,model_dir,feat_select=feat_select,nb_feat=nb_feat)
+    elif model_id=='crf_c_uw':
+        model_name=get_model_name(collection_name,'tf',0,model_id)
+        doer = DU_Dodge_c_UW(model_name,model_dir)
         return doer
 
+    elif model_id=='crf_uw':
+        model_name=get_model_name(collection_name,'tf',0,model_id)
+        doer = DU_Dodge.DU_Dodge_CRF_UW(model_name,model_dir)
+        return doer
+    elif model_id=='logit_2':
+        model_name=get_model_name(collection_name,'chi2',500,model_id) #This ty the things... not good
+        doer = DU_Baseline_Dodge(model_name,model_dir,'logit_2')
+        return doer
+    elif model_id=='logit_1':
+        model_name=get_model_name(collection_name,'chi2',500,model_id) #This ty the things... not good
+        doer = DU_Baseline_Dodge(model_name,model_dir,'logit_1')
+        return doer
 
+    elif model_id=='logit_3':
+        model_name=get_model_name(collection_name,'tf',0,model_id) #This ty the things... not good
+        doer = DU_Baseline_Dodge(model_name,model_dir,'logit_3')
+        return doer
 
-def train_crf_dodge_collection(collection_name,feat_select=None,nb_feat=500):
-    #Baseline Model
-    listTrain = get_collection(collection_name)
+    elif model_id=='logit_4':
+        model_name=get_model_name(collection_name,'tf',0,model_id) #This ty the things... not good
+        doer = DU_Baseline_Dodge(model_name,model_dir,'logit_4')
+        return doer
 
-    if feat_select:
-        model_name=get_model_name(collection_name,feat_select,nb_feat)
-        print("Training...",collection_name,feat_select,nb_feat)
-        #doer = DU_Dodge.DU_Dodge(model_name, 'DODGE_CRF_TRAIN',feat_select=feat_select,nb_feat=nb_feat)
-        #TODO Fixing this
-        doer = DU_Dodge.DU_CRF_FS_Task(model_name, 'DODGE_CRF_TRAIN',feat_select=feat_select,nb_feat=nb_feat)
+    elif model_id=='crf':
+        model_name=get_model_name(collection_name,'tf',500,model_id)
+        doer = DU_Dodge.DU_Dodge(model_name,model_dir,feat_select=feat_select,nb_feat=nb_feat)
+        return doer
+
+    elif model_id=='crf_fs':
+        model_name=get_model_name(collection_name,feat_select,nb_feat,model_id)
+        doer = DU_CRF_FS_Dodge(model_name,model_dir,feat_select=feat_select,nb_feat=nb_feat)
+        return doer
 
     else:
-        doer = DU_Dodge.DU_Dodge(collection_name, 'DODGE_CRF_TRAIN')
+        raise ValueError('Invalid Model ID')
 
-    #doer.addFixedLR()
-    doer.addBaseline_LogisticRegression()
-    report=doer.train_save_test(listTrain, [], bWarm=False, filterFilesRegexp=False)
-    print(report)
 
 
 def test_model(model_name,model_dir,target_collection,model_id=''):
@@ -411,7 +409,7 @@ def test_model(model_name,model_dir,target_collection,model_id=''):
         #This break the baseline Models ..
         #tstReport=doer.test_files(listTest,filterFilesRegexp=False)
         #Should Do the seq test for the baseline model
-        if model_id=='':
+        if model_id=='' or model_id.startswith('logit'):
             tstReport=doer.test(listTest,filterFilesRegexp=False,test_sequential=False)
             rep=tstReport[0]
             rep.name=repname
@@ -469,6 +467,12 @@ def create_training_plan_pickle():
 
     for coll in sel_collections:
         AD_tmp.append((coll,'tf',0,'crf_c'))
+        AD_tmp.append((coll,'tf',0,'crf_c_uw'))
+        AD_tmp.append((coll,'tf',500,'crf_uw'))
+        AD_tmp.append((coll,'chi2',500,'logit_2'))
+        AD_tmp.append((coll,'tf',0,'logit_3'))
+        AD_tmp.append((coll,'tf',0,'logit_4'))
+
 
     AD=AD_tmp
     AD=sorted(AD,key= lambda x : x[0])
@@ -545,7 +549,7 @@ def qsub_test_plan(taskid,mem="48G"):
     #cmd_str='qsub -l h='(floriad|alabama|alaska|ontario)  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name+ ' -l vf=32G,h_vmem=32G '\
     #cmd_str='qsub -l h=\'(florida|alabama|ohio|alaska|ontario|arizona|california|nevada|chichet|oregon|montana|colorado|kansas|iowa|indiana)\'  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=48G,h_vmem=48G ' +exec_path +' '+str(taskid)
     cmd_str='qsub  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=1G,h_vmem=64G ' +exec_path +' '+str(taskid)
-    #cmd_str='qsub  -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=1G,h_vmem=32G ' +exec_path +' '+str(taskid)
+    cmd_str='qsub  -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=1G,h_vmem=32G ' +exec_path +' '+str(taskid)
     print cmd_str
     os.system(cmd_str)
 
@@ -556,10 +560,10 @@ def qsub_train_plan(taskid):
     exp_name = 'DS'+str(taskid)
     #cmd_str='qsub -l h='(floriad|alabama|alaska|ontario)  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name+ ' -l vf=32G,h_vmem=32G '\
     #cmd_str='qsub -l h=\'(florida|alabama|ohio|alaska|ontario|arizona|california|nevada|chichet|oregon|montana|colorado|kansas|iowa|indiana)\'  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=48G,h_vmem=48G ' +exec_path +' '+str(taskid)
-    cmd_str='qsub  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=1G,h_vmem=64G ' +exec_path +' '+str(taskid)
+    #cmd_str='qsub  -o /opt/scratch/MLS/sclincha/sge_logs/ -e /opt/scratch/MLS/sclincha/sge_logs/ -m a -cwd -N ' +exp_name + ' -l vf=1G,h_vmem=64G ' +exec_path +' '+str(taskid)
     #cmd_str='qsub  -l h=\'(texas|dakota)\' -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=200G,h_vmem=200G ' +exec_path +' '+str(taskid)
     #cmd_str='qsub  -l h=\'(texas|dakota|alerta|ontario|sirac)\' -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=128G ' +exec_path +' '+str(taskid)
-    #cmd_str='qsub   -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=64G,h_vmem=64G ' +exec_path +' '+str(taskid)
+    cmd_str='qsub   -o /dev/null -e /dev/null -m a -cwd -N ' +exp_name + ' -l vf=64G,h_vmem=64G ' +exec_path +' '+str(taskid)
     print cmd_str
     os.system(cmd_str)
 
@@ -617,7 +621,8 @@ if __name__ == '__main__':
             train_dodge_collection(collection,feat_select,nb_feat,model_id)
 
         elif mode=='dodge_train_crf':
-            #Temporary Fix
+            #TODO
+            #REMOVE THIS F
             train_collection = sys.argv[2]
             '''
             if train_collection.endswith('_chi2'):
