@@ -27,13 +27,19 @@
     under grant agreement No 674943.
     
 """
+import sys, os
 import gc
 
 from pystruct.utils import SaveLogger
 from pystruct.learners import OneSlackSSVM
 from pystruct.models import EdgeFeatureGraphCRF
 
-from common.trace import traceln
+try: #to ease the use without proper Python installation
+    from common.trace import traceln
+except ImportError:
+    sys.path.append( os.path.dirname(os.path.dirname( os.path.abspath(sys.argv[0]) )) )
+    from common.trace import traceln
+
 from common.chrono import chronoOn, chronoOff
 from Model import Model
 from Graph import Graph
@@ -291,12 +297,12 @@ class Model_SSVM_AD3(Model):
 # --- MAIN: DISPLAY STORED MODEL INFO ------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import sys
     try:
         sModelDir, sModelName = sys.argv[1:3]
     except:
-        print "Usage: %s <model-dir> <model-name>"
+        print "Usage: %s <model-dir> <model-name>"%sys.argv[0]
         print "Display some info regarding the stored model"
+        exit(1)
         
     mdl = Model_SSVM_AD3(sModelName, sModelDir)
     print "Loading %s"%mdl.getModelFilename()
