@@ -321,7 +321,14 @@ class Model:
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
         """
         raise Exception("Method must be overridden")
-            
+
+    def getModelInfo(self):
+        """
+        Get some basic model info
+        Return a textual report
+        """
+        return ""
+    
     def computeClassWeight(cls, lY):
         Y = np.hstack(lY)
         Y_unique = np.unique(Y)
