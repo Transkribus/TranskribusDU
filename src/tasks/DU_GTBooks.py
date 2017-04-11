@@ -209,7 +209,7 @@ if __name__ == "__main__":
         try:    traceln("Baseline best estimator: %s"%doer.bsln_mdl.best_params_)   #for GridSearch
         except: pass
         traceln(" --- CRF Model ---")
-        traceln(doer.getModelInfo())
+        traceln(doer.getModel().getModelInfo())
     elif lTst:
         doer.load()
         tstReport = doer.test(lTst)
