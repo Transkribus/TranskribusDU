@@ -60,7 +60,7 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
         lGraph = []
         for sFilename in lsFilename:
             if iVerbose: traceln("\t%s"%sFilename)
-            lG= Graph_MultiSinglePageXml.getSinglePages(sFilename, iVerbose)
+            lG= Graph_MultiSinglePageXml.getSinglePages(sFilename, bNeighbourhood,bDetach,bLabelled, iVerbose)
 #             if bNeighbourhood: g.collectNeighbors()            
 #             if bLabelled: g.parseDomLabels()
 #             if bDetach: g.detachFromDOM()
@@ -68,7 +68,7 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
         return lGraph
     
     @classmethod
-    def getSinglePages(cls, sFilename, iVerbose=0):
+    def getSinglePages(cls, sFilename,bNeighbourhood=True, bDetach=False, bLabelled=False, iVerbose=0):
         """
         load a pageXml
         Return a CRF Graph object
@@ -81,6 +81,9 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
 
         for pnum, page, domNdPage in cls._iter_Page_DomNode(doc):
             g = cls()
+            g.doc= doc
+            lGraph.append(g)
+            
             g.lNode,  g.lEdge = list(), list()
             #now that we have the page, let's create the node for each type!
             lPageNode = list()
@@ -88,60 +91,64 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
             # because the node types are supposed to have an empty intersection
                             
             lPageNode = [nd for nodeType in g.getNodeTypeList() for nd in nodeType._iter_GraphNode(doc, domNdPage, page) ]
-            
+
             #check that each node appears once
             setPageNdDomId = set([nd.domid for nd in lPageNode])
             assert len(setPageNdDomId) == len(lPageNode), "ERROR: some nodes fit with multiple NodeTypes"
             
         
-            g.lNode.extend(lPageNode)
+            g.lNode = lPageNode
             
             lPageEdge = Edge.Edge.computeEdges(lPrevPageNode, lPageNode)
             
-            g.lEdge.extend(lPageEdge)
+            g.lEdge = lPageEdge
             if iVerbose>=2: traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
             
+            if bNeighbourhood: g.collectNeighbors()            
+            if bLabelled: g.parseDomLabels()
+#             if bDetach: g.detachFromDOM()
+            
             lPrevPageNode = lPageNode
-        if iVerbose: traceln("\t\t (%d nodes,  %d edges)"%(len(g.lNode), len(g.lEdge)) )
+            if iVerbose: traceln("\t\t (%d nodes,  %d edges)"%(len(g.lNode), len(g.lEdge)) )
         
         return lGraph     
        
-    def parseXmlFile(self, sFilename, iVerbose=0):
-        """
-        load a pageXml
-        Return a CRF Graph object
-        """
-    
-        lGraph=[]
-        self.doc = libxml2.parseFile(sFilename)
-        self.lNode, self.lEdge = list(), list()
-        #load the block of each page, keeping the list of blocks of previous page
-        lPrevPageNode = None
-
-        for pnum, page, domNdPage in self._iter_Page_DomNode(self.doc):
-            #now that we have the page, let's create the node for each type!
-            lPageNode = list()
-            setPageNdDomId = set() #the set of DOM id
-            # because the node types are supposed to have an empty intersection
-                            
-            lPageNode = [nd for nodeType in self.getNodeTypeList() for nd in nodeType._iter_GraphNode(self.doc, domNdPage, page) ]
-            
-            #check that each node appears once
-            setPageNdDomId = set([nd.domid for nd in lPageNode])
-            assert len(setPageNdDomId) == len(lPageNode), "ERROR: some nodes fit with multiple NodeTypes"
-            
-        
-            self.lNode.extend(lPageNode)
-            
-            lPageEdge = Edge.Edge.computeEdges(lPrevPageNode, lPageNode)
-            
-            self.lEdge.extend(lPageEdge)
-            if iVerbose>=2: traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
-            
-            lPrevPageNode = lPageNode
-        if iVerbose: traceln("\t\t (%d nodes,  %d edges)"%(len(self.lNode), len(self.lEdge)) )
-        
-        return lGraph    
+#     def parseXmlFile(self, sFilename, iVerbose=0):
+#         """
+#         load a pageXml
+#         Return a CRF Graph object
+#         """
+#     
+#         lGraph=[]
+#         self.doc = libxml2.parseFile(sFilename)
+#         self.lNode, self.lEdge = list(), list()
+#         #load the block of each page, keeping the list of blocks of previous page
+#         lPrevPageNode = None
+# 
+#         for pnum, page, domNdPage in self._iter_Page_DomNode(self.doc):
+#             #now that we have the page, let's create the node for each type!
+#             lPageNode = list()
+#             setPageNdDomId = set() #the set of DOM id
+#             # because the node types are supposed to have an empty intersection
+#                             
+#             lPageNode = [nd for nodeType in self.getNodeTypeList() for nd in nodeType._iter_GraphNode(self.doc, domNdPage, page) ]
+#             
+#             #check that each node appears once
+#             setPageNdDomId = set([nd.domid for nd in lPageNode])
+#             assert len(setPageNdDomId) == len(lPageNode), "ERROR: some nodes fit with multiple NodeTypes"
+#             
+#         
+#             self.lNode.extend(lPageNode)
+#             
+#             lPageEdge = Edge.Edge.computeEdges(lPrevPageNode, lPageNode)
+#             
+#             self.lEdge.extend(lPageEdge)
+#             if iVerbose>=2: traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
+#             
+#             lPrevPageNode = lPageNode
+#         if iVerbose: traceln("\t\t (%d nodes,  %d edges)"%(len(self.lNode), len(self.lEdge)) )
+#         
+#         return lGraph    
 
     # ---------------------------------------------------------------------------------------------------------
     @classmethod
@@ -156,13 +163,12 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
         #--- XPATH contexts
         ctxt = doc.xpathNewContext()
         for ns, nsurl in Graph_MultiSinglePageXml.dNS.items(): ctxt.xpathRegisterNs(ns, nsurl)
-
+        
         assert Graph_MultiSinglePageXml.sxpPage, "CONFIG ERROR: need an xpath expression to enumerate PAGE elements"
         lNdPage = ctxt.xpathEval(Graph_MultiSinglePageXml.sxpPage)   #all pages
-        
         pnum = 0
         pagecnt = len(lNdPage)
-        for ndPage in lNdPage:
+        for ndPage in lNdPage[3:5]:
             pnum += 1
             iPageWidth  = int( ndPage.prop("imageWidth") )
             iPageHeight = int( ndPage.prop("imageHeight") )
