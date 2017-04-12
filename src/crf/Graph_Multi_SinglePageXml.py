@@ -82,7 +82,6 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
         for pnum, page, domNdPage in cls._iter_Page_DomNode(doc):
             g = cls()
             g.doc= doc
-            lGraph.append(g)
             
             g.lNode,  g.lEdge = list(), list()
             #now that we have the page, let's create the node for each type!
@@ -98,17 +97,17 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
             
         
             g.lNode = lPageNode
-            
-            lPageEdge = Edge.Edge.computeEdges(lPrevPageNode, lPageNode)
-            
-            g.lEdge = lPageEdge
-            if iVerbose>=2: traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
-            
-            if bNeighbourhood: g.collectNeighbors()            
-            if bLabelled: g.parseDomLabels()
-#             if bDetach: g.detachFromDOM()
-            
-#             lPrevPageNode = lPageNode
+            if not g.isEmpty():
+                lPageEdge = Edge.Edge.computeEdges(lPrevPageNode, lPageNode)
+                
+                g.lEdge = lPageEdge
+                if iVerbose>=2: traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
+                
+                if bNeighbourhood: g.collectNeighbors()            
+                if bLabelled: g.parseDomLabels()
+    #             if bDetach: g.detachFromDOM()
+    
+                lGraph.append(g)
             if iVerbose: traceln("\t\t (%d nodes,  %d edges)"%(len(g.lNode), len(g.lEdge)) )
         
         return lGraph     
