@@ -147,7 +147,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                           , help="To make warm-startable model and warm-start if a model exist already.")   
         parser.add_option("--rm", dest='rm',  action="store_true"
                           , help="Remove all model files")   
-        parser.add_option("--crf-max_iter", dest='crf_max_iter',  action="append", type="int"       #"append" to have a list and possibly do a gridsearch
+        parser.add_option("--crf-max_iter", dest='crf_max_iter',  action="append", type="int"        #"append" to have a list and possibly do a gridsearch
                           , help="CRF training parameter max_iter")    
         parser.add_option("--crf-C", dest='crf_C',  action="append", type="float"
                           , help="CRF training parameter C")    
