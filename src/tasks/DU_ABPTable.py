@@ -114,7 +114,7 @@ class DU_ABPTable(DU_CRF_Task):
                          , 'inference_cache'  : 10
                         , 'tol'              : .1
                         , 'save_every'       : 51     #save every 50 iterations,for warm start
-                         , 'max_iter'         : 100
+                         , 'max_iter'         : 1000
                          }
                      , sComment=sComment
                      ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
@@ -125,65 +125,55 @@ class DU_ABPTable(DU_CRF_Task):
     #=== END OF CONFIGURATION =============================================================
 
   
-    
-#     def annotateDocument(self,lsTrnColDir):
-#         """
-#             from cell elements: annotate textLine elements 
-#         """
-#         
-#         #load graphs
-#         _, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
-# 
-#         DU_GRAPH.addNodeType(ntA)
-#         lGraph_trn = DU_GRAPH.loadGraphs( lFilename_trn, bNeighbourhood=True, bLabelled=False,iVerbose=True)
-#         print lGraph_trn, lFilename_trn
-# 
-# 
-#         # get cells
-#         for i,graph in enumerate(lGraph_trn):
-#             
-#             lCells = filter(lambda x:x.node.name=='TextRegion',graph.lNode)
-#             lTextLine = filter(lambda x:x.node.name=='TextLine',graph.lNode)
-#             
-#             lPTextLine={}
-#             #sort textLine per page
-#             for tl in lTextLine:
-#                 try: lPTextLine[tl.page].append(tl)
-#                 except KeyError : lPTextLine[tl.page]=[tl]
-#                 
-#             # need to test if elements on the same page!!
-#             for cell in lCells:
-#                 lText=[]
-#                 for line in lPTextLine[cell.page]:
-#                     dh,dv=  line.getXYOverlap(cell)
-#                     # at least  
-#                     if dh > (line.x2 - line.x1)*0.1 and dv > 0:
-#                         line.node.unlinkNode()
-#                         cell.node.addChild(line.node)
-#                         lText.append(line)
-#                 if len(lText) == 1:
-#                     lText[0].node.setProp(lText[0].type.sLabelAttr,lLabels[3])
-#                 elif len(lText) >1:
-#                     lText.sort(key=lambda x:x.y1)
-#                     lText[0].node.setProp(lText[0].type.sLabelAttr,lLabels[0])
-#                     lText[-1].node.setProp(lText[-1].type.sLabelAttr,lLabels[2])
-#                     [x.node.setProp(x.type.sLabelAttr,lLabels[1]) for x in lText[1:-1]]
-#                 
-#             # check if all labelled
-#             # if no labelled: add other
-#             for tl in lTextLine:
-#                 sLabel = tl.type.parseDomNodeLabel(tl.node)
-#                 try:
-#                     cls = DU_GRAPH._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
-#                 except KeyError:              
-#                     tl.node.setProp(lText[0].type.sLabelAttr,lLabels[-1]) 
-#         doc =graph.doc    
-#         MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
-#         # save mpxml as mpxml.orig
-#         sDUFilename = lFilename_trn[i][:-len(MultiPageXml.sEXT)]+  self.sLabeledXmlFilenameEXT
-#         print sDUFilename
-#         doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
-#         doc.freeDoc()
+    def predict(self, lsColDir):
+        """
+        Return the list of produced files
+        """
+        self.traceln("-"*50)
+        self.traceln("Trained model '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
+        self.traceln("Predicting for collection(s):", lsColDir)
+        self.traceln("-"*50)
+
+        if not self._mdl: raise Exception("The model must be loaded beforehand!")
+        self.sXmlFilenamePattern = "*.mpxml"
+        #list the train and test files
+        _     , lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
+        
+        DU_GraphClass = self.cGraphClass
+
+        lPageConstraint = DU_GraphClass.getPageConstraint()
+        if lPageConstraint: 
+            for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
+        
+        self.traceln("- loading collection as graphs, and processing each in turn. (%d files)"%len(lFilename))
+        du_postfix = "_du"+MultiPageXml.sEXT
+        lsOutputFilename = []
+        lDocs= []
+        for sFilename in lFilename:
+            if sFilename.endswith(du_postfix): continue #:)
+            lg = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
+            
+            doc=None
+            for g in lg:
+                doc= g.doc
+                if lPageConstraint:
+                    self.traceln("\t- prediction with logical constraints: %s"%sFilename)
+                else:
+                    self.traceln("\t- prediction : %s"%sFilename)
+                Y = self._mdl.predict(g)
+                    
+                doc = g.setDomLabels(Y)
+            if doc is not None:
+                MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
+                sDUFilename = sFilename[:-len(MultiPageXml.sEXT)]+du_postfix
+                doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
+                doc.freeDoc()
+                del Y
+            self.traceln("\t done")
+            lsOutputFilename.append(sDUFilename)
+        self.traceln(" done")
+
+        return lsOutputFilename
                  
     
 if __name__ == "__main__":
@@ -225,9 +215,9 @@ if __name__ == "__main__":
     
     traceln("- classes: ", DU_GRAPH.getLabelNameList())
     
-    
     ## use. a_mpxml files
     doer.sXmlFilenamePattern = doer.sLabeledXmlFilenamePattern
+
 
     if options.iFoldInitNum or options.iFoldRunNum or options.bFoldFinish:
         if options.iFoldInitNum:
