@@ -112,9 +112,14 @@ class DU_GTBooks(DU_CRF_Task):
     , with the below labels 
     """
     sXmlFilenamePattern = "*.mpxml"
+
+#     #In case you want to change the Logistic Regression gird search parameters...
+#     dGridSearch_LR_conf  = {'C':[0.01, 0.1, 1.0, 10.0] }   #Grid search parameters for LR baseline method training
+#     dGridSearch_LR_n_jobs = 4                              #Grid search: number of jobs
     
     #=== CONFIGURATION ====================================================================
     def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
+        #NOTE: we might get a list in C tol max_iter inference_cache  (in case of gridsearch)
         
         DU_CRF_Task.__init__(self
                              , sModelName, sModelDir
@@ -136,7 +141,7 @@ class DU_GTBooks(DU_CRF_Task):
                                  #, 'tol'              : .1
                                  , 'tol'              : .05  if tol             is None else tol
                                  , 'save_every'       : 50     #save every 50 iterations,for warm start
-                                 , 'max_iter'         : 1000 if njobs           is None else njobs
+                                 , 'max_iter'         : 1000 if max_iter        is None else max_iter
                                  }
                              , sComment=sComment
                              , cFeatureDefinition=FeatureDefinition_PageXml_LogitExtractorV2

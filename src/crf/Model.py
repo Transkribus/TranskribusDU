@@ -285,6 +285,16 @@ class Model:
         """
         raise Exception("Method must be overridden")
 
+    def gridsearch(self, lGraph):
+        """
+        Return a model trained using the given labelled graphs, by grid search (see http://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html).
+        The train method is expected to save the model into self.getModelFilename(), at least at end of training
+        
+        if some baseline model(s) were set, they are also trained, using the node features
+        
+        """
+        raise Exception("Method must be overridden")
+
     def save(self):
         """
         Save a trained model
