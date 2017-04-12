@@ -27,9 +27,14 @@
     under grant agreement No 674943.
     
 """
-import sys, os
+import sys, os, types
 import gc
 
+if sys.platform == "win32":
+    from sklearn.model_selection import GridSearchCV
+else:
+    from sklearn.grid_search import GridSearchCV
+    
 from pystruct.utils import SaveLogger
 from pystruct.learners import OneSlackSSVM
 from pystruct.models import EdgeFeatureGraphCRF
@@ -60,14 +65,18 @@ class Model_SSVM_AD3(Model):
         """
         Model.__init__(self, sName, sModelDir)
         self.ssvm = None
+        self.bGridSearch = False
         
     def configureLearner(self, inference_cache=None, C=None, tol=None, njobs=None, save_every=None, max_iter=None):
+        #NOTE: we might get a list in C tol max_iter inference_cache  (in case of gridsearch)
         if None != inference_cache  : self.inference_cache   = inference_cache
         if None != C                : self.C                 = C
         if None != tol              : self.tol               = tol
         if None != njobs            : self.njobs             = njobs
         if None != save_every       : self.save_every        = save_every
         if None != max_iter         : self.max_iter          = max_iter
+        
+        self.bGridSearch = types.ListType in [type(v) for v in [self.inference_cache, self.C, self.tol, self.max_iter]]
 
     def load(self, expiration_timestamp=None):
         """
@@ -87,13 +96,16 @@ class Model_SSVM_AD3(Model):
             , otherwise, starts from scratch
         return nothing
         """
+        if self.bGridSearch:
+            return self.gridsearch(lGraph, verbose=verbose)
+    
         traceln("\t- computing features on training set")
         traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
         chronoOn()
         lX, lY = self.transformGraphs(lGraph, True)
         traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         traceln("\t [%.1fs] done\n"%chronoOff())
-
+        
         traceln("\t- retrieving or creating model...")
         self.ssvm = None
         sModelFN = self.getModelFilename()
@@ -121,6 +133,7 @@ class Model_SSVM_AD3(Model):
                                 , max_iter=self.max_iter                                        
                                 , show_loss_every=10, verbose=verbose)
             bWarmStart = False
+        
         chronoOn()
         traceln("\t - training graph-based model")
         traceln("\t\t solver parameters:"
@@ -144,6 +157,88 @@ class Model_SSVM_AD3(Model):
         del lX, lY
         gc.collect()
         return 
+
+    def gridsearch(self, lGraph, verbose=0):
+        """
+        do a grid search instead of a normal training
+        """
+        traceln("--- GRiD SEARCH FOR CRF MODEL ---")
+        traceln("\t- computing features on training set")
+        traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
+        chronoOn()
+        lX, lY = self.transformGraphs(lGraph, True)
+        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
+        traceln("\t [%.1fs] done\n"%chronoOff())
+
+        dPrm = {}
+        dPrm['C']               = self.C                if type(self.C)               == types.ListType else [self.C]
+        dPrm['tol']             = self.tol              if type(self.tol)             == types.ListType else [self.tol]
+        dPrm['inference_cache'] = self.inference_cache  if type(self.inference_cache) == types.ListType else [self.inference_cache]
+        dPrm['max_iter']        = self.max_iter         if type(self.max_iter)        == types.ListType else [self.max_iter]
+
+        traceln("\t- creating a SSVM-trained CRF model")
+        
+        traceln("\t\t- computing class weight:")
+        clsWeights = self.computeClassWeight(lY)
+        traceln("\t\t\t%s"%clsWeights)
+        
+        crf = EdgeFeatureGraphCRF(inference_method='ad3', class_weight=clsWeights)
+
+        self._ssvm = OneSlackSSVM(crf
+                            #, inference_cache=self.inference_cache, C=self.C, tol=self.tol
+                            , n_jobs=self.njobs
+                            #, logger=SaveLogger(sModelFN, save_every=self.save_every)
+                            #, max_iter=self.max_iter                                        
+                            , show_loss_every=10
+#                            , verbose=verbose)
+                            , verbose=1)
+        
+        self._gs_ssvm = GridSearchCV(self._ssvm, dPrm, n_jobs=1) 
+        self.ssvm = None
+        
+        chronoOn()
+        traceln("\t - training by grid search a graph-based model")
+        traceln("\t\t solver parameters for grid search:"
+                    , " inference_cache=",self.inference_cache
+                    , " C=",self.C, " tol=",self.tol, " n_jobs=",self.njobs
+                    , " max_iter=", self.max_iter)
+        self._gs_ssvm.fit(lX, lY)
+        traceln("\t [%.1fs] done (graph-based model is trained with best parameters, selected by grid search) \n"%chronoOff())
+
+        self.ssvm = self._gs_ssvm.best_estimator_ #Estimator that was chosen by the search
+
+        traceln("\tNumber of cross-validation splits (folds/iterations).", self._gs_ssvm.n_splits_)
+        traceln("\t", "- "*20)
+        traceln("\tBest parameters: ", self._gs_ssvm.best_params_ )
+        traceln("\t", "- "*20)
+        
+        logger=SaveLogger(self.getModelFilename())
+        logger(self.ssvm)  #save this model!
+        
+        traceln(self.getModelInfo())
+        
+        #Also save the details of this grid search
+        sFN = self.getModelFilename()[:-4] + "_cv_results_.pkl"
+        self.gzip_cPickle_dump(sFN, self._gs_ssvm.cv_results_)
+        traceln("\n\nGridSearchCV details: (also in %s)"%sFN)
+        traceln(self._gs_ssvm.cv_results_)
+        
+#         if not bWarmStart:
+#             self.ssvm.alphas = None  
+#             self.ssvm.constraints_ = None
+#             self.ssvm.inference_cache_ = None    
+#             traceln("\t\t(model made slimmer. Not sure you can efficiently warm-start it later on. See option -w.)")        
+
+        #the baseline model(s) if any
+        self._trainBaselines(lX, lY)
+        
+        #do some garbage collection
+        del lX, lY
+        gc.collect()
+        return 
+        
+        
+               
 
     def _ssvm_ad3plus_predict(self, lX, lConstraints):
         """

@@ -81,7 +81,8 @@ See DU_StAZH_b.py
     sMetadata_Comments = ""
     
     #dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
-    dGridSearch_LR_conf = {'C':[0.01, 0.1, 1.0, 10.0] }  #Grid search parameters for LR baseline method training
+    dGridSearch_LR_conf   = {'C':[0.01, 0.1, 1.0, 10.0] }  #Grid search parameters for LR baseline method training
+    dGridSearch_LR_n_jobs = 4                              #Grid search: number of jobs
     
     sXmlFilenamePattern = "*[0-9]"+MultiPageXml.sEXT    #how to find the Xml files
 
@@ -116,7 +117,9 @@ See DU_StAZH_b.py
 
     #---  COMMAND LINE PARSZER --------------------------------------------------------------------
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
-        usage = "%s <model-directory> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+"%sys_argv0
+        usage = """"%s <model-directory> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+
+or for a cross-validation [--fold-init <n>] [--fold-run <n> [-w]] [--fold-finish]
+CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--crf-njobs <int>] [crf-inference_cache <int>]"""%sys_argv0
         description = """ 
         Train or test or remove the given model or predict using the given model.
         The data is given as a list of DS directories.
@@ -144,15 +147,15 @@ See DU_StAZH_b.py
                           , help="To make warm-startable model and warm-start if a model exist already.")   
         parser.add_option("--rm", dest='rm',  action="store_true"
                           , help="Remove all model files")   
-        parser.add_option("--crf-max_iter", dest='crf_max_iter',  action="store", type="int"
+        parser.add_option("--crf-max_iter", dest='crf_max_iter',  action="append", type="int"       #"append" to have a list and possibly do a gridsearch
                           , help="CRF training parameter max_iter")    
-        parser.add_option("--crf-C", dest='crf_C',  action="store", type="float"
+        parser.add_option("--crf-C", dest='crf_C',  action="append", type="float"
                           , help="CRF training parameter C")    
-        parser.add_option("--crf-tol", dest='crf_tol',  action="store", type="float"
+        parser.add_option("--crf-tol", dest='crf_tol',  action="append", type="float"
                           , help="CRF training parameter tol")    
         parser.add_option("--crf-njobs", dest='crf_njobs',  action="store", type="int"
                           , help="CRF training parameter njobs")
-        parser.add_option("--crf-inference_cache", dest='crf_inference_cache',  action="store", type="int"
+        parser.add_option("--crf-inference_cache", dest='crf_inference_cache',  action="append", type="int"
                           , help="CRF training parameter inference_cache")    
 
         return usage, description, parser
@@ -178,7 +181,7 @@ See DU_StAZH_b.py
         add as Baseline a Logistic Regression model, trained via a grid search
         """
         lr = LogisticRegression(class_weight='balanced')
-        mdl = GridSearchCV(lr , self.dGridSearch_LR_conf)        
+        mdl = GridSearchCV(lr , self.dGridSearch_LR_conf, n_jobs=self.dGridSearch_LR_n_jobs)        
         self._lBaselineModel.append(mdl)
         return mdl
 
