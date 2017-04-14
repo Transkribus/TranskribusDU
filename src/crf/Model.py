@@ -175,7 +175,17 @@ class Model:
         """
         lX = [g.buildNodeEdgeMatrices(self._node_transformer, self._edge_transformer) for g in lGraph]
         if bLabelled:
-            lY = [g.buildLabelMatrix() for g in lGraph]
+            #line below is fast and correct but doesn't support well the developper when some data is not properly labelled
+            #lY = [g.buildLabelMatrix() for g in lGraph]
+            e = None
+            lY = list()
+            for g in lGraph:
+                try:
+                    lY.append(g.buildLabelMatrix())
+                except ValueError as _e:
+                    e = _e
+            if e: raise e  
+                
             return lX, lY
         else:
             return lX
