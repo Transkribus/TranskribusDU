@@ -78,6 +78,10 @@ class Model:
     def getBaselineFilename(self):
         return os.path.join(self.sDir, self.sName+"_baselines.pkl")
     
+    @classmethod
+    def _getParamsFilename(cls, sDir, sName):
+        return os.path.join(sDir, sName+"_params.json")
+        
     # --- Model loading/writing -------------------------------------------------------------
     def load(self, expiration_timestamp=None):
         """
@@ -95,6 +99,26 @@ class Model:
             
         return self    
             
+    def storeBestParams(self, dBestModelParameters):
+        """
+        Store those best parameters (generally a dictionary) under that name if given otherwise under the model's name
+        """
+        sFN = self._getParamsFilename(self.sDir, self.sName)
+        traceln("-+- Storing best parameters in ", sFN)
+        with open(sFN, "w") as fd:
+            fd.write(json.dumps(dBestModelParameters, sort_keys=True))
+    
+    @classmethod
+    def loadBestParams(cls, sDir, sName):
+        """
+        Load from disk the previously stored best parameters under that name or model's name
+        """
+        sFN = cls._getParamsFilename(sDir, sName)
+        traceln("-+- Reading best parameters from ", sFN)
+        with open(sFN, "r") as fd:
+            dBestModelParameters = json.loads(fd.read())
+        return dBestModelParameters
+        
     def _loadIfFresh(self, sFilename, expiration_timestamp, loadFun):
         """
         Look for the given file
