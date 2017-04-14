@@ -371,6 +371,17 @@ def create_model(collection_name,model_id='',feat_select=None,nb_feat=500,model_
         doer = DU_Baseline_Dodge(model_name,model_dir,'logit_4')
         return doer
 
+    elif model_id=='logit_5':
+        model_name=get_model_name(collection_name,'tf',0,model_id) #This ty the things... not good
+        doer = DU_Baseline_Dodge(model_name,model_dir,'logit_5')
+        return doer
+
+    elif model_id=='logit_6':
+        model_name=get_model_name(collection_name,'tf',0,model_id) #This ty the things... not good
+        doer = DU_Baseline_Dodge(model_name,model_dir,'logit_6')
+        return doer
+
+
     elif model_id=='crf':
         model_name=get_model_name(collection_name,'tf',500,model_id)
         doer = DU_Dodge.DU_Dodge(model_name,model_dir,feat_select=feat_select,nb_feat=nb_feat)
@@ -472,6 +483,8 @@ def create_training_plan_pickle():
         AD_tmp.append((coll,'chi2',500,'logit_2'))
         AD_tmp.append((coll,'tf',0,'logit_3'))
         AD_tmp.append((coll,'tf',0,'logit_4'))
+        AD_tmp.append((coll,'tf',0,'logit_5'))
+        AD_tmp.append((coll,'tf',0,'logit_6'))
 
 
     AD=AD_tmp
