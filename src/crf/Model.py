@@ -197,7 +197,8 @@ class Model:
          - a list of X and a list of Y
          - a list of X
         """
-        lX = [g.buildNodeEdgeMatrices(self._node_transformer, self._edge_transformer) for g in lGraph]
+        #let's first extract the Y, because if some label is not represented, no need to compute X!!
+        
         if bLabelled:
             #line below is fast and correct but doesn't support well the developper when some data is not properly labelled
             #lY = [g.buildLabelMatrix() for g in lGraph]
@@ -209,7 +210,10 @@ class Model:
                 except ValueError as _e:
                     e = _e
             if e: raise e  
-                
+
+        lX = [g.buildNodeEdgeMatrices(self._node_transformer, self._edge_transformer) for g in lGraph]
+        
+        if bLabelled:
             return lX, lY
         else:
             return lX
