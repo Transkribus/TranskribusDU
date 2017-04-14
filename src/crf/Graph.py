@@ -53,9 +53,21 @@ class Graph:
         self.lEdge = lEdge
         self.doc   = None
         
+        self.name = "_unnamed_graph_"
+        
         self.bNodeIndexed  = None   #did we already assign a unique index to each node?
         self.aNeighborClassMask = None   #did we compute the neighbor class mask already?
         
+        self.aLabelCount = None #count of seen labels
+        
+    # --- getters/setters -------------------------------------------------
+    def setName(self, name):
+        """
+        convenient to name thing, not required
+        """
+        self.name = name
+        return name
+    
     # --- Node Types -------------------------------------------------
     @classmethod
     def getNodeTypeList(cls):
@@ -180,6 +192,7 @@ class Graph:
             if bNeighbourhood: g.collectNeighbors()            
             if bLabelled: g.parseDomLabels()
             if bDetach: g.detachFromDOM()
+            g.setName(sFilename)
             lGraph.append(g)
         return lGraph
 
@@ -295,11 +308,18 @@ class Graph:
         edge_features = edge_transformer.transform(self.lEdge)
         return (node_features, edges, edge_features)       
     
-    def buildLabelMatrix(self):
+    def buildLabelMatrix(self, bStrict=True):
         """
+        if bStrict is True, raise a Valuexception if any label is missing
         Return the matrix of labels
         """
         Y = np.array( [nd.cls for nd in self.lNode] , dtype=np.uint8)
+        self.aLabelCount, _ = np.histogram(Y, range(np.max(Y)+2))
+        traceln("   Labels count: ", self.aLabelCount, " (graph %s)"%self.name)
+        if np.min(self.aLabelCount) == 0:
+            sMsg = "*** ERROR *** Label(s) not observed in data."
+            traceln( sMsg+" Label(s): %s"% np.where(self.aLabelCount[:] == 0)[0] )
+            if bStrict: raise ValueError(sMsg)
         return Y
     
     def _indexNodes(self):
