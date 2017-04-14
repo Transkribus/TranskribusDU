@@ -106,7 +106,7 @@ class DU_BL_Task(DU_CRF_Task):
         self.traceln("\t - configuration: ", self.config_learner_kwargs )
 
         self.traceln("- loading training graphs")
-        lGraph_trn = DU_GraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1,bNeighbourhood=True)
+        lGraph_trn = DU_GraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1,bNeighbourhood=True,attachEdge=True)
         self.traceln(" %d graphs loaded"%len(lGraph_trn))
 
         self.traceln("- retrieving or creating feature extractors...")
@@ -133,16 +133,10 @@ class DU_BL_Task(DU_CRF_Task):
         self._mdl = mdl
         if lFilename_tst:
             self.traceln("- loading test graphs")
-            lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
+            lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1,attachEdge=True)
             self.traceln(" %d graphs loaded"%len(lGraph_tst))
 
             oReport = mdl.test(lGraph_tst)
-
-
-
-
-
-
             print(oReport)
             for rep in oReport:
                 print(rep)
@@ -164,6 +158,47 @@ class DU_BL_Task(DU_CRF_Task):
         glr = GridSearchCV(lr , self.dGridSearch_LR_conf)
         self._lBaselineModel=[glr]
 
+
+
+    def test(self, lsTstColDir,test_sequential=True,filterFilesRegexp=True):
+        """
+        test the model
+        return a TestReport object
+        """
+        self.traceln("-"*50)
+        self.traceln("Trained model '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
+        self.traceln("Testing  collection(s):", lsTstColDir)
+        self.traceln("-"*50)
+
+        if not self._mdl: raise Exception("The model must be loaded beforehand!")
+
+        if filterFilesRegexp:
+            #list the train and test files
+            _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
+        else:
+            #Assume the file list are correct
+            lFilename_tst=lsTstColDir
+
+        DU_GraphClass = self.cGraphClass
+
+        lPageConstraint = DU_GraphClass.getPageConstraint()
+        if lPageConstraint:
+            for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
+
+        if test_sequential is False:
+            #Load All
+            self.traceln("- loading test graphs")
+            lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1,attachEdge=True)
+            self.traceln(" %d graphs loaded"%len(lGraph_tst))
+            oReport = self._mdl.test(lGraph_tst)
+
+        else:
+            #lower memory footprint
+            self.traceln("- Testing...")
+            self.traceln(" %d graphs to load, one by one"%len(lFilename_tst))
+            oReport = self._mdl.testFiles(lFilename_tst, lambda s: DU_GraphClass.loadGraphs([s], bDetach=True, bLabelled=True, iVerbose=1,attachEdge=True))
+
+        return oReport
 
 
 
@@ -193,6 +228,7 @@ class   DU_Baseline(DU_BL_Task):
     , 'text_neighbors':False
     ,'n_tfidf_node_neighbors':500
     ,'XYWH_v2':False
+    ,'edge_features':False
     }
 
     dLearnerConfig={  'C': .1
@@ -242,10 +278,35 @@ class   DU_Baseline(DU_BL_Task):
             paramsFeatSelect['n_tfidf_node']=100000
             #But Chi2 Feature selection of text feature
             paramsFeatSelect['text_neighbors']=True
-            paramsFeatSelect['n_tfidf_node_neighbors']=500
+            paramsFeatSelect['n_tfidf_node_neighbors']=1000
             paramsFeatSelect['XYWH_v2']=True
             DU_BL_Task.__init__(self, sModelName, sModelDir,DU_GRAPH,
                                 dFeatureConfig=paramsFeatSelect,dLearnerConfig=self.dLearnerConfig,sComment=sComment)
+
+        elif logitID=='logit_5':
+            paramsFeatSelect=dict(self.dFeatureConfig_FeatSelect)
+            #No feature selections for the node text feature
+            paramsFeatSelect['n_tfidf_node']=100000
+            #But Chi2 Feature selection of text feature
+            paramsFeatSelect['text_neighbors']=True
+            paramsFeatSelect['n_tfidf_node_neighbors']=-1 #Means takes all
+            paramsFeatSelect['XYWH_v2']=True
+            DU_BL_Task.__init__(self, sModelName, sModelDir,DU_GRAPH,
+                                dFeatureConfig=paramsFeatSelect,dLearnerConfig=self.dLearnerConfig,sComment=sComment)
+
+        elif logitID=='logit_6':
+            paramsFeatSelect=dict(self.dFeatureConfig_FeatSelect)
+            #No feature selections for the node text feature
+            paramsFeatSelect['n_tfidf_node']=100000
+            #But Chi2 Feature selection of text feature
+            paramsFeatSelect['text_neighbors']=True
+            paramsFeatSelect['n_tfidf_node_neighbors']=1000 #Means takes all
+            paramsFeatSelect['XYWH_v2']=True
+            paramsFeatSelect['edge_features']=True
+            DU_BL_Task.__init__(self, sModelName, sModelDir,DU_GRAPH,
+                                dFeatureConfig=paramsFeatSelect,dLearnerConfig=self.dLearnerConfig,sComment=sComment)
+
+
 
 
         else:
