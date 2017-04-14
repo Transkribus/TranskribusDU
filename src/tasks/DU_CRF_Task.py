@@ -41,6 +41,12 @@ if sys.platform == "win32":
 else:
     from sklearn.grid_search import GridSearchCV
 
+try: #to ease the use without proper Python installation
+    import TranskribusDU_version
+except ImportError:
+    sys.path.append( os.path.dirname(os.path.dirname( os.path.abspath(sys.argv[0]) )) )
+    import TranskribusDU_version
+
 from common.trace import traceln
 
 import crf.Model
@@ -108,24 +114,47 @@ See DU_StAZH_b.py
     def setModelClass(self, cModelClass): 
         self.cModelClass = cModelClass
         assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
+    def getModelClass(self):
+        return self.cModelClass
+    
     def getModel(self):
         return self._mdl
     
+    def setLearnerConfiguration(self, dParams):
+        self.config_learner_kwargs = dParams
+        
     def setFeatureDefinition(self, cFeatureDefinition): 
         self.cFeatureDefinition = cFeatureDefinition
         assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
 
     #---  COMMAND LINE PARSZER --------------------------------------------------------------------
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
-        usage = """"%s <model-directory> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+
-or for a cross-validation [--fold-init <n>] [--fold-run <n> [-w]] [--fold-finish]
-CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--crf-njobs <int>] [crf-inference_cache <int>]"""%sys_argv0
-        description = """ 
-        Train or test or remove the given model or predict using the given model.
-        The data is given as a list of DS directories.
-        The model is loaded from or saved to the model directory.
-        """
-    
+        usage = """"%s <model-folder> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+
+or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish] [--fold <col-dir>]+
+CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--crf-njobs <int>] [crf-inference_cache <int>] [best-params=<model-name>]
+
+        For the named MODEL using the given FOLDER for storage:
+        --rm  : remove all model data from the folder
+        --trn : train a model using the given data (multiple --trn are possible)
+                  --warm/-w: warm-start the training if applicable
+        --tst : test the model using the given test collection (multiple --tst are possible)
+        --run : predict using the model for the given collection (multiple --run are possible)
+        
+        --fold        : enlist one collection as data source for cross-validation
+        --fold-init   : generate the content of the N folds 
+        --fold-run    : run the given fold, if --warm/-w, then warm-start if applicable 
+        --fold-finish : collect and aggregate the results of all folds that were run.
+        
+        --crf-njobs    : number of parallel training jobs
+        
+        --crf-XXX        : set the XXX trainer parameter. XXX can be max_iter, C, tol, inference-cache
+                            If several values are given, a grid search is done by cross-validation. 
+                            The best set of parameters is then stored and can be used thanks to the --best-params option.
+        --best-params    : uses the parameters obtained by the previously done grid-search. 
+                            If it was done on a model fold, the name takes the form: <model-name>_fold_<fold-number>, e.g. foo_fold_2
+        
+        """%sys_argv0
+
         #prepare for the parsing of the command line
         parser = OptionParser(usage=usage, version=version)
         
@@ -147,18 +176,19 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                           , help="To make warm-startable model and warm-start if a model exist already.")   
         parser.add_option("--rm", dest='rm',  action="store_true"
                           , help="Remove all model files")   
-        parser.add_option("--crf-max_iter", dest='crf_max_iter',  action="append", type="int"        #"append" to have a list and possibly do a gridsearch
-                          , help="CRF training parameter max_iter")    
-        parser.add_option("--crf-C", dest='crf_C',  action="append", type="float"
-                          , help="CRF training parameter C")    
-        parser.add_option("--crf-tol", dest='crf_tol',  action="append", type="float"
-                          , help="CRF training parameter tol")    
         parser.add_option("--crf-njobs", dest='crf_njobs',  action="store", type="int"
                           , help="CRF training parameter njobs")
-        parser.add_option("--crf-inference_cache", dest='crf_inference_cache',  action="append", type="int"
+        parser.add_option("--crf-max_iter"          , dest='crf_max_iter'       ,  action="append", type="int"        #"append" to have a list and possibly do a gridsearch
+                          , help="CRF training parameter max_iter")    
+        parser.add_option("--crf-C"                 , dest='crf_C'              ,  action="append", type="float"
+                          , help="CRF training parameter C")    
+        parser.add_option("--crf-tol"               , dest='crf_tol'            ,  action="append", type="float"
+                          , help="CRF training parameter tol")    
+        parser.add_option("--crf-inference_cache"   , dest='crf_inference_cache',  action="append", type="int"
                           , help="CRF training parameter inference_cache")    
-
-        return usage, description, parser
+        parser.add_option("--best-params", dest='best_params',  action="store", type="string"
+                          , help="Use the best  parameters from the grid search previously done on the given model or model fold") 
+        return usage, None, parser
     getBasicTrnTstRunOptionParser = classmethod(getBasicTrnTstRunOptionParser)
            
     #----------------------------------------------------------------------------------------------------------    
@@ -217,7 +247,8 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         for s in [  mdl.getModelFilename()
                   , mdl.getTransformerFilename()
                   , mdl.getConfigurationFilename()
-                  , mdl.getBaselineFilename()       ]:
+                  , mdl.getBaselineFilename()
+                  , mdl._getParamsFilename()       ]:
             if os.path.exists(s):
                 self.traceln("\t - rm %s"%s) 
                 os.unlink(s)
@@ -568,3 +599,12 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         return ts, lFn
     listMaxTimestampFile = classmethod(listMaxTimestampFile)
     
+
+if __name__ == "__main__":
+
+    version = "v.01"
+    usage, description, parser = DU_CRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
+
+    parser.print_help()
+    
+    traceln("\nThis module should not be run as command line. It does nothing. (And did nothing!)")

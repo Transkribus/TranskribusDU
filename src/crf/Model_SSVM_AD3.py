@@ -210,6 +210,7 @@ class Model_SSVM_AD3(Model):
         traceln("\tNumber of cross-validation splits (folds/iterations).", self._gs_ssvm.n_splits_)
         traceln("\t", "- "*20)
         traceln("\tBest parameters: ", self._gs_ssvm.best_params_ )
+        self.storeBestParams(self._gs_ssvm.best_params_)
         traceln("\t", "- "*20)
         
         logger=SaveLogger(self.getModelFilename())
