@@ -35,6 +35,7 @@
     under grant agreement No 674943.
     
 """
+import sys
 
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.preprocessing import StandardScaler
@@ -83,7 +84,7 @@ TypeError: can't pickle PyCapsule objects
         => I force n_jobs to 1
         
         """
-        n_jobs = 1
+        if sys.platform == "win32": n_jobs = 1
         
         
         n_jobs_NodeTransformerLogit = max(1, n_jobs/2)  #half of the jobs for the NodeTransformerLogit, the rets for the others
