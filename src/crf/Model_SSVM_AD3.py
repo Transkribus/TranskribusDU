@@ -207,10 +207,20 @@ class Model_SSVM_AD3(Model):
 
         self.ssvm = self._gs_ssvm.best_estimator_ #Estimator that was chosen by the search
 
-        traceln("\tNumber of cross-validation splits (folds/iterations).", self._gs_ssvm.n_splits_)
+        try:
+            #win32
+            dBestParams = self._gs_ssvm.best_params_ 
+        except:
+            #do not know how to get this... in 
+            dBestParams = { 'C'             : self.ssvm.C,
+                           'inference_cache': self.ssvm.inference_cache,
+                           'max_iter'       : self.ssvm.max_iter,
+                           'tol'            : self.ssvm.tol 
+                           }
+            
+        self.storeBestParams(dBestParams)
         traceln("\t", "- "*20)
-        traceln("\tBest parameters: ", self._gs_ssvm.best_params_ )
-        self.storeBestParams(self._gs_ssvm.best_params_)
+        traceln("\tBest parameters: ",  dBestParams)
         traceln("\t", "- "*20)
         
         logger=SaveLogger(self.getModelFilename())
@@ -219,10 +229,15 @@ class Model_SSVM_AD3(Model):
         traceln(self.getModelInfo())
         
         #Also save the details of this grid search
-        sFN = self.getModelFilename()[:-4] + "_cv_results_.pkl"
-        self.gzip_cPickle_dump(sFN, self._gs_ssvm.cv_results_)
-        traceln("\n\nGridSearchCV details: (also in %s)"%sFN)
-        traceln(self._gs_ssvm.cv_results_)
+        sFN = self.getModelFilename()[:-4] + "GridSearchCV.pkl"
+        try:
+            self.gzip_cPickle_dump(sFN, self._gs_ssvm)
+            traceln("\n\nGridSearchCV details: (also in %s)"%sFN)
+            traceln(self._gs_ssvm)
+        except Exception as e:
+            traceln("ERROR: cannot save the GridSearchCV object in file ", sFN)
+            traceln(e)
+
         
 #         if not bWarmStart:
 #             self.ssvm.alphas = None  
