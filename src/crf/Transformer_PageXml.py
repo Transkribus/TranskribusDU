@@ -521,3 +521,28 @@ def lcs_length(a,na, b,nb):
             curRow[j] = curRowj
     return curRowj
 
+
+class NodeEdgeTransformer(Transformer):
+    """
+    we will get a list of list of edges ...
+    """
+    def __init__(self,edge_list_transformer,agg_func='sum'):
+        self.agg_func=agg_func
+        self.edge_list_transformer=edge_list_transformer
+
+    def transform(self,lNode):
+        x_all=[]
+        for i, blk in enumerate(lNode):
+            x_edge_node = self.edge_list_transformer.transform(blk.edgeList)
+            if self.agg_func=='sum':
+                x_node=x_edge_node.sum(axis=0)
+            elif self.agg_func=='mean':
+                x_node=x_edge_node.mean(axis=0)
+            else:
+                raise ValueError('Invalid Argument',self.agg_func)
+            x_all.append(x_node)
+        return np.vstack(x_all)
+
+
+
+

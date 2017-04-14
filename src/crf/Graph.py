@@ -160,7 +160,7 @@ class Graph:
     
     # --- Graph building --------------------------------------------------------
     @classmethod
-    def loadGraphs(cls, lsFilename, bNeighbourhood=True, bDetach=False, bLabelled=False, iVerbose=0):
+    def loadGraphs(cls, lsFilename, bNeighbourhood=True, bDetach=False, bLabelled=False, iVerbose=0,attachEdge=False):
         """
         Load one graph per file, and detach its DOM
         return the list of loaded graphs
@@ -170,7 +170,8 @@ class Graph:
             if iVerbose: traceln("\t%s"%sFilename)
             g = cls()
             g.parseXmlFile(sFilename, iVerbose)
-            if bNeighbourhood: g.collectNeighbors()            
+            if attachEdge and bNeighbourhood: g.collectNeighbors(attachEdge=True)
+            if bNeighbourhood: g.collectNeighbors()
             if bLabelled: g.parseDomLabels()
             if bDetach: g.detachFromDOM()
             lGraph.append(g)
@@ -224,14 +225,17 @@ class Graph:
         """
         raise Exception("Must be specialized")
     
-    def collectNeighbors(self):
+    def collectNeighbors(self,attachEdge=False):
         """
         record the lists of hotizontal-, vertical- and cross-page neighbours for each node
         """
         for blk in self.lNode:
             blk.lHNeighbor = list()
             blk.lVNeighbor = list()
-            blk.lCPNeighbor = list()        
+            blk.lCPNeighbor = list()
+            if attachEdge:
+                blk.edgeList=list()
+
         for edge in self.lEdge:
             a, b = edge.A, edge.B
             if isinstance(edge, Edge.CrossPageEdge):
@@ -244,6 +248,14 @@ class Graph:
                 assert  isinstance(edge, Edge.VerticalEdge)
                 a.lVNeighbor.append(b)
                 b.lVNeighbor.append(a)
+
+        if attachEdge:
+            for edge in self.lEdge:
+                a, b = edge.A, edge.B
+                #Can I get all the correct function from a.lCPNeighbor etc ...
+                a.edgeList.append(edge)
+                b.edgeList.append(edge)
+
     
     def getNeighborClassMask(self):
         """

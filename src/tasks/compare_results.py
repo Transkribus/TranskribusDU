@@ -118,7 +118,9 @@ def crf_tasks():
     #M=[('tf',500),('tf',1000),('tf',10000),('chi2',500),('chi2',1000),('mi_rr',500),('mi_rr',1000)]
     #M=[('tf',500),('tf',1000),('tf',10000),('chi2',500),('chi2',1000),('mi_rr',500),('mi_rr',1000),('chi2_rr',500),('chi2_rr',1000)]
     M=[('tf',500,''),('tf',1000,''),('chi2',500,''),('chi2',1000,''),('chi2_rr',500,''),('chi2_rr',1000,''),('tf',500,'crf'),('tf',500,'crf_uw'),
-       ('tf',1000,'crf'),('chi2',500,'crf'),('chi2',1000,'crf'),('tf',0,'crf_c'),('tf',0,'crf_c_uw')]
+       ('tf',1000,'crf'),('chi2',500,'crf'),('chi2',1000,'crf'),('tf',0,'crf_c'),('tf',0,'crf_c_uw'),('chi2',500,'logit_2'),
+       ('tf',0,'logit_3'),('tf',0,'logit_4'),('tf',0,'logit_5')
+       ]
 
 
     #Measure Accuracy, Macro Average Precision Macro F1
@@ -139,7 +141,14 @@ def crf_tasks():
         if models[2].startswith('crf') :
             H.append(models[2]+'_'+str(models[0])+'_'+str(models[1])+':'+eval_metric )
         else:
-            H.append(str(models[0])+'_'+str(models[1])+':'+eval_metric )
+            if models[2]=='':
+                H.append('logit_'+str(models[0])+'_'+str(models[1])+':'+eval_metric )
+            elif models[2].startswith('logit_'):
+                H.append(models[2]+'_'+str(models[0])+'_'+str(models[1])+':'+eval_metric)
+            else:
+                raise Exception('Invalid ModelID')
+
+
 
 
     return ALL_PERF,H
@@ -201,7 +210,7 @@ def plot_diff(df_selection,ylim=[0.6,1],ylabel='Macro Average of F1'):
     plt.xlabel('Task index')
     plt.ylabel(ylabel)
 
-    plt.title('Mean over Task:'+str(m))
+    plt.title('NaN Mean over Task:'+str(m))
     plt.grid(True)
     plt.show()
 
@@ -263,13 +272,27 @@ if __name__=='__main__':
         plot_diff(df_sel,ylim=[0.2,1],ylabel='Macro Average F1')
         '''
 
-        sel_columns=['crf_tf_500:ACC','crf_uw_tf_500:ACC','crf_tf_500:F1','crf_uw_tf_500:F1',]
+        '''
+        sel_columns=['crf_tf_500:ACC','crf_uw_tf_500:ACC','crf_c_tf_0:ACC','crf_c_uw_tf_0:ACC']
         df_sel = df[sel_columns]
-        plot_diff(df_sel,ylim=[0.2,1.1],ylabel='Accuracy and F1')
+        plot_diff(df_sel,ylim=[0.85,1.05],ylabel='Accuracy')
 
-        sel_columns=['crf_c_tf_0:ACC','crf_c_uw_tf_0:ACC','crf_c_tf_0:F1','crf_c_uw_tf_0:F1',]
+        sel_columns=['crf_tf_500:F1','crf_uw_tf_500:F1','crf_c_tf_0:F1','crf_c_uw_tf_0:F1',]
         df_sel = df[sel_columns]
-        plot_diff(df_sel,ylim=[0.2,1.1],ylabel='Accuracy and F1')
+        plot_diff(df_sel,ylim=[0.2,1.0],ylabel='F1')
+        '''
+
+        sel_columns=['logit_chi2_500:ACC','logit_2_chi2_500:ACC','logit_3_tf_0:ACC','logit_4_tf_0:ACC','logit_5_tf_0:ACC','crf_c_tf_0:ACC']
+        df_sel = df[sel_columns]
+        plot_diff(df_sel,ylim=[0.95,1.02],ylabel='Accuracy')
+
+        sel_columns=['logit_chi2_500:F1','logit_2_chi2_500:F1','logit_3_tf_0:F1','logit_4_tf_0:F1','logit_5_tf_0:F1','crf_c_tf_0:F1']
+        df_sel = df[sel_columns]
+        plot_diff(df_sel,ylim=[0.2,1.05],ylabel='F1')
+
+
+
+
 
         embed()
         print('Embed ...')

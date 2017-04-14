@@ -33,8 +33,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer,CountVectorizer
 
 from crf.Transformer import SparseToDense
 from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH, NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures,NodeTransformerNeighborsAllText
-from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
+from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures,EdgeBooleanFeatures_v2, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
+from crf.Transformer_PageXml import NodeEdgeTransformer
 
 from FeatureDefinition import FeatureDefinition
 
@@ -62,7 +63,8 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
     def __init__(self, n_tfidf_node=None, t_ngrams_node=None, b_tfidf_node_lc=None
                      , n_tfidf_edge=None, t_ngrams_edge=None, b_tfidf_edge_lc=None
                      ,feat_select=None,text_neighbors=False, n_tfidf_node_neighbors=500
-                     ,XYWH_v2=False):
+                     ,XYWH_v2=False, edge_features=False):
+
         FeatureDefinition.__init__(self)
 
         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
@@ -71,10 +73,9 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
         self.text_neighbors=text_neighbors
         self.n_tfidf_node_neighbors=n_tfidf_node_neighbors
         self.XYWH_v2=XYWH_v2
+        self.edge_features=edge_features
+        #TODO n_jobs=4
 
-        #TODO assert n_tfidf_node is int ...
-        #tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=10000
-        #                                                                         , analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
 
         if feat_select=='chi2':
             feat_selector=SelectKBest(chi2, k=self.n_tfidf_node)
@@ -100,17 +101,17 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
             tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc,max_features=10000, analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
 
             text_pipeline = Pipeline([('selector', NodeTransformerTextEnclosed()),
-                                               ('tf', tdifNodeTextVectorizer), #we can use it separately from the pipleline once fitted
+                                               ('tf', tdifNodeTextVectorizer),
                                                 ('word_selector',feat_selector),
-                                               ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
+                                               #('todense', SparseToDense()) #Here we don't need to convert to Dense anymore
                                                ])
         else:
             tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=self.n_tfidf_node
                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
                                                                                   , dtype=np.float64)
             text_pipeline= Pipeline([('selector', NodeTransformerTextEnclosed()),
-                                               ('tf', tdifNodeTextVectorizer), #we can use it separately from the pipleline once fitted
-                                               ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
+                                               ('tf', tdifNodeTextVectorizer),
+                                               #('todense', SparseToDense()) #Here we don't need to convert to Dense anymore
                                                ])
 
 
@@ -145,28 +146,36 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
 
 
         if text_neighbors:
-            print('############   ADDING the feature TEXT NEIGHBORS Youjhou!!')
             #BY DEFAULT we use chi2
-            feat_selector_neigh=SelectKBest(chi2, k=self.n_tfidf_node_neighbors)
-            neighborsTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc,analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
-            neighbors_text_pipeline = Pipeline([('selector', NodeTransformerNeighborsAllText()),
-                                               ('tf_neighbors', neighborsTextVectorizer),
-                                                ('feat_selector',feat_selector_neigh),
-                                               ('todense', SparseToDense())
-                                               ])
+            if self.n_tfidf_node_neighbors>0:
+                feat_selector_neigh=SelectKBest(chi2, k=self.n_tfidf_node_neighbors)
+                neighborsTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc,analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
+                neighbors_text_pipeline = Pipeline([('selector', NodeTransformerNeighborsAllText()),
+                                                   ('tf_neighbors', neighborsTextVectorizer),
+                                                    ('feat_selector',feat_selector_neigh),
+                                                   ])
 
+            else:
+                neighborsTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc,analyzer = 'char', ngram_range=self.t_ngrams_node) #(2,6)
+                neighbors_text_pipeline = Pipeline([('selector', NodeTransformerNeighborsAllText()),
+                                                   ('tf_neighbors', neighborsTextVectorizer)
+                                                    ])
             node_transformer_ops.append(('text_neighbors',neighbors_text_pipeline))
-            '''
-            node_transformer_ops.append(('text_neighbors',
-                                         Pipeline([ ('selector_1',NodeTransformerNeighborsAllText()),
-                                             ('tf', neighborsTextVectorizer),
-                                             ('todense', SparseToDense())
-                                             ])
-                                         ))
-            '''
+
+
+        print(node_transformer_ops)
+
+
+        node_aggregated_edge_features=[('1hot_edge',NodeEdgeTransformer(Edge1HotFeatures(PageNumberSimpleSequenciality()),agg_func='sum')) ]
+        node_aggregated_edge_features.append(('boolean_edge',NodeEdgeTransformer(EdgeBooleanFeatures_v2(),agg_func='sum')) )
+        #Aggregated Numerical Features do not make a lot of sense here ....
+
+        if edge_features:
+            node_transformer_ops.extend(node_aggregated_edge_features)
 
         print(node_transformer_ops)
         node_transformer = FeatureUnion(node_transformer_ops)
+
 
         #Minimal EdgeFeature Here
         lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
@@ -207,7 +216,6 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
         """
         #TODO Better Cleaning for feature selection
         self._node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
-        
         return self._node_transformer
 
 
