@@ -104,7 +104,7 @@ class Model_SSVM_AD3(Model):
         traceln("\t- computing features on training set")
         traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
         chronoOn()
-        lX, lY = self.transformGraphs(lGraph, True)
+        lX, lY = self.get_lX(lGraph), self.get_lY(lGraph)
         traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         traceln("\t [%.1fs] done\n"%chronoOff())
         
@@ -168,7 +168,7 @@ class Model_SSVM_AD3(Model):
         traceln("\t- computing features on training set")
         traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
         chronoOn()
-        lX, lY = self.transformGraphs(lGraph, True)
+        lX, lY = self.get_lX(lGraph), self.get_lY(lGraph)
         traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         traceln("\t [%.1fs] done\n"%chronoOff())
 
@@ -287,7 +287,8 @@ class Model_SSVM_AD3(Model):
         
         traceln("\t- computing features on test set")
         chronoOn()
-        lX, lY = self.transformGraphs(lGraph, True)
+        lX, lY = self.get_lX(lGraph), self.get_lY(lGraph)
+        
         traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
         traceln("\t [%.1fs] done\n"%chronoOff())
@@ -328,7 +329,7 @@ class Model_SSVM_AD3(Model):
         
         for sFilename in lsFilename:
             [g] = loadFun(sFilename) #returns a singleton list
-            [X], [Y] = self.transformGraphs([g], True)
+            [X], [Y] = self.get_lX([g]), self.get_lY([g])
 
             if lLabelName == None:
                 lLabelName = g.getLabelNameList()
@@ -379,7 +380,7 @@ class Model_SSVM_AD3(Model):
         predict the class of each node of the graph
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
         """
-        [X] = self.transformGraphs([graph])
+        [X] = self.get_lX([graph])
         bConstraint  = graph.getPageConstraint()
         
         traceln("\t\t #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))

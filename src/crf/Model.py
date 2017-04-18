@@ -188,36 +188,20 @@ class Model:
         dat =  self._loadIfFresh(sTransfFile, expiration_timestamp, self.gzip_cPickle_load)
         self._node_transformer, self._edge_transformer = dat        
         return True
-        
-    def transformGraphs(self, lGraph, bLabelled=False):
+    
+    def get_lX(self, lGraph):
         """
         Compute node and edge features and return one X matrix for each graph as a list
-        If bLabelled==True, return the Y matrix for each as a list
-        return either:
-         - a list of X and a list of Y
-         - a list of X
+        return a list of X
         """
-        #let's first extract the Y, because if some label is not represented, no need to compute X!!
-        
-        if bLabelled:
-            #line below is fast and correct but doesn't support well the developper when some data is not properly labelled
-            #lY = [g.buildLabelMatrix() for g in lGraph]
-            e = None
-            lY = list()
-            for g in lGraph:
-                try:
-                    lY.append(g.buildLabelMatrix())
-                except ValueError as _e:
-                    e = _e
-            if e: raise e  
+        return [g.buildNodeEdgeMatrices(self._node_transformer, self._edge_transformer) for g in lGraph]
 
-        lX = [g.buildNodeEdgeMatrices(self._node_transformer, self._edge_transformer) for g in lGraph]
+    def get_lY(self, lGraph):
+        """
+        return a list of Y matrix, one per graph
+        """
+        return [g.buildLabelMatrix() for g in lGraph]
         
-        if bLabelled:
-            return lX, lY
-        else:
-            return lX
-
     def saveConfiguration(self, config_data):
         """
         Save the configuration on disk

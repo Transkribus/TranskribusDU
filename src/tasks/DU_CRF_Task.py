@@ -27,6 +27,8 @@
 import os, glob, datetime
 from optparse import OptionParser
 
+import numpy as np
+
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import ShuffleSplit
 
@@ -117,6 +119,7 @@ See DU_StAZH_b.py
         if sComment: self.sMetadata_Comments    = sComment
         
         self._mdl = None
+        self.nbClass        = None  #if we know the number of class, we check that the training set covers all
         self._lBaselineModel = []
         self.bVerbose = True
         
@@ -141,6 +144,9 @@ See DU_StAZH_b.py
         self.cFeatureDefinition = cFeatureDefinition
         assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
 
+    def setNbClass(self, nbClass):
+        self.nbClass = nbClass
+        
     #---  COMMAND LINE PARSZER --------------------------------------------------------------------
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
         usage = """"%s <model-folder> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+
@@ -311,6 +317,12 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         lGraph_trn = DU_GraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
         self.traceln(" %d graphs loaded"%len(lGraph_trn))
 
+        if self.nbClass is None:
+            traceln("Unknown number of expected classes: cannot check if the training set covers all of them.")
+        else:
+            #for this check, we load the Y once...
+            self.checkLabelCoverage(mdl.get_lY(lGraph_trn))
+
         self.traceln("- retrieving or creating feature extractors...")
         try:
             mdl.loadTransformers(ts_trn)
@@ -412,6 +424,18 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         self.traceln(" done")
 
         return lsOutputFilename
+
+    def checkLabelCoverage(self, lY):
+        #check that all classes are represented in the dataset
+        #it is done again in train but we do that here also because the extractor can take along time, 
+        #   and we may discover afterwards it was a useless dataset.
+        aLabelCount, _ = np.histogram( np.hstack(lY) , self.nbClass+1)
+        traceln("   Labels count: ", aLabelCount, " (%d graphs)"%len(lY))
+        if np.min(aLabelCount) == 0:
+            sMsg = "*** ERROR *** Label(s) not observed in data."
+            traceln( sMsg+" Label(s): %s"% np.where(aLabelCount[:] == 0)[0] )
+            raise ValueError(sMsg)
+        return True
 
     #-----  NFOLD STUFF
     def _nfold_Init(self, lsTrnColDir, n_splits=3, test_size=0.25, random_state=None, bStoreOnDisk=False):
@@ -541,6 +565,12 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         lGraph_trn = self.cGraphClass.loadGraphs(lFoldFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
         self.traceln(" %d graphs loaded"%len(lGraph_trn))
 
+        if self.nbClass is None:
+            traceln("Unknown number of expected classes: cannot check if the training set covers all of them.")
+        else:
+            #for this check, we load the Y once...
+            self.checkLabelCoverage(mdl.get_lY(lGraph_trn))
+            
         self.traceln("- retrieving or creating feature extractors...")
         try:
             mdl.loadTransformers(ts_trn)
