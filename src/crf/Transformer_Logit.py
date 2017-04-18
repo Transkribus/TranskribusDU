@@ -40,9 +40,11 @@ from sklearn.multiclass import OneVsRestClassifier  #for multilabel classif
 #BUT on Linux, unplickling of the model fails
 #=> change only on Windows
 #JLM 2017-03-10
-if sys.platform == "win32":
+try:
+    #pickling fails on 0.18.1 on Linux
     from sklearn.model_selection import GridSearchCV
-else:
+except ImportError:
+    #sklearn 0.18
     from sklearn.grid_search import GridSearchCV
     
 from Transformer import Transformer

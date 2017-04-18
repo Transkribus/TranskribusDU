@@ -35,12 +35,26 @@ from sklearn.model_selection import ShuffleSplit
 #BUT on Linux, unplickling of the model fails
 #=> change only on Windows
 #JLM 2017-03-10
-import sys
-if sys.platform == "win32":
-    from sklearn.model_selection import GridSearchCV
-else:
-    from sklearn.grid_search import GridSearchCV
+#Traceback (most recent call last):
+#   File "<stdin>", line 1, in <module>
+#   File "/opt/STools/python/2.7-x86_64/lib/python2.7/pickle.py", line 1378, in load
+#     return Unpickler(file).load()
+#   File "/opt/STools/python/2.7-x86_64/lib/python2.7/pickle.py", line 858, in load
+#     dispatch[key](self)
+#   File "/opt/STools/python/2.7-x86_64/lib/python2.7/pickle.py", line 1217, in load_build
+#     setstate(state)
+#   File "/opt/STools/python/2.7-x86_64/lib/python2.7/site-packages/numpy-1.12.0.dev0+25d60a9-py2.7-linux-x86_64.egg/numpy/ma/core.py", line 5875, in __setstate__
+#     super(MaskedArray, self).__setstate__((shp, typ, isf, raw))
+# TypeError: object pickle not returning list
 
+import sys
+try:
+    #pickling fails on 0.18.1 on Linux
+    from sklearn.model_selection import GridSearchCV  #0.18.1
+except ImportError:
+    #sklearn 0.18
+    from sklearn.grid_search import GridSearchCV
+    
 try: #to ease the use without proper Python installation
     import TranskribusDU_version
 except ImportError:

@@ -30,9 +30,11 @@
 import sys, os, types
 import gc
 
-if sys.platform == "win32":
-    from sklearn.model_selection import GridSearchCV
-else:
+try:
+    #pickling fails on 0.18.1 on Linux
+    from sklearn.model_selection import GridSearchCV  #0.18.1
+except ImportError:
+    #sklearn 0.18
     from sklearn.grid_search import GridSearchCV
     
 from pystruct.utils import SaveLogger
