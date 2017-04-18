@@ -126,10 +126,8 @@ class DU_GTBooks(DU_CRF_Task):
                              , DU_GRAPH
                              , dFeatureConfig = {
                                     'nbClass'    : nbClass
-                                  #, 'n_feat_node'    : 500
                                   , 't_ngrams_node'   : (2,4)
                                   , 'b_node_lc' : False    
-                                  #, 'n_feat_edge'    : 250
                                   , 't_ngrams_edge'   : (2,4)
                                   , 'b_edge_lc' : False    
                                   , 'n_jobs'      : 1         #n_jobs when fitting the internal Logit feat extractor model by grid search
@@ -146,6 +144,8 @@ class DU_GTBooks(DU_CRF_Task):
                              , sComment=sComment
                              , cFeatureDefinition=FeatureDefinition_PageXml_LogitExtractorV2
                              )
+        
+        DU_CRF_Task.setNbClass(nbClass)     #so that we check if all classes are represented in the training set
         
         self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
     #=== END OF CONFIGURATION =============================================================

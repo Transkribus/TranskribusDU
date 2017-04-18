@@ -308,18 +308,11 @@ class Graph:
         edge_features = edge_transformer.transform(self.lEdge)
         return (node_features, edges, edge_features)       
     
-    def buildLabelMatrix(self, bStrict=True):
+    def buildLabelMatrix(self):
         """
-        if bStrict is True, raise a Valuexception if any label is missing
         Return the matrix of labels
         """
         Y = np.array( [nd.cls for nd in self.lNode] , dtype=np.uint8)
-        self.aLabelCount, _ = np.histogram(Y, range(np.max(Y)+2))
-        traceln("   Labels count: ", self.aLabelCount, " (graph %s)"%self.name)
-        if np.min(self.aLabelCount) == 0:
-            sMsg = "*** ERROR *** Label(s) not observed in data."
-            traceln( sMsg+" Label(s): %s"% np.where(self.aLabelCount[:] == 0)[0] )
-            if bStrict: raise ValueError(sMsg)
         return Y
     
     def _indexNodes(self):
