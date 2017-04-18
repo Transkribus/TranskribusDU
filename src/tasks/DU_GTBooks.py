@@ -145,7 +145,7 @@ class DU_GTBooks(DU_CRF_Task):
                              , cFeatureDefinition=FeatureDefinition_PageXml_LogitExtractorV2
                              )
         
-        DU_CRF_Task.setNbClass(nbClass)     #so that we check if all classes are represented in the training set
+        self.setNbClass(nbClass)     #so that we check if all classes are represented in the training set
         
         self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
     #=== END OF CONFIGURATION =============================================================
