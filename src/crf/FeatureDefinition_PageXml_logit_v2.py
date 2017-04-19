@@ -66,7 +66,34 @@ class FeatureDefinition_PageXml_LogitExtractorV2(FeatureDefinition):
 #         tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_node_lc, max_features=self.n_feat_node
 #                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
 #                                                                                   , dtype=np.float64)
+        """
+        - loading pre-computed data from: CV_5/model_A_fold_1_transf.pkl
+                 no such file : CV_5/model_A_fold_1_transf.pkl
+Traceback (most recent call last):
+  File "/opt/project/read/jl_git/TranskribusDU/src/tasks/DU_GTBooks_5labels.py", line 216, in <module>
+    oReport = doer._nfold_RunFoldFromDisk(options.iFoldRunNum, options.warm)
+  File "/opt/project/read/jl_git/TranskribusDU/src/tasks/DU_CRF_Task.py", line 481, in _nfold_RunFoldFromDisk
+    oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm)
+  File "/opt/project/read/jl_git/TranskribusDU/src/tasks/DU_CRF_Task.py", line 565, in _nfold_RunFold
+    fe.fitTranformers(lGraph_trn)
+  File "/opt/project/read/jl_git/TranskribusDU/src/crf/FeatureDefinition_PageXml_logit_v2.py", line 141, in fitTranformers
+    self._node_transformer.fit(lAllNode)
+  File "/opt/project/read/VIRTUALENV_PYTHON_FULL_type/lib/python2.7/site-packages/sklearn/pipeline.py", line 712, in fit
+    for _, trans, _ in self._iter())
+  File "/opt/project/read/VIRTUALENV_PYTHON_FULL_type/lib/python2.7/site-packages/sklearn/externals/joblib/parallel.py", line 768, in __call__
+    self.retrieve()
+  File "/opt/project/read/VIRTUALENV_PYTHON_FULL_type/lib/python2.7/site-packages/sklearn/externals/joblib/parallel.py", line 719, in retrieve
+    raise exception
+RuntimeError: maximum recursion depth exceeded
+"""
+        """
+        I guess this is due to the cyclic links to node's neighbours.
+        But joblib.Parallel uses cPickle, so we cannot specialize the serialization of the Block objects.
         
+        JLM April 2017
+        """
+        n_jobs = 1
+                
         n_jobs_NodeTransformerLogit = max(1, n_jobs/2)  #half of the jobs for the NodeTransformerLogit, the rets for the others
         
         #we keep a ref onto it because its fitting needs not only all the nodes, but also additional info, available on the graph objects
