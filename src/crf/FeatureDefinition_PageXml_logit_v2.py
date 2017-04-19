@@ -66,26 +66,6 @@ class FeatureDefinition_PageXml_LogitExtractorV2(FeatureDefinition):
 #         tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_node_lc, max_features=self.n_feat_node
 #                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
 #                                                                                   , dtype=np.float64)
-        """
-        I tried to parallelize this code but I'm getting an error on Windows:
-        
-  File "c:\Local\meunier\git\TranskribusDU\src\crf\FeatureDefinition_PageXml_logit.py", line 144, in fitTranformers
-    self._node_transformer.fit(lAllNode)
-  File "C:\Anaconda2\lib\site-packages\sklearn\pipeline.py", line 709, in fit
-    for _, trans, _ in self._iter())
-  File "C:\Anaconda2\lib\site-packages\sklearn\externals\joblib\parallel.py", line 768, in __call__
-    self.retrieve()
-  File "C:\Anaconda2\lib\site-packages\sklearn\externals\joblib\parallel.py", line 719, in retrieve
-    raise exception
-TypeError: can't pickle PyCapsule objects        
-
-(virtual_python_pystruct) (C:\Anaconda2) c:\tmp_READ\tuto>python -c "import sklearn; print sklearn.__version__"
-0.18.1
-        => I force n_jobs to 1
-        
-        """
-        if sys.platform == "win32": n_jobs = 1
-        
         
         n_jobs_NodeTransformerLogit = max(1, n_jobs/2)  #half of the jobs for the NodeTransformerLogit, the rets for the others
         
