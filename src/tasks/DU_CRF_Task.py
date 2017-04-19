@@ -429,7 +429,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         #check that all classes are represented in the dataset
         #it is done again in train but we do that here also because the extractor can take along time, 
         #   and we may discover afterwards it was a useless dataset.
-        aLabelCount, _ = np.histogram( np.hstack(lY) , self.nbClass+1)
+        aLabelCount, _ = np.histogram( np.hstack(lY) , range(self.nbClass+1))
         traceln("   Labels count: ", aLabelCount, " (%d graphs)"%len(lY))
         if np.min(aLabelCount) == 0:
             sMsg = "*** ERROR *** Label(s) not observed in data."
