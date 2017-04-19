@@ -35,17 +35,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier  #for multilabel classif
-#sklearn has changed and sklearn.grid_search.GridSearchCV will disappear in next release or so
-#so it is recommended to use instead sklearn.model_selection
-#BUT on Linux, unplickling of the model fails
-#=> change only on Windows
-#JLM 2017-03-10
-try:
-    #pickling fails on 0.18.1 on Linux
-    from sklearn.model_selection import GridSearchCV
-except ImportError:
-    #sklearn 0.18
-    from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV  #0.18.1 REQUIRES NUMPY 1.12.1 or more recent
     
 from Transformer import Transformer
 from Transformer_PageXml import  NodeTransformerTextEnclosed
