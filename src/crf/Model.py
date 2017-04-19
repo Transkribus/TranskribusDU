@@ -61,6 +61,8 @@ class Model:
         self._edge_transformer   = None
         
         self._lMdlBaseline       = []  #contains possibly empty list of models
+        
+        self._nbClass = None
             
     def configureLearner(self, **kwargs):
         """
@@ -81,6 +83,15 @@ class Model:
     @classmethod
     def _getParamsFilename(cls, sDir, sName):
         return os.path.join(sDir, sName+"_params.json")
+
+    """
+    When some class is not represented on some graph, you must specify the number of class.
+    Otherwise pystruct will complain about the number of states differeing from the number of weights
+    """
+    def setNbClass(self, nbClass):
+        self._nbClass = nbClass
+    def getNbClass(self, nbClass):
+        return self._nbClass
         
     # --- Model loading/writing -------------------------------------------------------------
     def load(self, expiration_timestamp=None):

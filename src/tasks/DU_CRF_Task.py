@@ -120,9 +120,15 @@ See DU_StAZH_b.py
         self.cFeatureDefinition = cFeatureDefinition
         assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
 
+    """
+    When some class is not represented on some graph, you must specify the number of class.
+    Otherwise pystruct will complain about the number of states differeing from the number of weights
+    """
     def setNbClass(self, nbClass):
         self.nbClass = nbClass
-        
+    def getNbClass(self, nbClass):
+        return self.nbClass
+    
     #---  COMMAND LINE PARSZER --------------------------------------------------------------------
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
         usage = """"%s <model-folder> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+
@@ -298,6 +304,8 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         else:
             #for this check, we load the Y once...
             self.checkLabelCoverage(mdl.get_lY(lGraph_trn))
+            traceln("Setting model's number of classes = %d"%self.nbClass)
+            mdl.setNbClass(self.nbClass)
 
         self.traceln("- retrieving or creating feature extractors...")
         try:
@@ -546,6 +554,8 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         else:
             #for this check, we load the Y once...
             self.checkLabelCoverage(mdl.get_lY(lGraph_trn))
+            traceln("Setting model's number of classes = %d"%self.nbClass)
+            mdl.setNbClass(self.nbClass)
             
         self.traceln("- retrieving or creating feature extractors...")
         try:
