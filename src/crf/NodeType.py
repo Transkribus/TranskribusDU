@@ -74,7 +74,7 @@ class NodeType:
             self.sDefaultLabel = "%s_%s"%(self.name, self._sOTHER_LABEL)
             self.lsLabel = [self.sDefaultLabel] + self.lsLabel
             
-            self.dIgnoredXmlLabel = { sXml :True    for sXml, s in self.lsXmlIgnoredLabel } if self.lsXmlIgnoredLabel else None
+            self.dIgnoredXmlLabel = { sXml :True    for sXml in self.lsXmlIgnoredLabel } if self.lsXmlIgnoredLabel else None
         else:
             self.sDefaultLabel  = None
 
