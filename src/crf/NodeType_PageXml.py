@@ -61,8 +61,11 @@ class NodeType_PageXml(NodeType):
                 sLabel = self.dXmlLabel2Label[sXmlLabel]
             except KeyError:
                 #not a label of interest
-                if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
-                    raise ValueError("Invalid label in node %s"%str(domnode))
+                try:
+                    self.checkIsIgnored(sXmlLabel)
+                    #if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
+                except:
+                    raise ValueError("Invalid label '%s' in node %s"%(sXmlLabel, str(domnode)))
         except KeyError:
             #no label at all
             if not self.sDefaultLabel: raise ValueError("Missing label in node %s"%str(domnode))
@@ -183,17 +186,17 @@ class NodeType_PageXml_type(NodeType_PageXml):
         raise a ValueError if the label is missing while bOther was not True, or if the label is neither a valid one nor an ignored one
         """
         sLabel = self.sDefaultLabel
+        
+        sXmlLabel = domnode.prop(self.sLabelAttr)
         try:
-            sXmlLabel = domnode.prop(self.sLabelAttr)
-            try:
-                sLabel = self.dXmlLabel2Label[sXmlLabel]
-            except KeyError:
-                #not a label of interest
-                if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
-                    raise ValueError("Invalid label in node %s"%str(domnode))
+            sLabel = self.dXmlLabel2Label[sXmlLabel]
         except KeyError:
-            #no label at all
-            if not self.sDefaultLabel: raise ValueError("Missing label in node %s"%str(domnode))
+            #not a label of interest
+            try:
+                self.checkIsIgnored(sXmlLabel)
+                #if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
+            except:
+                raise ValueError("Invalid label '%s' in node %s"%(sXmlLabel, str(domnode)))
         
         return sLabel
 
