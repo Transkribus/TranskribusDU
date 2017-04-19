@@ -42,10 +42,18 @@ from crf.FeatureDefinition_PageXml_logit_v2 import FeatureDefinition_PageXml_Log
 
 # ===============================================================================================================
 
-lLabels = ['TOC-entry', 'caption', 'catch-word'
-                         , 'footer', 'footnote', 'footnote-continued'
-                         , 'header', 'heading', 'marginalia', 'page-number'
-                         , 'paragraph', 'signature-mark']   #EXACTLY as in GT data!!!!
+lLabels =  ['TOC-entry'
+            , 'caption'
+            , 'catch-word'
+                         , 'footer'
+                         , 'footnote'                #4
+                         , 'footnote-continued'
+                         , 'header'
+                         , 'heading'
+                         , 'marginalia'
+                         , 'page-number'    #9
+                         , 'paragraph'    #10
+                         , 'signature-mark']   
 lIgnoredLabels = None
 
 nbClass = len(lLabels)
@@ -78,11 +86,19 @@ if lActuallySeen:
     print len(lIgnoredLabels)   , lIgnoredLabels
     nbClass = len(lLabels) + 1  #because the ignored labels will become OTHER
 
-#DEFINING THE CLASS OF GRAPH WE USE
-DU_GRAPH = Graph_MultiPageXml
-nt = NodeType_PageXml_type_NestedText("gtb"                   #some short prefix because labels below are prefixed with it
-                      , lLabels
-                      , lIgnoredLabels
+    #DEFINING THE CLASS OF GRAPH WE USE
+    DU_GRAPH = Graph_MultiPageXml
+    nt = NodeType_PageXml_type_NestedText("gtb"                   #some short prefix because labels below are prefixed with it
+                          , lLabels
+                          , lIgnoredLabels
+                              , True    #no label means OTHER
+                              )
+else:
+    #DEFINING THE CLASS OF GRAPH WE USE
+    DU_GRAPH = Graph_MultiPageXml
+    nt = NodeType_PageXml_type_NestedText("gtb"                   #some short prefix because labels below are prefixed with it
+                          , lLabels
+                          , lIgnoredLabels
                       , False    #no label means OTHER
                       )
 nt.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
@@ -180,6 +196,10 @@ if __name__ == "__main__":
     
     traceln("- classes: ", DU_GRAPH.getLabelNameList())
     
+    if options.best_params:
+        dBestParams = doer.getModelClass().loadBestParams(sModelDir, options.best_params) 
+        doer.setLearnerConfiguration(dBestParams)
+        
     lTrn, lTst, lRun, lFold = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun, options.lFold]] 
 
     if options.iFoldInitNum or options.iFoldRunNum or options.bFoldFinish:
