@@ -122,7 +122,11 @@ class Model_SSVM_AD3(Model):
             clsWeights = self.computeClassWeight(lY)
             traceln("\t\t\t%s"%clsWeights)
             
-            crf = EdgeFeatureGraphCRF(inference_method='ad3', class_weight=clsWeights)
+            if self._nbClass:
+                #if some class is not represented, we still train and do not crash
+                crf = EdgeFeatureGraphCRF(inference_method='ad3', class_weight=clsWeights, n_states=self._nbClass)
+            else:
+                crf = EdgeFeatureGraphCRF(inference_method='ad3', class_weight=clsWeights)
     
             self.ssvm = OneSlackSSVM(crf
                                 , inference_cache=self.inference_cache, C=self.C, tol=self.tol, n_jobs=self.njobs
