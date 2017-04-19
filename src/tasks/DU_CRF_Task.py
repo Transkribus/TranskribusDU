@@ -24,38 +24,14 @@
     under grant agreement No 674943.
     
 """
-import os, glob, datetime
+import sys, os, glob, datetime
 from optparse import OptionParser
 
 import numpy as np
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import ShuffleSplit
-
-#sklearn has changed and sklearn.grid_search.GridSearchCV will disappear in next release or so
-#so it is recommended to use instead sklearn.model_selection
-#BUT on Linux, unplickling of the model fails
-#=> change only on Windows
-#JLM 2017-03-10
-#Traceback (most recent call last):
-#   File "<stdin>", line 1, in <module>
-#   File "/opt/STools/python/2.7-x86_64/lib/python2.7/pickle.py", line 1378, in load
-#     return Unpickler(file).load()
-#   File "/opt/STools/python/2.7-x86_64/lib/python2.7/pickle.py", line 858, in load
-#     dispatch[key](self)
-#   File "/opt/STools/python/2.7-x86_64/lib/python2.7/pickle.py", line 1217, in load_build
-#     setstate(state)
-#   File "/opt/STools/python/2.7-x86_64/lib/python2.7/site-packages/numpy-1.12.0.dev0+25d60a9-py2.7-linux-x86_64.egg/numpy/ma/core.py", line 5875, in __setstate__
-#     super(MaskedArray, self).__setstate__((shp, typ, isf, raw))
-# TypeError: object pickle not returning list
-
-import sys
-try:
-    #pickling fails on 0.18.1 on Linux
-    from sklearn.model_selection import GridSearchCV  #0.18.1
-except ImportError:
-    #sklearn 0.18
-    from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV  #0.18.1 REQUIRES NUMPY 1.12.1 or more recent
     
 try: #to ease the use without proper Python installation
     import TranskribusDU_version

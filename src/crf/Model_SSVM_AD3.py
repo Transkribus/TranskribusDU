@@ -30,12 +30,7 @@
 import sys, os, types
 import gc
 
-try:
-    #pickling fails on 0.18.1 on Linux
-    from sklearn.model_selection import GridSearchCV  #0.18.1
-except ImportError:
-    #sklearn 0.18
-    from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV  #0.18.1 REQUIRES NUMPY 1.12.1 or more recent
     
 from pystruct.utils import SaveLogger
 from pystruct.learners import OneSlackSSVM
