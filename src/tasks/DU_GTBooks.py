@@ -42,14 +42,14 @@ from crf.FeatureDefinition_PageXml_logit_v2 import FeatureDefinition_PageXml_Log
 
 # ===============================================================================================================
 
-lLabels =  ['TOC-entry'
+lLabels =  ['TOC-entry'         #0
             , 'caption'
             , 'catch-word'
                          , 'footer'
                          , 'footnote'                #4
                          , 'footnote-continued'
-                         , 'header'
-                         , 'heading'
+                         , 'header'             #6
+						 , 'heading'          #7
                          , 'marginalia'
                          , 'page-number'    #9
                          , 'paragraph'    #10
@@ -61,7 +61,7 @@ nbClass = len(lLabels)
 """
 if you play with a toy collection, which does not have all expected classes, you can reduce those.
 """
-lActuallySeen = [4, 7, 9, 10]
+lActuallySeen = [4, 6, 7, 9, 10]
 #lActuallySeen = [4, 6]
 """
                 0-            TOC-entry    5940 occurences       (   2%)  (   2%)
@@ -79,11 +79,11 @@ lActuallySeen = [4, 7, 9, 10]
 """
 lActuallySeen = None
 if lActuallySeen:
-    print "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING"
+    traceln("REDUCING THE CLASSES TO THOSE SEEN IN TRAINING")
     lIgnoredLabels  = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
     lLabels         = [lLabels[i] for i in lActuallySeen ]
-    print len(lLabels)          , lLabels
-    print len(lIgnoredLabels)   , lIgnoredLabels
+    traceln(len(lLabels)          , lLabels)
+    traceln(len(lIgnoredLabels)   , lIgnoredLabels)
     nbClass = len(lLabels) + 1  #because the ignored labels will become OTHER
 
     #DEFINING THE CLASS OF GRAPH WE USE
