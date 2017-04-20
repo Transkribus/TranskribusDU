@@ -40,6 +40,7 @@ except ImportError:
     import TranskribusDU_version
 
 from common.trace import traceln
+from common.chrono import chronoOn, chronoOff
 
 import crf.Model
 from crf.Model_SSVM_AD3 import Model_SSVM_AD3
@@ -308,6 +309,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             mdl.setNbClass(self.nbClass)
 
         self.traceln("- retrieving or creating feature extractors...")
+        chronoOn("FeatExtract")
         try:
             mdl.loadTransformers(ts_trn)
         except crf.Model.ModelException:
@@ -316,12 +318,14 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             fe.cleanTransformers()
             mdl.setTranformers(fe.getTransformers())
             mdl.saveTransformers()
-        self.traceln(" done")
+        self.traceln(" done [%.1fs]"%chronoOff("FeatExtract"))
         
         self.traceln("- training model...")
+        chronoOn("MdlTrn")
         mdl.train(lGraph_trn, True, ts_trn)
         mdl.save()
-        self.traceln(" done")
+        self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
+        
         # OK!!
         self._mdl = mdl
         
@@ -558,6 +562,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             mdl.setNbClass(self.nbClass)
             
         self.traceln("- retrieving or creating feature extractors...")
+        chronoOn("FeatExtract")
         try:
             mdl.loadTransformers(ts_trn)
         except crf.Model.ModelException:
@@ -566,12 +571,14 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             fe.cleanTransformers()
             mdl.setTranformers(fe.getTransformers())
             mdl.saveTransformers()
-        self.traceln(" done")
+        self.traceln(" done [%.1fs]"%chronoOff("FeatExtract"))
         
         self.traceln("- training model...")
+        chronoOn("MdlTrn")
         mdl.train(lGraph_trn, True, ts_trn)
         mdl.save()
-        self.traceln(" done")
+        self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
+        
         # OK!!
         self._mdl = mdl
         
