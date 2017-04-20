@@ -160,7 +160,7 @@ class primaAnalysis(Component.Component):
             lPoints = ctxt.xpathEval(xpath)
             if lPoints != []:
                 [x,y,h,w] = self.regionBoundingBox(lPoints[0])
-                xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w))
+                xp,yp,hp,wp  = map(lambda x: 72.0* float(x) / self.dpi,(x,y,h,w))
                 node.setProp(ds_xml.sX,str(xp))
                 node.setProp(ds_xml.sY,str(yp))
                 node.setProp(ds_xml.sHeight,str(hp))
@@ -280,9 +280,9 @@ class primaAnalysis(Component.Component):
             ## need to get x, y, h, w
             cellNode.setProp("id", cell.prop('row'))
             cellNode.setProp("row", cell.prop('row'))
-            cellNode.setProp("col", cell.prop('row'))
-            cellNode.setProp("rowSpan", cell.prop('row'))
-            cellNode.setProp("colSpan", cell.prop('row'))
+            cellNode.setProp("col", cell.prop('col'))
+            cellNode.setProp("rowspan", cell.prop('rowSpan'))
+            cellNode.setProp("colspan", cell.prop('colSpan'))
             sp= self.getPoints(cell)
             cellNode.setProp('points',sp)        
             # BB
