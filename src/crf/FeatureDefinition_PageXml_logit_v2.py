@@ -92,11 +92,12 @@ RuntimeError: maximum recursion depth exceeded
         
         JLM April 2017
         """
-        n_jobs = 1
-                
-        n_jobs_NodeTransformerLogit = max(1, n_jobs/2)  #half of the jobs for the NodeTransformerLogit, the rets for the others
+        n_jobs_from_graph = 1   #we cannot pickl the list of graph, so n_jobs = 1 for this part!
+#         n_jobs_NodeTransformerLogit = max(1, n_jobs/2)  #half of the jobs for the NodeTransformerLogit, the rets for the others
+        n_jobs_NodeTransformerLogit = max(1, n_jobs - 1)
         
         #we keep a ref onto it because its fitting needs not only all the nodes, but also additional info, available on the graph objects
+        print "n_jobs_NodeTransformerLogit=", n_jobs_NodeTransformerLogit
         self._node_transf_logit = NodeTransformerLogit(nbClass, self.n_feat_node, self.t_ngrams_node, self.b_node_lc, n_jobs=n_jobs_NodeTransformerLogit)
 
         node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
@@ -134,7 +135,7 @@ RuntimeError: maximum recursion depth exceeded
 #                                                          #THIS ONE MUST BE LAST, because it include a placeholder column for the doculent-level tfidf
 #                                                          ])
 #                                        )                                          
-                                      ], n_jobs=max(1, n_jobs - n_jobs_NodeTransformerLogit))
+                                      ], n_jobs=n_jobs_from_graph)
 
         lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                       ("1hot", Pipeline([
@@ -153,7 +154,7 @@ RuntimeError: maximum recursion depth exceeded
                                     , ("nodetext", EdgeTransformerLogit(nbClass, self._node_transf_logit))
                         ]
                         
-        edge_transformer = FeatureUnion( lEdgeFeature, n_jobs=n_jobs )
+        edge_transformer = FeatureUnion( lEdgeFeature, n_jobs=n_jobs_from_graph )
           
         #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
         self._node_transformer = node_transformer
