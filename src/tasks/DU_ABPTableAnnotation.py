@@ -64,20 +64,21 @@ if lActuallySeen:
 
 #DEFINING THE CLASS OF GRAPH WE USE
 DU_GRAPH = Graph_MultiPageXml
-nt = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
-                      , lLabels
-                      , lIgnoredLabels
-                      , False    #no label means OTHER
-                      )
+# nt = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
+#                       , lLabels
+#                       , lIgnoredLabels
+#                       , False    #no label means OTHER
+#                       )
+
 ntA = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
                       , lLabels
                       , lIgnoredLabels
                       , False    #no label means OTHER
                       )
 
-nt.setXpathExpr( (".//pc:TextLine"        #how to find the nodes
-                  , "./pc:TextEquiv")       #how to get their text
-               )
+# nt.setXpathExpr( (".//pc:TextLine"        #how to find the nodes
+#                   , "./pc:TextEquiv")       #how to get their text
+#                )
 
 ntA.setXpathExpr( (".//pc:TextLine | .//pc:TextRegion | .//pc:SeparatorRegion"        #how to find the nodes
                   , "./pc:TextEquiv")       #how to get their text
@@ -187,17 +188,18 @@ class DU_ABPTableAnnotator(DU_CRF_Task):
                     except KeyError : lPSep[sep.page]=[sep]
                 
             # need to test if elements on the same page!!
+            delta=50
             for cell in lCells:
                 ## SEP
                 try :
                     lPSep[cell.page]
                     for sep in lPSep[cell.page]:
                         # extend height 
-                        sep.y2=sep.y2+30
+                        sep.y2=sep.y2+delta
                         dh,dv=  sep.getXYOverlap(cell)
-#                         print sep.node, dh,dv
                         # at least  
-                        if dh > 0 and dv > 0:
+                        # sep situated in the horizontal borders
+                        if  (dh > 0 and (abs(cell.y1 - sep.y1) < delta or abs(cell.y1 - sep.y2) < delta  or abs(cell.y2 - sep.y2) < delta)):                        
                             sep.node.setProp(sep.type.sLabelAttr,lLabels[5])
                 except KeyError :pass
                 
@@ -230,11 +232,13 @@ class DU_ABPTableAnnotator(DU_CRF_Task):
                     tl.node.setProp(tl.type.sLabelAttr,lLabels[4])
             ## SEP
             for sep in lSeparator:
-                sLabel = tl.type.parseDomNodeLabel(tl.node)
+                sLabel = sep.type.parseDomNodeLabel(sep.node)
                 try:
                     cls = DU_GRAPH._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
-                except KeyError:              
-                    tl.node.setProp(lText[0].type.sLabelAttr,lLabels[6])
+                except KeyError:  
+                    sep.node.setProp(lText[0].type.sLabelAttr,lLabels[6])
+            
+            
             doc =graph.doc    
             MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
             # save mpxml as mpxml.orig
