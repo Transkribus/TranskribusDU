@@ -146,7 +146,7 @@ class DU_GTBooks(DU_CRF_Task):
                                   , 'b_node_lc' : False    
                                   , 't_ngrams_edge'   : (2,4)
                                   , 'b_edge_lc' : False    
-                                  , 'n_jobs'      : 1         #n_jobs when fitting the internal Logit feat extractor model by grid search
+                                  , 'n_jobs'      : 10         #n_jobs when fitting the internal Logit feat extractor model by grid search
                               }
                              , dLearnerConfig = {
                                    'C'                : .1   if C               is None else C
