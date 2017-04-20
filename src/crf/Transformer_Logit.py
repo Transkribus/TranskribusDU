@@ -37,6 +37,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier  #for multilabel classif
 from sklearn.model_selection import GridSearchCV  #0.18.1 REQUIRES NUMPY 1.12.1 or more recent
     
+from common.trace import traceln
+    
 from Transformer import Transformer
 from Transformer_PageXml import  NodeTransformerTextEnclosed
 
@@ -99,8 +101,8 @@ class NodeTransformerLogit(Transformer):
         if lAllNode==None: lAllNode = [nd for g in lGraph for nd in g.lNode]
         y = np.array([nd.cls for nd in lAllNode], dtype=np.int)
         if self.nbClass != len(np.unique(y)):
-            print("Classes seen are: %s"%np.unique(y).tolist())
-            print self.nbClass
+            traceln("Classes seen are: %s"%np.unique(y).tolist())
+            traceln(self.nbClass)
             raise ValueError("ERROR: some class is not represented in the training set")
         
         #fitting the textual feature extractor
