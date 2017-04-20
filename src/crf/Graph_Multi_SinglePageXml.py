@@ -97,12 +97,12 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
             
         
             g.lNode = lPageNode
-            if not g.isEmpty():
-                lPageEdge = Edge.Edge.computeEdges(lPrevPageNode, lPageNode)
+            lPageEdge = Edge.Edge.computeEdges(lPrevPageNode, lPageNode)
                 
-                g.lEdge = lPageEdge
-                if iVerbose>=2: traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
-                
+            g.lEdge = lPageEdge
+            if iVerbose>=2: traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
+            
+            if not g.isEmpty() and len(g.lEdge) > 0:    
                 if bNeighbourhood: g.collectNeighbors()            
                 if bLabelled: g.parseDomLabels()
     #             if bDetach: g.detachFromDOM()
