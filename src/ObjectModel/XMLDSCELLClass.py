@@ -43,7 +43,7 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
             self.addAttribute(prop.name,prop.getContent())
             # add attributes
             prop = prop.next
-        self.setIndex(int(self.getAttribute('irow')),int(self.getAttribute('icol')))
+        self.setIndex(int(self.getAttribute('row')),int(self.getAttribute('col')))
             
         ctxt = domNode.doc.xpathNewContext()
         ctxt.setContextNode(domNode)
