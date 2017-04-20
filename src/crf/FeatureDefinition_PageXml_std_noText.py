@@ -32,7 +32,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from crf.Transformer import SparseToDense
-from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH, NodeTransformerNeighbors, Node1HotFeatures
+from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures
 from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
@@ -52,7 +52,7 @@ class FeatureDefinition_PageXml_StandardOnes_noText(FeatureDefinition):
         
         node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                     ("xywh", Pipeline([
-                                                         ('selector', NodeTransformerXYWH()),
+                                                         ('selector', NodeTransformerXYWH_v2()),
                                                          ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
                                                          ])
                                        )
