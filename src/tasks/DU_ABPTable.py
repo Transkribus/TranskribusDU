@@ -41,6 +41,9 @@ from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from DU_CRF_Task import DU_CRF_Task
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 
+
+from xml_formats.Page2DS import primaAnalysis
+
 # ===============================================================================================================
 
 lLabels = ['RB', 'RI', 'RE', 'RS','RO']
@@ -149,6 +152,7 @@ class DU_ABPTable(DU_CRF_Task):
         du_postfix = "_du"+MultiPageXml.sEXT
         lsOutputFilename = []
         lDocs= []
+        sDUFilename=None
         for sFilename in lFilename:
             if sFilename.endswith(du_postfix): continue #:)
             lg = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
@@ -170,17 +174,33 @@ class DU_ABPTable(DU_CRF_Task):
                 doc.freeDoc()
                 del Y
             self.traceln("\t done")
-            lsOutputFilename.append(sDUFilename)
+            if sDUFilename:
+                lsOutputFilename.append(sDUFilename)
         self.traceln(" done")
 
         return lsOutputFilename
-                 
+           
+    def buildRow(self,doc):
+        """
+            find row regions
+            and generate tablecells accordingly
+        """
+        
+        #convert into DS
+        dsconv =primaAnalysis()
+        dsconv.dpi=300
+        dsconv.sDocID = self.docid
+        doc = dsconv.convert2DS(doc,self.docid)
+        
+        ##load DSDOM
+        
+              
     
 if __name__ == "__main__":
 
     version = "v.01"
     usage, description, parser = DU_CRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
-    parser.add_option("--annotate", dest='bAnnotate',  action="store_true",default=False,  help="Annotate the textlines with BIES labels")    
+#     parser.add_option("--annotate", dest='bAnnotate',  action="store_true",default=False,  help="Annotate the textlines with BIES labels")    
     # --- 
     #parse the command line
     (options, args) = parser.parse_args()
