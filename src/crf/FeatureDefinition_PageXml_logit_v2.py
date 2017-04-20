@@ -97,7 +97,6 @@ RuntimeError: maximum recursion depth exceeded
         n_jobs_NodeTransformerLogit = max(1, n_jobs - 1)
         
         #we keep a ref onto it because its fitting needs not only all the nodes, but also additional info, available on the graph objects
-        print "n_jobs_NodeTransformerLogit=", n_jobs_NodeTransformerLogit
         self._node_transf_logit = NodeTransformerLogit(nbClass, self.n_feat_node, self.t_ngrams_node, self.b_node_lc, n_jobs=n_jobs_NodeTransformerLogit)
 
         node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
