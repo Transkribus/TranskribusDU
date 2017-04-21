@@ -189,11 +189,12 @@ class Graph:
             if iVerbose: traceln("\t%s"%sFilename)
             g = cls()
             g.parseXmlFile(sFilename, iVerbose)
-            if bNeighbourhood: g.collectNeighbors()            
-            if bLabelled: g.parseDomLabels()
-            if bDetach: g.detachFromDOM()
-            g.setName(sFilename)
-            lGraph.append(g)
+            if not g.isEmpty():
+                if bNeighbourhood: g.collectNeighbors()            
+                if bLabelled: g.parseDomLabels()
+                if bDetach: g.detachFromDOM()
+                g.setName(sFilename)
+                lGraph.append(g)
         return lGraph
 
     def parseXmlFile(self, sFilename, iVerbose=0):
@@ -244,6 +245,8 @@ class Graph:
         """
         raise Exception("Must be specialized")
     
+    def isEmpty(self): return self.lNode == []
+        
     def collectNeighbors(self):
         """
         record the lists of hotizontal-, vertical- and cross-page neighbours for each node

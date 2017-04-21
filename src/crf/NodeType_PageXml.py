@@ -209,6 +209,14 @@ class NodeType_PageXml_type(NodeType_PageXml):
             domnode.setProp(self.sLabelAttr, self.dLabel2XmlLabel[sLabel])
         return sLabel
     
+class NodeType_PageXml_type_woText(NodeType_PageXml_type):
+    """
+            for document wo HTR: no text
+    """
+    def _get_GraphNodeText(self, doc, domNdPage, ndBlock, ctxt=None):
+        return u""
+
+    
 #---------------------------------------------------------------------------------------------------------------------------    
 class NodeType_PageXml_type_NestedText(NodeType_PageXml_type):
     """

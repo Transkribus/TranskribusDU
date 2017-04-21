@@ -113,11 +113,11 @@ class DU_ABPTable(DU_CRF_Task):
                      , dFeatureConfig = {  }
                      , dLearnerConfig = {
                             'C'                : .1 
-                         , 'njobs'            : 8
+                         , 'njobs'            : 3
                          , 'inference_cache'  : 10
                         , 'tol'              : .1
                         , 'save_every'       : 50     #save every 50 iterations,for warm start
-                         , 'max_iter'         : 1000
+                         , 'max_iter'         : 2
                          }
                      , sComment=sComment
                      ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
