@@ -237,10 +237,17 @@ class Model_SSVM_AD3(Model):
         sFN = self.getModelFilename()[:-4] + "GridSearchCV.pkl"
         try:
             self.gzip_cPickle_dump(sFN, self._gs_ssvm)
-            traceln("\n\nGridSearchCV details: (also in %s)"%sFN)
-            traceln(self._gs_ssvm)
+            traceln("\n\n--- GridSearchCV details: (also in %s)"%sFN)
+            traceln("--- Best parameters set found on development set:")
+            traceln(self._gs_ssvm.best_params_)
+            traceln("--- Grid scores on development set:")
+            means = self._gs_ssvm.cv_results_['mean_test_score']
+            stds = self._gs_ssvm.cv_results_['std_test_score']
+            for mean, std, params in zip(means, stds, self._gs_ssvm.cv_results_['params']):
+                traceln("%0.3f (+/-%0.03f) for %r"% (mean, std * 2, params))
+            traceln("--- ---")            
         except Exception as e:
-            traceln("ERROR: cannot save the GridSearchCV object in file ", sFN)
+            traceln("WARNING: error while dealing with the GridSearchCV object.")
             traceln(e)
 
         
