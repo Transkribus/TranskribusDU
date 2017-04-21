@@ -478,13 +478,17 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         Run the fold iFold
         Store results on disk
         """
-        fnFoldDetails = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_def.pkl"%iFold)
+        fnFoldDetails = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_def.pkl"%abs(iFold))
         traceln("--- Loading fold info from : %s"% fnFoldDetails)
         oFoldDetails = crf.Model.Model.gzip_cPickle_load(fnFoldDetails)
         (iFold_stored, ts_trn, lFilename_trn, train_index, test_index) = oFoldDetails
-        assert iFold_stored == iFold, "Internal error. Inconsistent fold details on disk."
+        assert iFold_stored == abs(iFold), "Internal error. Inconsistent fold details on disk."
         
-        oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm)
+        if iFold > 0: #normal case
+            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm)
+        else:
+            traceln("Switching train and test data for fold %d"%abs(iFold))
+            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, test_index, train_index, bWarm=bWarm)
         
         fnFoldResults = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_TestReport.pkl"%iFold)
         crf.Model.Model.gzip_cPickle_dump(fnFoldResults, oReport)
