@@ -25,6 +25,7 @@
     
 """
 import sys, os, glob, datetime
+import types
 from optparse import OptionParser
 
 import numpy as np
@@ -92,7 +93,8 @@ See DU_StAZH_b.py
         self.sModelDir      = sModelDir
         self.cGraphClass    = cGraphClass
         self.config_extractor_kwargs    = dFeatureConfig
-        self.config_learner_kwargs      = dLearnerConfig
+        #Because of the way of dealing with the command line, we may get singleton instead of scalar. We fix this here
+        self.config_learner_kwargs      = {k:v[0] if type(v)==types.ListType and len(v)==1 else v for k,v in dLearnerConfig.items()}
         if sComment: self.sMetadata_Comments    = sComment
         
         self._mdl = None
@@ -103,7 +105,7 @@ See DU_StAZH_b.py
         if cFeatureDefinition: self.cFeatureDefinition = cFeatureDefinition
         assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
         assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
-    
+
     #---  CONFIGURATION setters --------------------------------------------------------------------
     def setModelClass(self, cModelClass): 
         self.cModelClass = cModelClass
