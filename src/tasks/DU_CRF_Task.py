@@ -506,12 +506,13 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         for i in range(n_splits):
             iFold = i + 1
             fnFoldResults = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_TestReport.pkl"%iFold)
+            traceln("\t-loading ", fnFoldResults)
             try:
                 oReport = crf.Model.Model.gzip_cPickle_load(fnFoldResults)
                 
                 loReport.append(oReport)
             except:
-                traceln("WARNING: fold %d has NOT FINISHED or FAILED"%iFold)
+                traceln("\tWARNING: fold %d has NOT FINISHED or FAILED"%iFold)
 
         oNFoldReport = TestReportConfusion.newFromReportList(self.sModelName+" (ALL %d FOLDS)"%n_splits, loReport) #a test report based on the confusion matrix
 
