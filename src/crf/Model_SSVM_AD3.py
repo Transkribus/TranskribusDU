@@ -198,7 +198,7 @@ class Model_SSVM_AD3(Model):
 #                            , verbose=verbose)
                             , verbose=1)
         
-        self._gs_ssvm = GridSearchCV(self._ssvm, dPrm, n_jobs=1) 
+        self._gs_ssvm = GridSearchCV(self._ssvm, dPrm, n_jobs=1, verbose=verbose) 
         self.ssvm = None
         
         chronoOn()

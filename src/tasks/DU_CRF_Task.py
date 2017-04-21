@@ -324,7 +324,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         
         self.traceln("- training model...")
         chronoOn("MdlTrn")
-        mdl.train(lGraph_trn, True, ts_trn)
+        mdl.train(lGraph_trn, True, ts_trn, verbose=1 if self.bVerbose else 0)
         mdl.save()
         self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
         
@@ -582,7 +582,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         
         self.traceln("- training model...")
         chronoOn("MdlTrn")
-        mdl.train(lGraph_trn, True, ts_trn)
+        mdl.train(lGraph_trn, True, ts_trn, verbose=1 if self.bVerbose else 0)
         mdl.save()
         self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
         
