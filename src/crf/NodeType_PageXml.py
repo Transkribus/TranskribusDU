@@ -107,13 +107,15 @@ class NodeType_PageXml(NodeType):
             try:
                 x1,y1, x2,y2 = plg.fitRectangle()
             except ZeroDivisionError:
-                traceln("Warning: ignoring invalid polygon id=%s page=%s"%(ndBlock.prop("id"), page.pnum))
-                continue
+#                 traceln("Warning: ignoring invalid polygon id=%s page=%s"%(ndBlock.prop("id"), page.pnum))
+                x1,y1,x2,y2 = plg.getBoundingBox()
+#                 print x1,y2,x2,y2 , y2-y1, x2-x1
+#                 continue
             if True:
                 #we reduce a bit this rectangle, to ovoid overlap
                 w,h = x2-x1, y2-y1
-                dx = max(w * 0.066, min(20, w/3))  #we make sure that at least 1/"rd of te width will remain!
-                dy = max(h * 0.066, min(20, w/3))
+                dx = max(w * 0.066, min(5, w/3))  #we make sure that at least 1/"rd of te width will remain!
+                dy = max(h * 0.066, min(5, w/3))
                 x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
             
             #TODO
@@ -132,8 +134,8 @@ class NodeType_PageXml(NodeType):
                 ndTextLine.setProp("id", ndBlock.prop("id")+"_tl")
                 ndTextLine.setProp("x", str(x1))
                 ndTextLine.setProp("y", str(y1))
-                ndTextLine.setProp("width", str(x2-x1))
-                ndTextLine.setProp("height", str(y2-y1))
+                ndTextLine.setProp("width", str(blk.x2-blk.x1))
+                ndTextLine.setProp("height", str(blk.y2-blk.y1))
                 ndTextLine.setContent(sText)
                 ndCoord = util.xml_utils.addElement(doc, ndTextLine, "Coords")
                 PageXml.setPoints(ndCoord, PageXml.getPointsFromBB(x1,y1,x2,y2))
