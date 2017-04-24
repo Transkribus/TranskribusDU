@@ -72,19 +72,19 @@ nt = NodeType_PageXml_type_woText("abp"                   #some short prefix bec
                       , lIgnoredLabels
                       , False    #no label means OTHER
                       )
-ntA = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
-                      , lLabels
-                      , lIgnoredLabels
-                      , False    #no label means OTHER
-                      )
+# ntA = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
+#                       , lLabels
+#                       , lIgnoredLabels
+#                       , False    #no label means OTHER
+#                       )
 
 nt.setXpathExpr( (".//pc:TextLine"        #how to find the nodes
                   , "./pc:TextEquiv")       #how to get their text
                )
 
-ntA.setXpathExpr( (".//pc:TextLine | .//pc:TextRegion"        #how to find the nodes
-                  , "./pc:TextEquiv")       #how to get their text
-                )
+# ntA.setXpathExpr( (".//pc:TextLine | .//pc:TextRegion"        #how to find the nodes
+#                   , "./pc:TextEquiv")       #how to get their text
+#                 )
 
 
 
@@ -112,17 +112,19 @@ class DU_ABPTable(DU_CRF_Task):
                      , DU_GRAPH
                      , dFeatureConfig = {  }
                      , dLearnerConfig = {
-                            'C'                : .1 
-                         , 'njobs'            : 8
-                         , 'inference_cache'  : 10
-                        , 'tol'              : .1
-                        , 'save_every'       : 50     #save every 50 iterations,for warm start
-                         , 'max_iter'         : 1000
+                                   'C'                : .1   if C               is None else C
+                                 , 'njobs'            : 8    if njobs           is None else njobs
+                                 , 'inference_cache'  : 50   if inference_cache is None else inference_cache
+                                 #, 'tol'              : .1
+                                 , 'tol'              : .05  if tol             is None else tol
+                                 , 'save_every'       : 50     #save every 50 iterations,for warm start
+                                 , 'max_iter'         : 1000 if max_iter        is None else max_iter
                          }
                      , sComment=sComment
                      ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
                      )
         
+        #self.setNbClass(3)     #so that we check if all classes are represented in the training set
         
         self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
     #=== END OF CONFIGURATION =============================================================
