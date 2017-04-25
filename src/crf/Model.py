@@ -88,8 +88,12 @@ class Model:
     When some class is not represented on some graph, you must specify the number of class.
     Otherwise pystruct will complain about the number of states differeing from the number of weights
     """
-    def setNbClass(self, nbClass):
-        self._nbClass = nbClass
+    def setNbClass(self, lNbClass):
+        """
+        in multitype case we get a list of class number (one per type)
+        """
+        self._nbClass = lNbClass
+        
     def getNbClass(self, nbClass):
         return self._nbClass
         
@@ -372,13 +376,13 @@ class Model:
         """
         return ""
     
+    @classmethod
     def computeClassWeight(cls, lY):
         Y = np.hstack(lY)
         Y_unique = np.unique(Y)
         class_weights = compute_class_weight("balanced", Y_unique, Y)
         del Y, Y_unique
         return class_weights
-    computeClassWeight = classmethod(computeClassWeight)
 
 
 # --- AUTO-TESTS ------------------------------------------------------------------
