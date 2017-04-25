@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 """
-    CRF DU task core
+    CRF DU task core. Supports classical CRF and Typed CRF
     
-    Copyright Xerox(C) 2016 JL. Meunier
+    Copyright Xerox(C) 2016, 2017 JL. Meunier
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -45,6 +45,8 @@ from common.chrono import chronoOn, chronoOff
 
 import crf.Model
 from crf.Model_SSVM_AD3 import Model_SSVM_AD3
+from crf.Model_SSVM_AD3_Multitype import Model_SSVM_AD3_Multitype
+
 from xml_formats.PageXml import MultiPageXml
 import crf.FeatureDefinition
 from crf.FeatureDefinition_PageXml_std import FeatureDefinition_PageXml_StandardOnes
@@ -58,7 +60,7 @@ Document Understanding class that relies on CRF (learning with SSVM and inferenc
 USAGE:
 - define your graph class
 - choose a model name and a folder where it will be stored
-- define the features and their configuration
+- define the features and their configuration, or a list of (feature definition and its configuration)
 - define the learner configuration
 - instantiate this class
 
@@ -74,10 +76,10 @@ See DU_StAZH_b.py
 
     """
     
-    cModelClass          = Model_SSVM_AD3
-    cFeatureDefinition   = FeatureDefinition_PageXml_StandardOnes
+    cModelClass          = None                                     #depends on the number of node types!
+    cFeatureDefinition   = FeatureDefinition_PageXml_StandardOnes   #I keep this for backward compa
     
-    sMetadata_Creator = "XRCE Document Understanding CRF-based - v0.2"
+    sMetadata_Creator = "XRCE Document Understanding Typed CRF-based - v0.3"
     sMetadata_Comments = ""
     
     #dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
@@ -86,50 +88,105 @@ See DU_StAZH_b.py
     
     sXmlFilenamePattern = "*[0-9]"+MultiPageXml.sEXT    #how to find the Xml files
 
-    def __init__(self, sModelName, sModelDir, cGraphClass, dFeatureConfig={}, dLearnerConfig={}, sComment=None, cFeatureDefinition=None): 
+    def __init__(self, sModelName, sModelDir, cGraphClass, dLearnerConfig={}, sComment=None
+                 , cFeatureDefinition=None, dFeatureConfig={}
+                 , lt_cFeatureDefinition_dFeatureConfig=None         #this is an alternative to passing cFeatureDefinition and dFeatureConfig
+                 ): 
         """
+        
         """
         self.sModelName     = sModelName
         self.sModelDir      = sModelDir
         self.cGraphClass    = cGraphClass
-        self.config_extractor_kwargs    = dFeatureConfig
         #Because of the way of dealing with the command line, we may get singleton instead of scalar. We fix this here
         self.config_learner_kwargs      = {k:v[0] if type(v)==types.ListType and len(v)==1 else v for k,v in dLearnerConfig.items()}
         if sComment: self.sMetadata_Comments    = sComment
         
         self._mdl = None
-        self.nbClass        = None  #if we know the number of class, we check that the training set covers all
         self._lBaselineModel = []
         self.bVerbose = True
         
-        if cFeatureDefinition: self.cFeatureDefinition = cFeatureDefinition
-        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
-        assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
+        self.iNbCRFType = None #is set below
+        
+        #--- Number of class per type
+        #We have either one number of class (single type) or a list of number of class per type
+        #in single-type CRF, if we know the number of class, we check that the training set covers all
+        self.nbClass  = None    #either the number or the sum of the numbers
+        self.lNbClass = None    #a list of length #type of number of class
 
+        #--- feature definition and configuration per type
+        #Feature definition and their config
+        if (cFeatureDefinition or dFeatureConfig):
+            if lt_cFeatureDefinition_dFeatureConfig:
+                raise ValueError("SW Error: use either lt_cFeatureDefinition_dFeatureConfig or (cFeatureDefinition and dFeatureConfig)")
+        else:
+            if not lt_cFeatureDefinition_dFeatureConfig:
+                raise ValueError("SW Error: use either lt_cFeatureDefinition_dFeatureConfig or (cFeatureDefinition and dFeatureConfig)")
+        
+        #backward compatibility:
+        if lt_cFeatureDefinition_dFeatureConfig and len(lt_cFeatureDefinition_dFeatureConfig) == 1:
+            (  cFeatureDefinition,dFeatureConfig) = lt_cFeatureDefinition_dFeatureConfig[0]
+            lt_cFeatureDefinition_dFeatureConfig  = None
+            
+        if cFeatureDefinition or dFeatureConfig:
+            #old mode, when we had only a single type in our CRF
+            self.config_extractor_kwargs                    = dFeatureConfig
+            if cFeatureDefinition: self.cFeatureDefinition  = cFeatureDefinition
+            self.lt_cFeatureDefinition_dFeatureConfig       = None 
+            self.iNbCRFType                                 = 1
+            self.cModelClass                                = Model_SSVM_AD3
+            assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
+        else:
+            self.config_extractor_kwargs                    = None
+            self.cFeatureDefinition                         = None
+            self.lt_cFeatureDefinition_dFeatureConfig       = lt_cFeatureDefinition_dFeatureConfig
+            self.iNbCRFType                                 = len(self.lt_cFeatureDefinition_dFeatureConfig)
+            self.cModelClass                                = Model_SSVM_AD3_Multitype
+
+        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
+
+        if len(self.cGraphClass.getNodeTypeList()) != self.iNbCRFType:
+            raise ValueError("ERROR: the number of node types associated to the graph class differs from the number of feature definition")
+        
+        #for single- or multi-type CRF, the same applies!
+        self.lNbClass = [len(nt.getLabelNameList()) for nt in self.cGraphClass.getNodeTypeList()]
+        self.nbClass = sum(self.lNbClass)
+        
     #---  CONFIGURATION setters --------------------------------------------------------------------
+    def isTypedCRF(self): 
+        """
+        if this a classical CRF or a Typed CRF?
+        """
+        return self.iNbCRFType > 1
+    
+    def getGraphClass(self):    
+        return self.cGraphClass
+    
     def setModelClass(self, cModelClass): 
         self.cModelClass = cModelClass
         assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
-    def getModelClass(self):
+    
+    def getModelClass(self):    
         return self.cModelClass
     
-    def getModel(self):
+    def getModel(self):         
         return self._mdl
     
     def setLearnerConfiguration(self, dParams):
         self.config_learner_kwargs = dParams
         
-    def setFeatureDefinition(self, cFeatureDefinition): 
-        self.cFeatureDefinition = cFeatureDefinition
-        assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
-
     """
-    When some class is not represented on some graph, you must specify the number of class.
+    When some class is not represented on some graph, you must specify the number of class (per type if multiple types)
     Otherwise pystruct will complain about the number of states differeing from the number of weights
     """
-    def setNbClass(self, nbClass):
-        self.nbClass = nbClass
-    def getNbClass(self, nbClass):
+    def setNbClass(self, useless_stuff):
+        print   " *** setNbClass is deprecated - update your code (but it should work fine!)"
+        traceln(" *** setNbClass is deprecated - update your code (but it should work fine!)")
+        
+    def getNbClass(self, lNbClass):
+        """
+        return the total number of classes
+        """
         return self.nbClass
     
     #---  COMMAND LINE PARSZER --------------------------------------------------------------------
@@ -215,10 +272,19 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         """
         add as Baseline a Logistic Regression model, trained via a grid search
         """
-        lr = LogisticRegression(class_weight='balanced')
-        mdl = GridSearchCV(lr , self.dGridSearch_LR_conf, n_jobs=self.dGridSearch_LR_n_jobs)        
-        self._lBaselineModel.append(mdl)
-        return mdl
+        #we always have one LR model per type  (yes, even for single type ! ;-) )
+        lMdl = [ GridSearchCV(LogisticRegression(class_weight='balanced') 
+                              , self.dGridSearch_LR_conf, n_jobs=self.dGridSearch_LR_n_jobs) for _ in range(self.iNbCRFType) ]  
+            
+        if self.isTypedCRF():
+            tMdl = tuple(lMdl)
+            self._lBaselineModel.append( tMdl )
+            return tMdl
+        else:
+            assert len(lMdl) == 1, "internal error"
+            [mdl] = lMdl
+            self._lBaselineModel.append( mdl )
+            return mdl
 
     #----------------------------------------------------------------------------------------------------------   
     # in case you want no output at all on stderr
@@ -227,6 +293,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
     
     def traceln(self, *kwargs)     : 
         if self.bVerbose: traceln(*kwargs)
+        
     #----------------------------------------------------------------------------------------------------------    
     def load(self, bForce=False):
         """
@@ -284,62 +351,9 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
         _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
         
-        DU_GraphClass = self.cGraphClass
-        
         self.traceln("- creating a %s model"%self.cModelClass)
-        mdl = self.cModelClass(self.sModelName, self.sModelDir)
-        
-        if not bWarm:
-            if os.path.exists(mdl.getModelFilename()): 
-                raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
-            
-        mdl.configureLearner(**self.config_learner_kwargs)
-        mdl.setBaselineModelList(self._lBaselineModel)
-        mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
-        self.traceln("\t - configuration: ", self.config_learner_kwargs )
+        oReport = self._train_save_test(self.sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst)
 
-        self.traceln("- loading training graphs")
-        lGraph_trn = DU_GraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
-        self.traceln(" %d graphs loaded"%len(lGraph_trn))
-
-        if self.nbClass is None:
-            traceln("Unknown number of expected classes: cannot check if the training set covers all of them.")
-        else:
-            #for this check, we load the Y once...
-            self.checkLabelCoverage(mdl.get_lY(lGraph_trn))
-            traceln("Setting model's number of classes = %d"%self.nbClass)
-            mdl.setNbClass(self.nbClass)
-
-        self.traceln("- retrieving or creating feature extractors...")
-        chronoOn("FeatExtract")
-        try:
-            mdl.loadTransformers(ts_trn)
-        except crf.Model.ModelException:
-            fe = self.cFeatureDefinition(**self.config_extractor_kwargs)         
-            fe.fitTranformers(lGraph_trn)
-            fe.cleanTransformers()
-            mdl.setTranformers(fe.getTransformers())
-            mdl.saveTransformers()
-        self.traceln(" done [%.1fs]"%chronoOff("FeatExtract"))
-        
-        self.traceln("- training model...")
-        chronoOn("MdlTrn")
-        mdl.train(lGraph_trn, True, ts_trn, verbose=1 if self.bVerbose else 0)
-        mdl.save()
-        self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
-        
-        # OK!!
-        self._mdl = mdl
-        
-        if lFilename_tst:
-            self.traceln("- loading test graphs")
-            lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-            self.traceln(" %d graphs loaded"%len(lGraph_tst))
-    
-            oReport = mdl.test(lGraph_tst)
-        else:
-            oReport = None, None
-            
         return oReport
 
     def test(self, lsTstColDir):
@@ -421,6 +435,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         #   and we may discover afterwards it was a useless dataset.
         aLabelCount, _ = np.histogram( np.hstack(lY) , range(self.nbClass+1))
         traceln("   Labels count: ", aLabelCount, " (%d graphs)"%len(lY))
+        traceln("   Labels      : ", self.getGraphClass().getLabelNameList())
         if np.min(aLabelCount) == 0:
             sMsg = "*** ERROR *** Label(s) not observed in data."
             traceln( sMsg+" Label(s): %s"% np.where(aLabelCount[:] == 0)[0] )
@@ -546,57 +561,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         self.traceln("- creating a %s model"%self.cModelClass)
         sFoldModelName = self.sModelName+"_fold_%d"%iFold
         
-        mdl = self.cModelClass(sFoldModelName, self.sModelDir)
-        
-        if os.path.exists(mdl.getModelFilename()) and not bWarm: 
-            raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
-            
-        mdl.configureLearner(**self.config_learner_kwargs)
-        mdl.setBaselineModelList(self._lBaselineModel)
-        mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
-        self.traceln("\t - configuration: ", self.config_learner_kwargs )
-
-        self.traceln("- loading training graphs")
-        lGraph_trn = self.cGraphClass.loadGraphs(lFoldFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
-        self.traceln(" %d graphs loaded"%len(lGraph_trn))
-
-        if self.nbClass is None:
-            traceln("Unknown number of expected classes: cannot check if the training set covers all of them.")
-        else:
-            #for this check, we load the Y once...
-            self.checkLabelCoverage(mdl.get_lY(lGraph_trn))
-            traceln("Setting model's number of classes = %d"%self.nbClass)
-            mdl.setNbClass(self.nbClass)
-            
-        self.traceln("- retrieving or creating feature extractors...")
-        chronoOn("FeatExtract")
-        try:
-            mdl.loadTransformers(ts_trn)
-        except crf.Model.ModelException:
-            fe = self.cFeatureDefinition(**self.config_extractor_kwargs)         
-            fe.fitTranformers(lGraph_trn)
-            fe.cleanTransformers()
-            mdl.setTranformers(fe.getTransformers())
-            mdl.saveTransformers()
-        self.traceln(" done [%.1fs]"%chronoOff("FeatExtract"))
-        
-        self.traceln("- training model...")
-        chronoOn("MdlTrn")
-        mdl.train(lGraph_trn, True, ts_trn, verbose=1 if self.bVerbose else 0)
-        mdl.save()
-        self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
-        
-        # OK!!
-        self._mdl = mdl
-        
-        if lFoldFilename_tst:
-            self.traceln("- loading test graphs")
-            lGraph_tst = self.cGraphClass.loadGraphs(lFoldFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-            self.traceln(" %d graphs loaded"%len(lGraph_tst))
-    
-            oReport = mdl.test(lGraph_tst)
-        else:
-            oReport = None
+        oReport = self._train_save_test(sFoldModelName, bWarm, lFoldFilename_trn, ts_trn, lFoldFilename_tst)
 
         fnFoldReport = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_STATS.txt"%iFold)
         with open(fnFoldReport, "w") as fd:
@@ -628,6 +593,63 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         
         return loTstRpt
 
+    #----------------------------------------------------------------------------------------------------------    
+    def _train_save_test(self, sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst):
+        """
+        used both by train_save_test and _nfold_runFold
+        """
+        mdl = self.cModelClass(sModelName, self.sModelDir)
+        
+        if os.path.exists(mdl.getModelFilename()) and not bWarm: 
+            raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
+            
+        mdl.configureLearner(**self.config_learner_kwargs)
+        mdl.setBaselineModelList(self._lBaselineModel)
+        mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
+        self.traceln("\t - configuration: ", self.config_learner_kwargs )
+
+        self.traceln("- loading training graphs")
+        lGraph_trn = self.cGraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
+        self.traceln(" %d graphs loaded"%len(lGraph_trn))
+
+        assert self.nbClass, "internal error"
+        mdl.setNbClass(self.nbClass)
+
+        #for this check, we load the Y once...
+        self.checkLabelCoverage(mdl.get_lY(lGraph_trn))
+            
+        self.traceln("- retrieving or creating feature extractors...")
+        chronoOn("FeatExtract")
+        try:
+            mdl.loadTransformers(ts_trn)
+        except crf.Model.ModelException:
+            fe = self.cFeatureDefinition(**self.config_extractor_kwargs)         
+            fe.fitTranformers(lGraph_trn)
+            fe.cleanTransformers()
+            mdl.setTranformers(fe.getTransformers())
+            mdl.saveTransformers()
+        self.traceln(" done [%.1fs]"%chronoOff("FeatExtract"))
+        
+        self.traceln("- training model...")
+        chronoOn("MdlTrn")
+        mdl.train(lGraph_trn, True, ts_trn, verbose=1 if self.bVerbose else 0)
+        mdl.save()
+        self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
+        
+        # OK!!
+        self._mdl = mdl
+        
+        if lFilename_tst:
+            self.traceln("- loading test graphs")
+            lGraph_tst = self.cGraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
+            self.traceln(" %d graphs loaded"%len(lGraph_tst))
+    
+            oReport = mdl.test(lGraph_tst)
+        else:
+            oReport = None
+        
+        return oReport
+    
     #----------------------------------------------------------------------------------------------------------    
     def listMaxTimestampFile(cls, lsDir, sPattern):
         """
