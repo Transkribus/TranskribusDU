@@ -44,53 +44,6 @@ from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_S
 
 from xml_formats.Page2DS import primaAnalysis
 
-# ===============================================================================================================
-
-lLabels = ['RB', 'RI', 'RE', 'RS','RO']
-
-lIgnoredLabels = None
-
-nbClass = len(lLabels)
-
-"""
-if you play with a toy collection, which does not have all expected classes, you can reduce those.
-"""
-
-lActuallySeen = None
-if lActuallySeen:
-    print "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING"
-    lIgnoredLabels  = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
-    lLabels         = [lLabels[i] for i in lActuallySeen ]
-    print len(lLabels)          , lLabels
-    print len(lIgnoredLabels)   , lIgnoredLabels
-    nbClass = len(lLabels) + 1  #because the ignored labels will become OTHER
-
-#DEFINING THE CLASS OF GRAPH WE USE
-DU_GRAPH = Graph_MultiSinglePageXml
-nt = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
-                      , lLabels
-                      , lIgnoredLabels
-                      , False    #no label means OTHER
-                      )
-# ntA = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
-#                       , lLabels
-#                       , lIgnoredLabels
-#                       , False    #no label means OTHER
-#                       )
-
-nt.setXpathExpr( (".//pc:TextLine"        #how to find the nodes
-                  , "./pc:TextEquiv")       #how to get their text
-               )
-
-# ntA.setXpathExpr( (".//pc:TextLine | .//pc:TextRegion"        #how to find the nodes
-#                   , "./pc:TextEquiv")       #how to get their text
-#                 )
-
-
-
-
-# ===============================================================================================================
-
  
 class DU_ABPTable(DU_CRF_Task):
     """
@@ -106,6 +59,53 @@ class DU_ABPTable(DU_CRF_Task):
 
     #=== CONFIGURATION ====================================================================
     def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
+
+        # ===============================================================================================================
+        
+        lLabels = ['RB', 'RI', 'RE', 'RS','RO']
+        
+        lIgnoredLabels = None
+        
+        nbClass = len(lLabels)
+        
+        """
+        if you play with a toy collection, which does not have all expected classes, you can reduce those.
+        """
+        
+        lActuallySeen = None
+        if lActuallySeen:
+            print "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING"
+            lIgnoredLabels  = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
+            lLabels         = [lLabels[i] for i in lActuallySeen ]
+            print len(lLabels)          , lLabels
+            print len(lIgnoredLabels)   , lIgnoredLabels
+            nbClass = len(lLabels) + 1  #because the ignored labels will become OTHER
+        
+        #DEFINING THE CLASS OF GRAPH WE USE
+        DU_GRAPH = Graph_MultiSinglePageXml
+        nt = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
+                              , lLabels
+                              , lIgnoredLabels
+                              , False    #no label means OTHER
+                              )
+        # ntA = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
+        #                       , lLabels
+        #                       , lIgnoredLabels
+        #                       , False    #no label means OTHER
+        #                       )
+        
+        nt.setXpathExpr( (".//pc:TextLine"        #how to find the nodes
+                          , "./pc:TextEquiv")       #how to get their text
+                       )
+        
+        # ntA.setXpathExpr( (".//pc:TextLine | .//pc:TextRegion"        #how to find the nodes
+        #                   , "./pc:TextEquiv")       #how to get their text
+        #                 )
+        
+        DU_GRAPH.addNodeType(nt)
+        
+        # ===============================================================================================================
+
         
         DU_CRF_Task.__init__(self
                      , sModelName, sModelDir
@@ -144,7 +144,7 @@ class DU_ABPTable(DU_CRF_Task):
         #list the train and test files
         _     , lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
         
-        DU_GraphClass = self.cGraphClass
+        DU_GraphClass = self.getGraphClass()
 
         lPageConstraint = DU_GraphClass.getPageConstraint()
         if lPageConstraint: 
@@ -233,9 +233,8 @@ if __name__ == "__main__":
 #         traceln('annotation done')    
 #         sys.exit(0)
     
-    DU_GRAPH.addNodeType(nt)
     
-    traceln("- classes: ", DU_GRAPH.getLabelNameList())
+    traceln("- classes: ", doer.getGraphClass().getLabelNameList())
     
     ## use. a_mpxml files
     doer.sXmlFilenamePattern = doer.sLabeledXmlFilenamePattern
