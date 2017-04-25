@@ -108,4 +108,50 @@ class FeatureDefinition_PageXml_StandardOnes_noText(FeatureDefinition):
 #             self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
 #         return self._node_transformer, self._edge_transformer        
 
+
+class FeatureDefinition_T_PageXml_StandardOnes_noText(FeatureDefinition_PageXml_StandardOnes_noText):
+    """
+    Multitype version:
+    so the node_transformer actually is a list of node_transformer of length n_class
+       the edge_transformer actually is a list of node_transformer of length n_class^2
+    """ 
+       
+    def __init__(self, nbClass=None):
+        FeatureDefinition.__init__(self)
+        
+        node_transformer = [ FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
+                                    ("xywh", Pipeline([
+                                                         ('selector', NodeTransformerXYWH_v2()),
+                                                         ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ])
+                                       )
+                                    , ("neighbors", Pipeline([
+                                                         ('selector', NodeTransformerNeighbors()),
+                                                         ('neighbors', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ])
+                                       )
+                                    , ("1hot", Pipeline([
+                                                         ('1hot', Node1HotFeatures())  #does the 1-hot encoding directly
+                                                         ])
+                                       )
+                                      ]) for i in range(nbClass) ]
     
+        edge_transformer = [ FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
+                                      ("1hot", Pipeline([
+                                                         ('1hot', Edge1HotFeatures(PageNumberSimpleSequenciality()))
+                                                         ])
+                                        )
+                                    , ("boolean", Pipeline([
+                                                         ('boolean', EdgeBooleanFeatures())
+                                                         ])
+                                        )
+                                    , ("numerical", Pipeline([
+                                                         ('selector', EdgeNumericalSelector()),
+                                                         ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ])
+                                        )
+                                          ] ) for i in range(nbClass*nbClass) ]
+          
+        #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
+        self._node_transformer = node_transformer
+        self._edge_transformer = edge_transformer
