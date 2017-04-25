@@ -85,7 +85,33 @@ class Model_SSVM_AD3(Model):
         self.ssvm = self._loadIfFresh(self.getModelFilename(), expiration_timestamp, lambda x: SaveLogger(x).load())
         return self
     
+    # --- UTILITIES -------------------------------------------------------------
+
+    def _getNbFeatureAsText(self):
+        """
+        return the number of node features and the number of edge features as a textual message
+        """
+        return "#features nodes=%d  edges=%d "%self._tNF_EF
+        
+
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
+    def _computeModelCaracteristics(self, lX):
+        """
+        We discover dynamically the number of features. Pretty convenient for developer.
+        Drawback: if the feature extractor code changes, predicting with a stored model will crash without beforehand catch
+        """
+        self._tNF_EF = (lX[0][0].shape[1], lX[0][2].shape[1]) #number of node features,  number of edge features
+        return self._tNF_EF
+        
+    def _getCRFModel(self, clsWeights):
+        if self._nbClass: #should always be the case, when used from DU_CRF_Task
+            #if some class is not represented, we still train and do not crash
+            crf = EdgeFeatureGraphCRF(inference_method='ad3', class_weight=clsWeights, n_states=self._nbClass)
+        else:
+            crf = EdgeFeatureGraphCRF(inference_method='ad3', class_weight=clsWeights)       
+        return crf 
+
+        
     def train(self, lGraph, bWarmStart=True, expiration_timestamp=None, verbose=0):
         """
         Train a CRF model using the list of labelled graph as training
@@ -100,7 +126,8 @@ class Model_SSVM_AD3(Model):
         traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
         chronoOn()
         lX, lY = self.get_lX(lGraph), self.get_lY(lGraph)
-        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
+        self._computeModelCaracteristics(lX)    #we discover here dynamically the number of features of nodes and edges
+        traceln("\t\t %s"%self._getNbFeatureAsText())
         traceln("\t [%.1fs] done\n"%chronoOff())
         
         traceln("\t- retrieving or creating model...")
@@ -122,11 +149,7 @@ class Model_SSVM_AD3(Model):
             clsWeights = self.computeClassWeight(lY)
             traceln("\t\t\t%s"%clsWeights)
             
-            if self._nbClass:
-                #if some class is not represented, we still train and do not crash
-                crf = EdgeFeatureGraphCRF(inference_method='ad3', class_weight=clsWeights, n_states=self._nbClass)
-            else:
-                crf = EdgeFeatureGraphCRF(inference_method='ad3', class_weight=clsWeights)
+            crf = self._getCRFModel(clsWeights)
     
             self.ssvm = OneSlackSSVM(crf
                                 , inference_cache=self.inference_cache, C=self.C, tol=self.tol, n_jobs=self.njobs
@@ -168,7 +191,8 @@ class Model_SSVM_AD3(Model):
         traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
         chronoOn()
         lX, lY = self.get_lX(lGraph), self.get_lY(lGraph)
-        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
+        self._computeModelCaracteristics(lX)    #we discover here dynamically the number of features of nodes and edges
+        traceln("\t\t %s"%self._getNbFeatureAsText())
         traceln("\t [%.1fs] done\n"%chronoOff())
 
         dPrm = {}
@@ -183,11 +207,7 @@ class Model_SSVM_AD3(Model):
         clsWeights = self.computeClassWeight(lY)
         traceln("\t\t\t%s"%clsWeights)
 
-        if self._nbClass:
-            #if some class is not represented, we still train and do not crash
-            crf = EdgeFeatureGraphCRF(inference_method='ad3', class_weight=clsWeights, n_states=self._nbClass)
-        else:
-            crf = EdgeFeatureGraphCRF(inference_method='ad3', class_weight=clsWeights)
+        crf = self._getCRFModel(clsWeights)
         
         self._ssvm = OneSlackSSVM(crf
                             #, inference_cache=self.inference_cache, C=self.C, tol=self.tol
@@ -228,6 +248,14 @@ class Model_SSVM_AD3(Model):
         traceln("\tBest parameters: ",  dBestParams)
         traceln("\t", "- "*20)
         
+        try:
+            self.ssvm.alphas = None  
+            self.ssvm.constraints_ = None
+            self.ssvm.inference_cache_ = None    
+            traceln("\t\t(model made slimmer. Not sure you can efficiently warm-start it later on. See option -w.)")        
+        except Exception as e:
+            traceln("\t\t(COULD NOT make the model slimmer. Got exception: %s"%str(e))        
+
         logger=SaveLogger(self.getModelFilename())
         logger(self.ssvm)  #save this model!
         
@@ -249,13 +277,6 @@ class Model_SSVM_AD3(Model):
         except Exception as e:
             traceln("WARNING: error while dealing with the GridSearchCV object.")
             traceln(e)
-
-        
-#         if not bWarmStart:
-#             self.ssvm.alphas = None  
-#             self.ssvm.constraints_ = None
-#             self.ssvm.inference_cache_ = None    
-#             traceln("\t\t(model made slimmer. Not sure you can efficiently warm-start it later on. See option -w.)")        
 
         #the baseline model(s) if any
         self._trainBaselines(lX, lY)
@@ -299,8 +320,9 @@ class Model_SSVM_AD3(Model):
         chronoOn()
         lX, lY = self.get_lX(lGraph), self.get_lY(lGraph)
         
-        traceln("\t\t #features nodes=%d  edges=%d "%(lX[0][0].shape[1], lX[0][2].shape[1]))
         traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
+        self._computeModelCaracteristics(lX)    #we discover here dynamically the number of features of nodes and edges
+        traceln("\t\t %s"%self._getNbFeatureAsText())
         traceln("\t [%.1fs] done\n"%chronoOff())
         
         traceln("\t- predicting on test set")
@@ -343,7 +365,9 @@ class Model_SSVM_AD3(Model):
 
             if lLabelName == None:
                 lLabelName = g.getLabelNameList()
-                traceln("\t\t #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
+                traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber([g]))
+                self._computeModelCaracteristics([X])    #we discover here dynamically the number of features of nodes and edges
+                traceln("\t\t %s"%self._getNbFeatureAsText())
             else:
                 assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
             n_jobs = self.ssvm.n_jobs
@@ -392,8 +416,10 @@ class Model_SSVM_AD3(Model):
         """
         [X] = self.get_lX([graph])
         bConstraint  = graph.getPageConstraint()
+        traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber([graph]))
+        self._computeModelCaracteristics([X])    #we discover here dynamically the number of features of nodes and edges
+        traceln("\t\t %s"%self._getNbFeatureAsText())
         
-        traceln("\t\t #features nodes=%d  edges=%d "%(X[0].shape[1], X[2].shape[1]))
         n_jobs = self.ssvm.n_jobs
         self.ssvm.n_jobs = 1
         if bConstraint:
