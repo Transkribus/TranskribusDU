@@ -90,7 +90,6 @@ See DU_StAZH_b.py
 
     def __init__(self, sModelName, sModelDir, cGraphClass, dLearnerConfig={}, sComment=None
                  , cFeatureDefinition=None, dFeatureConfig={}
-                 , lt_cFeatureDefinition_dFeatureConfig=None         #this is an alternative to passing cFeatureDefinition and dFeatureConfig
                  ): 
         """
         
@@ -116,41 +115,17 @@ See DU_StAZH_b.py
 
         #--- feature definition and configuration per type
         #Feature definition and their config
-        if (cFeatureDefinition or dFeatureConfig):
-            if lt_cFeatureDefinition_dFeatureConfig:
-                raise ValueError("SW Error: use either lt_cFeatureDefinition_dFeatureConfig or (cFeatureDefinition and dFeatureConfig)")
-        else:
-            if not lt_cFeatureDefinition_dFeatureConfig:
-                raise ValueError("SW Error: use either lt_cFeatureDefinition_dFeatureConfig or (cFeatureDefinition and dFeatureConfig)")
-        
-        #backward compatibility:
-        if lt_cFeatureDefinition_dFeatureConfig and len(lt_cFeatureDefinition_dFeatureConfig) == 1:
-            (  cFeatureDefinition,dFeatureConfig) = lt_cFeatureDefinition_dFeatureConfig[0]
-            lt_cFeatureDefinition_dFeatureConfig  = None
-            
-        if cFeatureDefinition or dFeatureConfig:
-            #old mode, when we had only a single type in our CRF
-            self.config_extractor_kwargs                    = dFeatureConfig
-            if cFeatureDefinition: self.cFeatureDefinition  = cFeatureDefinition
-            self.lt_cFeatureDefinition_dFeatureConfig       = None 
-            self.iNbCRFType                                 = 1
-            self.cModelClass                                = Model_SSVM_AD3
-            assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
-        else:
-            self.config_extractor_kwargs                    = None
-            self.cFeatureDefinition                         = None
-            self.lt_cFeatureDefinition_dFeatureConfig       = lt_cFeatureDefinition_dFeatureConfig
-            self.iNbCRFType                                 = len(self.lt_cFeatureDefinition_dFeatureConfig)
-            self.cModelClass                                = Model_SSVM_AD3_Multitype
-
-        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
-
-        if len(self.cGraphClass.getNodeTypeList()) != self.iNbCRFType:
-            raise ValueError("ERROR: the number of node types associated to the graph class differs from the number of feature definition")
+        self.config_extractor_kwargs                    = dFeatureConfig
+        if cFeatureDefinition: self.cFeatureDefinition  = cFeatureDefinition
+        assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
         
         #for single- or multi-type CRF, the same applies!
         self.lNbClass = [len(nt.getLabelNameList()) for nt in self.cGraphClass.getNodeTypeList()]
         self.nbClass = sum(self.lNbClass)
+        self.iNbCRFType = len(self.cGraphClass.getNodeTypeList())
+
+        self.cModelClass = Model_SSVM_AD3 if self.iNbCRFType == 1 else Model_SSVM_AD3_Multitype
+        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
         
     #---  CONFIGURATION setters --------------------------------------------------------------------
     def isTypedCRF(self): 
@@ -613,7 +588,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         self.traceln(" %d graphs loaded"%len(lGraph_trn))
 
         assert self.nbClass, "internal error"
-        mdl.setNbClass(self.nbClass)
+        mdl.setNbClass(self.lNbClass)
 
         #for this check, we load the Y once...
         self.checkLabelCoverage(mdl.get_lY(lGraph_trn))
