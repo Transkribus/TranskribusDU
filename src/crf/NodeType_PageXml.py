@@ -110,14 +110,25 @@ class NodeType_PageXml(NodeType):
             try:
                 x1,y1, x2,y2 = plg.fitRectangle()
             except ZeroDivisionError:
-                traceln("Warning: ignoring invalid polygon id=%s page=%s"%(ndBlock.prop("id"), page.pnum))
-                continue
+#                 traceln("Warning: ignoring invalid polygon id=%s page=%s"%(ndBlock.prop("id"), page.pnum))
+#                 continue
+#             if True:
+#                 #we reduce a bit this rectangle, to ovoid overlap
+#                 w,h = x2-x1, y2-y1
+#                 dx = max(w * 0.066, min(20, w/3))  #we make sure that at least 1/"rd of te width will remain!
+#                 dy = max(h * 0.066, min(20, w/3))
+#                 x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
+
+                x1,y1,x2,y2 = plg.getBoundingBox()
+                
             if True:
                 #we reduce a bit this rectangle, to ovoid overlap
                 w,h = x2-x1, y2-y1
-                dx = max(w * 0.066, min(20, w/3))  #we make sure that at least 1/"rd of te width will remain!
-                dy = max(h * 0.066, min(20, w/3))
+                dx = max(w * 0.066, min(5, w/3))  #we make sure that at least 1/"rd of te width will remain!
+#                 dy = max(h * 0.066, min(5, w/3))
+                dy = max(h * 0.066, min(5, h/3))
                 x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
+
             
             #TODO
             orientation = 0  #no meaning for PageXml
