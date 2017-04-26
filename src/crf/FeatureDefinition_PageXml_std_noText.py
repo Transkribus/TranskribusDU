@@ -31,7 +31,7 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.preprocessing import StandardScaler
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from crf.Transformer import SparseToDense
+from crf.Transformer import TransformerListByType
 from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures
 from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
@@ -90,11 +90,6 @@ class FeatureDefinition_PageXml_StandardOnes_noText(FeatureDefinition):
         self._edge_transformer = edge_transformer
         self.tfidfNodeTextVectorizer = None #tdifNodeTextVectorizer
         
-    def getTransformers(self):
-        """
-        return (node transformer, edge transformer)
-        """
-        return self._node_transformer, self._edge_transformer
     
 #     def cleanTransformers(self):
 #         """
@@ -109,17 +104,21 @@ class FeatureDefinition_PageXml_StandardOnes_noText(FeatureDefinition):
 #         return self._node_transformer, self._edge_transformer        
 
 
-class FeatureDefinition_T_PageXml_StandardOnes_noText(FeatureDefinition_PageXml_StandardOnes_noText):
+class FeatureDefinition_T_PageXml_StandardOnes_noText(FeatureDefinition):
     """
     Multitype version:
     so the node_transformer actually is a list of node_transformer of length n_class
        the edge_transformer actually is a list of node_transformer of length n_class^2
+       
+    We also inherit from FeatureDefinition_T !!!
     """ 
        
-    def __init__(self, nbClass=None):
+    def __init__(self, **kwargs):
         FeatureDefinition.__init__(self)
+
+        nbTypes = self._getTypeNumber(kwargs)
         
-        node_transformer = [ FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
+        node_transformer = TransformerListByType([ FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                     ("xywh", Pipeline([
                                                          ('selector', NodeTransformerXYWH_v2()),
                                                          ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
@@ -134,9 +133,9 @@ class FeatureDefinition_T_PageXml_StandardOnes_noText(FeatureDefinition_PageXml_
                                                          ('1hot', Node1HotFeatures())  #does the 1-hot encoding directly
                                                          ])
                                        )
-                                      ]) for i in range(nbClass) ]
+                                      ]) for i in range(nbTypes) ])
     
-        edge_transformer = [ FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
+        edge_transformer = TransformerListByType([ FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                       ("1hot", Pipeline([
                                                          ('1hot', Edge1HotFeatures(PageNumberSimpleSequenciality()))
                                                          ])
@@ -150,8 +149,9 @@ class FeatureDefinition_T_PageXml_StandardOnes_noText(FeatureDefinition_PageXml_
                                                          ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
                                                          ])
                                         )
-                                          ] ) for i in range(nbClass*nbClass) ]
+                                          ] ) for i in range(nbTypes*nbTypes) ])
           
         #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
         self._node_transformer = node_transformer
         self._edge_transformer = edge_transformer
+        
