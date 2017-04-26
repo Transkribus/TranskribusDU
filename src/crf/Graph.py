@@ -25,6 +25,7 @@
     
 """
 import collections
+import itertools
 
 import numpy as np
 import libxml2
@@ -41,6 +42,7 @@ class Graph:
     
     # --- NODE TYPES and LABELS
     _lNodeType       = []       #the list of node types for this class of graph
+    _bMultitype      = False    # equivalent to len(_lNodeType) > 1
     _dLabelByCls     = None     #dictionary across node types
     _dClsByLabel     = None     #dictionary across node types
     _nbLabelTot      = 0        #total number of labels
@@ -55,7 +57,6 @@ class Graph:
         
         self.name = "_unnamed_graph_"
         
-        self.bNodeIndexed  = None   #did we already assign a unique index to each node?
         self.aNeighborClassMask = None   #did we compute the neighbor class mask already?
         
         self.aLabelCount = None #count of seen labels
@@ -80,6 +81,7 @@ class Graph:
     def addNodeType(cls, nodeType):
         """
         Add a new node type to this class of graph
+        #NOTE: the cls integer value encompasses all types, from 0 to N-1 where N is the cumulative number of classes over node types
         return the new whole list of labels
         """
         #list of labels
@@ -98,6 +100,8 @@ class Graph:
         #and make convenience data structures
         cls._dLabelByCls = { i:sLabel for i,sLabel in enumerate(lsAllLabel) }         
         cls._dClsByLabel = { sLabel:i for i,sLabel in enumerate(lsAllLabel) } 
+        
+        cls._bMultitype = (len(cls._lNodeType) >1) 
         
         return lsAllLabel
     
@@ -271,19 +275,19 @@ class Graph:
     def getNeighborClassMask(self):
         """
         record for each node a boolean for each label, indicating if the node is neighbor with a node having that label
-        , one same page or oaccross page
+        , one same page or accross page
         """    
         if self.aNeighborClassMask is None:
             self.aNeighborClassMask = np.zeros((len(self.lNode), self._nbLabelTot*2), dtype=np.int8)
-            if not self.bNodeIndexed: self._indexNodes()
+            self._index()
             for edge in self.lEdge:
                 a, b = edge.A, edge.B
                 if isinstance(edge, SamePageEdge):
-                    self.aNeighborClassMask[a.index, b.cls] = 1
-                    self.aNeighborClassMask[b.index, a.cls] = 1
+                    self.aNeighborClassMask[a._index, b.cls] = 1
+                    self.aNeighborClassMask[b._index, a.cls] = 1
                 else:
-                    self.aNeighborClassMask[a.index, self._nbLabelTot+b.cls] = 1
-                    self.aNeighborClassMask[b.index, self._nbLabelTot+a.cls] = 1
+                    self.aNeighborClassMask[a._index, self._nbLabelTot+b.cls] = 1
+                    self.aNeighborClassMask[b._index, self._nbLabelTot+a.cls] = 1
                     
         return self.aNeighborClassMask
         
@@ -300,16 +304,18 @@ class Graph:
     # --- Numpy matrices --------------------------------------------------------
     def buildNodeEdgeMatrices(self, node_transformer, edge_transformer):
         """
-        make 1 node-feature matrix
-         and 1 edge-feature matrix
-         and 1 edge matrix
+        make 1 node-feature matrix     (or list of matrices for multitype graphs)
+         and 1 edge-feature matrix     (or list of matrices for multitype graphs)
+         and 1 edge matrix             (or list of matrices for multitype graphs)
          for the graph
-        return 3 Numpy matrices
+        return a triplet
         """
-        node_features = node_transformer.transform(self.lNode)
-        edges = self._BuildEdgeMatrix()
-        edge_features = edge_transformer.transform(self.lEdge)
-        return (node_features, edges, edge_features)       
+        self._index()
+        
+        if self._bMultitype:
+            return self._buildNodeEdgeMatrices_T(node_transformer, edge_transformer)
+        else:
+            return self._buildNodeEdgeMatrices_S(node_transformer, edge_transformer)
     
     def buildLabelMatrix(self):
         """
@@ -318,23 +324,97 @@ class Graph:
         Y = np.array( [nd.cls for nd in self.lNode] , dtype=np.uint8)
         return Y
     
-    def _indexNodes(self):
-        for i, nd in enumerate(self.lNode): nd.index = i
-        self.bNodeIndexed = True
-            
+    def _indexNodeTypes(self):
+        """
+        add _index attribute to registered NodeType
+        """
+        for i, nt in enumerate(self._lNodeType): nt._index = i
+
+    def _index(self):
+        """
+        - index NodeType(s)
+        - add _index attribute to all nodes
+        """
+        try:
+            self.__bNodeIndexed
+        except AttributeError:
+            self._indexNodeTypes()
+            for i, nd in enumerate(self.lNode): nd._index = i
+            self.__bNodeIndexed = True
+
+    #----- SINGLE TYPE -----   
+    def _buildNodeEdgeMatrices_S(self, node_transformer, edge_transformer):
+        """
+        make 1 node-feature matrix
+         and 1 edge-feature matrix
+         and 1 edge matrix
+         for the graph
+        return a triplet
+        """
+        assert not self._bMultitype
+        node_features = node_transformer.transform(self.lNode)
+        edges = self._BuildEdgeMatrix()
+        edge_features = edge_transformer.transform(self.lEdge)
+        return (node_features, edges, edge_features)       
+                
     def _BuildEdgeMatrix(self):
         """
         - add an index attribute to nodes
         - build an edge matrix on this basis
         - return the edge matrix (a 2-columns matrix)
         """
-        if not self.bNodeIndexed: self._indexNodes()
+        #SINGLE TYPE GRAPH, WE KEEP THE OLD CODE
         edges = np.empty( (len(self.lEdge), 2) , dtype=np.int32)
         for i, edge in enumerate(self.lEdge):
-            edges[i,0] = edge.A.index
-            edges[i,1] = edge.B.index
+            edges[i,:] = edge.A._index, edge.B._index
+            
+#  #better code?
+#             edges = np.fromiter( itertools.chain.from_iterable( (edge.A._index, edge.B._index) for edge in self.lEdge )
+#                                  , dtype=np.int, count=2*len(self.lEdge))
+#             edge = edges.reshape(len(self.lEdge), 2)
         return edges
+   
+    #----- MULTITYPE -----  
+    def _buildNodeEdgeMatrices_T(self, node_transformer, edge_transformer):
+        """
+        make a list of node feature matrices
+         and a list of edge definition matrices
+         and a list of edge feature matrices
+         for the graph
+        return a triplet
+        """
+        n_type   = len(self._lNodeType)
+        n_type_2 = n_type * n_type
+        
+        #list nodes per type
+        lNodeByType =[ list() for i in range(n_type)]
+        _a_node_count_by_type = np.zeros((n_type,), dtype=np.int) 
+        for nd in self.lNode:
+            type_index = nd.type._index
+            lNodeByType[type_index].append(nd)
+            #to define the edges
+            nd._index_in_type = _a_node_count_by_type[type_index]
+            _a_node_count_by_type[type_index] += 1
+        
+        node_features = node_transformer.transform(lNodeByType)
+        
+        #definition of edges and list of edges by types
+        t_edges = np.empty( (len(self.lEdge), 3) , dtype=np.int32)      #edge_type_index, node_index_in_type, node_index_in_type
+        lEdgeByType =[ list() for i in range(n_type_2)]
+        for i, edge in enumerate(self.lEdge):
+            A, B = edge.A, edge.B
+            edge_type_index = A.type._index * n_type + B.type._index
+            t_edges[i,:] = (edge_type_index,                            #index of edge's type
+                            A._index_in_type,                           #index in A's type
+                            B._index_in_type)                           #index in B's type
+            lEdgeByType[edge_type_index].append(edge)
+        edges = [ t_edges[ t_edges[:, 0]==type_index ][:,1:3] for type_index in range(n_type_2) ]
+        
+        edge_features = edge_transformer.transform(lEdgeByType)
 
+        return (node_features, edges, edge_features)       
+    
+    #----- STUFF -----  
     def getNodeIndexByPage(self):
         """
         return a list of list of index
@@ -343,14 +423,14 @@ class Graph:
         """
         if not self.lNode: raise ValueError("Empty graph")
         try:
-            self.lNode[0].index
+            self.lNode[0]._index
         except AttributeError:
             for i, nd in enumerate(self.lNode):
-                nd.index = i
+                nd._index = i
 
         dlIndexByPage = collections.defaultdict(list)
         for nd in self.lNode:
-            dlIndexByPage[nd.pnum].append(nd.index)
+            dlIndexByPage[nd.pnum].append(nd._index)
         
         llIndexByPage = []
         for pnum in sorted(dlIndexByPage.keys()):
