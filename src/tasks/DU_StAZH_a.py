@@ -98,7 +98,7 @@ class DU_StAZH_a(DU_CRF_Task):
                                  }
                              , sComment=sComment
                              )
-        self.setNbClass(5+1)
+        #deprecated self.setNbClass(5+1)
         self.addBaseline_LogisticRegression()    #use a LR model as baseline
     #=== END OF CONFIGURATION =============================================================
 
