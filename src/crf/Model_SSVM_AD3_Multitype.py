@@ -120,7 +120,7 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
         assert len(lE)  == self.nbType*self.nbType, "SW Error: Badly constructed X: expected %d Edge matrices"         % self.nbType*self.nbType
         assert len(lEF) == self.nbType*self.nbType, "SW Error: Badly constructed X: expected %d Edge Feature matrices" % self.nbType*self.nbType
         self.lNodeFeatNb = [NF.shape[1] for NF in lNF]
-        self.lEdgeFeatNb = [EF.shape[1] for EF in lEF]
+        self.lEdgeFeatNb = [ [lEF[i*self.nbType+j].shape[1] for i in range(self.nbType)] for j in range(self.nbType)]
         return self.nbType, self.lNodeFeatNb, self.lEdgeFeatNb
     
     def _getNbFeatureAsText(self):
@@ -147,6 +147,7 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
         This is tricky. Uniform weight for now.
         """
         return None
+
     
 # --- MAIN: DISPLAY STORED MODEL INFO ------------------------------------------------------------------
 
