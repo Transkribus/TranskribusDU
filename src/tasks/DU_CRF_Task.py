@@ -115,7 +115,6 @@ See DU_StAZH_b.py
 
         #--- feature definition and configuration per type
         #Feature definition and their config
-        self.config_extractor_kwargs                    = dFeatureConfig
         if cFeatureDefinition: self.cFeatureDefinition  = cFeatureDefinition
         assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
         
@@ -123,6 +122,20 @@ See DU_StAZH_b.py
         self.lNbClass = [len(nt.getLabelNameList()) for nt in self.cGraphClass.getNodeTypeList()]
         self.nbClass = sum(self.lNbClass)
         self.iNbCRFType = len(self.cGraphClass.getNodeTypeList())
+
+        if self.iNbCRFType > 1:
+            #check the configuration of a MULTITYPE graph
+            setKeyGiven = set(dFeatureConfig.keys())
+            lNT = self.cGraphClass.getNodeTypeList()
+            setKeyExpected = {nt.name for nt in lNT}.union( {"%s_%s"%(nt1.name,nt2.name) for nt1 in lNT for nt2 in lNT} )
+            
+            setMissing = setKeyExpected.difference(setKeyGiven)
+            setExtra   = setKeyGiven.difference(setKeyExpected)
+            if setMissing: traceln("ERROR: missing feature extractor config for : ", ", ".join(setMissing))
+            if setExtra:   traceln("ERROR: feature extractor config for unknown : ", ", ".join(setExtra))
+            if setMissing or setExtra: raise ValueError("Bad feature extractor configuration for a multi-type CRF graph")
+           
+        self.config_extractor_kwargs = dFeatureConfig
 
         self.cModelClass = Model_SSVM_AD3 if self.iNbCRFType == 1 else Model_SSVM_AD3_Multitype
         assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
@@ -154,11 +167,11 @@ See DU_StAZH_b.py
     When some class is not represented on some graph, you must specify the number of class (per type if multiple types)
     Otherwise pystruct will complain about the number of states differeing from the number of weights
     """
-    def setNbClass(self, useless_stuff):
+    def setNbClass(self, useless_stuff):    #DEPRECATED - DO NOT CALL!! Number of class computed automatically
         print   " *** setNbClass is deprecated - update your code (but it should work fine!)"
         traceln(" *** setNbClass is deprecated - update your code (but it should work fine!)")
         
-    def getNbClass(self, lNbClass):
+    def getNbClass(self, lNbClass): #OK
         """
         return the total number of classes
         """
