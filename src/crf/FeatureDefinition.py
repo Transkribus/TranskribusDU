@@ -26,20 +26,21 @@
     under grant agreement No 674943.
     
 """
+import math
 
 class FeatureDefinition:
     """
     A class to sub-class to define which features from a Tranformer class, you want for node and edges
     """
-    def __init__(self, nbClass=None): 
-        self.nbClass = nbClass  #number of node classes (also called 'labels', and 'states' in pystruct)
+    def __init__(self): 
+        self._node_transformer, self._edge_transformer = None, None
 
     def getTransformers(self):
         """
         return (node transformer, edge transformer)
         """
-        raise Exception("Method must be overridden")
-        
+        return self._node_transformer, self._edge_transformer
+            
     def fitTranformers(self, lGraph):
         """
         Fit the transformers using the graphs
@@ -63,4 +64,13 @@ class FeatureDefinition:
         For instance: the TFIDF transformers are keeping the stop words => huge pickled file!!!
         """
         return None
+
+    def _getTypeNumber(self, kwargs):
+        """
+        Utility function. In some case the __init__ method gets a dictionary of length N + N^2
+            (N config for unary extractor, N^2 config for pairwise)
+        Here we compute N from the dictionary length. ^^
+        """
+        return int(round(math.sqrt( len(kwargs) + 1/4.0)-0.5, 0))
     
+

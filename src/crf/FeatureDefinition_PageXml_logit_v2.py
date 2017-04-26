@@ -57,8 +57,8 @@ class FeatureDefinition_PageXml_LogitExtractorV2(FeatureDefinition):
                      , n_feat_node=None, t_ngrams_node=None, b_node_lc=None
                      , n_feat_edge=None, t_ngrams_edge=None, b_edge_lc=None
                      , n_jobs=1): 
-        FeatureDefinition.__init__(self, nbClass)
-        assert nbClass, "Error: indicate the numbe of classes"
+        FeatureDefinition.__init__(self)
+        assert nbClass, "Error: indicate the number of classes"
         self.nbClass = nbClass
         self.n_feat_node, self.t_ngrams_node, self.b_node_lc = n_feat_node, t_ngrams_node, b_node_lc
         self.n_feat_edge, self.t_ngrams_edge, self.b_edge_lc = n_feat_edge, t_ngrams_edge, b_edge_lc

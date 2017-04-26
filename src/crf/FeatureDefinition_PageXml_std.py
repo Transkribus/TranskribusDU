@@ -170,12 +170,6 @@ class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
         self._edge_transformer = edge_transformer
         self.tfidfNodeTextVectorizer = tdifNodeTextVectorizer
         
-    def getTransformers(self):
-        """
-        return (node transformer, edge transformer)
-        """
-        return self._node_transformer, self._edge_transformer
-    
     def cleanTransformers(self):
         """
         the TFIDF transformers are keeping the stop words => huge pickled file!!!
