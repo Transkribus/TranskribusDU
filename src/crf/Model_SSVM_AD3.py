@@ -125,7 +125,7 @@ class Model_SSVM_AD3(Model):
         traceln("\t- computing features on training set")
         traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
         chronoOn()
-        lX, lY = self.get_lX(lGraph), self.get_lY(lGraph)
+        lX, lY = self.get_lX_lY(lGraph)
         self._computeModelCaracteristics(lX)    #we discover here dynamically the number of features of nodes and edges
         traceln("\t\t %s"%self._getNbFeatureAsText())
         traceln("\t [%.1fs] done\n"%chronoOff())
@@ -190,7 +190,7 @@ class Model_SSVM_AD3(Model):
         traceln("\t- computing features on training set")
         traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
         chronoOn()
-        lX, lY = self.get_lX(lGraph), self.get_lY(lGraph)
+        lX, lY = self.get_lX_lY(lGraph)
         self._computeModelCaracteristics(lX)    #we discover here dynamically the number of features of nodes and edges
         traceln("\t\t %s"%self._getNbFeatureAsText())
         traceln("\t [%.1fs] done\n"%chronoOff())
@@ -318,7 +318,7 @@ class Model_SSVM_AD3(Model):
         
         traceln("\t- computing features on test set")
         chronoOn()
-        lX, lY = self.get_lX(lGraph), self.get_lY(lGraph)
+        lX, lY = self.get_lX_lY(lGraph)
         
         traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
         self._computeModelCaracteristics(lX)    #we discover here dynamically the number of features of nodes and edges
@@ -361,7 +361,7 @@ class Model_SSVM_AD3(Model):
         
         for sFilename in lsFilename:
             [g] = loadFun(sFilename) #returns a singleton list
-            [X], [Y] = self.get_lX([g]), self.get_lY([g])
+            [X], [Y] = self.get_lX_lY([g])
 
             if lLabelName == None:
                 lLabelName = g.getLabelNameList()

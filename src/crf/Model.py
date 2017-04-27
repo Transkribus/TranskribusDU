@@ -204,19 +204,30 @@ class Model:
         self._node_transformer, self._edge_transformer = dat        
         return True
     
+    def get_lX_lY(self, lGraph):
+        """
+        Compute node and edge features and return one X matrix for each graph as a list
+        return a list of X, a list of Y matrix
+        """
+        #unfortunately, zip returns tuples and pystruct requires lists... :-/
+        return map(list, zip( *(g.getXY(self._node_transformer, self._edge_transformer) for g in lGraph) )) # => (lX, lY)
+#         return ( [g.buildNodeEdgeMatrices(self._node_transformer, self._edge_transformer) for g in lGraph]
+#                  , [g.buildLabelMatrix() for g in lGraph] )
+
     def get_lX(self, lGraph):
         """
         Compute node and edge features and return one X matrix for each graph as a list
-        return a list of X
+        return a list of X, a list of Y matrix
         """
-        return [g.buildNodeEdgeMatrices(self._node_transformer, self._edge_transformer) for g in lGraph]
+        return [g.getX(self._node_transformer, self._edge_transformer) for g in lGraph]
 
     def get_lY(self, lGraph):
         """
-        return a list of Y matrix, one per graph
+        Compute node and edge features and return one X matrix for each graph as a list
+        return a list of X, a list of Y matrix
         """
-        return [g.buildLabelMatrix() for g in lGraph]
-        
+        return [g.getY() for g in lGraph]
+
     def saveConfiguration(self, config_data):
         """
         Save the configuration on disk
