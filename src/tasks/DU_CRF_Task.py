@@ -604,7 +604,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         mdl.setNbClass(self.lNbClass)
 
         #for this check, we load the Y once...
-        self.checkLabelCoverage(mdl.get_lY(lGraph_trn))
+        self.checkLabelCoverage(mdl.get_lY(lGraph_trn)) #NOTE that Y are in bad order if multiptypes. Not a pb here
             
         self.traceln("- retrieving or creating feature extractors...")
         chronoOn("FeatExtract")
