@@ -302,34 +302,41 @@ class Graph:
 
 
     # --- Numpy matrices --------------------------------------------------------
-    def buildNodeEdgeMatrices(self, node_transformer, edge_transformer):
+    def getXY(self, node_transformer, edge_transformer):
+        """
+        return a tuple (X,Y) for the graph  (X is a triplet)
+        """
+        self._index()
+        
+        if self._bMultitype:
+            return self._buildNodeEdgeLabelMatrices_T(node_transformer, edge_transformer, bY=True)
+        else:
+            return (self._buildNodeEdgeMatrices_S(node_transformer, edge_transformer)
+                  , self._buildLabelMatrix_S())
+    
+    def getX(self, node_transformer, edge_transformer):
         """
         make 1 node-feature matrix     (or list of matrices for multitype graphs)
          and 1 edge-feature matrix     (or list of matrices for multitype graphs)
          and 1 edge matrix             (or list of matrices for multitype graphs)
          for the graph
         return a triplet
+        
+        return X for the graph
         """
         self._index()
         
         if self._bMultitype:
-            return self._buildNodeEdgeMatrices_T(node_transformer, edge_transformer)
+            return self._buildNodeEdgeLabelMatrices_T(node_transformer, edge_transformer, bY=False)
         else:
             return self._buildNodeEdgeMatrices_S(node_transformer, edge_transformer)
-    
-    def buildLabelMatrix(self):
-        """
-        Return the matrix of labels
-        """
-        Y = np.array( [nd.cls for nd in self.lNode] , dtype=np.uint8)
-        return Y
-    
-    def _indexNodeTypes(self):
-        """
-        add _index attribute to registered NodeType
-        """
-        for i, nt in enumerate(self._lNodeType): nt._index = i
 
+    def getY(self):
+        """
+        WARNING, in multitype graphs, the order of the Ys is bad
+        """
+        return self._buildLabelMatrix_S()
+    #----- Indexing Graph Objects -----   
     def _index(self):
         """
         - index NodeType(s)
@@ -341,6 +348,12 @@ class Graph:
             self._indexNodeTypes()
             for i, nd in enumerate(self.lNode): nd._index = i
             self.__bNodeIndexed = True
+            
+    def _indexNodeTypes(self):
+        """
+        add _index attribute to registered NodeType
+        """
+        for i, nt in enumerate(self._lNodeType): nt._index = i
 
     #----- SINGLE TYPE -----   
     def _buildNodeEdgeMatrices_S(self, node_transformer, edge_transformer):
@@ -353,11 +366,11 @@ class Graph:
         """
         assert not self._bMultitype
         node_features = node_transformer.transform(self.lNode)
-        edges = self._BuildEdgeMatrix()
+        edges = self._BuildEdgeMatrix_S()
         edge_features = edge_transformer.transform(self.lEdge)
         return (node_features, edges, edge_features)       
                 
-    def _BuildEdgeMatrix(self):
+    def _BuildEdgeMatrix_S(self):
         """
         - add an index attribute to nodes
         - build an edge matrix on this basis
@@ -373,15 +386,26 @@ class Graph:
 #                                  , dtype=np.int, count=2*len(self.lEdge))
 #             edge = edges.reshape(len(self.lEdge), 2)
         return edges
+
+    def _buildLabelMatrix_S(self):
+        """
+        Return the matrix of labels
+        """
+        #better code based on fromiter is below (I think, JLM April 2017) 
+        #Y = np.array( [nd.cls for nd in self.lNode] , dtype=np.uint8)
+        Y = np.fromiter( (nd.cls for nd in self.lNode), dtype=np.uint, count=len(self.lNode))
+        return Y
    
     #----- MULTITYPE -----  
-    def _buildNodeEdgeMatrices_T(self, node_transformer, edge_transformer):
+    def _buildNodeEdgeLabelMatrices_T(self, node_transformer, edge_transformer, bY=True):
         """
         make a list of node feature matrices
          and a list of edge definition matrices
          and a list of edge feature matrices
          for the graph
-        return a triplet
+        and optionnaly the Y, if bY is True
+        return  a triplet
+             or a tuple (triplet, Y)
         """
         n_type   = len(self._lNodeType)
         n_type_2 = n_type * n_type
@@ -395,8 +419,18 @@ class Graph:
             #to define the edges
             nd._index_in_type = _a_node_count_by_type[type_index]
             _a_node_count_by_type[type_index] += 1
-        
         node_features = node_transformer.transform(lNodeByType)
+        
+        if bY:
+            #we need to compute Y and reorder it since we have grouped the nodes by type, and ordered the types
+            #so node with index i, that ends in type Ti, with index in type j has now the index cumulative_count_by_type[i-1] + j
+            node_index_offset_by_typ = np.cumsum([0]+_a_node_count_by_type.tolist())
+            Y = np.zeros( (len(self.lNode),), dtype=np.uint)
+            #TODO optimize this code to avoid going twice thru each node and accessing it attributes twice
+            for nd in self.lNode:
+                Ti = nd.type._index
+                new_index = node_index_offset_by_typ[Ti] + nd._index_in_type
+                Y[new_index] = nd.cls
         
         #definition of edges and list of edges by types
         t_edges = np.empty( (len(self.lEdge), 3) , dtype=np.int32)      #edge_type_index, node_index_in_type, node_index_in_type
@@ -412,8 +446,11 @@ class Graph:
         
         edge_features = edge_transformer.transform(lEdgeByType)
 
-        return (node_features, edges, edge_features)       
-    
+        if bY:
+            return (node_features, edges, edge_features), Y
+        else:       
+            return (node_features, edges, edge_features)    
+
     #----- STUFF -----  
     def getNodeIndexByPage(self):
         """
