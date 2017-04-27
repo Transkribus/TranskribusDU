@@ -129,8 +129,7 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
         
         traceln("- classes: ", self.DU_GRAPH.getLabelNameList())
 
-        #self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
-        print "TODO: deal with baseline"
+        self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
         
     #=== END OF CONFIGURATION =============================================================
 
