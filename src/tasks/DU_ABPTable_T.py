@@ -80,6 +80,7 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
                           , lLabels1
                           , lIgnoredLabels1
                           , False    #no label means OTHER
+                          , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
                           )
     nt1.setXpathExpr( (".//pc:TextLine"        #how to find the nodes
                       , "./pc:TextEquiv")       #how to get their text
@@ -90,6 +91,7 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
                           , ['SI', 'SO']
                           , None
                           , False    #no label means OTHER
+                          , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
                           )
     nt2.setXpathExpr( (".//pc:SeparatorRegion"  #how to find the nodes
                       , "./pc:TextEquiv")       #how to get their text  (no text in fact)
