@@ -29,6 +29,7 @@
 """
 import sys, os, types
 import gc
+import numpy as np
 
 from sklearn.model_selection import GridSearchCV  #0.18.1 REQUIRES NUMPY 1.12.1 or more recent
     
@@ -46,7 +47,7 @@ from common.chrono import chronoOn, chronoOff
 from crf.Model_SSVM_AD3 import Model_SSVM_AD3
 
 from Graph import Graph
-from TestReport import TestReport
+from TestReport import TestReport, TestReportConfusion
 
 class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
     #default values for the solver
@@ -128,6 +129,90 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
         return the number of node features and the number of edge features as a textual message
         """
         return " %d types - #features: (nodes) %s   (edges) %s"%(self.nbType, self.lNodeFeatNb, self.lEdgeFeatNb)
+
+    # --- TRAIN / TEST / PREDICT BASELINE MODELS ------------------------------------------------
+    
+    def _getXY_forType(self, lX, lY, type_index):
+        """
+        The node features are grouped by type of nodes.
+        Given a type, we need to stack the feature of nodes of that type and extract their labels
+        """
+        X_flat = np.vstack( node_features[type_index] for (node_features, _, _) in lX )
+        
+        lY_type = []
+        for X, Y in zip(lX, lY):
+            node_features = X[0]  #list of node feature matrices, per type
+            n_node_before_the_type = sum( node_features[i].shape[0] for i in range(type_index) )      #how many node in previous types?
+            n_node_of_type = node_features[type_index].shape[0] 
+            Y_type = Y[n_node_before_the_type:n_node_before_the_type+n_node_of_type]
+            lY_type.append( Y_type )
+        Y_flat = np.hstack(lY_type)
+        
+        del lY_type
+        return X_flat, Y_flat
+    
+    def _trainBaselines(self, lX, lY):
+        """
+        Train the baseline models, if any
+        """
+        if self._lMdlBaseline:
+            for itype in range(self.nbType):
+                X_flat, Y_flat = self._getXY_forType(lX, lY, itype)
+                for mdlBaseline in self._lMdlBaseline:
+                    chronoOn()
+                    traceln("\t - training baseline model: %s"%str(mdlBaseline))
+                    mdlBaseline[itype].fit(X_flat, Y_flat)
+                    traceln("\t [%.1fs] done\n"%chronoOff())
+                del X_flat, Y_flat
+        return True
+                  
+    def _testBaselines(self, lX, lY, lLabelName=None, lsDocName=None):
+        """
+        test the baseline models, 
+        return a test report list, one per baseline method
+        """
+        if lsDocName: assert len(lX) == len(lsDocName), "Internal error"
+        
+        lTstRpt = []
+        if self._lMdlBaseline:
+            for itype in range(self.nbType):
+                X_flat, Y_flat = self._getXY_forType(lX, lY, itype)
+                for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
+                    chronoOn()
+                    Y_pred_flat = mdl[itype].predict(X_flat)
+                    traceln("\t\t [%.1fs] done\n"%chronoOff())
+                    lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat, lLabelName, lsDocName=lsDocName) )
+                
+            del X_flat, Y_flat, Y_pred_flat
+        return lTstRpt                                                                              
+    
+    def _testBaselinesEco(self, lX, lY, lLabelName=None, lsDocName=None):
+        """
+        test the baseline models, WITHOUT MAKING A HUGE X IN MEMORY
+        return a test report list, one per baseline method
+        """
+        if lsDocName: assert len(lX) == len(lsDocName), "Internal error"
+        lTstRpt = []
+        for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
+            chronoOn()
+            #using a COnfusionMatrix-based test report object, we can accumulate results
+            oTestReportConfu = TestReportConfusion(str(mdl), list(), lLabelName, lsDocName=lsDocName)
+            for X,Y in zip(lX, lY):
+                for itype in range(self.nbType):
+                    X_flat, Y_flat = self._getXY_forType([X], [Y], itype)
+                    Y_flat_pred = mdl[itype].predict(X_flat)
+                    oTestReportConfu.accumulate( TestReport(str(mdl), Y_flat_pred, Y_flat, lLabelName, lsDocName=lsDocName) )
+            traceln("\t\t [%.1fs] done\n"%chronoOff())
+            lTstRpt.append( oTestReportConfu )
+        return lTstRpt                                                                              
+    
+    def predictBaselines(self, X):
+        """
+        predict with the baseline models, 
+        return a list of 1-dim numpy arrays
+        """
+        return [mdl.predict(X) for mdl in self._lMdlBaseline]
+
     
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
     def _getCRFModel(self, clsWeights=None):
