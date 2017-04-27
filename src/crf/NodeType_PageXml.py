@@ -25,6 +25,7 @@
     
 """
 TEST_getPageXmlBlock = False
+import types
 
 from common.trace import traceln
 
@@ -33,8 +34,22 @@ from xml_formats.PageXml import PageXml
 from util.Polygon import Polygon
 from Block import Block
 
-class NodeType_PageXml(NodeType):
+def defaultBBoxDeltaFun(w):
+    """
+    When we reduce the width or height of a bounding box, we use this function to compute the deltaX or deltaY
+    , which is applied on x1 and x2 or y1 and y2
+    
+    For instance, for horizontal axis
+        x1 = x1 + deltaFun(abs(x1-x2))
+        x2 = x2 + deltaFun(abs(x1-x2))
+    """
+    # "historically, we were doing:
+    dx = max(w * 0.066, min(20, w/3))
+    #for ABP table RV is doing: dx = max(w * 0.066, min(5, w/3)) , so this function can be defined by the caller.
+    return dx 
+    
 
+class NodeType_PageXml(NodeType):
     #where the labels can be found in the data
     sCustAttr_STRUCTURE     = "structure"
     sCustAttr2_TYPE         = "type"
@@ -42,13 +57,17 @@ class NodeType_PageXml(NodeType):
     #Namespace, of PageXml, at least
     dNS = {"pc":PageXml.NS_PAGE_XML}
 
-    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True):
+    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun):
         NodeType.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther)
+        
+        self.BBoxDeltaFun = BBoxDeltaFun
+        assert type(self.BBoxDeltaFun) == types.FunctionType, "Error: BBoxDeltaFun must be a function (or a lambda)"
 
     def setXpathExpr(self, (sxpNode, sxpTextual)):
         self.sxpNode    = sxpNode
         self.sxpTextual = sxpTextual
-        
+    
+    
     def parseDomNodeLabel(self, domnode, defaultCls=None):
         """
         Parse and set the graph node label and return its class index
@@ -121,14 +140,12 @@ class NodeType_PageXml(NodeType):
 
                 x1,y1,x2,y2 = plg.getBoundingBox()
                 
-            if True:
-                #we reduce a bit this rectangle, to ovoid overlap
-                w,h = x2-x1, y2-y1
-                dx = max(w * 0.066, min(5, w/3))  #we make sure that at least 1/"rd of te width will remain!
-#                 dy = max(h * 0.066, min(5, w/3))
-                dy = max(h * 0.066, min(5, h/3))
-                x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
-
+            #we reduce a bit this rectangle, to ovoid overlap
+            w,h = x2-x1, y2-y1
+            dx = self.BBoxDeltaFun(w)
+            dy = self.BBoxDeltaFun(h)
+            x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
+                
             
             #TODO
             orientation = 0  #no meaning for PageXml
@@ -188,8 +205,8 @@ class NodeType_PageXml_type(NodeType_PageXml):
     
     sLabelAttr = "type"
 
-    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True):
-        NodeType.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther)
+    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun):
+        NodeType_PageXml.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther, BBoxDeltaFun)
             
     def parseDomNodeLabel(self, domnode, defaultCls=None):
         """
