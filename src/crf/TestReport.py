@@ -160,7 +160,7 @@ class TestReport:
 
         fScore, s2 = self.getClassificationReport(aConfuMat)
         
-        s3 = "(unweighted) Accuracy score = %.2f"% fScore
+        s3 = "(unweighted) Accuracy score = %.2f     trace=%d  sum=%d"% (fScore, aConfuMat.trace(), np.sum(aConfuMat))
         
         if bShowBaseline:
             if self.lBaselineTestReport:
