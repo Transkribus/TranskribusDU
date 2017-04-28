@@ -377,7 +377,7 @@ class Graph:
         - return the edge matrix (a 2-columns matrix)
         """
         #SINGLE TYPE GRAPH, WE KEEP THE OLD CODE
-        edges = np.empty( (len(self.lEdge), 2) , dtype=np.int32)
+        edges = np.empty( (len(self.lEdge), 2) , dtype=np.int)
         for i, edge in enumerate(self.lEdge):
             edges[i,:] = edge.A._index, edge.B._index
             
@@ -393,7 +393,7 @@ class Graph:
         """
         #better code based on fromiter is below (I think, JLM April 2017) 
         #Y = np.array( [nd.cls for nd in self.lNode] , dtype=np.uint8)
-        Y = np.fromiter( (nd.cls for nd in self.lNode), dtype=np.uint, count=len(self.lNode))
+        Y = np.fromiter( (nd.cls for nd in self.lNode), dtype=np.int, count=len(self.lNode))
         return Y
    
     #----- MULTITYPE -----  
@@ -425,7 +425,7 @@ class Graph:
             #we need to compute Y and reorder it since we have grouped the nodes by type, and ordered the types
             #so node with index i, that ends in type Ti, with index in type j has now the index cumulative_count_by_type[i-1] + j
             node_index_offset_by_typ = np.cumsum([0]+_a_node_count_by_type.tolist())
-            Y = np.zeros( (len(self.lNode),), dtype=np.uint)
+            Y = np.zeros( (len(self.lNode),), dtype=np.int)
             #TODO optimize this code to avoid going twice thru each node and accessing it attributes twice
             for nd in self.lNode:
                 Ti = nd.type._index
@@ -433,7 +433,7 @@ class Graph:
                 Y[new_index] = nd.cls
         
         #definition of edges and list of edges by types
-        t_edges = np.empty( (len(self.lEdge), 3) , dtype=np.int32)      #edge_type_index, node_index_in_type, node_index_in_type
+        t_edges = np.empty( (len(self.lEdge), 3) , dtype=np.int)      #edge_type_index, node_index_in_type, node_index_in_type
         lEdgeByType =[ list() for i in range(n_type_2)]
         for i, edge in enumerate(self.lEdge):
             A, B = edge.A, edge.B
