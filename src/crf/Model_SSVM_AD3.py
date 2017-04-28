@@ -145,6 +145,15 @@ class Model_SSVM_AD3(Model):
                         self.ssvm.max_iter = self.max_iter
                 except AttributeError:
                     traceln("\t- cannot access or change the max_iter value")
+                    
+                try:
+                    self.ssvm.n_jobs #to make sure we do something that makes sense...
+                    if self.ssvm.n_jobs != self.njobs:
+                        traceln("\t- changing n_jobs value from (stored) %d to %d"%(self.ssvm.n_jobs, self.njobs))
+                        self.ssvm.n_jobs = self.njobs
+                except AttributeError:
+                    traceln("\t- cannot access or change the n_jobs value")
+
             except Exception as e:
                 self.ssvm = None
                 traceln("\t- Cannot warmstart: %s"%e.message)
