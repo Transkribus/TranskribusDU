@@ -177,10 +177,11 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
         if self._lMdlBaseline:
             for itype in range(self.nbType):
                 X_flat, Y_flat = self._getXY_forType(lX, lY, itype)
+                traceln("\t\t type %d   #nodes=%d  #features=%d"%(itype, X_flat.shape[0], X_flat.shape[1]))
                 for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
-                    chronoOn()
+                    chronoOn("_testBaselines_T")
                     Y_pred_flat = mdl[itype].predict(X_flat)
-                    traceln("\t\t [%.1fs] done\n"%chronoOff())
+                    traceln("\t\t [%.1fs] done\n"%chronoOff("_testBaselines_T"))
                     lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat, lLabelName, lsDocName=lsDocName) )
                 
             del X_flat, Y_flat, Y_pred_flat
@@ -194,7 +195,7 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
         if lsDocName: assert len(lX) == len(lsDocName), "Internal error"
         lTstRpt = []
         for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
-            chronoOn()
+            chronoOn("_testBaselinesEco_T")
             #using a COnfusionMatrix-based test report object, we can accumulate results
             oTestReportConfu = TestReportConfusion(str(mdl), list(), lLabelName, lsDocName=lsDocName)
             for X,Y in zip(lX, lY):
@@ -202,7 +203,7 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
                     X_flat, Y_flat = self._getXY_forType([X], [Y], itype)
                     Y_flat_pred = mdl[itype].predict(X_flat)
                     oTestReportConfu.accumulate( TestReport(str(mdl), Y_flat_pred, Y_flat, lLabelName, lsDocName=lsDocName) )
-            traceln("\t\t [%.1fs] done\n"%chronoOff())
+            traceln("\t\t [%.1fs] done\n"%chronoOff("_testBaselinesEco_T"))
             lTstRpt.append( oTestReportConfu )
         return lTstRpt                                                                              
     
