@@ -364,12 +364,16 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         lPageConstraint = DU_GraphClass.getPageConstraint()
         if lPageConstraint: 
             for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
-            
-        self.traceln("- loading test graphs")
-        lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-        self.traceln(" %d graphs loaded"%len(lGraph_tst))
+        
+        try:
+            #should work fine
+            oReport = self._mdl.testFiles(lFilename_tst, lambda fn: DU_GraphClass.loadGraphs([fn], bDetach=True, bLabelled=True, iVerbose=1))
+        except:
+            self.traceln("- loading test graphs")
+            lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
+            self.traceln(" %d graphs loaded"%len(lGraph_tst))
+            oReport = self._mdl.test(lGraph_tst)
 
-        oReport = self._mdl.test(lGraph_tst)
         return oReport
 
     def predict(self, lsColDir):
@@ -631,7 +635,6 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             self.traceln("- loading test graphs")
             lGraph_tst = self.cGraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
             self.traceln(" %d graphs loaded"%len(lGraph_tst))
-    
             oReport = mdl.test(lGraph_tst)
         else:
             oReport = None
