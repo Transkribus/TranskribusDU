@@ -109,7 +109,7 @@ class Model:
         try:
             self._lMdlBaseline =  self._loadIfFresh(sBaselineFile, expiration_timestamp, self.gzip_cPickle_load)
         except ModelException:
-            print 'no baseline model found : %s' %(sBaselineFile) 
+            traceln('no baseline model found : %s' %(sBaselineFile)) 
         self.loadTransformers(expiration_timestamp)
             
         return self    
@@ -288,9 +288,9 @@ class Model:
             X_flat = np.vstack( [node_features for (node_features, _, _) in lX] )
             Y_flat = np.hstack(lY)
             for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
-                chronoOn()
+                chronoOn("_testBaselines")
                 Y_pred_flat = mdl.predict(X_flat)
-                traceln("\t\t [%.1fs] done\n"%chronoOff())
+                traceln("\t\t [%.1fs] done\n"%chronoOff("_testBaselines"))
                 lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat, lLabelName, lsDocName=lsDocName) )
                 
             del X_flat, Y_flat, Y_pred_flat
