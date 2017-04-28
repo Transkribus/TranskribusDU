@@ -604,8 +604,11 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         lGraph_trn = self.cGraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
         self.traceln(" %d graphs loaded"%len(lGraph_trn))
 
-        assert self.nbClass, "internal error"
-        mdl.setNbClass(self.lNbClass)
+        assert self.nbClass and self.lNbClass, "internal error: I expected the number of class to be automatically computed at that stage"
+        if self.iNbCRFType == 1:
+            mdl.setNbClass(self.nbClass)
+        else:
+            mdl.setNbClass(self.lNbClass)
 
         #for this check, we load the Y once...
         self.checkLabelCoverage(mdl.get_lY(lGraph_trn)) #NOTE that Y are in bad order if multiptypes. Not a pb here
