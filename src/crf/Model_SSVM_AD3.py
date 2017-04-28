@@ -137,6 +137,14 @@ class Model_SSVM_AD3(Model):
             try:
                 self.ssvm = self._loadIfFresh(sModelFN, expiration_timestamp, lambda x: SaveLogger(x).load())
                 traceln("\t- warmstarting!")
+                #we allow to change the max_iter of the model
+                try:
+                    self.ssvm.max_iter #to make sure we do something that makes sense...
+                    if self.ssvm.max_iter != self.max_iter:
+                        traceln("\t- changing max_iter value from (stored) %d to %d"%(self.ssvm.max_iter, self.max_iter))
+                        self.ssvm.max_iter = self.max_iter
+                except AttributeError:
+                    traceln("\t- cannot access or change the max_iter value")
             except Exception as e:
                 self.ssvm = None
                 traceln("\t- Cannot warmstart: %s"%e.message)
@@ -159,7 +167,7 @@ class Model_SSVM_AD3(Model):
             bWarmStart = False
         
         chronoOn()
-        traceln("\t - training graph-based model")
+        traceln("\t- training graph-based model")
         traceln("\t\t solver parameters:"
                     , " inference_cache=",self.inference_cache
                     , " C=",self.C, " tol=",self.tol, " n_jobs=",self.njobs)
@@ -173,7 +181,8 @@ class Model_SSVM_AD3(Model):
             self.ssvm.alphas = None  
             self.ssvm.constraints_ = None
             self.ssvm.inference_cache_ = None    
-            traceln("\t\t(model made slimmer. Not sure you can efficiently warm-start it later on. See option -w.)")        
+            traceln("\t\t(model made slimmer. Not sure you can efficiently warm-start it later on. See option -w.)")   
+                 
         #the baseline model(s) if any
         self._trainBaselines(lX, lY)
         
@@ -316,23 +325,23 @@ class Model_SSVM_AD3(Model):
         lLabelName   = lGraph[0].getLabelNameList()
         bConstraint  = lGraph[0].getPageConstraint()
         
-        traceln("\t- computing features on test set")
-        chronoOn()
+        traceln("- computing features on test set")
+        chronoOn("test")
         lX, lY = self.get_lX_lY(lGraph)
         
-        traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
+        traceln("\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
         self._computeModelCaracteristics(lX)    #we discover here dynamically the number of features of nodes and edges
-        traceln("\t\t %s"%self._getNbFeatureAsText())
-        traceln("\t [%.1fs] done\n"%chronoOff())
+        traceln("\t %s"%self._getNbFeatureAsText())
+        traceln("[%.1fs] done\n"%chronoOff("test"))
         
-        traceln("\t- predicting on test set")
-        chronoOn()
+        traceln("- predicting on test set")
+        chronoOn("test2")
         if bConstraint:
             lConstraints = [g.instanciatePageConstraints() for g in lGraph]
             lY_pred = self._ssvm_ad3plus_predict(lX, lConstraints)
         else:
             lY_pred = self.ssvm.predict(lX)
-        traceln("\t [%.1fs] done\n"%chronoOff())
+        traceln(" [%.1fs] done\n"%chronoOff("test2"))
         
         tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsDocName)
         
@@ -357,17 +366,17 @@ class Model_SSVM_AD3(Model):
         lX, lY, lY_pred  = [], [], []
         lLabelName   = None
         bConstraint  = None
-        traceln("\t- predicting on test set")
-        
+        traceln("- predicting on test set")
+        chronoOn("testFiles")
         for sFilename in lsFilename:
             [g] = loadFun(sFilename) #returns a singleton list
             [X], [Y] = self.get_lX_lY([g])
 
             if lLabelName == None:
                 lLabelName = g.getLabelNameList()
-                traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber([g]))
+                traceln("\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber([g]))
                 self._computeModelCaracteristics([X])    #we discover here dynamically the number of features of nodes and edges
-                traceln("\t\t %s"%self._getNbFeatureAsText())
+                traceln("\t %s"%self._getNbFeatureAsText())
             else:
                 assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
             n_jobs = self.ssvm.n_jobs
@@ -386,7 +395,7 @@ class Model_SSVM_AD3(Model):
             g.detachFromDOM()
             del g   #this can be very large
             gc.collect() 
-        traceln("\t done")
+        traceln("[%.1fs] done\n"%chronoOff("testFiles"))
 
         tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsFilename)
         
