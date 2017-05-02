@@ -390,34 +390,45 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         #list the train and test files
         _     , lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
         
-        DU_GraphClass = self.cGraphClass
+        DU_GraphClass = self.getGraphClass()
 
         lPageConstraint = DU_GraphClass.getPageConstraint()
         if lPageConstraint: 
             for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
         
+        chronoOn("predict")
         self.traceln("- loading collection as graphs, and processing each in turn. (%d files)"%len(lFilename))
         du_postfix = "_du"+MultiPageXml.sEXT
         lsOutputFilename = []
         for sFilename in lFilename:
             if sFilename.endswith(du_postfix): continue #:)
-            [g] = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
+            chronoOn("predict_1")
+            lg = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
+            #normally, we get one graph per file, but in case we load one graph per page, for instance, we have a list
             
-            if lPageConstraint:
-                self.traceln("\t- prediction with logical constraints: %s"%sFilename)
-            else:
-                self.traceln("\t- prediction : %s"%sFilename)
-            Y = self._mdl.predict(g)
+            if lg:
+                for g in lg:
+                    doc = g.doc
+                    if lPageConstraint:
+                        self.traceln("\t- prediction with logical constraints: %s"%sFilename)
+                    else:
+                        self.traceln("\t- prediction : %s"%sFilename)
+                    Y = self._mdl.predict(g)
+                    
+                    g.setDomLabels(Y)
+                    del Y
+                del lg
                 
-            doc = g.setDomLabels(Y)
-            MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
-            sDUFilename = sFilename[:-len(MultiPageXml.sEXT)]+du_postfix
-            doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
-            doc.freeDoc()
-            del Y, g
-            self.traceln("\t done")
-            lsOutputFilename.append(sDUFilename)
-        self.traceln(" done")
+                MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
+                sDUFilename = sFilename[:-len(MultiPageXml.sEXT)]+du_postfix
+                doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
+                doc.freeDoc()
+                lsOutputFilename.append(sDUFilename)
+            else:
+                self.traceln("\t- no prediction to do for: %s"%sFilename)
+                
+            self.traceln("\t done [%.2fs]"%chronoOff("predict_1"))
+        self.traceln(" done [%.2fs]"%chronoOff("predict"))
 
         return lsOutputFilename
 
