@@ -243,16 +243,8 @@ class NodeType_PageXml_type_woText(NodeType_PageXml_type):
     """
     def _get_GraphNodeText(self, doc, domNdPage, ndBlock, ctxt=None):
         return u""
+   
 
-    
-class NodeType_PageXml_type_woText(NodeType_PageXml_type):
-    """
-            for document wo HTR: no text
-    """
-    def _get_GraphNodeText(self, doc, domNdPage, ndBlock, ctxt=None):
-        return u""
-
-    
 #---------------------------------------------------------------------------------------------------------------------------    
 class NodeType_PageXml_type_NestedText(NodeType_PageXml_type):
     """
