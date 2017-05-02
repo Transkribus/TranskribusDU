@@ -27,6 +27,8 @@
 """
 from sklearn.base import BaseEstimator, TransformerMixin
 
+from sklearn.preprocessing import StandardScaler
+
 class Transformer(BaseEstimator, TransformerMixin):
     def __init__(self):
         BaseEstimator.__init__(self)
@@ -65,3 +67,17 @@ class TransformerListByType(list, Transformer):
         """
         assert len(self) == len(l), "Internal error"
         return [ t.transform(lo) for t, lo in zip(self, l)]
+
+class RobustStandardScaler(StandardScaler):
+    """
+    Same as its super class apart that it  does not crash when th einput array is empty
+    """
+    def transform(self, X, y=None, copy=None):
+        try:
+            return StandardScaler.transform(self, X, y, copy)
+        except ValueError as e:
+            if X.shape[0] == 0:
+                return X #just do not crash
+            else:
+                #StandardScaler failed for some other reason
+                raise e

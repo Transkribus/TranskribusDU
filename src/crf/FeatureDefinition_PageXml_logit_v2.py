@@ -38,7 +38,9 @@
 import sys
 
 from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.preprocessing import StandardScaler
+#not robust to empty arrays, so use our robust intermediary class instead
+#from sklearn.preprocessing import StandardScaler
+from crf.Transformer import RobustStandardScaler as StandardScaler
 
 from crf.Transformer_PageXml import NodeTransformerTextLen, NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures
 from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures_v2, EdgeNumericalSelector
