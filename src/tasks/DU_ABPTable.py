@@ -87,6 +87,8 @@ class DU_ABPTable(DU_CRF_Task):
                               , lLabels
                               , lIgnoredLabels
                               , False    #no label means OTHER
+                              , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
+                              
                               )
         # ntA = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
         #                       , lLabels
