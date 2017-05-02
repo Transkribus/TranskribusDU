@@ -308,7 +308,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                   , mdl.getTransformerFilename()
                   , mdl.getConfigurationFilename()
                   , mdl.getBaselineFilename()
-                  , mdl._getParamsFilename()       ]:
+                  , mdl._getParamsFilename(self.sModelName, self.sModelDir)       ]:
             if os.path.exists(s):
                 self.traceln("\t - rm %s"%s) 
                 os.unlink(s)
