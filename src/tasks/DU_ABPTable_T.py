@@ -138,53 +138,9 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
         """
         Return the list of produced files
         """
-        self.traceln("-"*50)
-        self.traceln("Trained model '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
-        self.traceln("Predicting for collection(s):", lsColDir)
-        self.traceln("-"*50)
+        self.sXmlFilenamePattern = "*.a_mpxml"
+        return DU_CRF_Task.predict(self, lsColDir)
 
-        if not self._mdl: raise Exception("The model must be loaded beforehand!")
-        self.sXmlFilenamePattern = "*.mpxml"
-        #list the train and test files
-        _     , lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
-        
-        DU_GraphClass = self.getGraphClass()
-
-        lPageConstraint = DU_GraphClass.getPageConstraint()
-        if lPageConstraint: 
-            for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
-        
-        self.traceln("- loading collection as graphs, and processing each in turn. (%d files)"%len(lFilename))
-        du_postfix = "_du"+MultiPageXml.sEXT
-        lsOutputFilename = []
-        lDocs= []
-        sDUFilename=None
-        for sFilename in lFilename:
-            if sFilename.endswith(du_postfix): continue #:)
-            lg = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
-            
-            doc=None
-            for g in lg:
-                doc= g.doc
-                if lPageConstraint:
-                    self.traceln("\t- prediction with logical constraints: %s"%sFilename)
-                else:
-                    self.traceln("\t- prediction : %s"%sFilename)
-                Y = self._mdl.predict(g)
-                    
-                doc = g.setDomLabels(Y)
-            if doc is not None:
-                MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
-                sDUFilename = sFilename[:-len(MultiPageXml.sEXT)]+du_postfix
-                doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
-                doc.freeDoc()
-                del Y
-            self.traceln("\t done")
-            if sDUFilename:
-                lsOutputFilename.append(sDUFilename)
-        self.traceln(" done")
-
-        return lsOutputFilename
            
     def buildRow(self,doc):
         """
