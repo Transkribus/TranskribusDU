@@ -39,7 +39,9 @@
 import numpy as np
 
 from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.preprocessing import StandardScaler
+#not robust to empty arrays, so use our robust intermediary class instead
+#from sklearn.preprocessing import StandardScaler
+from crf.Transformer import RobustStandardScaler as StandardScaler
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from crf.Transformer import SparseToDense
