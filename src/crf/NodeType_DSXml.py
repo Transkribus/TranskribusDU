@@ -63,8 +63,11 @@ class NodeType_DS(NodeType):
                 sLabel = self.dXmlLabel2Label[sXmlLabel]
             except KeyError:
                 #not a label of interest
-                if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
-                    raise ValueError("Invalid label in node %s"%str(domnode))            
+                try:
+                    self.checkIsIgnored(sXmlLabel)
+                    #if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
+                except:
+                    raise ValueError("Invalid label '%s' in node %s"%(sXmlLabel, str(domnode)))
 
         if not sLabel: raise ValueError("Missing label in node %s"%str(domnode))
         

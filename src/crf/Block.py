@@ -63,6 +63,7 @@ class Block:
         Erase any pointer to the DOM so that we can free it.
         """
         self.node = None
+        self.page.node = None
     
     def getText(self, iTruncate=None):
         if iTruncate:
@@ -216,7 +217,7 @@ class Block:
     def cmpX1(tb1, tb2):
         return cmp(tb1.x1, tb2.x1)
     cmpX1 = staticmethod(cmpX1)
-
+ 
     def cmpX1Y1(tb1, tb2):
         ret = cmp(tb1.x1, tb2.x1)
         if ret == 0:

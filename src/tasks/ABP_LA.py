@@ -31,19 +31,21 @@
     under grant agreement No 674943.
 """
 
-import sys, os.path
+import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 
 import glob
 import common.Component as Component
+from common.trace import traceln, trace
 
 from xml_formats.PageXml import PageXml
-from xml_formats import DS2PageXml, Page2DS
+from xml_formats.DS2PageXml import DS2PageXMLConvertor
+from xml_formats.Page2DS import primaAnalysis
+from xml_formats.PageXml import MultiPageXml
 
-
-
+import libxml2
 
 class TableProcessor(Component.Component):
     """
@@ -75,6 +77,32 @@ PluginBatch\LayoutPlugin\Super Pixel Labeler\maxNumFeaturesPerClass=10000
 PluginBatch\LayoutPlugin\Super Pixel Classification\classifierPath=
 
 """
+
+#PluginBatch\pluginList="Layout Analysis | Layout Analysis;Layout Analysis | Detect Lines"
+
+    cCVLLASeparatorProfile="""
+[%%General]  
+FileList="%s"
+OutputDirPath=%s
+FileNamePattern=<c:0>.<old>
+SaveInfo\Compression=-1
+SaveInfo\Mode=2
+SaveInfo\DeleteOriginal=false
+SaveInfo\InputDirIsOutputDir=true
+PluginBatch\pluginList=Layout Analysis | Detect Lines
+PluginBatch\LayoutPlugin\General\useTextRegions=false
+PluginBatch\LayoutPlugin\General\drawResults=false
+PluginBatch\LayoutPlugin\General\saveXml=true
+PluginBatch\LayoutPlugin\Super Pixel Labeler\\featureFilePath=
+PluginBatch\LayoutPlugin\Super Pixel Labeler\labelConfigFilePath=
+PluginBatch\LayoutPlugin\Super Pixel Labeler\maxNumFeaturesPerImage=1000000
+PluginBatch\LayoutPlugin\Super Pixel Labeler\minNumFeaturesPerClass=10000
+PluginBatch\LayoutPlugin\Super Pixel Labeler\maxNumFeaturesPerClass=10000
+PluginBatch\LayoutPlugin\Super Pixel Classification\classifierPath=
+
+"""
+
+
     cCVLProfile ="""
 [%%General]  
 FileList="%s"
@@ -101,8 +129,9 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         """
         Component.Component.__init__(self, "tableProcessor", self.usage, self.version, self.description) 
         
-        self.colname = None
+        self.coldir = None
         self.docid= None
+        self.bTextRegion = False
         
     def setParams(self, dParams):
         """
@@ -111,10 +140,43 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         """
         Component.Component.setParams(self, dParams)
         if dParams.has_key("coldir"): 
-            self.colname = dParams["coldir"]
+            self.coldir = dParams["coldir"]
         if dParams.has_key("docid"):         
             self.docid = dParams["docid"]
+        if dParams.has_key("bTextRegion"):         
+            self.bTextRegion = dParams["bTextRegion"]
 
+
+
+
+                
+                
+    def unLinkTextLines(self,doc):
+        """
+            delete textlines and baselines
+        """
+        lT = PageXml.getChildByName(doc.getRootElement(),'TextLine')
+        if lT == []:
+            return doc
+        
+        for text in lT:
+            text.unlinkNode()
+            text.freeNode()
+        return doc
+    
+    def unLinkTable(self,doc):
+        """
+            delete table
+        """
+        lT = PageXml.getChildByName(doc.getRootElement(),'TableRegion')
+        if lT == []:
+            return doc
+        
+        for table in lT:
+            table.unlinkNode()
+            table.freeNode()
+        return doc
+      
     def findTemplate(self,doc):
         """
             find the page where the first TableRegion occurs and extract it
@@ -134,13 +196,35 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         
     def createRegistrationProfile(self):
         # get all images files
-        localpath =  os.path.abspath("./%s/col/%s"%(self.colname,self.docid))
+        localpath =  os.path.abspath("./%s/col/%s"%(self.coldir,self.docid))
         l =      glob.glob(os.path.join(localpath, "*.jpg"))
         listfile = ";".join(l)
         listfile  = listfile.replace(os.sep,"/")
-        txt=  TableProcessor.cCVLProfile % (listfile,"%s/col/%s"%(self.colname,self.docid),os.path.abspath("%s/%s.templ.xml"%(self.colname,self.docid)).replace(os.sep,"/"))
+        txt=  TableProcessor.cCVLProfile % (listfile,"%s/col/%s"%(self.coldir,self.docid),os.path.abspath("%s/%s.templ.xml"%(self.coldir,self.docid)).replace(os.sep,"/"))
         # wb mandatory for crlf in windows
-        prnfilename = "%s%s%s_reg.prn"%(self.colname,os.sep,self.docid)
+        prnfilename = "%s%s%s_reg.prn"%(self.coldir,os.sep,self.docid)
+        f=open(prnfilename,'wb')
+        f.write(txt)
+        return prnfilename
+    
+    
+
+
+    
+    def createLinesProfile(self):
+        """
+             OutputDirPath mandatory
+        """
+        # get all images files
+        localpath =  os.path.abspath("./%s/col/%s"%(self.coldir,self.docid))
+        l =      glob.glob(os.path.join(localpath, "*.jpg"))
+        listfile = ";".join(l)
+        listfile  = listfile.replace(os.sep,"/")
+        localpath = localpath.replace(os.sep,'/')
+        txt =  TableProcessor.cCVLLASeparatorProfile % (listfile,localpath)
+
+        # wb mandatory for crlf in windows
+        prnfilename = "%s%s%s_gl.prn"%(self.coldir,os.sep,self.docid)
         f=open(prnfilename,'wb')
         f.write(txt)
         return prnfilename
@@ -150,19 +234,39 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
              OutputDirPath mandatory
         """
         # get all images files
-        localpath =  os.path.abspath("./%s/col/%s"%(self.colname,self.docid))
+        localpath =  os.path.abspath("./%s/col/%s"%(self.coldir,self.docid))
         l =      glob.glob(os.path.join(localpath, "*.jpg"))
         listfile = ";".join(l)
         listfile  = listfile.replace(os.sep,"/")
         localpath = localpath.replace(os.sep,'/')
         txt =  TableProcessor.cCVLLAProfile % (listfile,localpath)
+
         # wb mandatory for crlf in windows
-        prnfilename = "%s%s%s_la.prn"%(self.colname,os.sep,self.docid)
+        prnfilename = "%s%s%s_la.prn"%(self.coldir,os.sep,self.docid)
         f=open(prnfilename,'wb')
         f.write(txt)
         return prnfilename
     
-    def run(self,doc):
+    
+    def storeMPXML(self,lFiles):
+        """
+            store files in lFiles as mpxml
+        """
+        docDir = os.path.join(self.coldir+os.sep+'col',self.docid)
+        
+        doc = MultiPageXml.makeMultiPageXml(lFiles)
+
+        sMPXML  = docDir+".mpxml"
+        print sMPXML
+        doc.saveFormatFileEnc(sMPXML,"UTF-8",True)       
+        
+#         trace("\t\t- validating the MultiPageXml ...")
+#         if not MultiPageXml.validate(doc): 
+#                 traceln("   *** WARNING: XML file is invalid against the schema: '%s'"%self.outputFileName)
+#         traceln(" Ok!")        
+    
+    
+    def creaGTWithTableColumn(self,doc):
         """
             # for document doc 
             ## find the page where the template is
@@ -170,32 +274,135 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             ## generate profile for table registration
             ## (execution)
             ## create profile for lA
-            ## (execution)        
+            ## (execution)    
         """
         templatePage = self.findTemplate(doc)
 
         if templatePage is None:
-            print "No table found in this document:%d"%self.docid
-            return
-        self.outputFileName = "%s%s%s.templ.xml"%(self.colname,os.sep,self.docid)
-        print self.outputFileName 
-        self.writeDom(templatePage, True)
-        prnregfilename= self.createRegistrationProfile()
+            print "No table found in this document: %s" %self.docid
+            
+        else:
+            oldOut=  self.outputFileName
+            self.outputFileName = "%s%s%s.templ.xml" % (self.coldir,os.sep,self.docid)
+            print self.outputFileName 
+            self.writeDom(templatePage, True)
+            self.outputFileName = oldOut
+            prnregfilename= self.createRegistrationProfile()
+        
+
+            ## RM  previous *.xml
+            xmlpath="%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid)
+            [ os.remove("%s%s%s"%(xmlpath,os.sep,name)) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']             
+
+            job = TableProcessor.cNomacs+ " --batch %s"%(prnregfilename)
+            os.system(job)
+            print 'table registration done', prnregfilename            
+        
+        prnglfilename = self.createLinesProfile()
         prnlafilename = self.createLAProfile()
-#         import subprocess
-        job = TableProcessor.cNomacs+ " --batch %s"%(prnregfilename)
-#         subprocess.call([job])
+
+        job = TableProcessor.cNomacs+ " --batch %s"%(prnglfilename)
         os.system(job)
-        print 'job done', prnregfilename
+        print 'GL done', prnlafilename    
+                
         job = TableProcessor.cNomacs+ " --batch %s"%(prnlafilename)
         os.system(job)
-        print 'job done', prnlafilename
+        print 'LA done', prnlafilename        
+    
+    def createGTWithtextRegion(self):
+        """
+            85 pages 2559/7048
+            
+            - if xml : destroy them?: oui
+            - convert pxml into xml
+            - apply LA only
+            -create mpxml 
+        """
+        # any xml ?
+        xmlpath="%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid)
         
+        lXMLNames = [ "%s%s%s"%(xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
+        isXml = [] != lXMLNames        
+        if isXml:
+            [ os.remove("%s%s%s"%(xmlpath,os.sep,name)) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']    
+            isXml = False
+            
+        isPXml = [] != [ name for name in os.listdir(xmlpath) if os.path.basename(name)[-5:] =='.pxml']              
+        
+        assert not isXml and isPXml
+        
+        
+        lPXMLNames = [ name for name in os.listdir(xmlpath) if os.path.basename(name)[-5:] =='.pxml']
+        if not isXml:
+            # copy pxml in xml
+            for name in lPXMLNames: 
+                oldname = "%s%s%s" %(xmlpath,os.sep,name)
+                newname = "%s%s%s" % (xmlpath,os.sep,name)
+                newname = newname[:-5]+'.xml' 
+                
+                doc =  libxml2.parseFile(oldname)
+                self.unLinkTable(doc)
+                doc.saveFileEnc(newname,"UTF-8")                     
+                
+                #shutil.copyfile(oldname, newname)
+
+        prnglfilename = self.createLinesProfile()
+
+        prnlafilename = self.createLAProfile()
+
+        job = TableProcessor.cNomacs+ " --batch %s"%(prnglfilename)
+        os.system(job)
+        print 'GL done', prnlafilename   
+        
+        job = TableProcessor.cNomacs+ " --batch %s"%(prnlafilename)
+        os.system(job)
+        print 'LA done', prnlafilename 
+
+        lFullPathXMLNames = [ "%s%s%s" % (xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
+        
+        
+        
+
+        self.storeMPXML(lFullPathXMLNames)
+        
+        ## convert xml into mpxml
+        
+        
+        
+    def run(self,doc):
+        """
+            GT from TextRegion
+            or GT from Table
+            
+            input mpxml (GT)
+            delete TextLine
+            
+        """
+        self.unLinkTextLines(doc)
+
+        if self.bTextRegion:
+            self.createGTWithtextRegion()
+        else:
+            self.creaGTWithTableColumn(doc)
+        
+        
+        return 
         
         ## convert *.xml into DS
-        ## convert ds int ods.mpxml
+        dsconv =primaAnalysis()
+        dsconv.dpi=300
+        dsconv.sPttrn = "%scol%s%s%s%s" % (self.coldir,os.sep,self.docid,os.sep,"*.xml")
+        print dsconv.sPttrn
+        dsconv.sDocID = self.docid
+        doc = dsconv.run()
+        dsconv.outputFileName = self.outputFileName
+        print dsconv.outputFileName
+        dsconv.writeDom(doc, True)
+
+        ## convert ds into .mpxml
         ## upload  (option)
         
+        # row detection
 
     
 
@@ -214,6 +421,7 @@ if __name__ == "__main__":
     tp.createCommandLineParser()
     tp.add_option("--coldir", dest="coldir", action="store", type="string", help="collection folder")
     tp.add_option("--docid", dest="docid", action="store", type="string", help="document id")
+    tp.add_option("--useTR", dest="bTextRegion", action="store_true", default=False, help="use TextRegion forGT")
         
     #parse the command line
     dParams, args = tp.parseCommandLine()

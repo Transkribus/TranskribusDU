@@ -37,7 +37,7 @@ from tasks import _checkFindColDir, _exit
 
 from crf.Graph_MultiPageXml import Graph_MultiPageXml
 from crf.NodeType_PageXml   import NodeType_PageXml
-from crf.FeatureDefinition_PageXml_logit import FeatureDefinition_PageXml_LogitExtractor
+from crf.FeatureDefinition_PageXml_logit_v2 import FeatureDefinition_PageXml_LogitExtractorV2
 
 from DU_CRF_Task import DU_CRF_Task
 
@@ -92,7 +92,7 @@ class DU_StAZH_c(DU_CRF_Task):
                                     , 'n_feat_edge'     : 250   #number of ngrams to extract by chi2
                                     , 't_ngrams_edge'   : (2,4)
                                     , 'b_edge_lc'       : False    
-                                    , 'n_jobs'      : 1         #n_jobs when fitting the internal Logit feat extractor model by grid search
+                                    , 'n_jobs'      : 10         #n_jobs when fitting the internal Logit feat extractor model by grid search
                               }
                              , dLearnerConfig = {
                                    'C'                : .1 
@@ -104,7 +104,7 @@ class DU_StAZH_c(DU_CRF_Task):
                                  , 'max_iter'         : 250
                                  }
                              , sComment=sComment
-                             , cFeatureDefinition=FeatureDefinition_PageXml_LogitExtractor
+                             , cFeatureDefinition=FeatureDefinition_PageXml_LogitExtractorV2
                              )
         
         self.addBaseline_LogisticRegression()    #use a LR model as baseline
