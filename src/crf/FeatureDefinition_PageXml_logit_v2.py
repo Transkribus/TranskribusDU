@@ -35,6 +35,7 @@
     under grant agreement No 674943.
     
 """
+import sys
 
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.preprocessing import StandardScaler
@@ -56,8 +57,8 @@ class FeatureDefinition_PageXml_LogitExtractorV2(FeatureDefinition):
                      , n_feat_node=None, t_ngrams_node=None, b_node_lc=None
                      , n_feat_edge=None, t_ngrams_edge=None, b_edge_lc=None
                      , n_jobs=1): 
-        FeatureDefinition.__init__(self, nbClass)
-        assert nbClass, "Error: indicate the numbe of classes"
+        FeatureDefinition.__init__(self)
+        assert nbClass, "Error: indicate the number of classes"
         self.nbClass = nbClass
         self.n_feat_node, self.t_ngrams_node, self.b_node_lc = n_feat_node, t_ngrams_node, b_node_lc
         self.n_feat_edge, self.t_ngrams_edge, self.b_edge_lc = n_feat_edge, t_ngrams_edge, b_edge_lc
@@ -66,27 +67,34 @@ class FeatureDefinition_PageXml_LogitExtractorV2(FeatureDefinition):
 #                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
 #                                                                                   , dtype=np.float64)
         """
-        I tried to parallelize this code but I'm getting an error on Windows:
-        
-  File "c:\Local\meunier\git\TranskribusDU\src\crf\FeatureDefinition_PageXml_logit.py", line 144, in fitTranformers
+        - loading pre-computed data from: CV_5/model_A_fold_1_transf.pkl
+                 no such file : CV_5/model_A_fold_1_transf.pkl
+Traceback (most recent call last):
+  File "/opt/project/read/jl_git/TranskribusDU/src/tasks/DU_GTBooks_5labels.py", line 216, in <module>
+    oReport = doer._nfold_RunFoldFromDisk(options.iFoldRunNum, options.warm)
+  File "/opt/project/read/jl_git/TranskribusDU/src/tasks/DU_CRF_Task.py", line 481, in _nfold_RunFoldFromDisk
+    oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm)
+  File "/opt/project/read/jl_git/TranskribusDU/src/tasks/DU_CRF_Task.py", line 565, in _nfold_RunFold
+    fe.fitTranformers(lGraph_trn)
+  File "/opt/project/read/jl_git/TranskribusDU/src/crf/FeatureDefinition_PageXml_logit_v2.py", line 141, in fitTranformers
     self._node_transformer.fit(lAllNode)
-  File "C:\Anaconda2\lib\site-packages\sklearn\pipeline.py", line 709, in fit
+  File "/opt/project/read/VIRTUALENV_PYTHON_FULL_type/lib/python2.7/site-packages/sklearn/pipeline.py", line 712, in fit
     for _, trans, _ in self._iter())
-  File "C:\Anaconda2\lib\site-packages\sklearn\externals\joblib\parallel.py", line 768, in __call__
+  File "/opt/project/read/VIRTUALENV_PYTHON_FULL_type/lib/python2.7/site-packages/sklearn/externals/joblib/parallel.py", line 768, in __call__
     self.retrieve()
-  File "C:\Anaconda2\lib\site-packages\sklearn\externals\joblib\parallel.py", line 719, in retrieve
+  File "/opt/project/read/VIRTUALENV_PYTHON_FULL_type/lib/python2.7/site-packages/sklearn/externals/joblib/parallel.py", line 719, in retrieve
     raise exception
-TypeError: can't pickle PyCapsule objects        
-
-(virtual_python_pystruct) (C:\Anaconda2) c:\tmp_READ\tuto>python -c "import sklearn; print sklearn.__version__"
-0.18.1
-        => I force n_jobs to 1
-        
+RuntimeError: maximum recursion depth exceeded
+"""
         """
-        n_jobs = 1
+        I guess this is due to the cyclic links to node's neighbours.
+        But joblib.Parallel uses cPickle, so we cannot specialize the serialization of the Block objects.
         
-        
-        n_jobs_NodeTransformerLogit = max(1, n_jobs/2)  #half of the jobs for the NodeTransformerLogit, the rets for the others
+        JLM April 2017
+        """
+        n_jobs_from_graph = 1   #we cannot pickl the list of graph, so n_jobs = 1 for this part!
+#         n_jobs_NodeTransformerLogit = max(1, n_jobs/2)  #half of the jobs for the NodeTransformerLogit, the rets for the others
+        n_jobs_NodeTransformerLogit = max(1, n_jobs - 1)
         
         #we keep a ref onto it because its fitting needs not only all the nodes, but also additional info, available on the graph objects
         self._node_transf_logit = NodeTransformerLogit(nbClass, self.n_feat_node, self.t_ngrams_node, self.b_node_lc, n_jobs=n_jobs_NodeTransformerLogit)
@@ -126,7 +134,7 @@ TypeError: can't pickle PyCapsule objects
 #                                                          #THIS ONE MUST BE LAST, because it include a placeholder column for the doculent-level tfidf
 #                                                          ])
 #                                        )                                          
-                                      ], n_jobs=max(1, n_jobs - n_jobs_NodeTransformerLogit))
+                                      ], n_jobs=n_jobs_from_graph)
 
         lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                       ("1hot", Pipeline([
@@ -145,7 +153,7 @@ TypeError: can't pickle PyCapsule objects
                                     , ("nodetext", EdgeTransformerLogit(nbClass, self._node_transf_logit))
                         ]
                         
-        edge_transformer = FeatureUnion( lEdgeFeature, n_jobs=n_jobs )
+        edge_transformer = FeatureUnion( lEdgeFeature, n_jobs=n_jobs_from_graph )
           
         #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
         self._node_transformer = node_transformer

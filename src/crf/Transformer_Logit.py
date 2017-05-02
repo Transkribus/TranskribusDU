@@ -35,15 +35,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier  #for multilabel classif
-#sklearn has changed and sklearn.grid_search.GridSearchCV will disappear in next release or so
-#so it is recommended to use instead sklearn.model_selection
-#BUT on Linux, unplickling of the model fails
-#=> change only on Windows
-#JLM 2017-03-10
-if sys.platform == "win32":
-    from sklearn.model_selection import GridSearchCV
-else:
-    from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV  #0.18.1 REQUIRES NUMPY 1.12.1 or more recent
+    
+from common.trace import traceln
     
 from Transformer import Transformer
 from Transformer_PageXml import  NodeTransformerTextEnclosed
@@ -107,8 +101,8 @@ class NodeTransformerLogit(Transformer):
         if lAllNode==None: lAllNode = [nd for g in lGraph for nd in g.lNode]
         y = np.array([nd.cls for nd in lAllNode], dtype=np.int)
         if self.nbClass != len(np.unique(y)):
-            print("Classes seen are: %s"%np.unique(y).tolist())
-            print self.nbClass
+            traceln("Classes seen are: %s"%np.unique(y).tolist())
+            traceln(self.nbClass)
             raise ValueError("ERROR: some class is not represented in the training set")
         
         #fitting the textual feature extractor

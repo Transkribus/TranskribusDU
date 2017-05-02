@@ -32,15 +32,36 @@ class Transformer(BaseEstimator, TransformerMixin):
         BaseEstimator.__init__(self)
         TransformerMixin.__init__(self)
         
-    def fit(self, x, y=None):
+    def fit(self, l, y=None):
         return self
 
     def transform(self, l):
-        assert False, "Specialise this method!"
+        assert False, "Specialize this method!"
         
 class SparseToDense(Transformer):
     def __init__(self):
         Transformer.__init__(self)
     def transform(self, o):
         return o.toarray()
+
+
     
+class TransformerListByType(list, Transformer):
+    """
+    This is a list of transformer by type (node type or edge type)
+    """
+        
+    def fit(self, l, y=None):
+        """
+        self is a list of transformers, one per type
+        l is a list of objects 
+        """
+        return [ t.fit(l) for t in self]
+    
+    def transform(self, l):
+        """
+        self is a list of transformers, one per type
+        l is a list of feature matrix, one per type
+        """
+        assert len(self) == len(l), "Internal error"
+        return [ t.transform(lo) for t, lo in zip(self, l)]

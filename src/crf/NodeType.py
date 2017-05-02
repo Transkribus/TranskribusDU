@@ -63,7 +63,7 @@ class NodeType:
         
         self.lsXmlLabel        = lsLabel
         self.lsXmlIgnoredLabel = lsIgnoredLabel
-             
+            
         self.lsLabel        = [self.getInternalLabelName(s) for s in lsLabel]
 
         self.dXmlLabel2Label = { sXml :s    for sXml, s in zip(self.lsXmlLabel, self.lsLabel) }
@@ -73,11 +73,19 @@ class NodeType:
             #we need to deal with a class "other"
             self.sDefaultLabel = "%s_%s"%(self.name, self._sOTHER_LABEL)
             self.lsLabel = [self.sDefaultLabel] + self.lsLabel
+            
+            self.dIgnoredXmlLabel = { sXml :True    for sXml in self.lsXmlIgnoredLabel } if self.lsXmlIgnoredLabel else None
         else:
             self.sDefaultLabel  = None
 
         self.nCls = len(self.lsLabel)        
 
+    def checkIsIgnored(self, sXmlLabel):
+        """
+        return True or raises an exception
+        """
+        return self.dIgnoredXmlLabel[sXmlLabel]
+     
     def getInternalLabelName(self, sXmlLabel):
         """
         return the name seen by the classifier from the user-visible label

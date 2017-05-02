@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 """
-    CRF DU task core
+    CRF DU task core. Supports classical CRF and Typed CRF
     
-    Copyright Xerox(C) 2016 JL. Meunier
+    Copyright Xerox(C) 2016, 2017 JL. Meunier
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,27 +24,29 @@
     under grant agreement No 674943.
     
 """
-import os, glob, datetime
+import sys, os, glob, datetime
+import types
 from optparse import OptionParser
+
+import numpy as np
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import ShuffleSplit
-
-#sklearn has changed and sklearn.grid_search.GridSearchCV will disappear in next release or so
-#so it is recommended to use instead sklearn.model_selection
-#BUT on Linux, unplickling of the model fails
-#=> change only on Windows
-#JLM 2017-03-10
-import sys
-if sys.platform == "win32":
-    from sklearn.model_selection import GridSearchCV
-else:
-    from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV  #0.18.1 REQUIRES NUMPY 1.12.1 or more recent
+    
+try: #to ease the use without proper Python installation
+    import TranskribusDU_version
+except ImportError:
+    sys.path.append( os.path.dirname(os.path.dirname( os.path.abspath(sys.argv[0]) )) )
+    import TranskribusDU_version
 
 from common.trace import traceln
+from common.chrono import chronoOn, chronoOff
 
 import crf.Model
 from crf.Model_SSVM_AD3 import Model_SSVM_AD3
+from crf.Model_SSVM_AD3_Multitype import Model_SSVM_AD3_Multitype
+
 from xml_formats.PageXml import MultiPageXml
 import crf.FeatureDefinition
 from crf.FeatureDefinition_PageXml_std import FeatureDefinition_PageXml_StandardOnes
@@ -58,7 +60,7 @@ Document Understanding class that relies on CRF (learning with SSVM and inferenc
 USAGE:
 - define your graph class
 - choose a model name and a folder where it will be stored
-- define the features and their configuration
+- define the features and their configuration, or a list of (feature definition and its configuration)
 - define the learner configuration
 - instantiate this class
 
@@ -74,55 +76,135 @@ See DU_StAZH_b.py
 
     """
     
-    cModelClass          = Model_SSVM_AD3
-    cFeatureDefinition   = FeatureDefinition_PageXml_StandardOnes
+    cModelClass          = None                                     #depends on the number of node types!
+    cFeatureDefinition   = FeatureDefinition_PageXml_StandardOnes   #I keep this for backward compa
     
-    sMetadata_Creator = "XRCE Document Understanding CRF-based - v0.2"
+    sMetadata_Creator = "XRCE Document Understanding Typed CRF-based - v0.3"
     sMetadata_Comments = ""
     
     #dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
-    dGridSearch_LR_conf = {'C':[0.01, 0.1, 1.0, 10.0] }  #Grid search parameters for LR baseline method training
+    dGridSearch_LR_conf   = {'C':[0.01, 0.1, 1.0, 10.0] }  #Grid search parameters for LR baseline method training
+    dGridSearch_LR_n_jobs = 4                              #Grid search: number of jobs
     
     sXmlFilenamePattern = "*[0-9]"+MultiPageXml.sEXT    #how to find the Xml files
 
-    def __init__(self, sModelName, sModelDir, cGraphClass, dFeatureConfig={}, dLearnerConfig={}, sComment=None, cFeatureDefinition=None): 
+    def __init__(self, sModelName, sModelDir, cGraphClass, dLearnerConfig={}, sComment=None
+                 , cFeatureDefinition=None, dFeatureConfig={}
+                 ): 
         """
+        
         """
         self.sModelName     = sModelName
         self.sModelDir      = sModelDir
         self.cGraphClass    = cGraphClass
-        self.config_extractor_kwargs    = dFeatureConfig
-        self.config_learner_kwargs      = dLearnerConfig
+        #Because of the way of dealing with the command line, we may get singleton instead of scalar. We fix this here
+        self.config_learner_kwargs      = {k:v[0] if type(v)==types.ListType and len(v)==1 else v for k,v in dLearnerConfig.items()}
         if sComment: self.sMetadata_Comments    = sComment
         
         self._mdl = None
         self._lBaselineModel = []
         self.bVerbose = True
         
-        if cFeatureDefinition: self.cFeatureDefinition = cFeatureDefinition
-        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
+        self.iNbCRFType = None #is set below
+        
+        #--- Number of class per type
+        #We have either one number of class (single type) or a list of number of class per type
+        #in single-type CRF, if we know the number of class, we check that the training set covers all
+        self.nbClass  = None    #either the number or the sum of the numbers
+        self.lNbClass = None    #a list of length #type of number of class
+
+        #--- feature definition and configuration per type
+        #Feature definition and their config
+        if cFeatureDefinition: self.cFeatureDefinition  = cFeatureDefinition
         assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
-    
+        
+        #for single- or multi-type CRF, the same applies!
+        self.lNbClass = [len(nt.getLabelNameList()) for nt in self.cGraphClass.getNodeTypeList()]
+        self.nbClass = sum(self.lNbClass)
+        self.iNbCRFType = len(self.cGraphClass.getNodeTypeList())
+
+        if self.iNbCRFType > 1:
+            #check the configuration of a MULTITYPE graph
+            setKeyGiven = set(dFeatureConfig.keys())
+            lNT = self.cGraphClass.getNodeTypeList()
+            setKeyExpected = {nt.name for nt in lNT}.union( {"%s_%s"%(nt1.name,nt2.name) for nt1 in lNT for nt2 in lNT} )
+            
+            setMissing = setKeyExpected.difference(setKeyGiven)
+            setExtra   = setKeyGiven.difference(setKeyExpected)
+            if setMissing: traceln("ERROR: missing feature extractor config for : ", ", ".join(setMissing))
+            if setExtra:   traceln("ERROR: feature extractor config for unknown : ", ", ".join(setExtra))
+            if setMissing or setExtra: raise ValueError("Bad feature extractor configuration for a multi-type CRF graph")
+           
+        self.config_extractor_kwargs = dFeatureConfig
+
+        self.cModelClass = Model_SSVM_AD3 if self.iNbCRFType == 1 else Model_SSVM_AD3_Multitype
+        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
+        
     #---  CONFIGURATION setters --------------------------------------------------------------------
+    def isTypedCRF(self): 
+        """
+        if this a classical CRF or a Typed CRF?
+        """
+        return self.iNbCRFType > 1
+    
+    def getGraphClass(self):    
+        return self.cGraphClass
+    
     def setModelClass(self, cModelClass): 
         self.cModelClass = cModelClass
         assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
-    def getModel(self):
+    
+    def getModelClass(self):    
+        return self.cModelClass
+    
+    def getModel(self):         
         return self._mdl
     
-    def setFeatureDefinition(self, cFeatureDefinition): 
-        self.cFeatureDefinition = cFeatureDefinition
-        assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
-
+    def setLearnerConfiguration(self, dParams):
+        self.config_learner_kwargs = dParams
+        
+    """
+    When some class is not represented on some graph, you must specify the number of class (per type if multiple types)
+    Otherwise pystruct will complain about the number of states differeing from the number of weights
+    """
+    def setNbClass(self, useless_stuff):    #DEPRECATED - DO NOT CALL!! Number of class computed automatically
+        print   " *** setNbClass is deprecated - update your code (but it should work fine!)"
+        traceln(" *** setNbClass is deprecated - update your code (but it should work fine!)")
+        
+    def getNbClass(self, lNbClass): #OK
+        """
+        return the total number of classes
+        """
+        return self.nbClass
+    
     #---  COMMAND LINE PARSZER --------------------------------------------------------------------
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
-        usage = "%s <model-directory> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+"%sys_argv0
-        description = """ 
-        Train or test or remove the given model or predict using the given model.
-        The data is given as a list of DS directories.
-        The model is loaded from or saved to the model directory.
-        """
-    
+        usage = """"%s <model-folder> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+
+or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish] [--fold <col-dir>]+
+CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--crf-njobs <int>] [crf-inference_cache <int>] [best-params=<model-name>]
+
+        For the named MODEL using the given FOLDER for storage:
+        --rm  : remove all model data from the folder
+        --trn : train a model using the given data (multiple --trn are possible)
+                  --warm/-w: warm-start the training if applicable
+        --tst : test the model using the given test collection (multiple --tst are possible)
+        --run : predict using the model for the given collection (multiple --run are possible)
+        
+        --fold        : enlist one collection as data source for cross-validation
+        --fold-init   : generate the content of the N folds 
+        --fold-run    : run the given fold, if --warm/-w, then warm-start if applicable 
+        --fold-finish : collect and aggregate the results of all folds that were run.
+        
+        --crf-njobs    : number of parallel training jobs
+        
+        --crf-XXX        : set the XXX trainer parameter. XXX can be max_iter, C, tol, inference-cache
+                            If several values are given, a grid search is done by cross-validation. 
+                            The best set of parameters is then stored and can be used thanks to the --best-params option.
+        --best-params    : uses the parameters obtained by the previously done grid-search. 
+                            If it was done on a model fold, the name takes the form: <model-name>_fold_<fold-number>, e.g. foo_fold_2
+        
+        """%sys_argv0
+
         #prepare for the parsing of the command line
         parser = OptionParser(usage=usage, version=version)
         
@@ -144,18 +226,19 @@ See DU_StAZH_b.py
                           , help="To make warm-startable model and warm-start if a model exist already.")   
         parser.add_option("--rm", dest='rm',  action="store_true"
                           , help="Remove all model files")   
-        parser.add_option("--crf-max_iter", dest='crf_max_iter',  action="store", type="int"
-                          , help="CRF training parameter max_iter")    
-        parser.add_option("--crf-C", dest='crf_C',  action="store", type="float"
-                          , help="CRF training parameter C")    
-        parser.add_option("--crf-tol", dest='crf_tol',  action="store", type="float"
-                          , help="CRF training parameter tol")    
         parser.add_option("--crf-njobs", dest='crf_njobs',  action="store", type="int"
                           , help="CRF training parameter njobs")
-        parser.add_option("--crf-inference_cache", dest='crf_inference_cache',  action="store", type="int"
+        parser.add_option("--crf-max_iter"          , dest='crf_max_iter'       ,  action="append", type="int"        #"append" to have a list and possibly do a gridsearch
+                          , help="CRF training parameter max_iter")    
+        parser.add_option("--crf-C"                 , dest='crf_C'              ,  action="append", type="float"
+                          , help="CRF training parameter C")    
+        parser.add_option("--crf-tol"               , dest='crf_tol'            ,  action="append", type="float"
+                          , help="CRF training parameter tol")    
+        parser.add_option("--crf-inference_cache"   , dest='crf_inference_cache',  action="append", type="int"
                           , help="CRF training parameter inference_cache")    
-
-        return usage, description, parser
+        parser.add_option("--best-params", dest='best_params',  action="store", type="string"
+                          , help="Use the best  parameters from the grid search previously done on the given model or model fold") 
+        return usage, None, parser
     getBasicTrnTstRunOptionParser = classmethod(getBasicTrnTstRunOptionParser)
            
     #----------------------------------------------------------------------------------------------------------    
@@ -177,10 +260,19 @@ See DU_StAZH_b.py
         """
         add as Baseline a Logistic Regression model, trained via a grid search
         """
-        lr = LogisticRegression(class_weight='balanced')
-        mdl = GridSearchCV(lr , self.dGridSearch_LR_conf)        
-        self._lBaselineModel.append(mdl)
-        return mdl
+        #we always have one LR model per type  (yes, even for single type ! ;-) )
+        lMdl = [ GridSearchCV(LogisticRegression(class_weight='balanced') 
+                              , self.dGridSearch_LR_conf, n_jobs=self.dGridSearch_LR_n_jobs) for _ in range(self.iNbCRFType) ]  
+            
+        if self.isTypedCRF():
+            tMdl = tuple(lMdl)
+            self._lBaselineModel.append( tMdl )
+            return tMdl
+        else:
+            assert len(lMdl) == 1, "internal error"
+            [mdl] = lMdl
+            self._lBaselineModel.append( mdl )
+            return mdl
 
     #----------------------------------------------------------------------------------------------------------   
     # in case you want no output at all on stderr
@@ -189,6 +281,7 @@ See DU_StAZH_b.py
     
     def traceln(self, *kwargs)     : 
         if self.bVerbose: traceln(*kwargs)
+        
     #----------------------------------------------------------------------------------------------------------    
     def load(self, bForce=False):
         """
@@ -214,7 +307,8 @@ See DU_StAZH_b.py
         for s in [  mdl.getModelFilename()
                   , mdl.getTransformerFilename()
                   , mdl.getConfigurationFilename()
-                  , mdl.getBaselineFilename()       ]:
+                  , mdl.getBaselineFilename()
+                  , mdl._getParamsFilename()       ]:
             if os.path.exists(s):
                 self.traceln("\t - rm %s"%s) 
                 os.unlink(s)
@@ -245,51 +339,9 @@ See DU_StAZH_b.py
         ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
         _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
         
-        DU_GraphClass = self.cGraphClass
-        
         self.traceln("- creating a %s model"%self.cModelClass)
-        mdl = self.cModelClass(self.sModelName, self.sModelDir)
-        
-        if not bWarm:
-            if os.path.exists(mdl.getModelFilename()): 
-                raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
-            
-        mdl.configureLearner(**self.config_learner_kwargs)
-        mdl.setBaselineModelList(self._lBaselineModel)
-        mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
-        self.traceln("\t - configuration: ", self.config_learner_kwargs )
+        oReport = self._train_save_test(self.sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst)
 
-        self.traceln("- loading training graphs")
-        lGraph_trn = DU_GraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
-        self.traceln(" %d graphs loaded"%len(lGraph_trn))
-
-        self.traceln("- retrieving or creating feature extractors...")
-        try:
-            mdl.loadTransformers(ts_trn)
-        except crf.Model.ModelException:
-            fe = self.cFeatureDefinition(**self.config_extractor_kwargs)         
-            fe.fitTranformers(lGraph_trn)
-            fe.cleanTransformers()
-            mdl.setTranformers(fe.getTransformers())
-            mdl.saveTransformers()
-        self.traceln(" done")
-        
-        self.traceln("- training model...")
-        mdl.train(lGraph_trn, True, ts_trn)
-        mdl.save()
-        self.traceln(" done")
-        # OK!!
-        self._mdl = mdl
-        
-        if lFilename_tst:
-            self.traceln("- loading test graphs")
-            lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-            self.traceln(" %d graphs loaded"%len(lGraph_tst))
-    
-            oReport = mdl.test(lGraph_tst)
-        else:
-            oReport = None, None
-            
         return oReport
 
     def test(self, lsTstColDir):
@@ -312,12 +364,16 @@ See DU_StAZH_b.py
         lPageConstraint = DU_GraphClass.getPageConstraint()
         if lPageConstraint: 
             for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
-            
-        self.traceln("- loading test graphs")
-        lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-        self.traceln(" %d graphs loaded"%len(lGraph_tst))
+        
+        try:
+            #should work fine
+            oReport = self._mdl.testFiles(lFilename_tst, lambda fn: DU_GraphClass.loadGraphs([fn], bDetach=True, bLabelled=True, iVerbose=1))
+        except:
+            self.traceln("- loading test graphs")
+            lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
+            self.traceln(" %d graphs loaded"%len(lGraph_tst))
+            oReport = self._mdl.test(lGraph_tst)
 
-        oReport = self._mdl.test(lGraph_tst)
         return oReport
 
     def predict(self, lsColDir):
@@ -364,6 +420,19 @@ See DU_StAZH_b.py
         self.traceln(" done")
 
         return lsOutputFilename
+
+    def checkLabelCoverage(self, lY):
+        #check that all classes are represented in the dataset
+        #it is done again in train but we do that here also because the extractor can take along time, 
+        #   and we may discover afterwards it was a useless dataset.
+        aLabelCount, _ = np.histogram( np.hstack(lY) , range(self.nbClass+1))
+        traceln("   Labels count: ", aLabelCount, " (%d graphs)"%len(lY))
+        traceln("   Labels      : ", self.getGraphClass().getLabelNameList())
+        if np.min(aLabelCount) == 0:
+            sMsg = "*** ERROR *** Label(s) not observed in data."
+            traceln( sMsg+" Label(s): %s"% np.where(aLabelCount[:] == 0)[0] )
+            raise ValueError(sMsg)
+        return True
 
     #-----  NFOLD STUFF
     def _nfold_Init(self, lsTrnColDir, n_splits=3, test_size=0.25, random_state=None, bStoreOnDisk=False):
@@ -416,13 +485,17 @@ See DU_StAZH_b.py
         Run the fold iFold
         Store results on disk
         """
-        fnFoldDetails = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_def.pkl"%iFold)
+        fnFoldDetails = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_def.pkl"%abs(iFold))
         traceln("--- Loading fold info from : %s"% fnFoldDetails)
         oFoldDetails = crf.Model.Model.gzip_cPickle_load(fnFoldDetails)
         (iFold_stored, ts_trn, lFilename_trn, train_index, test_index) = oFoldDetails
-        assert iFold_stored == iFold, "Internal error. Inconsistent fold details on disk."
+        assert iFold_stored == abs(iFold), "Internal error. Inconsistent fold details on disk."
         
-        oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm)
+        if iFold > 0: #normal case
+            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm)
+        else:
+            traceln("Switching train and test data for fold %d"%abs(iFold))
+            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, test_index, train_index, bWarm=bWarm)
         
         fnFoldResults = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_TestReport.pkl"%iFold)
         crf.Model.Model.gzip_cPickle_dump(fnFoldResults, oReport)
@@ -440,12 +513,13 @@ See DU_StAZH_b.py
         for i in range(n_splits):
             iFold = i + 1
             fnFoldResults = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_TestReport.pkl"%iFold)
+            traceln("\t-loading ", fnFoldResults)
             try:
                 oReport = crf.Model.Model.gzip_cPickle_load(fnFoldResults)
                 
                 loReport.append(oReport)
             except:
-                traceln("WARNING: fold %d has NOT FINISHED or FAILED"%iFold)
+                traceln("\tWARNING: fold %d has NOT FINISHED or FAILED"%iFold)
 
         oNFoldReport = TestReportConfusion.newFromReportList(self.sModelName+" (ALL %d FOLDS)"%n_splits, loReport) #a test report based on the confusion matrix
 
@@ -479,46 +553,7 @@ See DU_StAZH_b.py
         self.traceln("- creating a %s model"%self.cModelClass)
         sFoldModelName = self.sModelName+"_fold_%d"%iFold
         
-        mdl = self.cModelClass(sFoldModelName, self.sModelDir)
-        
-        if os.path.exists(mdl.getModelFilename()) and not bWarm: 
-            raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
-            
-        mdl.configureLearner(**self.config_learner_kwargs)
-        mdl.setBaselineModelList(self._lBaselineModel)
-        mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
-        self.traceln("\t - configuration: ", self.config_learner_kwargs )
-
-        self.traceln("- loading training graphs")
-        lGraph_trn = self.cGraphClass.loadGraphs(lFoldFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
-        self.traceln(" %d graphs loaded"%len(lGraph_trn))
-
-        self.traceln("- retrieving or creating feature extractors...")
-        try:
-            mdl.loadTransformers(ts_trn)
-        except crf.Model.ModelException:
-            fe = self.cFeatureDefinition(**self.config_extractor_kwargs)         
-            fe.fitTranformers(lGraph_trn)
-            fe.cleanTransformers()
-            mdl.setTranformers(fe.getTransformers())
-            mdl.saveTransformers()
-        self.traceln(" done")
-        
-        self.traceln("- training model...")
-        mdl.train(lGraph_trn, True, ts_trn)
-        mdl.save()
-        self.traceln(" done")
-        # OK!!
-        self._mdl = mdl
-        
-        if lFoldFilename_tst:
-            self.traceln("- loading test graphs")
-            lGraph_tst = self.cGraphClass.loadGraphs(lFoldFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-            self.traceln(" %d graphs loaded"%len(lGraph_tst))
-    
-            oReport = mdl.test(lGraph_tst)
-        else:
-            oReport = None
+        oReport = self._train_save_test(sFoldModelName, bWarm, lFoldFilename_trn, ts_trn, lFoldFilename_tst)
 
         fnFoldReport = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_STATS.txt"%iFold)
         with open(fnFoldReport, "w") as fd:
@@ -551,6 +586,65 @@ See DU_StAZH_b.py
         return loTstRpt
 
     #----------------------------------------------------------------------------------------------------------    
+    def _train_save_test(self, sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst):
+        """
+        used both by train_save_test and _nfold_runFold
+        """
+        mdl = self.cModelClass(sModelName, self.sModelDir)
+        
+        if os.path.exists(mdl.getModelFilename()) and not bWarm: 
+            raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
+            
+        mdl.configureLearner(**self.config_learner_kwargs)
+        mdl.setBaselineModelList(self._lBaselineModel)
+        mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
+        self.traceln("\t - configuration: ", self.config_learner_kwargs )
+
+        self.traceln("- loading training graphs")
+        lGraph_trn = self.cGraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
+        self.traceln(" %d graphs loaded"%len(lGraph_trn))
+
+        assert self.nbClass and self.lNbClass, "internal error: I expected the number of class to be automatically computed at that stage"
+        if self.iNbCRFType == 1:
+            mdl.setNbClass(self.nbClass)
+        else:
+            mdl.setNbClass(self.lNbClass)
+
+        #for this check, we load the Y once...
+        self.checkLabelCoverage(mdl.get_lY(lGraph_trn)) #NOTE that Y are in bad order if multiptypes. Not a pb here
+            
+        self.traceln("- retrieving or creating feature extractors...")
+        chronoOn("FeatExtract")
+        try:
+            mdl.loadTransformers(ts_trn)
+        except crf.Model.ModelException:
+            fe = self.cFeatureDefinition(**self.config_extractor_kwargs)         
+            fe.fitTranformers(lGraph_trn)
+            fe.cleanTransformers()
+            mdl.setTranformers(fe.getTransformers())
+            mdl.saveTransformers()
+        self.traceln(" done [%.1fs]"%chronoOff("FeatExtract"))
+        
+        self.traceln("- training model...")
+        chronoOn("MdlTrn")
+        mdl.train(lGraph_trn, True, ts_trn, verbose=1 if self.bVerbose else 0)
+        mdl.save()
+        self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
+        
+        # OK!!
+        self._mdl = mdl
+        
+        if lFilename_tst:
+            self.traceln("- loading test graphs")
+            lGraph_tst = self.cGraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
+            self.traceln(" %d graphs loaded"%len(lGraph_tst))
+            oReport = mdl.test(lGraph_tst)
+        else:
+            oReport = None
+        
+        return oReport
+    
+    #----------------------------------------------------------------------------------------------------------    
     def listMaxTimestampFile(cls, lsDir, sPattern):
         """
         List the file following the given pattern in the given folders
@@ -565,3 +659,12 @@ See DU_StAZH_b.py
         return ts, lFn
     listMaxTimestampFile = classmethod(listMaxTimestampFile)
     
+
+if __name__ == "__main__":
+
+    version = "v.01"
+    usage, description, parser = DU_CRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
+
+    parser.print_help()
+    
+    traceln("\nThis module should not be run as command line. It does nothing. (And did nothing!)")
