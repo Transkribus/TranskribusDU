@@ -308,6 +308,10 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         job = TableProcessor.cNomacs+ " --batch %s"%(prnlafilename)
         os.system(job)
         print 'LA done', prnlafilename        
+        
+        lFullPathXMLNames = [ "%s%s%s" % (xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
+
+        self.storeMPXML(lFullPathXMLNames)        
     
     def createGTWithtextRegion(self):
         """

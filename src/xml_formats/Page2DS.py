@@ -126,7 +126,7 @@ class primaAnalysis(Component.Component):
     
     def getTextLineSubStructure(self,dsNode,curNode):
         """
-            curNode: TextRegion
+            curNode: TextRegion or cell
                 ->TextLine
                 
                 ->Word 
@@ -148,7 +148,10 @@ class primaAnalysis(Component.Component):
                 node.setProp('id',str(self.id))
                 self.id += 1
                 
+                
             dsNode.addChild(node)
+            ## type
+            node.setProp("type", line.prop('type'))            
             sp = self.getPoints(line)
             # polylines
             node.setProp('points',sp)
@@ -299,6 +302,8 @@ class primaAnalysis(Component.Component):
                 cellNode.setProp(ds_xml.sHeight,str(hp))
                 cellNode.setProp(ds_xml.sWidth,str(wp))                    
             
+            
+            self.getTextLineSubStructure(cellNode,cell)
             #corners
 #              <CornerPts>0 1 2 3</CornerPts>
 #             ctxt = document.xpathNewContext()
