@@ -11,6 +11,7 @@
 """
 
 from objectClass import objectClass
+import libxml2 
 
 class  XMLObjectClass(objectClass):
     """
@@ -21,8 +22,11 @@ class  XMLObjectClass(objectClass):
         objectClass.__init__(self)
         XMLObjectClass.id += 1
         self._orderedID =  XMLObjectClass.id
+
         self._domNode = None
-        # needed for mapping dataobject to layoutObject
+        self.tagname="MYTAG"
+        
+        # needed for mapping dataobject to layoutObject ???
         self._nextObject = None
         self._previousObject = None
     
@@ -43,6 +47,20 @@ class  XMLObjectClass(objectClass):
     
     def getNode(self): return self._domNode
     def setNode(self,c): self._domNode = c
+    
+    
+    def tagMe(self,sLabel):
+        """
+             create a dom elt and add it to the doc
+        """
+        newNode = libxml2.newNode(self.tagName)
+        
+        newNode.setProp('x',str(self.getX()))
+        newNode.setProp('y',str(self.getY()))
+        newNode.setProp('height',str(self.getHeight()))
+        newNode.setProp('width',str(self.getWidth()))
+        
+        self.getPage().getNode().addChild(newNode)
     
     def fromDom(self,domNode):
         
