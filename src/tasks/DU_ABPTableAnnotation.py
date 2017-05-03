@@ -122,7 +122,7 @@ class DU_ABPTableAnnotator(DU_CRF_Task):
                      )
         
         
-        self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
+#         self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
     
     #=== END OF CONFIGURATION =============================================================
 
@@ -225,17 +225,19 @@ class DU_ABPTableAnnotator(DU_CRF_Task):
             # if no labelled: add other
             ## TEXT
             for tl in lTextLine:
-                sLabel = tl.type.parseDomNodeLabel(tl.node)
                 try:
-                    cls = DU_GRAPH._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
-                except KeyError:              
+                    sLabel = tl.type.parseDomNodeLabel(tl.node)
+#                     cls = DU_GRAPH._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
+#                 except KeyError:
+                except ValueError:              
                     tl.node.setProp(tl.type.sLabelAttr,lLabels[4])
             ## SEP
             for sep in lSeparator:
-                sLabel = sep.type.parseDomNodeLabel(sep.node)
+#                 sLabel = sep.type.parseDomNodeLabel(sep.node)
                 try:
-                    cls = DU_GRAPH._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
-                except KeyError:  
+                    sLabel = sep.type.parseDomNodeLabel(sep.node)
+#                     cls = DU_GRAPH._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
+                except ValueError:  
                     sep.node.setProp(lText[0].type.sLabelAttr,lLabels[6])
             
             
