@@ -12,6 +12,7 @@
 
 from XMLObjectClass import XMLObjectClass
 from config import ds_xml_def as ds_xml
+import libxml2
 
 class  XMLDSObjectClass(XMLObjectClass):
     """
@@ -22,10 +23,7 @@ class  XMLDSObjectClass(XMLObjectClass):
     name = None
     def __init__(self):
         XMLObjectClass.__init__(self)
-#         XMLDSObjectClass.id += 1
-#         self._orderedID =  XMLObjectClass.id
-#         self._domNode = None
-        # needed for mapping dataobject to layoutObject
+        
         self._lElements = []
         self._page  = None
         self._id= None
@@ -59,6 +57,7 @@ class  XMLDSObjectClass(XMLObjectClass):
     
     def getTemplates(self): return self._ltemplates
     
+    
     def resizeMe(self,objectType):
         assert len(self.getAllNamedObjects(objectType)) != 0
         
@@ -83,6 +82,8 @@ class  XMLDSObjectClass(XMLObjectClass):
         
         self._BB = [minbx,minby,maxby-minby,maxbx-minbx]    
     
+
+        
     def fromDom(self,domNode):
         
         ## if domNode in mappingTable:

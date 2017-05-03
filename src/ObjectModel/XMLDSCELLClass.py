@@ -26,11 +26,28 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
         self._colSpan= 1
         self._rowSpan= 1
 
+        # contains a list of fields (tag)
+        self._lFields = []
+    
     
     def getIndex(self): return self._index
     def setIndex(self,i,j): self._index = (i,j)
     def getColSpan(self): return self._colSpan
     def getRowSapn(self): return self._rowSpan
+    
+    def getFields(self): return self._lFields
+    
+    def addField(self,tag):
+        """
+            self is supposed to contain tag (recoursd field)
+        """
+        if tag not in self.getFields():
+            self.getFields().append(tag)
+        return tag
+    
+    ############# TAGGIG
+    
+    ########### LOAD FROM DSXML ################
     def fromDom(self,domNode):
         """
             only contains TEXT?
@@ -43,7 +60,7 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
             self.addAttribute(prop.name,prop.getContent())
             # add attributes
             prop = prop.next
-        self.setIndex(int(self.getAttribute('irow')),int(self.getAttribute('icol')))
+        self.setIndex(int(self.getAttribute('row')),int(self.getAttribute('col')))
             
         ctxt = domNode.doc.xpathNewContext()
         ctxt.setContextNode(domNode)
