@@ -283,9 +283,9 @@ class primaAnalysis(Component.Component):
             ## need to get x, y, h, w
             cellNode.setProp("id", cell.prop('row'))
             cellNode.setProp("row", cell.prop('row'))
-            cellNode.setProp("col", cell.prop('row'))
-            cellNode.setProp("rowSpan", cell.prop('row'))
-            cellNode.setProp("colSpan", cell.prop('row'))
+            cellNode.setProp("col", cell.prop('col'))
+            cellNode.setProp("rowSpan", cell.prop('rowSpan'))
+            cellNode.setProp("colSpan", cell.prop('colSpan'))
             sp= self.getPoints(cell)
             cellNode.setProp('points',sp)        
             # BB
