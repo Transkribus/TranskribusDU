@@ -138,7 +138,7 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
         """
         Return the list of produced files
         """
-        self.sXmlFilenamePattern = "*.a_mpxml"
+#         self.sXmlFilenamePattern = "*.a_mpxml"
         return DU_CRF_Task.predict(self, lsColDir)
 
            
