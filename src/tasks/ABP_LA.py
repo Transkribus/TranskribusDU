@@ -119,8 +119,12 @@ PluginBatch\FormAnalysis\FormFeatures\errorThr=15
 PluginBatch\FormAnalysis\FormFeatures\\formTemplate="%s"
 PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
      """
-    
-    cNomacs = '"C:\\Program Files\\READFramework\\nomacs-x64\\nomacs.exe"'
+     
+    if sys.platform == 'win32':
+        cNomacs = '"C:\\Program Files\\READFramework\\nomacs-x64\\nomacs.exe"'
+    else:
+        cNomacs = "/opt/Tools/src/tuwien-2017/nomacs/nomacs"
+        
     
     #--- INIT -------------------------------------------------------------------------------------------------------------    
     def __init__(self):
