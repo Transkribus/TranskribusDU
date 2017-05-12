@@ -41,7 +41,6 @@ import common.Component as Component
 from common.trace import traceln, trace
 
 from xml_formats.PageXml import PageXml
-from xml_formats.DS2PageXml import DS2PageXMLConvertor
 from xml_formats.Page2DS import primaAnalysis
 from xml_formats.PageXml import MultiPageXml
 
@@ -56,7 +55,7 @@ class TableProcessor(Component.Component):
     description = "description: table template processor"
 
     
-    cCVLLAProfile="""
+    cCVLLAProfileold="""
 [%%General]  
 FileList="%s"
 OutputDirPath=%s
@@ -78,6 +77,35 @@ PluginBatch\LayoutPlugin\Super Pixel Classification\classifierPath=
 
 """
 
+    cCVLLAProfile = """
+[%%General]  
+FileList="%s"
+OutputDirPath=%s
+FileNamePattern=<c:0>.<old>
+PluginBatch\LayoutPlugin\General\drawResults=false
+PluginBatch\LayoutPlugin\General\saveXml=true
+PluginBatch\LayoutPlugin\General\useTextRegions=true
+PluginBatch\LayoutPlugin\Layout Analysis Module\computeSeparators=true
+PluginBatch\LayoutPlugin\Layout Analysis Module\localBlockOrientation=false
+PluginBatch\LayoutPlugin\Layout Analysis Module\maxImageSide=3000
+PluginBatch\LayoutPlugin\Layout Analysis Module\minSuperPixelsPerBlock=15
+PluginBatch\LayoutPlugin\Layout Analysis Module\removeWeakTextLines=true
+PluginBatch\LayoutPlugin\Layout Analysis Module\scaleMode=1
+PluginBatch\LayoutPlugin\Super Pixel Classification\classifierPath=
+PluginBatch\LayoutPlugin\Super Pixel Labeler\featureFilePath=
+PluginBatch\LayoutPlugin\Super Pixel Labeler\labelConfigFilePath=
+PluginBatch\LayoutPlugin\Super Pixel Labeler\maxNumFeaturesPerClass=10000
+PluginBatch\LayoutPlugin\Super Pixel Labeler\maxNumFeaturesPerImage=1000000
+PluginBatch\LayoutPlugin\Super Pixel Labeler\minNumFeaturesPerClass=10000
+PluginBatch\pluginList=Layout Analysis | Layout Analysis
+SaveInfo\Compression=-1
+SaveInfo\DeleteOriginal=false
+SaveInfo\InputDirIsOutputDir=true
+SaveInfo\Mode=2
+PluginBatch\LayoutPlugin\Super Pixel Labeler\featureFilePath=
+PluginBatch\LayoutPlugin\Layout Analysis Module\removeWeakTextLines=true
+    """
+
 #PluginBatch\pluginList="Layout Analysis | Layout Analysis;Layout Analysis | Detect Lines"
 
     cCVLLASeparatorProfile="""
@@ -89,7 +117,7 @@ SaveInfo\Compression=-1
 SaveInfo\Mode=2
 SaveInfo\DeleteOriginal=false
 SaveInfo\InputDirIsOutputDir=true
-PluginBatch\pluginList=Layout Analysis | Detect Lines
+PluginBatch\pluginList=Layout Analysis | Detect Separator Lines
 PluginBatch\LayoutPlugin\General\useTextRegions=false
 PluginBatch\LayoutPlugin\General\drawResults=false
 PluginBatch\LayoutPlugin\General\saveXml=true
@@ -103,7 +131,7 @@ PluginBatch\LayoutPlugin\Super Pixel Classification\classifierPath=
 """
 
 
-    cCVLProfile ="""
+    cCVLProfileTabReg ="""
 [%%General]  
 FileList="%s"
 OutputDirPath="%s"
@@ -204,7 +232,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         l =      glob.glob(os.path.join(localpath, "*.jpg"))
         listfile = ";".join(l)
         listfile  = listfile.replace(os.sep,"/")
-        txt=  TableProcessor.cCVLProfile % (listfile,"%s/col/%s"%(self.coldir,self.docid),os.path.abspath("%s/%s.templ.xml"%(self.coldir,self.docid)).replace(os.sep,"/"))
+        txt=  TableProcessor.cCVLProfileTabReg % (listfile,"%s/col/%s"%(self.coldir,self.docid),os.path.abspath("%s/%s.templ.xml"%(self.coldir,self.docid)).replace(os.sep,"/"))
         # wb mandatory for crlf in windows
         prnfilename = "%s%s%s_reg.prn"%(self.coldir,os.sep,self.docid)
         f=open(prnfilename,'wb')
@@ -282,8 +310,13 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         """
         templatePage = self.findTemplate(doc)
 
+
+        ## RM  previous *.xml
+        xmlpath="%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid)
+        [ os.remove("%s%s%s"%(xmlpath,os.sep,name)) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
+              
         if templatePage is None:
-            print "No table found in this document: %s" %self.docid
+            traceln("No table found in this document: %s" % self.docid)
             
         else:
             oldOut=  self.outputFileName
@@ -294,24 +327,20 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             prnregfilename= self.createRegistrationProfile()
         
 
-            ## RM  previous *.xml
-            xmlpath="%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid)
-            [ os.remove("%s%s%s"%(xmlpath,os.sep,name)) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']             
-
             job = TableProcessor.cNomacs+ " --batch %s"%(prnregfilename)
             os.system(job)
-            print 'table registration done', prnregfilename            
+            traceln('table registration done: %s'% prnregfilename)            
         
         prnglfilename = self.createLinesProfile()
         prnlafilename = self.createLAProfile()
 
         job = TableProcessor.cNomacs+ " --batch %s"%(prnglfilename)
         os.system(job)
-        print 'GL done', prnlafilename    
+        traceln( 'GL done: %s' % prnglfilename)    
                 
         job = TableProcessor.cNomacs+ " --batch %s"%(prnlafilename)
         os.system(job)
-        print 'LA done', prnlafilename        
+        traceln('LA done: %s' % prnlafilename)        
         
         lFullPathXMLNames = [ "%s%s%s" % (xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
 
