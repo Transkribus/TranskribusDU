@@ -224,6 +224,15 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         newDoc.setRootElement(page)
         ### need to add the ns!!
 #         print newDoc.serialize('utf-8',True)
+        # Borders must be visible: 
+        #leftBorderVisible="false" rightBorderVisible="false" topBorderVisible="false
+        lcells = PageXml.getChildByName(newDoc.getRootElement(),'TableCell')
+        for cell in lcells:
+            cell.setProp("leftBorderVisible",'true')
+            cell.setProp("rightBorderVisible",'true')
+            cell.setProp("topBorderVisible",'true')
+            cell.setProp("bottomBorderVisible",'true')
+
         return newDoc
         
     def createRegistrationProfile(self):
