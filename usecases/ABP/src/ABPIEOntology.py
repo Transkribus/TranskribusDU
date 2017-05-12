@@ -29,7 +29,7 @@
 """
 import sys, os.path
 sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'src')
-from ObjectModel.recordClass import recordClass,fieldClass, REtaggerClass
+from ObjectModel.recordClass import recordClass,fieldClass, RETaggerClass
 
 
 class deathRecord(recordClass):
