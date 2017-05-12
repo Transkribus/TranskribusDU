@@ -53,9 +53,9 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
     """
     sXmlFilenamePattern = "*.mpxml"
     
-    sLabeledXmlFilenamePattern = "*.a_mpxml"
+    sLabeledXmlFilenamePattern = "*.mpxml"
 
-    sLabeledXmlFilenameEXT = ".a_mpxml"
+    sLabeledXmlFilenameEXT = ".mpxml"
 
     # ===============================================================================================================
     #DEFINING THE CLASS OF GRAPH WE USE
