@@ -321,7 +321,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
 
 
         ## RM  previous *.xml
-        xmlpath="%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid)
+        xmlpath=os.path.abspath("%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid))
         [ os.remove("%s%s%s"%(xmlpath,os.sep,name)) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
               
         if templatePage is None:
@@ -351,8 +351,9 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         os.system(job)
         traceln('LA done: %s' % prnlafilename)        
         
+        #need to be sorted!!
         lFullPathXMLNames = [ "%s%s%s" % (xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
-
+        lFullPathXMLNames.sort()
         self.storeMPXML(lFullPathXMLNames)        
     
     def createGTWithtextRegion(self):
@@ -405,9 +406,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         print 'LA done', prnlafilename 
 
         lFullPathXMLNames = [ "%s%s%s" % (xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
-        
-        
-        
+        lFullPathXMLNames.sort()
 
         self.storeMPXML(lFullPathXMLNames)
         
