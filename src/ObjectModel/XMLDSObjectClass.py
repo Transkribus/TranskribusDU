@@ -12,7 +12,6 @@
 
 from XMLObjectClass import XMLObjectClass
 from config import ds_xml_def as ds_xml
-import libxml2
 
 class  XMLDSObjectClass(XMLObjectClass):
     """
@@ -49,6 +48,18 @@ class  XMLDSObjectClass(XMLObjectClass):
     def getY2(self): return float(self.getAttribute('y'))+self.getHeight()        
     def getHeight(self): return float(self.getAttribute('height'))
     def getWidth(self): return float(self.getAttribute('width'))    
+    def setWidth(self,w): self.addAttribute('width',w)
+    
+    
+    def addObject(self,o): 
+        ## move dom node as well
+        if o not in self.getObjects():
+            self.getObjects().append(o)
+            o.setParent(self) 
+            if o.getNode() is not None and self.getNode() is not None:
+                o.getNode().unlinkNode()
+                self.getNode().addChild(o.getNode())
+               
     
     def resetTemplate(self): self._ltemplates = None
     def addTemplate(self,t): 
@@ -149,17 +160,13 @@ class  XMLDSObjectClass(XMLObjectClass):
     def clipMe(self,clipRegion,lSubObject=[]):
         """
         
-            DOES NOT WORK !!!
-        
             return the list of new subobjects considering the clip region
             -->  if subobjects is not 'clippable' ? how to cut a TOKEN????
             
             recursive: if a sub object is cut: go down and take only clipped) subobj if the zones
             -> text/token
             
-            
             region: a XMLDSObjectClass!!
-            
             create new objects?  YES::
             
         """
@@ -194,7 +201,7 @@ class  XMLDSObjectClass(XMLObjectClass):
             else:
                 return None
             return myNewObject 
-        
+        return None
          
          
          
@@ -226,7 +233,34 @@ class  XMLDSObjectClass(XMLObjectClass):
         elif self.getSetofFeatures() != []:
             return self.getSetofFeatures()
                
-
+              
+        lHisto = {}
+        for elt in self.getAllNamedObjects(myObject):
+            for attr in lAttributes:
+                try:lHisto[attr]
+                except KeyError:lHisto[attr] = {}
+                if elt.hasAttribute(attr):
+#                     if elt.getWidth() >500:
+#                         print elt.getName(),attr, elt.getAttribute(attr) #, elt.getNode()
+                    try:
+                        try:lHisto[attr][round(float(elt.getAttribute(attr)))].append(elt)
+                        except KeyError: lHisto[attr][round(float(elt.getAttribute(attr)))] = [elt]
+                    except TypeError:pass
+        
+        for attr in lAttributes:
+            for value in lHisto[attr]:
+#                 print attr, value, lHisto[attr][value]
+                if  len(lHisto[attr][value]) > 0.1:
+                    ftype= featureObject.NUMERICAL
+                    feature = featureObject()
+                    feature.setName(attr)
+#                     feature.setName('f')
+                    feature.setTH(TH)
+                    feature.addNode(self)
+                    feature.setObjectName(self)
+                    feature.setValue(value)
+                    feature.setType(ftype)
+                    self.addFeature(feature)
          
         
         if 'tokens' in lAttributes:
@@ -255,6 +289,28 @@ class  XMLDSObjectClass(XMLObjectClass):
             feature.setType(ftype)
             self.addFeature(feature)
                             
-
             
-        return self.getSetofFeatures()        
+        return self.getSetofFeatures()
+    
+         
+    def getSetOfMutliValuedFeatures(self,TH,lMyFeatures,myObject):
+        """
+            define a multivalued features 
+        """
+        from spm.feature import multiValueFeatureObject
+
+        #reinit 
+        self._lBasicFeatures = None
+        
+        mv =multiValueFeatureObject()
+        name= "multi" #'|'.join(i.getName() for i in lMyFeatures)
+        mv.setName(name)
+        mv.addNode(self)
+        mv.setObjectName(self)
+        mv.setTH(TH)
+        mv.setObjectName(self)
+        mv.setValue(map(lambda x:x,lMyFeatures))
+        mv.setType(multiValueFeatureObject.COMPLEX)
+        self.addFeature(mv)
+        return self._lBasicFeatures    
+            

@@ -24,6 +24,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
         XMLDSObjectClass.id += 1
         self._domNode = domNode
         
+        self.tagName = ds_xml.sTEXT
         self.Obaseline=None
         self.setName(ds_xml.sTEXT)
     

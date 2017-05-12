@@ -1,23 +1,22 @@
 # -*- coding: utf-8 -*-
 """
 
-    XMLDS CELL
+    XMLDS ROW
     Hervé Déjean
     cpy Xerox 2017
     
-    a class for table cell from a XMLDocument
+    a class for table row from a XMLDocument
 
 """
 
 from XMLDSObjectClass import XMLDSObjectClass
-from XMLDSTEXTClass import XMLDSTEXTClass
 from config import ds_xml_def as ds_xml
 
 class  XMLDSTABLEROWClass(XMLDSObjectClass):
     """
         LINE class
     """
-    name = ds_xml.sLINE_Elt
+    name = ds_xml.sROW
     def __init__(self,index,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
@@ -25,6 +24,7 @@ class  XMLDSTABLEROWClass(XMLDSObjectClass):
         self.tagName = 'ROW'
         self._index= index
         self._lcells=[]
+        self.setName(XMLDSTABLEROWClass.name)
     
     def getIndex(self): return self._index
     def setIndex(self,i): self._index = i
@@ -34,7 +34,9 @@ class  XMLDSTABLEROWClass(XMLDSObjectClass):
         if c not in self.getCells():
             self._lcells.append(c)            
             self.addObject(c)
-
+            if c.getNode() is not None and self.getNode() is not None:
+                c.getNode().unlinkNode()
+                self.getNode().addChild(c.getNode())
 
     
     ########## TAGGING ##############

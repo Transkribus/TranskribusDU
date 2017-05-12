@@ -6,6 +6,25 @@
     cpy Xerox 2017
     
     a class for table cell from a XMLDocument
+    READ project 
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    
+    
+    Developed  for the EU project READ. The READ project has received funding 
+    from the European Union's Horizon 2020 research and innovation programme 
+    under grant agreement No 674943.
 
 """
 
@@ -17,7 +36,7 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
     """
         LINE class
     """
-    name = ds_xml.sLINE_Elt
+    name = ds_xml.sCELL
     def __init__(self,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
@@ -26,9 +45,12 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
         self._colSpan= 1
         self._rowSpan= 1
 
+        self.tagName=ds_xml.sCELL
         # contains a list of fields (tag)
         self._lFields = []
     
+    def __str__(self):
+        return "%s %s"%(self.getName(),self.getIndex())    
     
     def getIndex(self): return self._index
     def setIndex(self,i,j): self._index = (i,j)
@@ -37,15 +59,22 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
     
     def getFields(self): return self._lFields
     
-    def addField(self,tag):
+    def addField(self,field):
         """
-            self is supposed to contain tag (recoursd field)
+            self is supposed to contain field (record field)
         """
-        if tag not in self.getFields():
-            self.getFields().append(tag)
-        return tag
+        if field not in self.getFields():
+            self.getFields().append(field)
+        return field
     
-    ############# TAGGIG
+    ############# TAGGING
+    
+    
+    ### dom tagging
+    def tagMe2(self):
+        self.tagMe()
+        self.getNode().setProp('row',str(self.getIndex()[0]))
+        self.getNode().setProp('col',str(self.getIndex()[1]))        
     
     ########### LOAD FROM DSXML ################
     def fromDom(self,domNode):
@@ -61,10 +90,11 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
             # add attributes
             prop = prop.next
         self.setIndex(int(self.getAttribute('row')),int(self.getAttribute('col')))
-            
         ctxt = domNode.doc.xpathNewContext()
         ctxt.setContextNode(domNode)
-        ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sCELL))
+        
+        # onlt sTEXT?
+        ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sTEXT))
         ctxt.xpathFreeContext()
         for elt in ldomElts:
             myObject= XMLDSTEXTClass(elt)
