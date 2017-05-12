@@ -172,9 +172,9 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         """
         Component.Component.setParams(self, dParams)
         if dParams.has_key("coldir"): 
-            self.coldir = dParams["coldir"]
+            self.coldir = dParams["coldir"].strip()
         if dParams.has_key("docid"):         
-            self.docid = dParams["docid"]
+            self.docid = dParams["docid"].strip()
         if dParams.has_key("bTextRegion"):         
             self.bTextRegion = dParams["bTextRegion"]
 
