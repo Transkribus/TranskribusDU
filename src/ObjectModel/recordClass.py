@@ -151,7 +151,7 @@ class taggerClass(object):
         if field not in self.getFields():
             self.getFields().append(field)    
     
-class RETagger(taggerClass):
+class RETaggerClass(taggerClass):
     
     def __init__(self):
         taggerClass.__init__(self, 'RETagger')
