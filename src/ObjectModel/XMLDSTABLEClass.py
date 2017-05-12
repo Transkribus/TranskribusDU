@@ -121,8 +121,10 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
     def createRowsWithCuts(self,lYCuts):
         """
             input: a table and cells
-            oupput: list of rows populatee with appropriate cells  (main overlap)
+            output: list of rows populatee with appropriate cells  (main overlap)
         """
+        if lYCuts == []:
+            return
         
         #reinit rows?
         lCells =self.getCells()
