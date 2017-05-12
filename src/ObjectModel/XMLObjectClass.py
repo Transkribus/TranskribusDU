@@ -29,6 +29,9 @@ class  XMLObjectClass(objectClass):
         # needed for mapping dataobject to layoutObject ???
         self._nextObject = None
         self._previousObject = None
+
+    def __str__(self):
+        return  "%s[%s] %s" % (self.getName(),self.getID(),self.getContent()[:10].encode('utf-8'))
     
     def __repr__(self):
         return "%s[%s] %s" % (self.getName(),self.getID(),self.getContent()[:10].encode('utf-8'))
@@ -49,7 +52,7 @@ class  XMLObjectClass(objectClass):
     def setNode(self,c): self._domNode = c
     
     
-    def tagMe(self,sLabel):
+    def tagMe(self,sLabel=None):
         """
              create a dom elt and add it to the doc
         """
@@ -59,8 +62,22 @@ class  XMLObjectClass(objectClass):
         newNode.setProp('y',str(self.getY()))
         newNode.setProp('height',str(self.getHeight()))
         newNode.setProp('width',str(self.getWidth()))
+        if self.getParent():
+            self.getParent().getNode().addChild(newNode)
+        else:
+            self.getPage().getNode().addChild(newNode)
         
-        self.getPage().getNode().addChild(newNode)
+
+        # add attributres
+        for att in self.getAttributes():
+            newNode.setProp(att,str(self.getAttribute(att)))
+        
+        self.setNode(newNode)
+#         for o in self.getObjects():
+#             o.setParent(self)
+#             o.tagMe()
+            
+        return newNode
     
     def fromDom(self,domNode):
         

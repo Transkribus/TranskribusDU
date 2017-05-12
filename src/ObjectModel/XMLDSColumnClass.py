@@ -1,23 +1,41 @@
 # -*- coding: utf-8 -*-
 """
 
-    XMLDS CELL
+    XMLDS COLUMN
     Hervé Déjean
     cpy Xerox 2017
     
-    a class for table cell from a XMLDocument
+    a class for table column from a XMLDocument
 
+    READ project 
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    
+    
+    Developed  for the EU project READ. The READ project has received funding 
+    from the European Union's Horizon 2020 research and innovation programme 
+    under grant agreement No 674943.
 """
 
 from XMLDSObjectClass import XMLDSObjectClass
-from XMLDSTEXTClass import XMLDSTEXTClass
 from config import ds_xml_def as ds_xml
 
 class  XMLDSTABLECOLUMNClass(XMLDSObjectClass):
     """
         LINE class
     """
-    name = ds_xml.sLINE_Elt
+    name = ds_xml.sCOL_Elt
     def __init__(self,index=None,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
@@ -25,6 +43,10 @@ class  XMLDSTABLECOLUMNClass(XMLDSObjectClass):
         self._index= index
         self._lcells=[]
         self.tagName= 'COL'
+        self.setName(XMLDSTABLECOLUMNClass.name)
+    
+    def __str__(self):
+        return "%s %s"%(self.getName(),self.getIndex())        
     
     def getIndex(self): return self._index
     def setIndex(self,i): self._index = i
@@ -35,9 +57,9 @@ class  XMLDSTABLECOLUMNClass(XMLDSObjectClass):
             self._lcells.append(c)
             self.addObject(c)                
 
-    ########## TAGGING ##############
-    def addField(self,tag):
-        [cell.addField(tag) for cell in self.getCells()]
+    ########## LABELLING ##############
+    def addField(self,field):
+        [cell.addField(field) for cell in self.getCells()]
 
 
 
