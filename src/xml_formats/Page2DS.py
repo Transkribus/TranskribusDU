@@ -34,7 +34,8 @@ class primaAnalysis(Component.Component):
     kDPI = "dpi"
     kREF= 'ref'
     kREFTAG= 'reftag'   
-    kDOCID= 'docid'     
+    kDOCID= 'docid'    
+    kRegion='noRegion' 
     def __init__(self):
 
         Component.Component.__init__(self, "pageXMLconverter", self.usage, self.version, self.description) 
@@ -42,6 +43,7 @@ class primaAnalysis(Component.Component):
         self.dpi = 300
         self.bRef = False
         self.lRefTag = ()
+        self.bSkipRegion= False
          
         self.xmlns='http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
         
@@ -57,6 +59,7 @@ class primaAnalysis(Component.Component):
         if dParams.has_key(self.kREF)    : self.bRef         = dParams[self.kREF]
         if dParams.has_key(self.kREFTAG)    : self.lRefTag   = tuple(dParams[self.kREFTAG])
         if dParams.has_key(self.kDOCID)    : self.sDocID   =dParams[self.kDOCID]
+        if dParams.has_key(self.kRegion)    : self.bSkipRegion   =dParams[self.kRegion]
 
 
     def regionBoundingBox(self,sList):
@@ -336,7 +339,12 @@ class primaAnalysis(Component.Component):
                             node = libxml2.newNode("REGION")
                             node.setProp('type',child.prop('type') )
                             if not self.bRef:
-                                self.getTextLineSubStructure(node,child)
+                                if not self.bSkipRegion:
+                                    self.getTextLineSubStructure(node,child)
+                                else:
+                                    # no region
+                                    self.getTextLineSubStructure(dspage,child)
+
                         elif child.name =="ImageRegion":
                             node = libxml2.newNode("IMAGE")
                         elif child.name =="LineDrawingRegion":
@@ -375,7 +383,8 @@ class primaAnalysis(Component.Component):
                         node.setProp(ds_xml.sY,str(yp))
                         node.setProp(ds_xml.sHeight,str(hp))
                         node.setProp(ds_xml.sWidth,str(wp))
-                        dspage.addChild(node)
+                        if not self.bSkipRegion:
+                            dspage.addChild(node)
 #                     elif child.name =="TableRegion":
 #                         node = self.getTable(child) 
 #                         dspage.addChild(node)
@@ -471,6 +480,8 @@ if __name__ == "__main__":
     cmp.add_option("--dpi", dest="dpi", action="store",  help="image resolution")
     cmp.add_option("--ref", dest="ref", action="store_true", default=False, help="generate ref file")
     cmp.add_option("--reftag", dest="reftag", action="append",  help="generate ref file")
+    cmp.add_option("--noregion", dest="noRegion", action="store_true",  help="skip REGION tags")
+
     cmp.add_option("--"+cmp.kDOCID, dest=cmp.kDOCID, action="store", type='string', help="docId in col")
     
  
