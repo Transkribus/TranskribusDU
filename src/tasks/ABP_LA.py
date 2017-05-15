@@ -89,7 +89,7 @@ PluginBatch\LayoutPlugin\Layout Analysis Module\computeSeparators=true
 PluginBatch\LayoutPlugin\Layout Analysis Module\localBlockOrientation=false
 PluginBatch\LayoutPlugin\Layout Analysis Module\maxImageSide=3000
 PluginBatch\LayoutPlugin\Layout Analysis Module\minSuperPixelsPerBlock=15
-PluginBatch\LayoutPlugin\Layout Analysis Module\removeWeakTextLines=true
+PluginBatch\LayoutPlugin\Layout Analysis Module\\removeWeakTextLines=true
 PluginBatch\LayoutPlugin\Layout Analysis Module\scaleMode=1
 PluginBatch\LayoutPlugin\Super Pixel Classification\classifierPath=
 PluginBatch\LayoutPlugin\Super Pixel Labeler\featureFilePath=
@@ -102,8 +102,8 @@ SaveInfo\Compression=-1
 SaveInfo\DeleteOriginal=false
 SaveInfo\InputDirIsOutputDir=true
 SaveInfo\Mode=2
-PluginBatch\LayoutPlugin\Super Pixel Labeler\featureFilePath=
-PluginBatch\LayoutPlugin\Layout Analysis Module\removeWeakTextLines=true
+PluginBatch\LayoutPlugin\Super Pixel Labeler\\featureFilePath=
+PluginBatch\LayoutPlugin\Layout Analysis Module\\removeWeakTextLines=true
     """
 
 #PluginBatch\pluginList="Layout Analysis | Layout Analysis;Layout Analysis | Detect Lines"
