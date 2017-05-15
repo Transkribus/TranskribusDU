@@ -239,6 +239,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         # get all images files
         localpath =  os.path.abspath("./%s/col/%s"%(self.coldir,self.docid))
         l =      glob.glob(os.path.join(localpath, "*.jpg"))
+        l.sort()
         listfile = ";".join(l)
         listfile  = listfile.replace(os.sep,"/")
         txt=  TableProcessor.cCVLProfileTabReg % (listfile,"%s/col/%s"%(self.coldir,self.docid),os.path.abspath("%s/%s.templ.xml"%(self.coldir,self.docid)).replace(os.sep,"/"))
@@ -259,6 +260,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         # get all images files
         localpath =  os.path.abspath("./%s/col/%s"%(self.coldir,self.docid))
         l =      glob.glob(os.path.join(localpath, "*.jpg"))
+        l.sort()
         listfile = ";".join(l)
         listfile  = listfile.replace(os.sep,"/")
         localpath = localpath.replace(os.sep,'/')
@@ -277,6 +279,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         # get all images files
         localpath =  os.path.abspath("./%s/col/%s"%(self.coldir,self.docid))
         l =      glob.glob(os.path.join(localpath, "*.jpg"))
+        l.sort()
         listfile = ";".join(l)
         listfile  = listfile.replace(os.sep,"/")
         localpath = localpath.replace(os.sep,'/')
