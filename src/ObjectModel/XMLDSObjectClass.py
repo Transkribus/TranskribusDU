@@ -171,7 +171,6 @@ class  XMLDSObjectClass(XMLObjectClass):
             
         """
         ## if self has no subojects: need to be inserted in the region???
-        
         ## current object
         if self.overlap(clipRegion):
             myNewObject =  XMLDSObjectClass()
@@ -195,16 +194,91 @@ class  XMLDSObjectClass(XMLObjectClass):
         
             for subObject in lSubObject:
                 ## get clipped dimensions
-                newSub= subObject.clipMe(clipRegion)
-                if newSub:
-                    myNewObject.addObject(newSub)
-            else:
-                return None
+                if subObject.getAttribute("x"): 
+                    newSub= subObject.clipMe(clipRegion)
+                    if newSub:
+                        myNewObject.addObject(newSub)
+                # bug: tokne: no x: add them
+                else:
+                    myNewObject.addObject(subObject)
             return myNewObject 
-        return None
+        else:
+            return None
+        
          
          
-         
+    
+    def signedRatioOverlap(self,zone):
+        """
+         overlap self and zone
+         return surface of self in zone 
+        """
+        [x1,y1,h1,w1] = self.getX(),self.getY(),self.getHeight(),self.getWidth()
+        [x2,y2,h2,w2] = zone.getX(),zone.getY(),zone.getHeight(),zone.getWidth()
+        
+        fOverlap = 0.0
+        
+        if self.overlapX(zone) and self.overlapY(zone):
+            [x11,y11,x12,y12] = [x1,y1,x1+w1,y1+h1]
+            [x21,y21,x22,y22] = [x2,y2,x2+w2,y2+h2]
+            
+            s1 = w1 * h1
+            
+            # possible ?
+            if s1 == 0: s1 = 1.0
+            
+            #intersection
+            nx1 = max(x11,x21)
+            nx2 = min(x12,x22)
+            ny1 = max(y11,y21)
+            ny2 = min(y12,y22)
+            h = abs(nx2 - nx1)
+            w = abs(ny2 - ny1)
+            
+            inter = h * w
+            if inter > 0 :
+                fOverlap = inter/s1
+            else:
+                # if overX and Y this is not possible !
+                fOverlap = 0.0
+            
+        return  fOverlap   
+                           
+    def ratioOverlap(self,zone):
+        """
+         overlap self and zone
+        """
+        [x1,y1,h1,w1] = self.getX(),self.getY(),self.getHeight(),self.getWidth()
+        [x2,y2,h2,w2] = zone.getX(),zone.getY(),zone.getHeight(),zone.getWidth()
+        
+        fOverlap = 0.0
+        
+        if self.overlapX(zone) and self.overlapY(zone):
+            [x11,y11,x12,y12] = [x1,y1,x1+w1,y1+h1]
+            [x21,y21,x22,y22] = [x2,y2,x2+w2,y2+h2]
+            
+            s1 = 1.0* w1 * h1
+            if s1 == 0: s1 = 1.0
+            s2 = 1.0*w2 * h2
+            if s2 == 0: s2 = 1.0
+            
+            nx1 = max(x11,x21)
+            nx2 = min(x12,x22)
+            # borderline : line and // 22/05:2017: why? 
+            if nx1 == nx2:
+                nx1 += 1
+            ny1 = max(y11,y21)
+            ny2 = min(y12,y22)
+            # borderline : line and  // 22/05/2017: why? 
+            if ny1 == ny2:
+                ny1 = ny2 - 1
+            
+            h = abs(nx2 - nx1)
+            w = abs(ny2 - ny1)
+
+            fOverlap = (h*w)/ (max(s1,s2))
+        return  fOverlap  
+    
     def overlap(self,zone):
         return self.overlapX(zone) and self.overlapY(zone)
     
