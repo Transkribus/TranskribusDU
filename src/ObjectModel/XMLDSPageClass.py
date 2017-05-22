@@ -153,6 +153,12 @@ class  XMLDSPageClass(XMLDSObjectClass):
     def getVerticalTemplates(self): return self._verticalZoneTemplates
     
     #REGISTERED CUTS
+    def resetVSeparator(self,template):
+        try:
+            self.dVSeparator[template] = []
+        except KeyError:
+            pass
+        
     def addVSeparator(self,template, lcuts):
         try:
             self.dVSeparator[template].extend(lcuts)
@@ -268,60 +274,54 @@ class  XMLDSPageClass(XMLDSObjectClass):
     
     def createVerticalZones(self,Template):
         """
-           Create 'columns' according to X cut
-               Object
+           Create 'columns' according to X cuts and populate with objects (text)    
+           
         """
         #reinit lVerticalObjects
         self.lVerticalObjects[Template]=[]
-        for lseg in self.getlVSeparator(Template):
-            prevCut=0
-            for xcut in lseg: 
-                region=XMLDSObjectClass()
-                region.addAttribute('x', 0)
-                region.addAttribute('y', 0)
-                region.addAttribute('height', self.getAttribute('height'))
-                region.addAttribute('width', str(xcut.getValue()-prevCut))
-                prevcut=xcut.getValue()
-    #             print        region.getX(),region.getY(),region.getWidth(),region.getHeight()
-    #             print page.getAttributes(), page.getX2()
-                lObjects = self.clipMe(region,self.getObjects())
-                print lObjects
-                region.setObjectsList(lObjects)
-                self.addVerticalObject(Template,region)               
-    
-    
-    
-    ############# FEATURING #######    
+        prevCut=0
+        for xcut in self.getdVSeparator(Template):
+            region=XMLDSObjectClass()
+            region.setName('VRegion')
+            region.addAttribute('x', prevCut)
+            region.addAttribute('y', 0)
+            region.addAttribute('height', self.getAttribute('height'))
+            region.addAttribute('width', str(xcut.getValue()-prevCut))
+            region.setPage(self)
+            prevCut=xcut.getValue()
+#             print self, region.getX(), region.getY(), region.getHeight(),region.getWidth()    
+            lclippedObjects=[]
+            for subObject in self.getAllNamedObjects(XMLDSTEXTClass):
+                co = subObject.clipMe(region)
+                if co :
+                    co.setParent(region)
+                    lclippedObjects.append(co)
+            if lclippedObjects != []:
+                region.setObjectsList(lclippedObjects)
+#                 print '\t=',  lclippedObjects
+            self.addVerticalObject(Template,region)
 
-#     def getSetOfMigratedFeatures(self,TH,lInitialFeatures,myObject):
-#         """
-#             lInitialFeatures is produced at a different levels: TEXT
-#                 -> need to 'migrate' fi into sef level :
-#             
-#         """
-#         from spm.feature import featureObject
-#      
-#         if self._lBasicFeatures is None:
-#             self._lBasicFeatures = []
-#         # needed to keep canonical values!
-#         elif self.getSetofFeatures() != []:
-#             return self.getSetofFeatures()
-#    
-#         
-#         for oldfi in lInitialFeatures:
-#             fi = featureObject()
-# #             fi.setName(oldfi.getName())
-#             fi.setName('x')
-#             fi.setValue(oldfi.getValue())
-#             fi.setTH(oldfi.getTH())
-#             fi.setWeight(oldfi.getWeight())
-#             fi.addNode(self)
-#             fi.setType(oldfi.getType())
-#             fi.setObjectName(self)
-#             self.addFeature(fi)
-# 
-#         return self.getSetofFeatures()
+        #last column
+        region=XMLDSObjectClass()
+        region.setName('VRegion')
+        region.addAttribute('x', prevCut)
+        region.addAttribute('y', 0)
+        region.addAttribute('height', self.getAttribute('height'))
+        region.addAttribute('width', str(self.getWidth() - prevCut))
+        prevCut=xcut.getValue()
+#             print self, region.getX(), region.getY(), region.getHeight(),region.getWidth()    
+        lclippedObjects=[]
+        for subObject in self.getAllNamedObjects(XMLDSTEXTClass):
+            co = subObject.clipMe(region)
+            if co :
+                co.setParent(region) 
+                lclippedObjects.append(co)
+        if lclippedObjects != []:
+            region.setObjectsList(lclippedObjects)
+#                 print '\t=',  lclippedObjects
+        self.addVerticalObject(Template,region)               
         
+
     def getSetOfMutliValuedFeatures(self,TH,lMyFeatures,myObject):
         """
             define a multivalued features 
@@ -456,15 +456,17 @@ class  XMLDSPageClass(XMLDSObjectClass):
             return self.getSetofFeatures()
    
 
-        for elt in self.getAllNamedObjects(myObject):            
-            feature = TwoDFeature()
-            feature.setName('2D')
-            feature.setTH(TH)
-            feature.addNode(self)
-            feature.setObjectName(self.getName())
-            feature.setValue((round(elt.getX()),round(elt.getY())))
-            feature.setType(feature.COMPLEX)
-            self.addFeature(feature)  
+        for elt in self.getAllNamedObjects(myObject):  
+            if len(elt.getObjects())<5:
+#             if elt.getY() <100:          
+                feature = TwoDFeature()
+                feature.setName('2D')
+                feature.setTH(TH)
+                feature.addNode(self)
+                feature.setObjectName(self.getName())
+                feature.setValue((round(elt.getX()),round(elt.getY())))
+                feature.setType(feature.COMPLEX)
+                self.addFeature(feature)  
       
         return self.getSetofFeatures()          
 
