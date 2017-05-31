@@ -376,7 +376,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
 
         return oReport
 
-    def predict(self, lsColDir):
+    def predict(self, lsColDir,sDocId=None):
         """
         Return the list of produced files
         """
