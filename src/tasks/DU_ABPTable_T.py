@@ -134,12 +134,12 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
     #=== END OF CONFIGURATION =============================================================
 
   
-    def predict(self, lsColDir):
+    def predict(self, lsColDir,sDocId):
         """
         Return the list of produced files
         """
 #         self.sXmlFilenamePattern = "*.a_mpxml"
-        return DU_CRF_Task.predict(self, lsColDir)
+        return DU_CRF_Task.predict(self, lsColDir,sDocId)
 
            
     def buildRow(self,doc):
@@ -162,7 +162,7 @@ if __name__ == "__main__":
 
     version = "v.01"
     usage, description, parser = DU_CRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
-#     parser.add_option("--annotate", dest='bAnnotate',  action="store_true",default=False,  help="Annotate the textlines with BIES labels")    
+    parser.add_option("--docid", dest='docid',  action="store",default=None,  help="only process docid")    
     # --- 
     #parse the command line
     (options, args) = parser.parse_args()
@@ -182,7 +182,10 @@ if __name__ == "__main__":
                       inference_cache   = options.crf_inference_cache)
     
     
-    
+    if options.docid:
+        sDocId=options.docid
+    else:
+        sDocId=None
     if options.rm:
         doer.rm()
         sys.exit(0)
@@ -237,5 +240,5 @@ if __name__ == "__main__":
     
     if lRun:
         doer.load()
-        lsOutputFilename = doer.predict(lRun)
+        lsOutputFilename = doer.predict(lRun,sDocId)
         traceln("Done, see in:\n  %s"%lsOutputFilename)
