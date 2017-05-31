@@ -97,9 +97,9 @@ class DU_ABPTableAnnotator(DU_CRF_Task):
     """
     sXmlFilenamePattern = "*.mpxml"
     
-    sLabeledXmlFilenamePattern = "*.a_mpxml"
+    sLabeledXmlFilenamePattern = "*.mpxml"
 
-    sLabeledXmlFilenameEXT = ".a_mpxml"
+    sLabeledXmlFilenameEXT = ".mpxml"
 
 
     #=== CONFIGURATION ====================================================================
