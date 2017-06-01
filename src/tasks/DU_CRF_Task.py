@@ -455,10 +455,15 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         self.traceln("-"*50)
         traceln("---------- INITIALIZING CROSS-VALIDATION ----------")
         self.traceln("Model files '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
-        sConfigFile = os.path.join(self.sModelDir, self.sModelName+".py")
-        self.traceln("  Configuration file: %s"%sConfigFile)
+        #sConfigFile = os.path.join(self.sModelDir, self.sModelName+".py")
+        #self.traceln("  Configuration file: %s"%sConfigFile)
         self.traceln("Evaluating with collection(s):", lsTrnColDir)
         self.traceln("-"*50)
+
+        fnCrossValidDetails = os.path.join(self.sModelDir, self.sModelName+"_fold_def.pkl")
+        if os.path.exists(fnCrossValidDetails):
+            self.traceln("ERROR: I refuse to overwritte an existing CV setup. Remove manually the CV data! (files %s/%s_fold* )"%(self.sModelDir, self.sModelName))
+            exit(1)
         
         #list the train files
         ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
@@ -468,7 +473,6 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         
         if bStoreOnDisk:
             
-            fnCrossValidDetails = os.path.join(self.sModelDir, self.sModelName+"_fold_def.pkl")
             crf.Model.Model.gzip_cPickle_dump(fnCrossValidDetails
                                               , (lsTrnColDir, n_splits, test_size, random_state))
             
