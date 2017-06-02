@@ -491,6 +491,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                 for name, lFN in [('trn', lFoldFilename_trn), ('tst', lFoldFilename_tst)]:
                     with open(os.path.join(self.sModelDir, self.sModelName+"_fold_%d_def_%s.txt"%(iFold, name)), "w") as fd:
                         fd.write("\n".join(lFN))
+                        fd.write("\n")
                 traceln("--- Fold info stored in : %s"%fnFoldDetails)
                 
         return splitter, ts_trn, lFilename_trn
