@@ -16,7 +16,7 @@
 
 import numpy as np
 
-def confusion_classification_report(confumat, labels=None, target_names=None, digits=2):
+def confusion_classification_report(confumat, labels=None, target_names=None, digits=3):
     """Build a text report showing the main classification metrics
 
     Read more in the :ref:`User Guide <classification_report>`.
