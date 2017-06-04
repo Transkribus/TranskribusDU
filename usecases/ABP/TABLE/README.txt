@@ -22,12 +22,12 @@ The annotation is in the XML @type attributes.
 
 ----------------------------------------------------------------------------------------------------
 METHOD
-We use here the CRF and multi-type CRF supersived methods. 
+We use here the CRF and multi-type CRF supervised methods. 
 
 For CRF, we only consider text lines to create the CRF grap nodes. Edges denote an horizontal or vertical neighborohood between two text lines.
 For multi-type CRF, we additionally consider the graphical lines as CRF nodes. We therefore have 2 types of nodes in our graph, and consequently 4 types of edges. In addition to the edges defined above between text lines, we create the edges due to the same neighborhood relation ship between text lines and graphical lines, and vice-versa, and among graphical lines.
 
-Features for nodes and edges are essentially geometric ones. We do not use the textual content. In particular, we produce the same sort of features for graphical lines and text lines.
+Features for nodes and edges are essentially geometric ones. We do not use the textual content of text lines. In particular, we produce the same sort of features for graphical lines and text lines.
 
 ----------------------------------------------------------------------------------------------------
 EVALUATION
@@ -35,6 +35,7 @@ We run a 10-folds cross-validation.
 
 ----------------------------------------------------------------------------------------------------
 SCRIPT to reproduce the results (RR)
+
 	#creation of the same 10 folds for the single- and multi-type experiments.
 	python /opt/project/read/jl_git/TranskribusDU/src/tasks/DU_ABPTable.py --fold-init 10 abp_models abp_CV10 --fold abp 
 	#copying their definition
