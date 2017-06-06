@@ -268,14 +268,18 @@ class Model:
         if self._lMdlBaseline:
             X_flat = np.vstack( [node_features for (node_features, _, _) in lX] )
             Y_flat = np.hstack(lY)
+            with open("XY_flat.pkl", "wb") as fd: cPickle.dump((X_flat, Y_flat), fd)
             for mdlBaseline in self._lMdlBaseline:
                 chronoOn()
                 traceln("\t - training baseline model: %s"%str(mdlBaseline))
                 mdlBaseline.fit(X_flat, Y_flat)
                 traceln("\t [%.1fs] done\n"%chronoOff())
             del X_flat, Y_flat
+        
+        self._trainEdgeBaseline(lX, lY) #we always train a predefined model on edges
+        
         return True
-                  
+
     def _testBaselines(self, lX, lY, lLabelName=None, lsDocName=None):
         """
         test the baseline models, 
@@ -349,7 +353,7 @@ class Model:
         """
         #by default, save the baseline models
         sBaselineFile = self.getBaselineFilename()
-        self.gzip_cPickle_dump(sBaselineFile, self.getBaselineModelList())
+        self.gzip_cPickle_dump(sBaselineFile                    , self.getBaselineModelList())
         return sBaselineFile
     
     def test(self, lGraph):

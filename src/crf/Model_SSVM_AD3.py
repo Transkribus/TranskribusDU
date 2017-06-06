@@ -29,7 +29,10 @@
 """
 import sys, os, types
 import gc
+import cPickle
+import numpy as np
 
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV  #0.18.1 REQUIRES NUMPY 1.12.1 or more recent
     
 from pystruct.utils import SaveLogger
@@ -55,6 +58,10 @@ class Model_SSVM_AD3(Model):
     tol              = .1
     save_every       = 50     #save every 50 iterations,for warm start
     max_iter         = 1000
+
+    #Config when training a baseline predictor on edges
+    dEdgeGridSearch_LR_conf   = {'C':[0.01, 0.1, 1.0, 10.0] }  #Grid search parameters for LR edge baseline method training
+    dEdgeGridSearch_LR_n_jobs = 1                              #Grid search: number of jobs
     
     def __init__(self, sName, sModelDir):
         """
@@ -63,6 +70,7 @@ class Model_SSVM_AD3(Model):
         Model.__init__(self, sName, sModelDir)
         self.ssvm = None
         self.bGridSearch = False
+        self._EdgeBaselineModel = None
         
     def configureLearner(self, inference_cache=None, C=None, tol=None, njobs=None, save_every=None, max_iter=None):
         #NOTE: we might get a list in C tol max_iter inference_cache  (in case of gridsearch)
@@ -75,17 +83,9 @@ class Model_SSVM_AD3(Model):
         
         self.bGridSearch = types.ListType in [type(v) for v in [self.inference_cache, self.C, self.tol, self.max_iter]]
 
-    def load(self, expiration_timestamp=None):
-        """
-        Load myself from disk
-        If an expiration timestamp is given, the model stored on disk must be fresher than timestamp
-        return self or raise a ModelException
-        """
-        Model.load(self, expiration_timestamp)
-        self.ssvm = self._loadIfFresh(self.getModelFilename(), expiration_timestamp, lambda x: SaveLogger(x).load())
-        return self
-    
     # --- UTILITIES -------------------------------------------------------------
+    def getEdgeBaselineFilename(self):
+        return os.path.join(self.sDir, self.sName+"_edge_baselines.pkl")
 
     def _getNbFeatureAsText(self):
         """
@@ -93,7 +93,67 @@ class Model_SSVM_AD3(Model):
         """
         return "#features nodes=%d  edges=%d "%self._tNF_EF
         
+    # --- EDGE BASELINE -------------------------------------------------------------
+    def getEdgeModel(self):
+        """
+        Logisitic regression model for edges
+        """
+        return GridSearchCV( LogisticRegression(class_weight='balanced') 
+                                                , self.dEdgeGridSearch_LR_conf
+                                                , n_jobs=self.dEdgeGridSearch_LR_n_jobs) #1
+        
+    def _getEdgeXEdgeY(self, lX, lY):
+        """
+        return X,Y for each edge
+        The edge label is in [0, ntype^2-1]
+        """
+        X_flat = np.vstack( edge_features for (_, edge_features, _) in lX )
+        
+        l_Y_flat = []
+        for X_graph, Y_node in zip(lX, lY):
+            _, edges, _ = X_graph
+            l_Y_flat.append( Y_node[edges[:,0]]*self._nbClass + Y_node[edges[:,1]] )
+        Y_flat = np.hstack(l_Y_flat)
+        
+        return X_flat, Y_flat
+    
+    def _trainEdgeBaseline(self, lX, lY):
+        """
+        Here we train a logistic regression model to predict the pair of labels of each edge.
+        This code assume single type
+        """
+        X_flat, Y_flat = self._getEdgeXEdgeY(lX, lY)
+        
+        with open("edgeXedgeY_flat.pkl", "wb") as fd: cPickle.dump((X_flat, Y_flat), fd)
+        
+        self._EdgeBaselineModel = self.getEdgeModel()
+        chronoOn()
+        traceln("\t - training edge baseline model: %s"%str(self._EdgeBaselineModel))
+        self._EdgeBaselineModel.fit(X_flat, Y_flat)
+        traceln("\t [%.1fs] done\n"%chronoOff())
+        del X_flat, Y_flat
+        return True
 
+    def _testEdgeBaselines(self, lX, lY, lLabelName=None, lsDocName=None):
+        """
+        test the edge baseline model, 
+        return a test report list (a singleton for now)
+        """
+        lTstRpt = []
+        if self._EdgeBaselineModel:
+            if lsDocName: assert len(lX) == len(lsDocName), "Internal error"
+            
+            lEdgeLabelName = [ "%s_%s"%(lbl1, lbl2) for lbl1 in lLabelName for lbl2 in lLabelName ] if lLabelName else None
+            lTstRpt = []
+            X_flat, Y_flat = self._getEdgeXEdgeY(lX, lY)
+            chronoOn("_testEdgeBaselines")
+            Y_pred_flat = self._EdgeBaselineModel.predict(X_flat)
+            traceln("\t\t [%.1fs] done\n"%chronoOff("_testEdgeBaselines"))
+            lTstRpt.append( TestReport(str(self._EdgeBaselineModel), Y_pred_flat, Y_flat, lEdgeLabelName, lsDocName=lsDocName) )
+                
+            del X_flat, Y_flat, Y_pred_flat
+        return lTstRpt                                                                              
+    
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
     def _computeModelCaracteristics(self, lX):
         """
@@ -174,7 +234,7 @@ class Model_SSVM_AD3(Model):
                                 , max_iter=self.max_iter                                        
                                 , show_loss_every=10, verbose=verbose)
             bWarmStart = False
-        
+
         chronoOn()
         traceln("\t- training graph-based model")
         traceln("\t\t solver parameters:"
@@ -303,9 +363,30 @@ class Model_SSVM_AD3(Model):
         del lX, lY
         gc.collect()
         return 
-        
-        
-               
+
+    # --- Load / Save ------------------------------------------------
+    def load(self, expiration_timestamp=None):
+        """
+        Load myself from disk
+        If an expiration timestamp is given, the model stored on disk must be fresher than timestamp
+        return self or raise a ModelException
+        """
+        Model.load(self, expiration_timestamp)
+        self.ssvm = self._loadIfFresh(self.getModelFilename(), expiration_timestamp, lambda x: SaveLogger(x).load())
+        try:
+            self._EdgeBaselineModel = self._loadIfFresh(self.getEdgeBaselineFilename(), expiration_timestamp, self.gzip_cPickle_load)
+            self.setNbClass(self.ssvm.model.n_states) #required the compute the edge label
+        except:
+            self._EdgeBaselineModel = None
+        return self
+    
+    def save(self):
+        """
+        Save a trained model
+        """
+        self.gzip_cPickle_dump(self.getEdgeBaselineFilename(), self._EdgeBaselineModel)
+        return Model.save(self)
+
 
     def _ssvm_ad3plus_predict(self, lX, lConstraints):
         """
@@ -356,6 +437,8 @@ class Model_SSVM_AD3(Model):
         
         lBaselineTestReport = self._testBaselines(lX, lY, lLabelName, lsDocName=lsDocName)
         tstRpt.attach(lBaselineTestReport)
+        
+        tstRpt.attach(self._testEdgeBaselines(lX, lY, lLabelName, lsDocName=lsDocName))
         
         #do some garbage collection
         del lX, lY
