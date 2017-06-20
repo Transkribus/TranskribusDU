@@ -271,9 +271,9 @@ class TestReportConfusion(TestReport):
         """
         if aConfuMat is None: aConfuMat = self.getConfusionMatrix()
         if self.lsClassName:
-            sClassificationReport = confusion_list_classification_report(self.laConfuMat, target_names=self.lsClassName)
+            sClassificationReport = confusion_list_classification_report(self.laConfuMat, target_names=self.lsClassName, digits=3)
         else:
-            sClassificationReport = confusion_list_classification_report(self.laConfuMat)
+            sClassificationReport = confusion_list_classification_report(self.laConfuMat, digits=3)
         
         fScore = confusion_accuracy_score(aConfuMat)    
         
