@@ -38,7 +38,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 import glob
 import common.Component as Component
-from common.trace import traceln, trace
+from common.trace import traceln
 
 from xml_formats.PageXml import PageXml
 from xml_formats.Page2DS import primaAnalysis
@@ -310,7 +310,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
 #         traceln(" Ok!")        
     
     
-    def creaGTWithTableColumn(self,doc):
+    def createGTWithTableColumn(self,doc):
         """
             # for document doc 
             ## find the page where the template is
@@ -321,7 +321,6 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             ## (execution)    
         """
         templatePage = self.findTemplate(doc)
-
 
         ## RM  previous *.xml
         xmlpath=os.path.abspath("%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid))
@@ -431,7 +430,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         if self.bTextRegion:
             self.createGTWithtextRegion()
         else:
-            self.creaGTWithTableColumn(doc)
+            self.createGTWithTableColumn(doc)
         
         
         return 
