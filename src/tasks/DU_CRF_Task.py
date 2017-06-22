@@ -133,6 +133,12 @@ See DU_StAZH_b.py
                           , help="Attempt to warm-start the training")   
         parser.add_option("--rm", dest='rm',  action="store_true"
                           , help="Remove all model files")   
+
+        parser.add_option("--lTrainFiles", dest='l_train_files',  action="store", type="string"
+                          , help="file containing the list of training files")
+        parser.add_option("--lTestFiles", dest='l_test_files',  action="store", type="string"
+                          , help="file containing the list of test files")
+
         return usage, description, parser
     getBasicTrnTstRunOptionParser = classmethod(getBasicTrnTstRunOptionParser)
            
@@ -402,5 +408,4 @@ class DU_CRF_FS_Task(DU_CRF_Task):
 
     dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
 
->>>>>>> Iter 3.0 CRF Version. TODO Report Incremental to fix
     sXmlFilenamePattern = "*[0-9]"+MultiPageXml.sEXT    #how to find the Xml files
