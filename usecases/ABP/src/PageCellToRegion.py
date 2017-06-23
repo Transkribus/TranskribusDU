@@ -60,9 +60,19 @@ class table2TextRegion(Component.Component):
         if lTextLines == []:
             return True
         
+        ## get minx,maxy  for the cell
+        lXY = PageXml.getPointList(cell)  #the polygon
+        plg = Polygon(lXY)  
+        x1,y1, x2,y2 = plg.fitRectangle()
+        x1,y1,x2,y2 = plg.getBoundingBox()
+        cellX1=x1
+        cellX2=x2
+        
+        print x1,x2
         minx,miny,maxx,maxy = 9e9,9e9,0,0
         for line in lTextLines:
             lXY = PageXml.getPointList(line)  #the polygon
+            print lXY
             if lXY == []:
                 continue
             plg = Polygon(lXY)  
@@ -75,7 +85,18 @@ class table2TextRegion(Component.Component):
             miny = min(miny,y1)            
             maxx = max(maxx,x2)            
             maxy = max(maxy,y2)
+        
+        miny -= 50        
+        maxy += 50
+
+        minx -= 20 
+        maxx += 20       
+        minx = min(cellX1,minx)
+        maxx = max(cellX2, maxx)
+#         print cellX2, maxx
+        
         corner = cell.children
+#         print minx,miny,maxx,miny,maxx,maxy,minx,maxy
         corner.setProp('points',"%d,%d %d,%d %d,%d %d,%d"%(minx,miny,maxx,miny,maxx,maxy,minx,maxy))            
         
     def convertTableCells(self,document):
@@ -99,7 +120,6 @@ class table2TextRegion(Component.Component):
         
         xpath  = "//a:%s" % ("TableRegion")
         lTables = ctxt.xpathEval(xpath)
-        
         
         # need
         xpath  = "//a:%s" % ("ReadingOrder")
