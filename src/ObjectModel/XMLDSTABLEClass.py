@@ -226,6 +226,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 cell.addAttribute('width',col.getX2() - col.getX())
                 cell.setIndex(irow, icol)
                 cell.setPage(self.getPage())
+                cell.setParent(self)
                 for colcell in col.getObjects():
 #                     print colcell,colcell.signedRatioOverlap(cell), colcell.overlap(cell)
                     if colcell.signedRatioOverlap(cell):
@@ -313,6 +314,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 newCell = XMLDSTABLECELLClass(cell.getNode())
                 newCell.setName(XMLDSTABLECELLClass.name)
                 newCell.setPage(self.getPage())
+                newCell.setParent(self)
                 newCell.setObjectsList(cell.getObjects())
                 newCell._lAttributes = cell.getAttributes().copy()
                 newCell.addAttribute('rowSpan',1)
@@ -330,6 +332,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
 #                 print 'col:', cell, cell.getColSpan(), iColSpan
                 newCell = XMLDSTABLECELLClass(cell.getNode())
                 newCell.setName(XMLDSTABLECELLClass.name)
+                newCell.setParent(self)
                 newCell._lAttributes = cell.getAttributes().copy()
                 newCell.setObjectsList(cell.getObjects())
                 newCell.addAttribute('colSpan',1)
