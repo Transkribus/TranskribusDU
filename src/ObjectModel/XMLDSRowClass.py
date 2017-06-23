@@ -26,6 +26,11 @@ class  XMLDSTABLEROWClass(XMLDSObjectClass):
         self._lcells=[]
         self.setName(XMLDSTABLEROWClass.name)
     
+    def __repr__(self):
+        return "%s %s"%(self.getName(),self.getIndex())  
+    def __str__(self):
+        return "%s %s"%(self.getName(),self.getIndex())          
+        
     def getIndex(self): return self._index
     def setIndex(self,i): self._index = i
     
@@ -34,9 +39,9 @@ class  XMLDSTABLEROWClass(XMLDSObjectClass):
         if c not in self.getCells():
             self._lcells.append(c)            
             self.addObject(c)
-            if c.getNode() is not None and self.getNode() is not None:
-                c.getNode().unlinkNode()
-                self.getNode().addChild(c.getNode())
+#             if c.getNode() is not None and self.getNode() is not None:
+#                 c.getNode().unlinkNode()
+#                 self.getNode().addChild(c.getNode())
 
     
     ########## TAGGING ##############
@@ -44,31 +49,4 @@ class  XMLDSTABLEROWClass(XMLDSObjectClass):
         [cell.addField(tag) for cell in self.getCells()]
 
 
-
-#     ## possible
-#     def fromDom(self,domNode):
-#         """
-#             only contains TEXT?
-#         """
-#         self.setName(domNode.name)
-#         self.setNode(domNode)
-#         # get properties
-#         prop = domNode.properties
-#         while prop:
-#             self.addAttribute(prop.name,prop.getContent())
-#             # add attributes
-#             prop = prop.next
-#         self.setIndex(int(self.getAttribute('irow')),int(self.getAttribute('icol')))
-#             
-#         ctxt = domNode.doc.xpathNewContext()
-#         ctxt.setContextNode(domNode)
-#         ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sCELL))
-#         ctxt.xpathFreeContext()
-#         for elt in ldomElts:
-#             myObject= XMLDSTEXTClass(elt)
-#             self.addObject(myObject)
-#             myObject.setPage(self.getPage())
-#             myObject.fromDom(elt)
-        
-         
         

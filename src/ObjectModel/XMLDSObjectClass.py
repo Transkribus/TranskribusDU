@@ -27,9 +27,6 @@ class  XMLDSObjectClass(XMLObjectClass):
         self._page  = None
         self._id= None
         
-        # associated 'templates' 
-        self._ltemplates = None
-        
         self.Xnearest=[[],[]]  # top bottom
         self.Ynearest=[[],[]]  # left right        
         
@@ -53,20 +50,16 @@ class  XMLDSObjectClass(XMLObjectClass):
     
     def addObject(self,o): 
         ## move dom node as well
+        ##     why ??? 30/05/2017
         if o not in self.getObjects():
             self.getObjects().append(o)
             o.setParent(self) 
-            if o.getNode() is not None and self.getNode() is not None:
-                o.getNode().unlinkNode()
-                self.getNode().addChild(o.getNode())
+#             if o.getNode() is not None and self.getNode() is not None:
+#                 o.getNode().unlinkNode()
+#                 self.getNode().addChild(o.getNode())
                
     
-    def resetTemplate(self): self._ltemplates = None
-    def addTemplate(self,t): 
-        try:self._ltemplates.append(t)
-        except AttributeError: self._ltemplates = [t]
-    
-    def getTemplates(self): return self._ltemplates
+
     
     
     def resizeMe(self,objectType):
@@ -109,9 +102,10 @@ class  XMLDSObjectClass(XMLObjectClass):
             # add attributes
             prop = prop.next
         child = domNode.children
-        try: 
-            self._id = self.getAttribute('id')
-        except:pass
+        self._id = self.getAttribute('id')
+        if self.getID() is None:
+            self._id = XMLDSObjectClass.orderID
+            XMLDSObjectClass.orderID+= 1
         ## if no text: add a category: text, graphic, image, whitespace
         while child:
             if child.type == 'text':
@@ -130,25 +124,25 @@ class  XMLDSObjectClass(XMLObjectClass):
                     myObject= XMLDSLINEClass(child)
                     # per type?
                     self.addObject(myObject)
-                    myObject.setPage(self)
+                    myObject.setPage(self.getPage())
                     myObject.fromDom(child)
                 elif child.name  == ds_xml.sTEXT:
                     myObject= XMLDSTEXTClass(child)
-                    # per type?
                     self.addObject(myObject)
-                    myObject.setPage(self)
+                    myObject.setPage(self.getPage())
                     myObject.fromDom(child)
+
                 elif child.name == ds_xml.sBaseline:
                     myObject= XMLDSBASELINEClass(child)
                     self.addObject(myObject)
-                    myObject.setPage(self)
+                    myObject.setPage(self.getPage())
                     myObject.fromDom(child)      
                 else:
                     myObject= XMLDSObjectClass()
                     myObject.setNode(child)
                     # per type?
                     self.addObject(myObject)
-                    myObject.setPage(self)
+                    myObject.setPage(self.getPage())
                     myObject.fromDom(child)   
                 
                 
@@ -296,6 +290,9 @@ class  XMLDSObjectClass(XMLObjectClass):
         
     def getSetOfListedAttributes(self,TH,lAttributes,myObject):
         """
+        
+            move to XMLObjectClass ??
+            
             Generate a set of features: 
             
         """
@@ -307,20 +304,21 @@ class  XMLDSObjectClass(XMLObjectClass):
         elif self.getSetofFeatures() != []:
             return self.getSetofFeatures()
                
-              
         lHisto = {}
         for elt in self.getAllNamedObjects(myObject):
             for attr in lAttributes:
                 try:lHisto[attr]
                 except KeyError:lHisto[attr] = {}
                 if elt.hasAttribute(attr):
-#                     if elt.getWidth() >500:
-#                         print elt.getName(),attr, elt.getAttribute(attr) #, elt.getNode()
                     try:
                         try:lHisto[attr][round(float(elt.getAttribute(attr)))].append(elt)
                         except KeyError: lHisto[attr][round(float(elt.getAttribute(attr)))] = [elt]
                     except TypeError:pass
-        
+
+        # empty object
+        if lHisto =={}:
+            return self.getSetofFeatures()
+
         for attr in lAttributes:
             for value in lHisto[attr]:
 #                 print attr, value, lHisto[attr][value]
@@ -367,24 +365,25 @@ class  XMLDSObjectClass(XMLObjectClass):
         return self.getSetofFeatures()
     
          
-    def getSetOfMutliValuedFeatures(self,TH,lMyFeatures,myObject):
-        """
-            define a multivalued features 
-        """
-        from spm.feature import multiValueFeatureObject
-
-        #reinit 
-        self._lBasicFeatures = None
-        
-        mv =multiValueFeatureObject()
-        name= "multi" #'|'.join(i.getName() for i in lMyFeatures)
-        mv.setName(name)
-        mv.addNode(self)
-        mv.setObjectName(self)
-        mv.setTH(TH)
-        mv.setObjectName(self)
-        mv.setValue(map(lambda x:x,lMyFeatures))
-        mv.setType(multiValueFeatureObject.COMPLEX)
-        self.addFeature(mv)
-        return self._lBasicFeatures    
-            
+#     def getSetOfMutliValuedFeatures(self,TH,lMyFeatures,myObject):
+#         """
+#             define a multivalued features
+#             move to XMLObject? 
+#         """
+#         from spm.feature import multiValueFeatureObject
+# 
+#         #reinit 
+#         self._lBasicFeatures = None
+#         
+#         mv =multiValueFeatureObject()
+#         name= "multi" #'|'.join(i.getName() for i in lMyFeatures)
+#         mv.setName(name)
+#         mv.addNode(self)
+#         mv.setObjectName(self)
+#         mv.setTH(TH)
+#         mv.setObjectName(self)
+#         mv.setValue(map(lambda x:x,lMyFeatures))
+#         mv.setType(multiValueFeatureObject.COMPLEX)
+#         self.addFeature(mv)
+#         return self._lBasicFeatures    
+#             
