@@ -36,6 +36,7 @@ from XMLDSRowClass import XMLDSTABLEROWClass
 from config import ds_xml_def as ds_xml
 
 import numpy as np
+from theano.tensor.basic import irow
 
 class  XMLDSTABLEClass(XMLDSObjectClass):
     """
@@ -50,7 +51,9 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         XMLDSObjectClass.id += 1
         
         self._domNode = domNode
-    
+
+        self._lspannedCells=[]
+        
         self._lcells=[]
         # need to define dim later on
         self._npcells=None
@@ -64,14 +67,30 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
     
     def getCells(self): return self._lcells
     
+  
+    def getCellsbyColumns(self):
+        self._lcells.sort(key=lambda x:x.getIndex()[1])        
+        if self.getColumns() == []:
+            self.buildColumnFromCells()
+        self._lcells= []
+        [self._lcells.append(cell) for col in self.getColumns() for cell in col.getCells()]
+        return self.getCells()
+    
+    def getCellsbyRow(self):
+        self._lcells.sort(key=lambda x:x.getIndex()[0])        
+        if self.getRows() == []:
+            self.buildRowFromCells()
+        self._lcells= []
+        [self._lcells.append(cell) for row in self.getRows() for cell in row.getCells()]
+        return self.getCells()
     
     def addCell(self,cell):
         """
             add a  cell
             update row and col data structure? no 
+            but insert cell  at the rihht position
         """
         self._lcells.append(cell)
-#         self._npcells[cell.getIndex()]
         self.addObject(cell)
         
     def delCell(self,cell):
@@ -105,48 +124,65 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         '''
         for row in self.getRows():
             for cell in row.getCells():
-                print cell
+                print cell, cell.getFields(),
             print
                 
     
       
     def addColumn(self,col):
+        """
+            if no col: padding to create one
+        """
         if len(self._lcolumns) == col.getIndex():
             self._lcolumns.append(col)
         else:
-            return None
+            icol =len(self._lcolumns)
+            while icol < col.getIndex():
+                paddingcol =XMLDSTABLECOLUMNClass(icol)
+                paddingcol.setPage(self.getPage())
+                self._lcolumns.append(paddingcol)
+                icol += 1
+            self._lcolumns.append(col) 
         return col
     
     
     def createRowsWithCuts(self,lYCuts):
         """
             input: a table and cells
-            output: list of rows populatee with appropriate cells  (main overlap)
+            output: list of rows populated with appropriate cells  (main overlap)
         """
         if lYCuts == []:
             return
         
-        #reinit rows?
+        #reinit rows? yes
+        self._lrows = []
         lCells =self.getCells()
         prevCut = self.getY()
         lYCuts.sort(key = lambda x:x.getValue())
+        irowIndex=0
         for irow,cut in enumerate(lYCuts):
-            row= XMLDSTABLEROWClass(irow)
+            row= XMLDSTABLEROWClass(irowIndex)
             row.setParent(self)
             row.addAttribute('y',prevCut)
-            row.addAttribute('height',cut.getValue()-prevCut)
-            row.addAttribute('x',self.getX())
-            row.addAttribute('width',self.getWidth())
-            row.tagMe()
-            for c in lCells:
-                if c.overlap(row):
-                    row.addObject(c)      
-                    c.setIndex(irow,c.getIndex()[1])
-                    row.addCell(c)
-            self.addRow(row)
+            # row too narow from table border
+            if cut.getValue()-prevCut > 0:
+                row.addAttribute('height',cut.getValue()-prevCut)
+                row.addAttribute('x',self.getX())
+                row.addAttribute('width',self.getWidth())
+                row.tagMe()
+                for c in lCells:
+                    if c.overlap(row):
+                        row.addObject(c)      
+                        c.setIndex(irow,c.getIndex()[1])
+                        row.addCell(c)
+                self.addRow(row)
+                irowIndex+=1                
+            else:
+                del(row)
             prevCut= cut.getValue()
         #last row
 #         if lYCuts != []:
+
         row= XMLDSTABLEROWClass(irow)
         row.setParent(self)
         row.addAttribute('y',prevCut)
@@ -160,15 +196,70 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 c.setIndex(irow,c.getIndex()[1])
                 row.addCell(c)
         self.addRow(row)        
+        
+        ##  recreate correctly cells : nb cells: #rows x #col
+    
+    def reintegrateCellsInColRow(self):
+        """
+            after createRowsWithCuts, need for refitting cells in the rows (and merge them)
+            
+            1- create new regular cells from rows and columns 
+            2- for each cell:
+                for each text: compute overlap
+                    store best for text
+            3- assign text to best cell
+        """
+        
+#         for cell in self.getCellsbyColumns():
+#         print self.getNbRows(), self.getNbColumns()
+        lCells=[]
+        for icol,col in enumerate(self.getColumns()):
+#             print col, col.getX(),col.getX2(), col.getObjects()
+            for irow, row in enumerate(self.getRows()):
+#                 print row, row.getObjects()
+#                 print 'cell:', col.getX(),row.getY(),col.getX2(),row.getY2()
+                cell=XMLDSTABLECELLClass()
+                lCells.append(cell)
+                cell.addAttribute('x',col.getX())
+                cell.addAttribute('y',row.getY())
+                cell.addAttribute('height',row.getY2() - row.getY())
+                cell.addAttribute('width',col.getX2() - col.getX())
+                cell.setIndex(irow, icol)
+                cell.setPage(self.getPage())
+                for colcell in col.getObjects():
+#                     print colcell,colcell.signedRatioOverlap(cell), colcell.overlap(cell)
+                    if colcell.signedRatioOverlap(cell):
+                        cell.setObjectsList(colcell.getObjects()[:])
+                        for o in cell.getObjects():
+                            o.setParent(cell)
+        
+        for cell in self.getCells():
+            cell.getNode().unlinkNode()
+            del cell
+        self._lcells = lCells
+        for cell in self.getCells():
+            cell.tagMe()
+            for o in cell.getObjects():
+#                 print o, o.getParent(), o.getParent().getNode()
+                try:o.tagMe()
+                except AttributeError:pass
+        
+        # update rows!!!!
+        self.buildRowFromCells()
+
     
     def buildRowFromCells(self):
         """
             build row objects and 2dzones  from cells
+            
+            Rowspan: create row
         """
         self._lrows=[]
         
         for cell in self.getCells():
             irow,_= cell.getIndex()
+#             rowSpan = int(cell.getAttribute('rowSpan'))
+                
             try: row = self.getRows()[irow]
             except IndexError:
                 row = XMLDSTABLEROWClass(irow)
@@ -176,6 +267,8 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 if row is not None:
                     row.setPage(self.getPage())
             if row is not None:row.addCell(cell)
+        
+        
         for row in self.getRows():
             row.resizeMe(XMLDSTABLECELLClass)
 #             print row.tagMe(row.tagname)
@@ -185,7 +278,6 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
             build column objects and 2dzones  from cells
         """
         self._lcolumns= []
-        
         for cell in self.getCells():
             _,jcol= cell.getIndex()
             try: col = self.getColumns()[jcol]
@@ -193,18 +285,89 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 col = XMLDSTABLECOLUMNClass(jcol)
                 col = self.addColumn(col)
                 if col is not None:col.setPage(self.getPage())
+#                 print col.getPage(), self.getPage()
             if col is not None:col.addCell(cell)
+            
+#         print self.getColumns()
+        
         for col in self.getColumns():
             col.resizeMe(XMLDSTABLECELLClass)
-            col.tagMe(col.tagname)
-    
+#             node = col.tagMe(col.tagname)
+
+
+        
+    ## SPANNING PART ###
+    # must  replace buildColumnFromCells and buildRowFromCells see also getCellsbyRow?
+    def buildColumnRowFromCells(self):
+        """
+            => rather 'grid' table: (segment)
+        """
+#         print 'nb cells:' , len(self.getCells())
+        # first despan RowSpan cells
+        for cell in self.getCells():
+            # create new non-spanned cell if needed
+#             print cell, cell.getRowSpan(), cell.getColSpan()
+            iRowSpan = 1
+            while iRowSpan < cell.getRowSpan():
+#                 print 'row:', cell, cell.getRowSpan(),iRowSpan
+                newCell = XMLDSTABLECELLClass(cell.getNode())
+                newCell.setName(XMLDSTABLECELLClass.name)
+                newCell.setPage(self.getPage())
+                newCell.setObjectsList(cell.getObjects())
+                newCell._lAttributes = cell.getAttributes().copy()
+                newCell.addAttribute('rowSpan',1)
+                newCell.setIndex(cell.getIndex()[0]+iRowSpan, cell.getIndex()[1])
+                newCell.setSpannedCell(cell)
+                cell.setSpannedCell(cell)
+                newCell.bDeSpannedRow = True
+                self.addCell(newCell)
+                iRowSpan +=1
+        # col span
+        for cell in self.getCells():
+            # create new non-spanned cell if needed
+            iColSpan = 1
+            while iColSpan < cell.getColSpan():
+#                 print 'col:', cell, cell.getColSpan(), iColSpan
+                newCell = XMLDSTABLECELLClass(cell.getNode())
+                newCell.setName(XMLDSTABLECELLClass.name)
+                newCell._lAttributes = cell.getAttributes().copy()
+                newCell.setObjectsList(cell.getObjects())
+                newCell.addAttribute('colSpan',1)
+                newCell.setIndex(cell.getIndex()[0], cell.getIndex()[1]+iColSpan)
+                newCell.setSpannedCell(cell)
+                cell.setSpannedCell(cell)
+                newCell.bDeSpannedCol = True
+                self.addCell(newCell)
+#                 print '\tnex col cell:',newCell, iColSpan+1, cell.getColSpan()
+                iColSpan +=1
+#         print '-- nb cells:', len(self.getCells())
+        
+    def assignElementsToCells(self):
+        """
+            assign elements (textlines) to the right cell 
+            assuming rows and columns are ok
+            
+            see IE_test mergeLineAndCells
+        """
+        #where to get all elements? take the elements of the page?
     
     
     def buildNDARRAY(self):
-        # dtype=np.dtype(XMLDSTABLECELLClass)
-        self._npcells = np.reshape(self.getCells(),(self.getNbRows(),self.getNbColumns()))
+#         print self.getRows()
+#         print self.getColumns()
+        if self.getRows() == []:
+            self.buildRowFromCells()
+        lce=[]
+        [lce.append(cell) for row in self.getRows() for cell in row.getCells()]
+        self._npcells = np.array(lce,dtype=object)
+        self._npcells = self._npcells.reshape(self.getNbRows(),self.getNbColumns())
     
-    ###############  TAGGING METHOD  ######################
+    def getNPArray(self):
+        return self._npcells
+    
+    
+    
+    ###############  IE_TAGGING METHOD  ######################
     
     def tagColumn(self,field):
         """
@@ -232,14 +395,28 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         """
         [cell.addField(tag) for cell in self.getCells()]
         
-    ## see COLUMN, ROW, CELL Object
+        
+    
+    ############### MNING  ###############  
+    """    
+        use of pm/spm
+    """
+    def mineColumns(self):
+        """
+        get patterns for each column  (even by concatenating several pages)
+        """  
+        # create itemset at cell level and item at line level
+        # then pattern mining (spm)
+        ## item features  : content, position in cell
+        # return the most frequent patterns
+    
     
     
     ###############  LOAD FROM DSXML ######################    
     
     def fromDom(self,domNode):
         """
-            only contains TEXT?
+            load cells
         """
         self.setName(domNode.name)
         self.setNode(domNode)
@@ -250,7 +427,6 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
             # add attributes
             prop = prop.next
             
-            
         ctxt = domNode.doc.xpathNewContext()
         ctxt.setContextNode(domNode)
         ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sCELL))
@@ -259,10 +435,16 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
             myObject= XMLDSTABLECELLClass(elt)
             self.addCell(myObject)
             myObject.setPage(self.getPage())
-            myObject.fromDom(elt)      
+            myObject.fromDom(elt)   
         
+        self._lspannedCells = self._lcells[:]
+        
+        self.buildColumnRowFromCells()
         self.buildColumnFromCells()
         self.buildRowFromCells()
-
+        self.getCellsbyRow()
+#         self.displayPerRow()
+#         print  self.getNbRows(), self.getNbColumns()
+        
     
     
