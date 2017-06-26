@@ -94,6 +94,18 @@ class DS2PageXMLConvertor(Component):
         myPoints = ' '.join(["%d,%d"%(xa,ya) for xa,ya  in zip(lx[0::2], lx[1::2])])
         return myPoints    
         
+    def DSPoint2PagePoints(self,sPoints):
+        """    
+            "52.8,47.76,128.88,44.64"
+            to
+            451,246 451,1094 781,1094 781,246
+            
+        """
+        lPoints = sPoints.split(",")
+        lx= map(lambda x:1.0*float(x)*self.dpi/72.0, lPoints)
+        myPoints = ' '.join(["%d,%d"%(xa,ya) for xa,ya  in zip(lx[0::2], lx[1::2])])
+        return myPoints            
+        
     def convertDSObject(self,DSObject,pageXmlParentNode):
         """
             convert DSObject and add it as child to pageXmlParentNode
@@ -123,6 +135,10 @@ class DS2PageXMLConvertor(Component):
         
             
             
+            
+            DS TEXT
+             <TEXT x="52.8" y="41.04" height="6.72" width="76.08" font-size="20" y2="47.76" x2="128.88"
+                points="52.8,41.04,128.88,41.04,128.88,47.76,52.8,47.76" blpoints="52.8,47.76,128.88,44.64" type="RB" id="p1_CVL-{e0004b40-06e0-4b85-97a0-2df0e1f0fe87}"/>
         """
         try:
             pageXmlName= self.dTagNameMapping[DSObject.getName()]
@@ -141,7 +157,17 @@ class DS2PageXMLConvertor(Component):
         coordsNode.setProp('points', self.BB2Polylines(DSObject.getX(),DSObject.getY(), DSObject.getHeight(),DSObject.getWidth()))        
         domNode.addChild(coordsNode)            
         
+        # type 
+        if DSObject.hasAttribute('type'):
+            domNode.setProp('type', DSObject.getAttribute('type'))
         # if blpoints:  build Baseline
+        # <Baseline points="218,95 280,95"/>
+        if DSObject.hasAttribute('blpoints'):
+            domBaseLine=libxml2.newNode('Baseline')
+            domBaseLine.setNs(self.pageXmlNS)
+            domBaseLine.setProp('points', self.DSPoint2PagePoints(DSObject.getAttribute('blpoints')))        
+            domNode.addChild(domBaseLine)                
+            
         
         # collect content and generate a textequiv
         
@@ -154,8 +180,8 @@ class DS2PageXMLConvertor(Component):
             cornerNode.setContent("0 1 2 3")
             cornerNode.setNs(self.pageXmlNS)
             domNode.addChild(cornerNode)    
-#             coordsNode.setProp('colSpan',str(DSObject.getColSpan()))
-#             coordsNode.setProp('rowSpan',str(DSObject.getRowSpan()))
+            coordsNode.setProp('colSpan',str(DSObject.getColSpan()))
+            coordsNode.setProp('rowSpan',str(DSObject.getRowSpan()))
             
         
         #process objects
@@ -250,7 +276,7 @@ class DS2PageXMLConvertor(Component):
             print page, page.getAttribute('imageFilename')
             pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='XRCE', filename = os.path.basename(page.getAttribute('imageFilename')), imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
             self.pageXmlNS = pageXmlDoc.getRootElement().ns()
-            print "??",self.bRegionOnly
+#             print "??",self.bRegionOnly
             if self.bRegionOnly:
                 self.convertOnlyRegion(page, pageNode)
             else:
