@@ -103,8 +103,10 @@ class DS2PageXMLConvertor(Component):
         """
         lPoints = sPoints.split(",")
         lx= map(lambda x:1.0*float(x)*self.dpi/72.0, lPoints)
-        myPoints = ' '.join(["%d,%d"%(xa,ya) for xa,ya  in zip(lx[0::2], lx[1::2])])
-        return myPoints            
+        # order left right 
+        xx =  zip(lx[0::2], lx[1::2])
+        xx.sort(key=lambda (x,y):x)
+        return ' '.join(["%d,%d"%(xa,ya) for xa,ya  in xx])
         
     def convertDSObject(self,DSObject,pageXmlParentNode):
         """
@@ -162,6 +164,7 @@ class DS2PageXMLConvertor(Component):
             domNode.setProp('type', DSObject.getAttribute('type'))
         # if blpoints:  build Baseline
         # <Baseline points="218,95 280,95"/>
+        ## Baseline needs to be left-right!!
         if DSObject.hasAttribute('blpoints'):
             domBaseLine=libxml2.newNode('Baseline')
             domBaseLine.setNs(self.pageXmlNS)
