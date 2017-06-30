@@ -43,7 +43,7 @@ class FeatureDefinition:
     def fitTranformers(self, lGraph,lY=None):
         """
         Fit the transformers using the graphs
-        return True 
+        return True
         """
         lAllNode = [nd for g in lGraph for nd in g.lNode]
         self._node_transformer.fit(lAllNode,lY)

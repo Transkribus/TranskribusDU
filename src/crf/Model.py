@@ -90,8 +90,13 @@ class Model:
         """
         #by default, load the baseline models
         sBaselineFile = self.getBaselineFilename()
+       
+        #self._lMdlBaseline =  self._loadIfFresh(sBaselineFile, expiration_timestamp, self.gzip_cPickle_load)
+        #self.loadTransformers(expiration_timestamp) #Fix this
+        #return self
         try:
             self._lMdlBaseline =  self._loadIfFresh(sBaselineFile, expiration_timestamp, self.gzip_cPickle_load)
+            self.loadTransformers(expiration_timestamp) #Fix this
         except ModelException:
             print 'no baseline model found : %s' %(sBaselineFile) 
         self.loadTransformers(expiration_timestamp)
