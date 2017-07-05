@@ -63,8 +63,10 @@ class Polygon:
         return A, (Xg, Yg) which are the area and the coordinates (float) of the center of mass of the polygon
         """
         if len(self.lXY) < 2: raise ValueError("Only one point: polygon area is undefined.")
+        
         fA = 0.0
         xSum, ySum = 0, 0
+        
         
         xprev, yprev = self.lXY[-1]
         for x, y in self.lXY:
@@ -73,8 +75,14 @@ class Polygon:
             xSum += iTerm * (xprev+x)
             ySum += iTerm * (yprev+y)
             xprev, yprev = x, y
-        fA = abs(fA / 2)
+        fA = fA / 2
         xg, yg = xSum/6/fA, ySum/6/fA
+        
+        if fA <0:
+            return -fA, (xg, yg)
+        else:
+            return fA, (xg, yg)
+        assert fA >0 and xg >0 and  yg >0, "%s\t%s"%(self.lXY (fA, (xg, yg)))
         return fA, (xg, yg)
         
 #     def fitRectangleByBaseline(self, lBaselineXY):
@@ -121,15 +129,24 @@ class Polygon:
         
         return x1,y1, x2,y2
         
-        
-        
 
-        
-        
-        
-        
-        
-        
+def test_trigo():    
+    print [(3673, 1721), (3744, 1742), (3944, 1729), (3946, 1764), (3740, 1777), (3664, 1755)]
+    p = Polygon([(3673, 1721), (3744, 1742), (3944, 1729), (3946, 1764), (3740, 1777), (3664, 1755)])
+    fA, (xg, yg) =p.getArea_and_CenterOfMass()
+    assert fA and xg > 0 and yg >0
+    ## trigo   
+    
+    print [(253, 129), (356, 108), (363, 142), (260, 163)]
+    p = Polygon([(253, 129), (356, 108), (363, 142), (260, 163)])
+    fA, (xg, yg) =p.getArea_and_CenterOfMass()
+    assert fA and xg > 0 and yg >0
+    
+    #non trigo
+    print [(4140, 2771), (4140, 3400), (4340, 3400), (4340, 2771)]
+    p = Polygon([(4140, 2771), (4140, 3400), (4340, 3400), (4340, 2771)])
+    fA, (xg, yg) =  p.getArea_and_CenterOfMass()
+    assert fA and xg > 0 and yg >0        
         
         
         

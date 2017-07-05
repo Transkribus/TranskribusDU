@@ -35,8 +35,7 @@ from sklearn.utils.class_weight import compute_class_weight
 from common.trace import  traceln
 from common.chrono import chronoOn, chronoOff
 
-from TestReport import TestReport,RankingReport
-import pdb
+from TestReport import TestReport,RankingReport,TestReportConfusion
 from sklearn.metrics import average_precision_score
 
 import scipy.sparse as sp
@@ -55,7 +54,7 @@ class Model:
         self.sName = sName
         
         if os.path.exists(sModelDir):
-            assert os.path.isdir(sModelDir)
+            assert os.path.isdir(sModelDir), "%s exists and is not a directory"%sModelDir
         else:
             os.mkdir(sModelDir)
         self.sDir = sModelDir
@@ -64,6 +63,8 @@ class Model:
         self._edge_transformer   = None
         
         self._lMdlBaseline       = []  #contains possibly empty list of models
+        
+        self._nbClass = None
             
     def configureLearner(self, **kwargs):
         """
@@ -81,6 +82,23 @@ class Model:
     def getBaselineFilename(self):
         return os.path.join(self.sDir, self.sName+"_baselines.pkl")
     
+    @classmethod
+    def _getParamsFilename(cls, sDir, sName):
+        return os.path.join(sDir, sName+"_params.json")
+
+    """
+    When some class is not represented on some graph, you must specify the number of class.
+    Otherwise pystruct will complain about the number of states differeing from the number of weights
+    """
+    def setNbClass(self, lNbClass):
+        """
+        in multitype case we get a list of class number (one per type)
+        """
+        self._nbClass = lNbClass
+        
+    def getNbClass(self, nbClass):
+        return self._nbClass
+        
     # --- Model loading/writing -------------------------------------------------------------
     def load(self, expiration_timestamp=None):
         """
@@ -90,23 +108,35 @@ class Model:
         """
         #by default, load the baseline models
         sBaselineFile = self.getBaselineFilename()
-       
-        #self._lMdlBaseline =  self._loadIfFresh(sBaselineFile, expiration_timestamp, self.gzip_cPickle_load)
-        #self.loadTransformers(expiration_timestamp) #Fix this
-        #return self
         try:
             self._lMdlBaseline =  self._loadIfFresh(sBaselineFile, expiration_timestamp, self.gzip_cPickle_load)
             self.loadTransformers(expiration_timestamp) #Fix this
         except ModelException:
-            print 'no baseline model found : %s' %(sBaselineFile) 
+            traceln('no baseline model found : %s' %(sBaselineFile)) 
         self.loadTransformers(expiration_timestamp)
             
-        return self    
-        #
-        #self._lMdlBaseline =  self._loadIfFresh(sBaselineFile, expiration_timestamp, self.gzip_cPickle_load)
-        #self.loadTransformers(expiration_timestamp) #Fix this
-        #return self
+        return self
             
+    def storeBestParams(self, dBestModelParameters):
+        """
+        Store those best parameters (generally a dictionary) under that name if given otherwise under the model's name
+        """
+        sFN = self._getParamsFilename(self.sDir, self.sName)
+        traceln("-+- Storing best parameters in ", sFN)
+        with open(sFN, "w") as fd:
+            fd.write(json.dumps(dBestModelParameters, sort_keys=True))
+    
+    @classmethod
+    def loadBestParams(cls, sDir, sName):
+        """
+        Load from disk the previously stored best parameters under that name or model's name
+        """
+        sFN = cls._getParamsFilename(sDir, sName)
+        traceln("-+- Reading best parameters from ", sFN)
+        with open(sFN, "r") as fd:
+            dBestModelParameters = json.loads(fd.read())
+        return dBestModelParameters
+        
     def _loadIfFresh(self, sFilename, expiration_timestamp, loadFun):
         """
         Look for the given file
@@ -176,21 +206,30 @@ class Model:
         dat =  self._loadIfFresh(sTransfFile, expiration_timestamp, self.gzip_cPickle_load)
         self._node_transformer, self._edge_transformer = dat        
         return True
-        
-    def transformGraphs(self, lGraph, bLabelled=False):
+    
+    def get_lX_lY(self, lGraph):
         """
         Compute node and edge features and return one X matrix for each graph as a list
-        If bLabelled==True, return the Y matrix for each as a list
-        return either:
-         - a list of X and a list of Y
-         - a list of X
+        return a list of X, a list of Y matrix
         """
-        lX = [g.buildNodeEdgeMatrices(self._node_transformer, self._edge_transformer) for g in lGraph]
-        if bLabelled:
-            lY = [g.buildLabelMatrix() for g in lGraph]
-            return lX, lY
-        else:
-            return lX
+        #unfortunately, zip returns tuples and pystruct requires lists... :-/
+        return map(list, zip( *(g.getXY(self._node_transformer, self._edge_transformer) for g in lGraph) )) # => (lX, lY)
+#         return ( [g.buildNodeEdgeMatrices(self._node_transformer, self._edge_transformer) for g in lGraph]
+#                  , [g.buildLabelMatrix() for g in lGraph] )
+
+    def get_lX(self, lGraph):
+        """
+        Compute node and edge features and return one X matrix for each graph as a list
+        return a list of X, a list of Y matrix
+        """
+        return [g.getX(self._node_transformer, self._edge_transformer) for g in lGraph]
+
+    def get_lY(self, lGraph):
+        """
+        Compute node and edge features and return one X matrix for each graph as a list
+        return a list of X, a list of Y matrix
+        """
+        return [g.getY() for g in lGraph]
 
     def saveConfiguration(self, config_data):
         """
@@ -225,8 +264,13 @@ class Model:
         """
         return self._lMdlBaseline
 
-
     def _get_X_flat(self,lX):
+        '''
+        Return a matrix view X from a list of graph
+        Handle sparse matrix as well
+        :param lX: 
+        :return: 
+        '''
 
         is_sparse=False
         node_feat_mat_list=[]
@@ -258,21 +302,21 @@ class Model:
             del X_flat, Y_flat
         return True
                   
-    def _testBaselines(self, lX, lY, lLabelName=None):
+    def _testBaselines(self, lX, lY, lLabelName=None, lsDocName=None):
         """
         test the baseline models, 
-        return a test report list
+        return a test report list, one per baseline method
         """
+        if lsDocName: assert len(lX) == len(lsDocName), "Internal error"
+        
         lTstRpt = []
         if self._lMdlBaseline:
             #X_flat = np.vstack( [node_features for (node_features, _, _) in lX] )
             X_flat =self._get_X_flat(lX)
             Y_flat = np.hstack(lY)
-            lTstRpt = list()
             for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
+                chronoOn("_testBaselines")
                 Y_pred_flat = mdl.predict(X_flat)
-
-
                 if hasattr(mdl,'predict_proba'):
                     report = RankingReport(str(mdl), Y_pred_flat, Y_flat, lLabelName)
                     Y_score_flat = mdl.predict_proba(X_flat)
@@ -282,11 +326,29 @@ class Model:
                     lTstRpt.append(report)
 
                 else:
-                    lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat, lLabelName) )
+                    traceln("\t\t [%.1fs] done\n"%chronoOff("_testBaselines"))
+                    lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat, lLabelName, lsDocName=lsDocName) )
                 del Y_pred_flat
 
-
             del X_flat, Y_flat
+        return lTstRpt                                                                              
+    
+    def _testBaselinesEco(self, lX, lY, lLabelName=None, lsDocName=None):
+        """
+        test the baseline models, WITHOUT MAKING A HUGE X IN MEMORY
+        return a test report list, one per baseline method
+        """
+        if lsDocName: assert len(lX) == len(lsDocName), "Internal error"
+        lTstRpt = []
+        for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
+            chronoOn()
+            #using a COnfusionMatrix-based test report object, we can accumulate results
+            oTestReportConfu = TestReportConfusion(str(mdl), list(), lLabelName, lsDocName=lsDocName)
+            for X,Y in zip(lX, lY):
+                Y_pred = mdl.predict(X)
+                oTestReportConfu.accumulate( TestReport(str(mdl), Y_pred, Y, lLabelName, lsDocName=lsDocName) )
+            traceln("\t\t [%.1fs] done\n"%chronoOff())
+            lTstRpt.append( oTestReportConfu )
         return lTstRpt                                                                              
     
     def predictBaselines(self, X):
@@ -302,6 +364,16 @@ class Model:
         Return a model trained using the given labelled graphs.
         The train method is expected to save the model into self.getModelFilename(), at least at end of training
         If bWarmStart==True, The model is loaded from the disk, if any, and if fresher than given timestamp, and training restarts
+        
+        if some baseline model(s) were set, they are also trained, using the node features
+        
+        """
+        raise Exception("Method must be overridden")
+
+    def gridsearch(self, lGraph):
+        """
+        Return a model trained using the given labelled graphs, by grid search (see http://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html).
+        The train method is expected to save the model into self.getModelFilename(), at least at end of training
         
         if some baseline model(s) were set, they are also trained, using the node features
         
@@ -344,14 +416,21 @@ class Model:
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
         """
         raise Exception("Method must be overridden")
-            
+
+    def getModelInfo(self):
+        """
+        Get some basic model info
+        Return a textual report
+        """
+        return ""
+    
+    @classmethod
     def computeClassWeight(cls, lY):
         Y = np.hstack(lY)
         Y_unique = np.unique(Y)
         class_weights = compute_class_weight("balanced", Y_unique, Y)
         del Y, Y_unique
         return class_weights
-    computeClassWeight = classmethod(computeClassWeight)
 
 
 # --- AUTO-TESTS ------------------------------------------------------------------
@@ -372,4 +451,4 @@ def test_test_report():
     f, _ = Model.test_report(Y, np.array([0,  2, 3, 2, 2], dtype=np.int32), lsClassName)
     assert f == 0.8
     f, _ = Model.test_report(Y, np.array([0,  2, 3, 2, 4], dtype=np.int32), lsClassName)
-    assert f == 0.8    
+    assert f == 0.8

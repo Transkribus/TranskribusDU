@@ -22,16 +22,10 @@ class  XMLDSObjectClass(XMLObjectClass):
     name = None
     def __init__(self):
         XMLObjectClass.__init__(self)
-#         XMLDSObjectClass.id += 1
-#         self._orderedID =  XMLObjectClass.id
-#         self._domNode = None
-        # needed for mapping dataobject to layoutObject
+        
         self._lElements = []
         self._page  = None
         self._id= None
-        
-        # associated 'templates' 
-        self._ltemplates = None
         
         self.Xnearest=[[],[]]  # top bottom
         self.Ynearest=[[],[]]  # left right        
@@ -51,13 +45,22 @@ class  XMLDSObjectClass(XMLObjectClass):
     def getY2(self): return float(self.getAttribute('y'))+self.getHeight()        
     def getHeight(self): return float(self.getAttribute('height'))
     def getWidth(self): return float(self.getAttribute('width'))    
+    def setWidth(self,w): self.addAttribute('width',w)
     
-    def resetTemplate(self): self._ltemplates = None
-    def addTemplate(self,t): 
-        try:self._ltemplates.append(t)
-        except AttributeError: self._ltemplates = [t]
     
-    def getTemplates(self): return self._ltemplates
+    def addObject(self,o): 
+        ## move dom node as well
+        ##     why ??? 30/05/2017
+        if o not in self.getObjects():
+            self.getObjects().append(o)
+            o.setParent(self) 
+#             if o.getNode() is not None and self.getNode() is not None:
+#                 o.getNode().unlinkNode()
+#                 self.getNode().addChild(o.getNode())
+               
+    
+
+    
     
     def resizeMe(self,objectType):
         assert len(self.getAllNamedObjects(objectType)) != 0
@@ -83,6 +86,8 @@ class  XMLDSObjectClass(XMLObjectClass):
         
         self._BB = [minbx,minby,maxby-minby,maxbx-minbx]    
     
+
+        
     def fromDom(self,domNode):
         
         ## if domNode in mappingTable:
@@ -97,9 +102,10 @@ class  XMLDSObjectClass(XMLObjectClass):
             # add attributes
             prop = prop.next
         child = domNode.children
-        try: 
-            self._id = self.getAttribute('id')
-        except:pass
+        self._id = self.getAttribute('id')
+        if self.getID() is None:
+            self._id = XMLDSObjectClass.orderID
+            XMLDSObjectClass.orderID+= 1
         ## if no text: add a category: text, graphic, image, whitespace
         while child:
             if child.type == 'text':
@@ -118,25 +124,25 @@ class  XMLDSObjectClass(XMLObjectClass):
                     myObject= XMLDSLINEClass(child)
                     # per type?
                     self.addObject(myObject)
-                    myObject.setPage(self)
+                    myObject.setPage(self.getPage())
                     myObject.fromDom(child)
                 elif child.name  == ds_xml.sTEXT:
                     myObject= XMLDSTEXTClass(child)
-                    # per type?
                     self.addObject(myObject)
-                    myObject.setPage(self)
+                    myObject.setPage(self.getPage())
                     myObject.fromDom(child)
+
                 elif child.name == ds_xml.sBaseline:
                     myObject= XMLDSBASELINEClass(child)
                     self.addObject(myObject)
-                    myObject.setPage(self)
+                    myObject.setPage(self.getPage())
                     myObject.fromDom(child)      
                 else:
                     myObject= XMLDSObjectClass()
                     myObject.setNode(child)
                     # per type?
                     self.addObject(myObject)
-                    myObject.setPage(self)
+                    myObject.setPage(self.getPage())
                     myObject.fromDom(child)   
                 
                 
@@ -148,22 +154,17 @@ class  XMLDSObjectClass(XMLObjectClass):
     def clipMe(self,clipRegion,lSubObject=[]):
         """
         
-            DOES NOT WORK !!!
-        
             return the list of new subobjects considering the clip region
             -->  if subobjects is not 'clippable' ? how to cut a TOKEN????
             
             recursive: if a sub object is cut: go down and take only clipped) subobj if the zones
             -> text/token
             
-            
             region: a XMLDSObjectClass!!
-            
             create new objects?  YES::
             
         """
         ## if self has no subojects: need to be inserted in the region???
-        
         ## current object
         if self.overlap(clipRegion):
             myNewObject =  XMLDSObjectClass()
@@ -187,16 +188,91 @@ class  XMLDSObjectClass(XMLObjectClass):
         
             for subObject in lSubObject:
                 ## get clipped dimensions
-                newSub= subObject.clipMe(clipRegion)
-                if newSub:
-                    myNewObject.addObject(newSub)
-            else:
-                return None
+                if subObject.getAttribute("x"): 
+                    newSub= subObject.clipMe(clipRegion)
+                    if newSub:
+                        myNewObject.addObject(newSub)
+                # bug: tokne: no x: add them
+                else:
+                    myNewObject.addObject(subObject)
             return myNewObject 
+        else:
+            return None
         
          
          
-         
+    
+    def signedRatioOverlap(self,zone):
+        """
+         overlap self and zone
+         return surface of self in zone 
+        """
+        [x1,y1,h1,w1] = self.getX(),self.getY(),self.getHeight(),self.getWidth()
+        [x2,y2,h2,w2] = zone.getX(),zone.getY(),zone.getHeight(),zone.getWidth()
+        
+        fOverlap = 0.0
+        
+        if self.overlapX(zone) and self.overlapY(zone):
+            [x11,y11,x12,y12] = [x1,y1,x1+w1,y1+h1]
+            [x21,y21,x22,y22] = [x2,y2,x2+w2,y2+h2]
+            
+            s1 = w1 * h1
+            
+            # possible ?
+            if s1 == 0: s1 = 1.0
+            
+            #intersection
+            nx1 = max(x11,x21)
+            nx2 = min(x12,x22)
+            ny1 = max(y11,y21)
+            ny2 = min(y12,y22)
+            h = abs(nx2 - nx1)
+            w = abs(ny2 - ny1)
+            
+            inter = h * w
+            if inter > 0 :
+                fOverlap = inter/s1
+            else:
+                # if overX and Y this is not possible !
+                fOverlap = 0.0
+            
+        return  fOverlap   
+                           
+    def ratioOverlap(self,zone):
+        """
+         overlap self and zone
+        """
+        [x1,y1,h1,w1] = self.getX(),self.getY(),self.getHeight(),self.getWidth()
+        [x2,y2,h2,w2] = zone.getX(),zone.getY(),zone.getHeight(),zone.getWidth()
+        
+        fOverlap = 0.0
+        
+        if self.overlapX(zone) and self.overlapY(zone):
+            [x11,y11,x12,y12] = [x1,y1,x1+w1,y1+h1]
+            [x21,y21,x22,y22] = [x2,y2,x2+w2,y2+h2]
+            
+            s1 = 1.0* w1 * h1
+            if s1 == 0: s1 = 1.0
+            s2 = 1.0*w2 * h2
+            if s2 == 0: s2 = 1.0
+            
+            nx1 = max(x11,x21)
+            nx2 = min(x12,x22)
+            # borderline : line and // 22/05:2017: why? 
+            if nx1 == nx2:
+                nx1 += 1
+            ny1 = max(y11,y21)
+            ny2 = min(y12,y22)
+            # borderline : line and  // 22/05/2017: why? 
+            if ny1 == ny2:
+                ny1 = ny2 - 1
+            
+            h = abs(nx2 - nx1)
+            w = abs(ny2 - ny1)
+
+            fOverlap = (h*w)/ (max(s1,s2))
+        return  fOverlap  
+    
     def overlap(self,zone):
         return self.overlapX(zone) and self.overlapY(zone)
     
@@ -214,6 +290,9 @@ class  XMLDSObjectClass(XMLObjectClass):
         
     def getSetOfListedAttributes(self,TH,lAttributes,myObject):
         """
+        
+            move to XMLObjectClass ??
+            
             Generate a set of features: 
             
         """
@@ -225,7 +304,35 @@ class  XMLDSObjectClass(XMLObjectClass):
         elif self.getSetofFeatures() != []:
             return self.getSetofFeatures()
                
+        lHisto = {}
+        for elt in self.getAllNamedObjects(myObject):
+            for attr in lAttributes:
+                try:lHisto[attr]
+                except KeyError:lHisto[attr] = {}
+                if elt.hasAttribute(attr):
+                    try:
+                        try:lHisto[attr][round(float(elt.getAttribute(attr)))].append(elt)
+                        except KeyError: lHisto[attr][round(float(elt.getAttribute(attr)))] = [elt]
+                    except TypeError:pass
 
+        # empty object
+        if lHisto =={}:
+            return self.getSetofFeatures()
+
+        for attr in lAttributes:
+            for value in lHisto[attr]:
+#                 print attr, value, lHisto[attr][value]
+                if  len(lHisto[attr][value]) > 0.1:
+                    ftype= featureObject.NUMERICAL
+                    feature = featureObject()
+                    feature.setName(attr)
+#                     feature.setName('f')
+                    feature.setTH(TH)
+                    feature.addNode(self)
+                    feature.setObjectName(self)
+                    feature.setValue(value)
+                    feature.setType(ftype)
+                    self.addFeature(feature)
          
         
         if 'tokens' in lAttributes:
@@ -254,6 +361,29 @@ class  XMLDSObjectClass(XMLObjectClass):
             feature.setType(ftype)
             self.addFeature(feature)
                             
-
             
-        return self.getSetofFeatures()        
+        return self.getSetofFeatures()
+    
+         
+#     def getSetOfMutliValuedFeatures(self,TH,lMyFeatures,myObject):
+#         """
+#             define a multivalued features
+#             move to XMLObject? 
+#         """
+#         from spm.feature import multiValueFeatureObject
+# 
+#         #reinit 
+#         self._lBasicFeatures = None
+#         
+#         mv =multiValueFeatureObject()
+#         name= "multi" #'|'.join(i.getName() for i in lMyFeatures)
+#         mv.setName(name)
+#         mv.addNode(self)
+#         mv.setObjectName(self)
+#         mv.setTH(TH)
+#         mv.setObjectName(self)
+#         mv.setValue(map(lambda x:x,lMyFeatures))
+#         mv.setType(multiValueFeatureObject.COMPLEX)
+#         self.addFeature(mv)
+#         return self._lBasicFeatures    
+#             

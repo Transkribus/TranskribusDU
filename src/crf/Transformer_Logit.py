@@ -35,23 +35,17 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier  #for multilabel classif
-#sklearn has changed and sklearn.grid_search.GridSearchCV will disappear in next release or so
-#so it is recommended to use instead sklearn.model_selection
-#BUT on Linux, unplickling of the model fails
-#=> change only on Windows
-#JLM 2017-03-10
-if sys.platform == "win32":
-    from sklearn.model_selection import GridSearchCV
-else:
-    from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV  #0.18.1 REQUIRES NUMPY 1.12.1 or more recent
+    
+from common.trace import traceln
     
 from Transformer import Transformer
 from Transformer_PageXml import  NodeTransformerTextEnclosed
 
-from Edge import HorizontalEdge, VerticalEdge, SamePageEdge, CrossPageEdge
+from TestReport import TestReport, TestReportConfusion
 
 dGridSearch_CONF = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for Logit training
-dGridSearch_CONF = {'C':[0.1] }  #Grid search parameters for Logit training
+dGridSearch_CONF = {'C':[0.01, 0.1, 1.0, 2.0] }  #Grid search parameters for Logit training
 
 DEBUG=0
 
@@ -107,8 +101,8 @@ class NodeTransformerLogit(Transformer):
         if lAllNode==None: lAllNode = [nd for g in lGraph for nd in g.lNode]
         y = np.array([nd.cls for nd in lAllNode], dtype=np.int)
         if self.nbClass != len(np.unique(y)):
-            print("Classes seen are: %s"%np.unique(y).tolist())
-            print self.nbClass
+            traceln("Classes seen are: %s"%np.unique(y).tolist())
+            traceln(self.nbClass)
             raise ValueError("ERROR: some class is not represented in the training set")
         
         #fitting the textual feature extractor
@@ -133,11 +127,7 @@ class NodeTransformerLogit(Transformer):
         gslr = GridSearchCV(lr , self.dGridSearch_LR_conf, refit=True, n_jobs=self.n_jobs)        
         self.mdl_neighbor = OneVsRestClassifier(gslr, n_jobs=self.n_jobs)
         self.mdl_neighbor.fit(x, y)
-#         y_pred = self.mdl_neighbor.predict(x)
-#         import TestReport
-#         for i in range(y_pred.shape[1]):
-#             o = TestReport.TestReport(i, y_pred[i], y[i])
-#             print o
+
         del x, y
         if DEBUG: print self.mdl_neighbor
 
@@ -147,17 +137,48 @@ class NodeTransformerLogit(Transformer):
         """
         return the 2 logit scores
         """
-        a = np.zeros( ( len(lNode), 2*self.nbClass ), dtype=np.float64)     #for each class: is_of_class? is_neighbor_of_class?
+        a = np.zeros( ( len(lNode), 3*self.nbClass ), dtype=np.float64)     #for each class: is_of_class? is_neighbor_of_class on same page or accross page?
         
         x = self.text_pipeline.transform(lNode)
 
         a[...,0:self.nbClass]                   = self.mdl_main     .predict_proba(x)
-        a[...,  self.nbClass:2*self.nbClass]    = self.mdl_neighbor .predict_proba(x)
+        a[...,  self.nbClass:3*self.nbClass]    = self.mdl_neighbor .predict_proba(x)
 #         for i, nd in enumerate(lNode):
 #             print i, nd, a[i]
         if DEBUG: print a
         return a
 
+#     def testEco(self,lX, lY):
+#         """
+#         we test 2 Logit: one to predict the node class, another to predict the class of the neighborhood
+#         and return a list of TestReport objects
+#             [ ClassPredictor_Test_Report
+#             , SamePageNeighborClassPredictor_Test_Report for each class
+#             , CrossPageNeighborClassPredictor_Test_Report for each class
+#             ]
+#         """
+#         loTstRpt = []
+# ZZZZZ        
+#         #extracting textual features
+#         X = self.text_pipeline.transform(lAllNode)
+# 
+#         # the Y
+#         Y = np.array([nd.cls for nd in lAllNode], dtype=np.int)
+#         Y_pred = self.mdl_main.predict(X)
+#         oTstRptMain = TestReportConfusion.newFromYYpred("TransformerLogit_main", Y_pred, Y, map(str, range(self.nbClass)))
+#         loTstRpt.append(oTstRptMain)
+#         
+#         #the Y for neighboring
+#         Y = np.vstack([g.getNeighborClassMask() for g in lGraph])  #we get this from the graph object. 
+#         Y_pred = self.mdl_neighbor.predict(X)
+#         nbCol = Y_pred.shape[1]
+#         lsClassName = lGraph[0].getNeighborClassNameList()
+#         assert nbCol == len(lsClassName)
+#         for i, sClassName in enumerate(lsClassName):
+#             oTstRpt = TestReportConfusion.newFromYYpred(sClassName, Y_pred[:,i], Y[:,i], ["no", "yes"])
+#             loTstRpt.append(oTstRpt)
+#         
+#         return loTstRpt
 
 #------------------------------------------------------------------------------------------------------
 class EdgeTransformerLogit(Transformer):
@@ -184,35 +205,15 @@ class EdgeTransformerLogit(Transformer):
         self.nbClass = nbClass
         self.transfNodeLogit = ndTrnsfLogit #fitted node transformer
         
-    def transform(self, lEdge):
+    def transform(self, lEdge, bMirrorPage=True):
         """
         return the 2 logit scores
         """
-        if True:
-            aA = self.transfNodeLogit.transform( [edge.A for edge in lEdge] )
-            aB = self.transfNodeLogit.transform( [edge.B for edge in lEdge] )
-            a = np.hstack([aA, aB])
-            del aA, aB
-            assert a.shape == (len(lEdge), 2 * 2 * self.nbClass)
-        else:
-            #not so clever to distinguish by edge type since the neighbor mask is ignoring the type of edge
-            lEdgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge]
-            nbEdgeClass = len(lEdgeClass)
-            
-            nbFeatPerNode = 2*self.nbClass              #for each class: is_of_class? is_neighbor_of_class?
-            nbFeatPerEdgeClass = 2 * nbFeatPerNode      #2 nodes
-            d_iEdgeClass = { cls:i*nbFeatPerEdgeClass for i,cls in enumerate(lEdgeClass) }  #shift by edge class
-            
-            a = np.zeros( ( len(lEdge), nbEdgeClass * nbFeatPerEdgeClass ), dtype=np.float64) 
-            
-            #slow but safer to code
-            for i, edge in enumerate(lEdge):
-                iEdgeClass = d_iEdgeClass[edge.__class__] 
-                for nd, iNode in [ (edge.A, 0), (edge.B, nbFeatPerNode)]:
-                    a[i, iEdgeClass+iNode:iEdgeClass+iNode+nbFeatPerNode] = self.transfNodeLogit.transform([nd])
-            
-#         for i, edg in enumerate(lEdge):
-#             print i, edg, a[i]
+        aA = self.transfNodeLogit.transform( [edge.A for edge in lEdge] )
+        aB = self.transfNodeLogit.transform( [edge.B for edge in lEdge] )
+        a = np.hstack([aA, aB])
+        del aA, aB
+        assert a.shape == (len(lEdge), 2 * 3 * self.nbClass) #src / target nodes, same_page/cross_page_neighbors/class
         
         return a
 

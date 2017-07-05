@@ -138,20 +138,19 @@ class  featureObject(object):
         """
         try:other.getClassName()
         except:return False
-        
         if self.getClassName() != other.getClassName():
             return False
         if self.getName() == other.getName():
 #             print self.getName() , other.getName()
             if self.getType() == other.getType():
                 distance = 9e9
-                if self._type == featureObject.NUMERICAL:
+                if self.getType() == featureObject.NUMERICAL:
                     try:
                         distance = abs(float(self.getValue()) - float(other.getValue()))
                     except:
                         pass
                     return distance <= self.getTH()
-                elif self._type == featureObject.EDITDISTANCE:
+                elif self.getType() == featureObject.EDITDISTANCE:
                     # EDITDISTANCE
                     if self.getValue() == other.getValue():
                         return True
@@ -226,7 +225,18 @@ class  featureObject(object):
  
     def getNodes(self): return self._lnodes
     
-        
+    
+    def getDistance(self,other):
+        if self.getType()==featureObject.NUMERICAL:
+            return abs(self.getValue() - other.getValue())
+        elif self.getType() == featureObject.EDITDISTANCE:
+            _,val = self.matchLCS(self.getTH(), (self.getValue(),len(self.getValue())), (other.getValue(),len(other.getValue())))
+            return val 
+        elif self._type == featureObject.BOOLEAN:
+            if self.getValue() == other.getValue():return 0
+            else: return 1        
+        else:
+            return 9e9
 
 
 class TwoDFeature(featureObject):
@@ -237,16 +247,31 @@ class TwoDFeature(featureObject):
     def __eq__(self,other):
         try: other.getClassName()
         except AttributeError:return False
+#         print "??",self.getClassName(), other.getClassName(),self.getName() , other.getName()
         if self.getClassName() == other.getClassName():
             if self.getName() == other.getName() and len(self.getValue()) == len(other.getValue()):
                 # assume the same semantical order
                 for i,x in enumerate(self.getValue()):
+#                     print x,other.getValue()[i], abs(float(x) - float(other.getValue()[i])) ,self.getTH()
                     if abs(float(x) - float(other.getValue()[i])) >self.getTH():
                         return False
                 return True
             return False
         return False
-                
+    
+    def getDistance(self,other):
+        """
+            euclidian distance
+        """
+        import math
+        if len(self.getValue()) ==  len(other.getValue()):
+#             print self.getValue(), other.getValue(), [(j-i) for i,j in zip(self.getValue(), other.getValue())]
+            x = sum([abs(j-i)*abs(j-i) for i,j in zip(self.getValue(), other.getValue())])
+            return math.sqrt(x)
+        else:
+            return 9e9
+            
+             
 class multiValueFeatureObject(featureObject):
     """
     
