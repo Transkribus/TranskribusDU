@@ -42,33 +42,53 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
         XMLDSObjectClass.id += 1
         self._domNode = domNode
         self._index= (0,0)
-        self._colSpan= 1
-        self._rowSpan= 1
-
+        
+        self._spannedCell =None
+        self.bDeSpannedRow = False
+        self.bDeSpannedCol =False
         self.tagName=ds_xml.sCELL
         # contains a list of fields (tag)
         self._lFields = []
+        self.setName(self.name)
     
     def __str__(self):
         return "%s %s"%(self.getName(),self.getIndex())    
-    
+    def __repr__(self):
+        return "%s %s"%(self.getName(),self.getIndex())       
     def getIndex(self): return self._index
     def setIndex(self,i,j): self._index = (i,j)
-    def getColSpan(self): return self._colSpan
-    def getRowSapn(self): return self._rowSpan
+    def getColSpan(self): return int(self.getAttribute('colSpan'))
+    def getRowSpan(self): return int(self.getAttribute('rowSpan'))
     
     def getFields(self): return self._lFields
+
+    def isDeSpannedRow(self): return self.bDeSpannedRow
+    def isDeSpannedCol(self): return self.bDeSpannedCol
     
-    def addField(self,field):
+    def setSpannedCell(self,c): self._spannedCell = c
+    def getSpannedCell(self): return self._spannedCell
+    
+    ########### IE part ########### 
+    ### move to objectClass?
+    
+    def addField(self,field,value=None):
         """
-            self is supposed to contain field (record field)
+            add field (record field) to this cell: this cell is supposed to contain such a field
         """
         if field not in self.getFields():
             self.getFields().append(field)
         return field
     
-    ############# TAGGING
-    
+    def extractFields(self):
+        """
+            extract fields
+        """
+        for field in self.getFields():
+            #take first tagger
+            if field.getTagger() != []:
+                value = field.getTagger()[0].parse(self.getContent())
+                field.setValue(value)
+        
     
     ### dom tagging
     def tagMe2(self):
@@ -77,6 +97,7 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
         self.getNode().setProp('col',str(self.getIndex()[1]))        
     
     ########### LOAD FROM DSXML ################
+    
     def fromDom(self,domNode):
         """
             only contains TEXT?
@@ -102,5 +123,5 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
             myObject.setPage(self.getPage())
             myObject.fromDom(elt)
         
-         
+    
         

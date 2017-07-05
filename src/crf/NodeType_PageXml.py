@@ -125,6 +125,9 @@ class NodeType_PageXml(NodeType):
             
             #now we need to infer the bounding box of that object
             lXY = PageXml.getPointList(ndBlock)  #the polygon
+            if lXY == []:
+                continue
+            
             plg = Polygon(lXY)
             try:
                 x1,y1, x2,y2 = plg.fitRectangle()
