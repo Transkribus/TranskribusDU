@@ -19,7 +19,7 @@ class  documentObject(objectClass):
         self._type = None
         #root?
         self._lObjects = []
-        
+        self._name='document'
         
     def getObjects(self):
         return self._lObjects

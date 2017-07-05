@@ -142,21 +142,6 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
         return DU_CRF_Task.predict(self, lsColDir,sDocId)
 
            
-    def buildRow(self,doc):
-        """
-            find row regions
-            and generate tablecells accordingly
-        """
-        
-        #convert into DS
-        dsconv =primaAnalysis()
-        dsconv.dpi=300
-        dsconv.sDocID = self.docid
-        doc = dsconv.convert2DS(doc,self.docid)
-        
-        ##load DSDOM
-        
-              
     
 if __name__ == "__main__":
 
