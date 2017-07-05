@@ -35,7 +35,8 @@ class primaAnalysis(Component.Component):
     kREF= 'ref'
     kREFTAG= 'reftag'   
     kDOCID= 'docid'    
-    kRegion='noRegion' 
+    kRegion='noRegion'
+    kCanLine= 'canonicalline' 
     def __init__(self):
 
         Component.Component.__init__(self, "pageXMLconverter", self.usage, self.version, self.description) 
@@ -44,7 +45,8 @@ class primaAnalysis(Component.Component):
         self.bRef = False
         self.lRefTag = ()
         self.bSkipRegion= False
-         
+        self.bCanonicalLine = False
+        
         self.xmlns='http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
         
         self.id=1
@@ -60,8 +62,32 @@ class primaAnalysis(Component.Component):
         if dParams.has_key(self.kREFTAG)    : self.lRefTag   = tuple(dParams[self.kREFTAG])
         if dParams.has_key(self.kDOCID)    : self.sDocID   =dParams[self.kDOCID]
         if dParams.has_key(self.kRegion)    : self.bSkipRegion   =dParams[self.kRegion]
+        if dParams.has_key(self.kCanLine)    : self.bCanonicalLine   =dParams[self.kCanLine]
 
 
+
+    def baselineCanon(self,sList):
+        """
+            build a line 
+                w = baseline w
+                h = fH points?
+                
+            if baseline not horizontal: what to do?  
+        """
+        fH= 15
+        minx = 9e9
+        miny = 9e9
+        maxx = 0
+        maxy = 0        
+        lList = sList.split(',') 
+        for x,y in  zip(lList[0::2],lList[1::2]):
+            minx = min(minx,float(x))
+            maxx = max(maxx,float(x))
+            miny = min(miny,float(y))
+            maxy = max(maxy,float(y))
+        return [minx,miny-fH,fH,maxx-minx]
+        
+        
     def regionBoundingBox(self,sList):
         """
             points = (x,y)+ 
@@ -121,9 +147,10 @@ class primaAnalysis(Component.Component):
 
         if lPoints!= []:
             sp = lPoints[0].getContent().replace(' ',',')
-            scaledP=  map(lambda x: 72.0* float(x) / self.dpi,sp.split(','))
-            scaledP = str(scaledP)[1:-1].replace(' ','')
-            return scaledP
+            if sp != "":
+                scaledP=  map(lambda x: 72.0* float(x) / self.dpi,sp.split(','))
+                scaledP = str(scaledP)[1:-1].replace(' ','')
+                return scaledP
         else:
             return ""
     
@@ -158,28 +185,17 @@ class primaAnalysis(Component.Component):
             sp = self.getPoints(line)
             # polylines
             node.setProp('points',sp)
-            # BB
-            ctxt = curNode.doc.xpathNewContext()
-            ctxt.xpathRegisterNs("a", self.xmlns)
-            xpath  = "./a:Coords/@%s" % ("points")
-            ctxt.setContextNode(line)
-            lPoints = ctxt.xpathEval(xpath)
-            if lPoints != []:
-                [x,y,h,w] = self.regionBoundingBox(lPoints[0])
-                xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w))
-                node.setProp(ds_xml.sX,str(xp))
-                node.setProp(ds_xml.sY,str(yp))
-                node.setProp(ds_xml.sHeight,str(hp))
-                node.setProp(ds_xml.sWidth,str(wp))            
-            node.setProp('font-size','20')
-
+            
+            
             ## baseline
             ## add @baselintpoints 
             ##<Baseline points="373,814 700,805 1027,785 1354,804 1681,783 2339,780"/>
 #             blnode = libxml2.newNode('BASELINE')
+            
             ctxt = line.doc.xpathNewContext()
             ctxt.xpathRegisterNs("a", self.xmlns)
             ctxt.setContextNode(line)
+            scaledP=None
             xpath  = "./a:Baseline/@%s" % ("points")
             lPoints = ctxt.xpathEval(xpath)
             ctxt.xpathFreeContext()
@@ -188,21 +204,55 @@ class primaAnalysis(Component.Component):
 #                 sp = self.getPoints(curNode)
                 sp = lPoints[0].getContent().replace(' ',',')
                 try:
-                    scaledP=  map(lambda x: 72.0* float(x) / self.dpi,sp.split(','))
+                    scaledP =  map(lambda x: 72.0* float(x) / self.dpi,sp.split(','))
                     scaledP = str(scaledP)[1:-1].replace(' ','')
                     node.setProp('blpoints',scaledP)
                     dsNode.addChild(node)
                 except IndexError: 
-                    pass
-                
+                    pass            
+            
+            
+            
+            # BB
+            ctxt = curNode.doc.xpathNewContext()
+            ctxt.xpathRegisterNs("a", self.xmlns)
+            xpath  = "./a:Coords/@%s" % ("points")
+            ctxt.setContextNode(line)
+            lPoints = ctxt.xpathEval(xpath)
+            if lPoints != [] and lPoints[0].getContent() !="":
+                if self.bCanonicalLine and scaledP is not None:
+                    [xp,yp,hp,wp] = self.baselineCanon(scaledP)
+                else: 
+                    [x,y,h,w] = self.regionBoundingBox(lPoints[0])                
+                    xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w))
+                node.setProp(ds_xml.sX,str(xp))
+                node.setProp(ds_xml.sY,str(yp))
+                node.setProp(ds_xml.sHeight,str(hp))
+                node.setProp(ds_xml.sWidth,str(wp))            
+            node.setProp('font-size','20')
+
+#             ## baseline
+#             ## add @baselintpoints 
+#             ##<Baseline points="373,814 700,805 1027,785 1354,804 1681,783 2339,780"/>
+# #             blnode = libxml2.newNode('BASELINE')
+#             ctxt = line.doc.xpathNewContext()
+#             ctxt.xpathRegisterNs("a", self.xmlns)
+#             ctxt.setContextNode(line)
+#             xpath  = "./a:Baseline/@%s" % ("points")
 #             lPoints = ctxt.xpathEval(xpath)
-#             if lPoints != []:
-#                 [x,y,h,w] = self.regionBoundingBox(lPoints[0])
-#                 xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w))
-#                 blnode.setProp(ds_xml.sX,str(xp))
-#                 blnode.setProp(ds_xml.sY,str(yp))
-#                 blnode.setProp(ds_xml.sHeight,str(hp))
-#                 blnode.setProp(ds_xml.sWidth,str(wp))            
+#             ctxt.xpathFreeContext()
+#             if lPoints!= []:
+#                 ## 
+# #                 sp = self.getPoints(curNode)
+#                 sp = lPoints[0].getContent().replace(' ',',')
+#                 try:
+#                     scaledP=  map(lambda x: 72.0* float(x) / self.dpi,sp.split(','))
+#                     scaledP = str(scaledP)[1:-1].replace(' ','')
+#                     node.setProp('blpoints',scaledP)
+#                     dsNode.addChild(node)
+#                 except IndexError: 
+#                     pass
+                
             
             ctxt = line.doc.xpathNewContext()
             ctxt.xpathRegisterNs("a", self.xmlns)
@@ -481,6 +531,7 @@ if __name__ == "__main__":
     cmp.add_option("--ref", dest="ref", action="store_true", default=False, help="generate ref file")
     cmp.add_option("--reftag", dest="reftag", action="append",  help="generate ref file")
     cmp.add_option("--noregion", dest="noRegion", action="store_true",  help="skip REGION tags")
+    cmp.add_option("--canonicalline", dest="canonicalline", action="store_true",default=False , help="create regular line rectangle from baseline")
 
     cmp.add_option("--"+cmp.kDOCID, dest=cmp.kDOCID, action="store", type='string', help="docId in col")
     

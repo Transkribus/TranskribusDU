@@ -19,8 +19,9 @@ import common.Component as Component
 import config.ds_xml_def as ds_xml
 from common.trace import traceln
 from xml_formats.PageXml import PageXml
+from util.Polygon import Polygon
 
-class primaAnalysis(Component.Component):
+class table2TextRegion(Component.Component):
     #DEFINE the version, usage and description of this particular component
     usage = "[-f N.N] "
     version = "v1.23"
@@ -47,6 +48,57 @@ class primaAnalysis(Component.Component):
         if dParams.has_key(self.kDPI)    : self.dpi          = int(dParams[self.kDPI])
 
     
+    def resizeCell(self,cell,ns):
+        """
+            replace the cell region by a BB for textlines: better for transcriber
+        """
+        ctxt = cell.doc.xpathNewContext()
+        ctxt.xpathRegisterNs("a", self.xmlns)
+        xpath  = "./a:%s" % ("TextLine")
+        ctxt.setContextNode(cell)
+        lTextLines = ctxt.xpathEval(xpath)
+        if lTextLines == []:
+            return True
+        
+        ## get minx,maxy  for the cell
+        lXY = PageXml.getPointList(cell)  #the polygon
+        plg = Polygon(lXY)  
+        x1,y1, x2,y2 = plg.fitRectangle()
+        x1,y1,x2,y2 = plg.getBoundingBox()
+        cellX1=x1
+        cellX2=x2
+        
+        print x1,x2
+        minx,miny,maxx,maxy = 9e9,9e9,0,0
+        for line in lTextLines:
+            lXY = PageXml.getPointList(line)  #the polygon
+            print lXY
+            if lXY == []:
+                continue
+            plg = Polygon(lXY)  
+            try:
+                x1,y1, x2,y2 = plg.fitRectangle()
+            except ZeroDivisionError:
+                continue
+            x1,y1,x2,y2 = plg.getBoundingBox()
+            minx = min(minx,x1)            
+            miny = min(miny,y1)            
+            maxx = max(maxx,x2)            
+            maxy = max(maxy,y2)
+        
+        miny -= 50        
+        maxy += 50
+
+        minx -= 20 
+        maxx += 20       
+        minx = min(cellX1,minx)
+        maxx = max(cellX2, maxx)
+#         print cellX2, maxx
+        
+        corner = cell.children
+#         print minx,miny,maxx,miny,maxx,maxy,minx,maxy
+        corner.setProp('points',"%d,%d %d,%d %d,%d %d,%d"%(minx,miny,maxx,miny,maxx,maxy,minx,maxy))            
+        
     def convertTableCells(self,document):
         """
         needed ?
@@ -68,7 +120,6 @@ class primaAnalysis(Component.Component):
         
         xpath  = "//a:%s" % ("TableRegion")
         lTables = ctxt.xpathEval(xpath)
-        
         
         # need
         xpath  = "//a:%s" % ("ReadingOrder")
@@ -112,6 +163,9 @@ class primaAnalysis(Component.Component):
                 orderGroup.addChild(reind)
                 reind.setNsProp(ns,'index',str(i))
                 reind.setNsProp(ns,'regionRef',cell.prop('id'))
+                ## resize cell/region:
+                if self.resizeCell(cell,ns):
+                    cell.unlinkNode()
             table.unlinkNode()
             del(table)
         
@@ -123,7 +177,6 @@ class primaAnalysis(Component.Component):
         docdom=self.loadDom()
         self.convertTableCells(docdom)
         PageXml.setMetadata( docdom, None, 'XRCE', Comments='TableCell 2 TextRegion')
-        
         return docdom
                 
 if __name__ == "__main__":
@@ -131,7 +184,7 @@ if __name__ == "__main__":
     #command line
     traceln( "=============================================================================")
     
-    cmp = primaAnalysis()
+    cmp = table2TextRegion()
 
     #prepare for the parsing of the command line
     cmp.createCommandLineParser()
