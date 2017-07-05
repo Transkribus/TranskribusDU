@@ -1,18 +1,18 @@
 Experiments with some tabular text from the archive of the abbey of Passau (EU READ partner)
 
-H. Dejan, JL. Meunier
+H. Dejean, JL. Meunier
 May-June 2017
 
 ----------------------------------------------------------------------------------------------------
 TASK
-The global task consist in segmenting each page in table cells.
+The global task consists in segmenting each page in table cells.
 The segmentation in columns is dealt with by a template-based method, which is not discussed here.
 The segmenting in table rows is done using CRF (supervised ML).
 
 ----------------------------------------------------------------------------------------------------
 DATA
-H. Dejan prepared the data and annotated it. The corresponding PageXml XML files are in abp/col folder.
-We have 144 pages (for 144 tables). 
+H. Dejean prepared the data and annotated it. The corresponding PageXml XML files are in abp/col folder.
+We have 144 documents, each of 1 page containing 1 table. 
 Each page contains text lines as well as some graphical lines obtained from an automatic line detector provided by a READ partner.
 The annotation:
 - for text lines: we use the conventional BIES (Begin, Inside, End, Singleton) labeling scheme (often used in NLP). The first text line of a cell is B, the last is E, and any text line in-between is I. A text line occupying alone a cell is S.
@@ -22,16 +22,16 @@ The annotation is in the XML @type attributes.
 
 ----------------------------------------------------------------------------------------------------
 METHOD
-We use here the CRF and multi-type CRF supervised methods. 
+We use here the graph CRF and multi-type graph CRF supervised methods. 
 
 For CRF, we only consider text lines to create the CRF grap nodes. Edges denote an horizontal or vertical neighborohood between two text lines.
-For multi-type CRF, we additionally consider the graphical lines as CRF nodes. We therefore have 2 types of nodes in our graph, and consequently 4 types of edges. In addition to the edges defined above between text lines, we create the edges due to the same neighborhood relation ship between text lines and graphical lines, and vice-versa, and among graphical lines.
+For multi-type CRF, we additionally consider the graphical lines as CRF nodes. We therefore have 2 types of nodes in our graph, and consequently 4 types of edges. In addition to the edges defined above between text lines, we create the edges due to the same neighborhood relation ship between text lines and graphical lines, and vice-versa, and among graphical lines. The single-type CRF graph is a sub-graph of the multi-type CRF graph.
 
 Features for nodes and edges are essentially geometric ones. We do not use the textual content of text lines. In particular, we produce the same sort of features for graphical lines and text lines.
 
 ----------------------------------------------------------------------------------------------------
 EVALUATION
-We run a 10-folds cross-validation.
+We run a 10-folds cross-validation. Each fold contains several documents. We then compute the standard precision and recall per node label per fold. We then compare the F1 measure of each method. 
 
 ----------------------------------------------------------------------------------------------------
 SCRIPT to reproduce the results (RR)
@@ -61,6 +61,12 @@ SCRIPT to reproduce the results (RR)
 	done
 	python /opt/project/read/jl_git/TranskribusDU/src/tasks/DU_ABPTable_T.py --fold-finish abp_models abp_T_CV10 
 	#result is in abp_models/abp_T_CV10_folds_STATS.txt
+	
+	#convenience to sump-up the results
+	cd abp_models
+	for lbl in RB RI RE RS; do egrep "^     abp_$lbl" abp_CV10_folds_STATS.txt   |head -10 >> abp_CV10_folds_STATS_by_lbl.txt; done
+	for lbl in RB RI RE RS; do egrep "^    text_$lbl" abp_T_CV10_folds_STATS.txt |head -10 >> abp_T_CV10_folds_STATS_by_lbl.txt; done
+	
 
 ----------------------------------------------------------------------------------------------------
 RESULTS
@@ -90,7 +96,7 @@ avg / total      0.866     0.865     0.864     94070
 
 avg / total      0.874     0.872     0.872    135237
 
-The difference is statistically significative (T-Test on the F1 differences, per text line label)
+The difference is statistically significant (paired difference test using Wilcoxon's test).
 
 --- confusion matrices
 - SINGLE-TYPE
