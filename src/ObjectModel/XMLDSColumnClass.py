@@ -45,8 +45,10 @@ class  XMLDSTABLECOLUMNClass(XMLDSObjectClass):
         self.tagName= 'COL'
         self.setName(XMLDSTABLECOLUMNClass.name)
     
-    def __str__(self):
+    def __repr__(self):
         return "%s %s"%(self.getName(),self.getIndex())        
+    def __str__(self):
+        return "%s %s"%(self.getName(),self.getIndex())       
     
     def getIndex(self): return self._index
     def setIndex(self,i): self._index = i

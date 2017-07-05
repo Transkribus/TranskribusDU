@@ -39,6 +39,8 @@ class  XMLDSPageClass(XMLDSObjectClass):
         self._VX2Info = []
         self._VXCInfo = []
         self._VWInfo = []
+        self._HGLFeatures = []
+        self._VGLFeatures = []
         
         self._X1X2 = []
         self.lf_XCut = []
@@ -114,7 +116,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(elt)       
-                elif elt.name == 'GRAPHELT':
+                elif elt.name in ['SeparatorRegion', 'GRAPHELT']:
                     myObject= XMLDSGRAPHLINEClass(elt)
                     self.addObject(myObject)
                     myObject.setPage(self)
@@ -187,7 +189,12 @@ class  XMLDSPageClass(XMLDSObjectClass):
         return self.lVerticalObjects[Template]
     
     
-    
+
+    def setHGLFeatures(self,f): self._HGLFeatures.append(f)
+    def getHGLFeatures(self): return self._HGLFeatures
+        
+    def setVGLFeatures(self,f): self._VGLFeatures.append(f)
+    def getVGLFeatures(self): return self._VGLFeatures
     
     def getVX1Info(self): return self._VX1Info
     def setVX1Info(self,lInfo):
