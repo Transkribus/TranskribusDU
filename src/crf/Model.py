@@ -266,7 +266,7 @@ class Model:
         Train the baseline models, if any
         """
         if self._lMdlBaseline:
-            X_flat = np.vstack( [node_features for (node_features, _, _) in lX] )
+            X_flat = np.vstack( node_features for (node_features, _, _) in lX )
             Y_flat = np.hstack(lY)
             with open("XY_flat.pkl", "wb") as fd: cPickle.dump((X_flat, Y_flat), fd)
             for mdlBaseline in self._lMdlBaseline:
@@ -289,7 +289,7 @@ class Model:
         
         lTstRpt = []
         if self._lMdlBaseline:
-            X_flat = np.vstack( [node_features for (node_features, _, _) in lX] )
+            X_flat = np.vstack( node_features for (node_features, _, _) in lX )
             Y_flat = np.hstack(lY)
             for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
                 chronoOn("_testBaselines")
@@ -312,18 +312,18 @@ class Model:
             #using a COnfusionMatrix-based test report object, we can accumulate results
             oTestReportConfu = TestReportConfusion(str(mdl), list(), lLabelName, lsDocName=lsDocName)
             for X,Y in zip(lX, lY):
-                Y_pred = mdl.predict(X)
+                Y_pred = mdl.predict(X) #I suspect a bug here. (JLM June 2017) Because X_flat is probably required.
                 oTestReportConfu.accumulate( TestReport(str(mdl), Y_pred, Y, lLabelName, lsDocName=lsDocName) )
             traceln("\t\t [%.1fs] done\n"%chronoOff())
             lTstRpt.append( oTestReportConfu )
         return lTstRpt                                                                              
     
-    def predictBaselines(self, X):
-        """
-        predict with the baseline models, 
-        return a list of 1-dim numpy arrays
-        """
-        return [mdl.predict(X) for mdl in self._lMdlBaseline]
+#     def predictBaselines(self, X):
+#         """
+#         predict with the baseline models, 
+#         return a list of 1-dim numpy arrays
+#         """
+#         return [mdl.predict(X) for mdl in self._lMdlBaseline]
 
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
     def train(self, lGraph, bWarmStart=True, expiration_timestamp=None):

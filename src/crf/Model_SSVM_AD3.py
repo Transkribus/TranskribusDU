@@ -122,16 +122,20 @@ class Model_SSVM_AD3(Model):
         Here we train a logistic regression model to predict the pair of labels of each edge.
         This code assume single type
         """
-        X_flat, Y_flat = self._getEdgeXEdgeY(lX, lY)
-        
-        with open("edgeXedgeY_flat.pkl", "wb") as fd: cPickle.dump((X_flat, Y_flat), fd)
-        
         self._EdgeBaselineModel = self.getEdgeModel()
-        chronoOn()
-        traceln("\t - training edge baseline model: %s"%str(self._EdgeBaselineModel))
-        self._EdgeBaselineModel.fit(X_flat, Y_flat)
-        traceln("\t [%.1fs] done\n"%chronoOff())
-        del X_flat, Y_flat
+        if self._EdgeBaselineModel:
+            X_flat, Y_flat = self._getEdgeXEdgeY(lX, lY)
+            
+            with open("edgeXedgeY_flat.pkl", "wb") as fd: cPickle.dump((X_flat, Y_flat), fd)
+            
+            chronoOn()
+            traceln("\t - training edge baseline model: %s"%str(self._EdgeBaselineModel))
+            self._EdgeBaselineModel.fit(X_flat, Y_flat)
+            traceln("\t [%.1fs] done\n"%chronoOff())
+            del X_flat, Y_flat
+        else:
+            traceln("\t - no edge baseline model for this model")
+            
         return True
 
     def _testEdgeBaselines(self, lX, lY, lLabelName=None, lsDocName=None):
@@ -264,7 +268,7 @@ class Model_SSVM_AD3(Model):
         """
         do a grid search instead of a normal training
         """
-        traceln("--- GRiD SEARCH FOR CRF MODEL ---")
+        traceln("--- GRID SEARCH FOR CRF MODEL ---")
         traceln("\t- computing features on training set")
         traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
         chronoOn()

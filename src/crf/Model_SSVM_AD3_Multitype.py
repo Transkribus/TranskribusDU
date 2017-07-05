@@ -210,14 +210,43 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
             lTstRpt.append( oTestReportConfu )
         return lTstRpt                                                                              
     
-    def predictBaselines(self, X):
-        """
-        predict with the baseline models, 
-        return a list of 1-dim numpy arrays
-        """
-        return [mdl.predict(X) for mdl in self._lMdlBaseline]
+#     def predictBaselines(self, X):
+#         """
+#         predict with the baseline models, 
+#         return a list of 1-dim numpy arrays
+#         """
+#         return [mdl.predict(X) for mdl in self._lMdlBaseline]
 
+    # --- EDGE BASELINE -------------------------------------------------------------
+    #no time to write this code
+    def getEdgeModel(self):
+        """
+        Logisitic regression model for edges
+        """
+        return None
+        
+    def _getEdgeXEdgeY(self, lX, lY):
+        """
+        return X,Y for each edge
+        The edge label is in [0, ntype^2-1]
+        """
+        return None
     
+    def _trainEdgeBaseline(self, lX, lY):
+        """
+        Here we train a logistic regression model to predict the pair of labels of each edge.
+        This code assume single type
+        """
+
+        return True
+
+    def _testEdgeBaselines(self, lX, lY, lLabelName=None, lsDocName=None):
+        """
+        test the edge baseline model, 
+        return a test report list (a singleton for now)
+        """
+        return []
+       
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
     def _getCRFModel(self, clsWeights=None):
 
@@ -235,6 +264,7 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
         """
         This is tricky. Uniform weight for now.
         """
+        traceln("\t NOTE: uniform class weights ! (do not know how to properly deal with unbalanced classes per type)")
         return None
 
     
