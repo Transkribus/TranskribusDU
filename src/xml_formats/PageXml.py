@@ -697,6 +697,8 @@ Utility to create a set of MultipageXml XML files from a set of folders, each co
                       , help="reformat/reindent the input")    
     parser.add_option("--compress", dest='bCompress',  action="store_true"
                       , help="Turn on gzip compression of output")    
+    parser.add_option("--ext", dest='extension',  action="store", default=''
+                      , help="process only .ext ")  
     (options, args) = parser.parse_args()
 
     try:
@@ -714,10 +716,13 @@ Utility to create a set of MultipageXml XML files from a set of folders, each co
             continue
         
         print "Processing %s..."%sDir,
-        l =      glob.glob(os.path.join(sDir, "*.xml"))
-        l.extend(glob.glob(os.path.join(sDir, "*.pxml")))
-        l.extend(glob.glob(os.path.join(sDir, "*.xml.gz")))
-        l.extend(glob.glob(os.path.join(sDir, "*.pxml.gz")))
+        if options.extension != '':
+            l =      glob.glob(os.path.join(sDir, "*.%s"%options.extension))
+        else:
+            l =      glob.glob(os.path.join(sDir, "*.xml"))
+            l.extend(glob.glob(os.path.join(sDir, "*.pxml")))
+            l.extend(glob.glob(os.path.join(sDir, "*.xml.gz")))
+            l.extend(glob.glob(os.path.join(sDir, "*.pxml.gz")))
         l.sort()
         print "   %d pages"%len(l)
         

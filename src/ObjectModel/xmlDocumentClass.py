@@ -114,6 +114,7 @@ class  XMLDocument(documentObject):
 
     def getAllNamedObjects(self,objectName):
         lList =[]
+        print objectName, self.getName()
         try:
             if isinstance(self,objectName):
                 lList.append(self)

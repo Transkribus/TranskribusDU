@@ -27,20 +27,57 @@
 """
 from sklearn.base import BaseEstimator, TransformerMixin
 
+from sklearn.preprocessing import StandardScaler
+
 class Transformer(BaseEstimator, TransformerMixin):
     def __init__(self):
         BaseEstimator.__init__(self)
         TransformerMixin.__init__(self)
         
-    def fit(self, x, y=None):
+    def fit(self, l, y=None):
         return self
 
     def transform(self, l):
-        assert False, "Specialise this method!"
+        assert False, "Specialize this method!"
         
 class SparseToDense(Transformer):
     def __init__(self):
         Transformer.__init__(self)
     def transform(self, o):
         return o.toarray()
+
+
     
+class TransformerListByType(list, Transformer):
+    """
+    This is a list of transformer by type (node type or edge type)
+    """
+        
+    def fit(self, l, y=None):
+        """
+        self is a list of transformers, one per type
+        l is a list of objects 
+        """
+        return [ t.fit(l) for t in self]
+    
+    def transform(self, l):
+        """
+        self is a list of transformers, one per type
+        l is a list of feature matrix, one per type
+        """
+        assert len(self) == len(l), "Internal error"
+        return [ t.transform(lo) for t, lo in zip(self, l)]
+
+class RobustStandardScaler(StandardScaler):
+    """
+    Same as its super class apart that it  does not crash when th einput array is empty
+    """
+    def transform(self, X, y=None, copy=None):
+        try:
+            return StandardScaler.transform(self, X, y, copy)
+        except ValueError as e:
+            if X.shape[0] == 0:
+                return X #just do not crash
+            else:
+                #StandardScaler failed for some other reason
+                raise e

@@ -155,8 +155,8 @@ MKZ    PDKZ    Pfarrei    Band    Teilband    Seite    Teilseite    Nummer    Nu
             for lfields in  dPages[pagenum]:
                 record = libxml2.newNode('RECORD')
                 domp.addChild(record)
-                record.setProp('firstname',lfields[1].decode('ISO-8859-1').encode('UTF-8'))
-                record.setProp('lastname',lfields[2].decode('ISO-8859-1').encode('UTF-8'))
+                record.setProp('lastname',lfields[1].decode('ISO-8859-1').encode('UTF-8'))
+                record.setProp('firstname',lfields[2].decode('ISO-8859-1').encode('UTF-8'))
                 record.setProp('role',lfields[0].decode('ISO-8859-1').encode('UTF-8'))
                 record.setProp('location',lfields[3].decode('ISO-8859-1').encode('UTF-8'))                
                 record.setProp('occupation',lfields[4].decode('ISO-8859-1').encode('UTF-8'))

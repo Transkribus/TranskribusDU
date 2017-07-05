@@ -39,7 +39,9 @@
 import numpy as np
 
 from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.preprocessing import StandardScaler
+#not robust to empty arrays, so use our robust intermediary class instead
+#from sklearn.preprocessing import StandardScaler
+from crf.Transformer import RobustStandardScaler as StandardScaler
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from crf.Transformer import SparseToDense
@@ -155,7 +157,10 @@ TypeError: can't pickle PyCapsule objects
         self._node_transformer = node_transformer
         self._edge_transformer = edge_transformer
 
-    def fitTranformers(self, lGraph,lY=None):
+#         #dirty trick to enable testing the logit models
+#         self._node_transformer._testable_extractor_ = self._node_transf_logit
+        
+    def fitTranformers(self, lGraph):
         """
         Fit the transformers using the graphs
         return True 
@@ -190,3 +195,4 @@ TypeError: can't pickle PyCapsule objects
 #         for i in [2, 3, 4, 5, 6, 7]:
 #             self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
         return self._node_transformer, self._edge_transformer        
+

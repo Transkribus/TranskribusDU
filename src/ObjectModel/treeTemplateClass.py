@@ -75,33 +75,6 @@ class treeTemplateClass(templateClass):
         else:
             pass
 
-#     def buildTreeFromPattern(self,pattern):
-#         """
-#              create a tree structure corresponding to pattern
-#         """
-#         self.setPattern(pattern)
-# #         print 'creation:',self.getPattern()
-#         if isinstance(pattern,list):
-#             if self.getChildren() is not None:
-#                 if  'list' not in map(lambda x:type(x.getPattern()).__name__, self.getChildren()):
-#                     #terminal
-#                     ctemplate  = treeTemplateClass()
-#                     ctemplate.setPattern(pattern)
-#                     self.addChild(ctemplate)
-#                     ctemplate.setParent(self)                
-#                 else:
-#                     for child in self.getPattern():
-#         #                 print 'child',child
-#                         ctemplate  = treeTemplateClass()
-#         #                 ctemplate.setPattern(child)
-#                         ctemplate.buildTreeFromPattern(child)
-#                         self.addChild(ctemplate)
-#                         ctemplate.setParent(self)
-#         #             print '--',self.getChildren()
-#         else:
-#             pass
-#             #terminal
-            
     
     def getTerminalTemplates(self):
         """
@@ -151,7 +124,6 @@ class treeTemplateClass(templateClass):
             
             
         """
-        from sklearn.preprocessing import normalize
         def buildObs(lRegCuts,lCuts):
             N=len(lRegCuts)+1
             obs = np.zeros((N,len(lCuts)), dtype=np.float16)
@@ -161,26 +133,29 @@ class treeTemplateClass(templateClass):
                     if x.getType() == refx.getType():
                         ## numerical 
 #                         print x, refx, abs(x.getValue()-refx.getValue()) , refx.getTH()
-                        if abs(x.getValue()-refx.getValue()) < refx.getTH():
-                            obs[i,j]=  x.getWeight() * ( refx.getTH() - ( abs(x.getValue()-refx.getValue()))) / refx.getTH()
+#                         print x, refx, "dist=%s"%x.getDistance(refx)
+                        dist =  x.getDistance(refx)
+                        if dist < refx.getTH():
+                            obs[i,j]=  x.getWeight() * ( refx.getTH() - ( dist)) / refx.getTH()
 #                             print x,refx, obs[i,j], ( refx.getTH() - ( abs(x.getValue()-refx.getValue()))) / refx.getTH(), x.getWeight(), refx.getTH(),  ( refx.getTH() - ( abs(x.getValue()-refx.getValue()))),abs(x.getValue()-refx.getValue()) 
-                        elif abs(x.getValue()-refx.getValue()) < (refx.getTH() * 2 ):
-                            obs[i,j]=  x.getWeight() * ( (refx.getTH() * 2) - ( abs(x.getValue()-refx.getValue()))) / ( refx.getTH() * 2 )
+                        elif dist < (refx.getTH() * 2 ):
+                            obs[i,j]=  x.getWeight() *  ( (refx.getTH() * 2) - ( dist)) / ( refx.getTH() * 2 )
                         ## STRING
                         ### TODO
                         else:
                             # go to empty state
                             obs[-1,j] = 1.0
                         if np.isinf(obs[i,j]):
-                            obs[i,j]=64000
+                            obs[i,j] = min(refx.getWeight(),64000)
                         if np.isnan(obs[i,j]):
                             obs[i,j]=10e-3
+#                         print x, refx, refx.getWeight(), obs[i,j]
                     else:
                         obs[-1,j] = 1.0
-#                     print x,refx, obs[i,j]
+#                     print x,refx, obs[i,j], refx.getWeight()
             if np.amax(obs) != 0:
                 # elt with no feature obs=0
-                return obs / np.amax(obs)
+                return obs# / np.amax(obs)
             else:
                 return obs
 
@@ -208,6 +183,7 @@ class treeTemplateClass(templateClass):
 #         print obs
         d = viterbi.Decoder(initialProb, transProb, obs)
         states,score =  d.Decode(np.arange(len(lCuts)))
+#         print "dec",score, states 
 #         print map(lambda x:(x,x.getCanonical().getWeight()),lCuts)
 #         print states
 #         for i,si in enumerate(states):
@@ -217,7 +193,7 @@ class treeTemplateClass(templateClass):
         # return the best alignment with template
         return states, score                
                 
-    def computeScore(self,patLen,lReg,lCuts):
+    def computeScore(self,patLen,lReg,lMissed,lCuts):
         """
             it seems better not to use canonical: thus score better reflects the page 
             
@@ -228,12 +204,21 @@ class treeTemplateClass(templateClass):
 #         print lCuts
 #         print map(lambda x:x.getWeight(),lCuts)
         fFound= 1.0 * sum(map(lambda (r,x):x.getWeight(),lReg))
-
         fTotal = 1.0 * sum(map(lambda x:x.getWeight(),lCuts))
-#         print "# match:",len(set(map(lambda (r,x):r,lReg))), patLen,fFound, fTotal
+        fMissed = 1.0 * sum(map(lambda x:x.getWeight(),lMissed))
+
+        dist = sum(map(lambda (x,y): abs(x.getValue()-y.getValue()),lReg))
+        
+#         print map(lambda (x,y): abs(x.getValue()-y.getValue()),lReg)
+        if dist ==0:dist=1.0
+#         print "# match:",len(set(map(lambda (r,x):r,lReg))), patLen,fFound, fTotal, dist 
         # how many of the lreg found:
         ff= 1.0*len(set(map(lambda (r,x):r,lReg)))/patLen
-        return  ff*(fFound/fTotal)
+        assert dist/patLen != 0
+#         ff= 1/(dist)
+#         ff=1.0
+#         print ff, dist,fFound,fTotal, fMissed ,fFound/(fTotal + fMissed),ff*(fFound/(fTotal + fMissed))
+        return  ff*(fFound/(fTotal + fMissed))
         
     def selectBestUniqueMatch(self,lFinres):
         """
@@ -251,6 +236,7 @@ class treeTemplateClass(templateClass):
         for mykey in ll:
             kRef[mykey].sort(key=lambda x:x.getWeight(),reverse=True)
             lUniqMatch.append((mykey, kRef[mykey][0]))
+            
         return lUniqMatch
               
     def registration(self,anobject):
@@ -259,8 +245,8 @@ class treeTemplateClass(templateClass):
             can only a terminal template 
         """
         lobjectFeatures = anobject.lFeatureForParsing
-#         lobjectFeatures = anobject._fullFeatures
-#         print "?",anobject, lobjectFeatures
+#         lobjectFeatures = anobject._fullFeaturesx
+#         print "?",anobject, lobjectFeatures, self
         # empty object
         if lobjectFeatures == []:
             return None,None,-1
@@ -268,20 +254,22 @@ class treeTemplateClass(templateClass):
 #         print self.getPattern(), lobjectFeatures
         self.getPattern().sort(key=lambda x:x.getValue())
 #         print self.getPattern(), anobject, lobjectFeatures
-        bestReg, curScore = self.findBestMatch(self.getPattern(),lobjectFeatures)
-#         print bestReg
+        bestReg, curScore = self.findBestMatch(self.getPattern(), lobjectFeatures)
+#         print bestReg, curScore
         ltmp = self.getPattern()[:]
         ltmp.append('EMPTY')
         lMissingIndex = filter(lambda x: x not in bestReg, range(0,len(self.getPattern())+1))
         lMissing = np.array(ltmp)[lMissingIndex].tolist()
         lMissing = filter(lambda x: x!= 'EMPTY',lMissing)
         result = np.array(ltmp)[bestReg].tolist()
-        lFinres= filter(lambda (x,y): x!= 'EMPTY',zip(result,lobjectFeatures))
+        lFinres= filter(lambda (x,y): x!= 'EMPTY',zip(result, lobjectFeatures))
+#         print map(lambda x:(x,x.getWeight()),self.getPattern())
         if lFinres != []:
-            score1 = self.computeScore(len(self.getPattern()),lFinres,lobjectFeatures)
             lFinres =  self.selectBestUniqueMatch(lFinres)
+#             print lFinres
+            score1 = self.computeScore(len(self.getPattern()), lFinres, lMissing,lobjectFeatures)
         # for estimating missing?
-#         self.selectBestAnchor(lFinres) 
+#         self.selectBestAnchor(lFinres)
             return lFinres,lMissing,score1
         else:
             return None,None,-1

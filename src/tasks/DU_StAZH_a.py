@@ -63,7 +63,7 @@ class DU_StAZH_a(DU_CRF_Task):
     """
 
     #=== CONFIGURATION ====================================================================
-    def __init__(self, sModelName, sModelDir, sComment=None): 
+    def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
         
         DU_CRF_Task.__init__(self
                              , sModelName, sModelDir
@@ -76,19 +76,29 @@ class DU_StAZH_a(DU_CRF_Task):
                                   , 't_ngrams_edge'   : (2,4)
                                   , 'b_tfidf_edge_lc' : False    
                               }
+#                              , dLearnerConfig = {
+#                                     'C'                : .1 
+# #                                    'C'                : 1.0 
+#                                  , 'njobs'            : 4
+#                                  , 'inference_cache'  : 50
+#                                 , 'tol'              : .1
+# #                                  , 'tol'              : 0.05
+#                                 , 'save_every'       : 50     #save every 50 iterations,for warm start
+#                                  , 'max_iter'         : 250
+#                                  }
+#                                                            }
                              , dLearnerConfig = {
-                                    'C'                : .1 
-#                                    'C'                : 1.0 
-                                 , 'njobs'            : 4
-                                 , 'inference_cache'  : 50
-                                , 'tol'              : .1
-#                                  , 'tol'              : 0.05
-                                , 'save_every'       : 50     #save every 50 iterations,for warm start
-                                 , 'max_iter'         : 250
+                                   'C'                : .1   if C               is None else C
+                                 , 'njobs'            : 5    if njobs           is None else njobs
+                                 , 'inference_cache'  : 50   if inference_cache is None else inference_cache
+                                 #, 'tol'              : .1
+                                 , 'tol'              : .05  if tol             is None else tol
+                                 , 'save_every'       : 50     #save every 50 iterations,for warm start
+                                 , 'max_iter'         : 1000 if max_iter        is None else max_iter
                                  }
                              , sComment=sComment
                              )
-        
+        #deprecated self.setNbClass(5+1)
         self.addBaseline_LogisticRegression()    #use a LR model as baseline
     #=== END OF CONFIGURATION =============================================================
 
@@ -107,7 +117,12 @@ if __name__ == "__main__":
     except Exception as e:
         _exit(usage, 1, e)
         
-    doer = DU_StAZH_a(sModelName, sModelDir)
+    doer = DU_StAZH_a(sModelName, sModelDir,
+                      C                 = options.crf_C,
+                      tol               = options.crf_tol,
+                      njobs             = options.crf_njobs,
+                      max_iter          = options.crf_max_iter,
+                      inference_cache   = options.crf_inference_cache)
     
     if options.rm:
         doer.rm()

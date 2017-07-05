@@ -25,6 +25,7 @@
     
 """
 TEST_getPageXmlBlock = False
+import types
 
 from common.trace import traceln
 
@@ -33,8 +34,22 @@ from xml_formats.PageXml import PageXml
 from util.Polygon import Polygon
 from Block import Block
 
-class NodeType_PageXml(NodeType):
+def defaultBBoxDeltaFun(w):
+    """
+    When we reduce the width or height of a bounding box, we use this function to compute the deltaX or deltaY
+    , which is applied on x1 and x2 or y1 and y2
+    
+    For instance, for horizontal axis
+        x1 = x1 + deltaFun(abs(x1-x2))
+        x2 = x2 + deltaFun(abs(x1-x2))
+    """
+    # "historically, we were doing:
+    dx = max(w * 0.066, min(20, w/3))
+    #for ABP table RV is doing: dx = max(w * 0.066, min(5, w/3)) , so this function can be defined by the caller.
+    return dx 
+    
 
+class NodeType_PageXml(NodeType):
     #where the labels can be found in the data
     sCustAttr_STRUCTURE     = "structure"
     sCustAttr2_TYPE         = "type"
@@ -42,13 +57,17 @@ class NodeType_PageXml(NodeType):
     #Namespace, of PageXml, at least
     dNS = {"pc":PageXml.NS_PAGE_XML}
 
-    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True):
+    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun):
         NodeType.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther)
+        
+        self.BBoxDeltaFun = BBoxDeltaFun
+        assert type(self.BBoxDeltaFun) == types.FunctionType, "Error: BBoxDeltaFun must be a function (or a lambda)"
 
     def setXpathExpr(self, (sxpNode, sxpTextual)):
         self.sxpNode    = sxpNode
         self.sxpTextual = sxpTextual
-        
+    
+    
     def parseDomNodeLabel(self, domnode, defaultCls=None):
         """
         Parse and set the graph node label and return its class index
@@ -61,8 +80,11 @@ class NodeType_PageXml(NodeType):
                 sLabel = self.dXmlLabel2Label[sXmlLabel]
             except KeyError:
                 #not a label of interest
-                if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
-                    raise ValueError("Invalid label in node %s"%str(domnode))
+                try:
+                    self.checkIsIgnored(sXmlLabel)
+                    #if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
+                except:
+                    raise ValueError("Invalid label '%s' in node %s"%(sXmlLabel, str(domnode)))
         except KeyError:
             #no label at all
             if not self.sDefaultLabel: raise ValueError("Missing label in node %s"%str(domnode))
@@ -103,14 +125,30 @@ class NodeType_PageXml(NodeType):
             
             #now we need to infer the bounding box of that object
             lXY = PageXml.getPointList(ndBlock)  #the polygon
+            if lXY == []:
+                continue
+            
             plg = Polygon(lXY)
-            x1,y1, x2,y2 = plg.fitRectangle()
-            if True:
-                #we reduce a bit this rectangle, to ovoid overlap
-                w,h = x2-x1, y2-y1
-                dx = max(w * 0.066, min(20, w/3))  #we make sure that at least 1/"rd of te width will remain!
-                dy = max(h * 0.066, min(20, w/3))
-                x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
+            try:
+                x1,y1, x2,y2 = plg.fitRectangle()
+            except ZeroDivisionError:
+#                 traceln("Warning: ignoring invalid polygon id=%s page=%s"%(ndBlock.prop("id"), page.pnum))
+#                 continue
+#             if True:
+#                 #we reduce a bit this rectangle, to ovoid overlap
+#                 w,h = x2-x1, y2-y1
+#                 dx = max(w * 0.066, min(20, w/3))  #we make sure that at least 1/"rd of te width will remain!
+#                 dy = max(h * 0.066, min(20, w/3))
+#                 x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
+
+                x1,y1,x2,y2 = plg.getBoundingBox()
+                
+            #we reduce a bit this rectangle, to ovoid overlap
+            w,h = x2-x1, y2-y1
+            dx = self.BBoxDeltaFun(w)
+            dy = self.BBoxDeltaFun(h)
+            x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
+                
             
             #TODO
             orientation = 0  #no meaning for PageXml
@@ -118,12 +156,9 @@ class NodeType_PageXml(NodeType):
 
             #and create a Block
             assert ndBlock
-            blk = Block(page.pnum, (x1, y1, x2-x1, y2-y1), sText, orientation, classIndex, self, ndBlock, domid=domid)
+            blk = Block(page, (x1, y1, x2-x1, y2-y1), sText, orientation, classIndex, self, ndBlock, domid=domid)
             assert blk.node
             
-            #link it to its page
-            blk.page = page
-
             if TEST_getPageXmlBlock:
                 #dump a modified XML to view the rectangles
                 import util.xml_utils
@@ -134,8 +169,8 @@ class NodeType_PageXml(NodeType):
                 ndTextLine.setProp("width", str(x2-x1))
                 ndTextLine.setProp("height", str(y2-y1))
                 ndTextLine.setContent(sText)
-                #ndCoord = util.xml_utils.addElement(doc, ndTextLine, "Coords")
-                #PageXml.setPoints(ndCoord, PageXml.getPointsFromBB(x1,y1,x2,y2))
+                ndCoord = util.xml_utils.addElement(doc, ndTextLine, "Coords")
+                PageXml.setPoints(ndCoord, PageXml.getPointsFromBB(x1,y1,x2,y2))
             yield blk
             
         ctxt.xpathFreeContext()       
@@ -173,8 +208,8 @@ class NodeType_PageXml_type(NodeType_PageXml):
     
     sLabelAttr = "type"
 
-    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True):
-        NodeType.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther)
+    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun):
+        NodeType_PageXml.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther, BBoxDeltaFun)
             
     def parseDomNodeLabel(self, domnode, defaultCls=None):
         """
@@ -182,17 +217,17 @@ class NodeType_PageXml_type(NodeType_PageXml):
         raise a ValueError if the label is missing while bOther was not True, or if the label is neither a valid one nor an ignored one
         """
         sLabel = self.sDefaultLabel
+        
+        sXmlLabel = domnode.prop(self.sLabelAttr)
         try:
-            sXmlLabel = domnode.prop(self.sLabelAttr)
-            try:
-                sLabel = self.dXmlLabel2Label[sXmlLabel]
-            except KeyError:
-                #not a label of interest
-                if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
-                    raise ValueError("Invalid label in node %s"%str(domnode))
+            sLabel = self.dXmlLabel2Label[sXmlLabel]
         except KeyError:
-            #no label at all
-            if not self.sDefaultLabel: raise ValueError("Missing label in node %s"%str(domnode))
+            #not a label of interest
+            try:
+                self.checkIsIgnored(sXmlLabel)
+                #if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
+            except:
+                raise ValueError("Invalid label '%s' in node %s"%(sXmlLabel, str(domnode)))
         
         return sLabel
 
@@ -204,9 +239,17 @@ class NodeType_PageXml_type(NodeType_PageXml):
         if sLabel != self.sDefaultLabel:
             domnode.setProp(self.sLabelAttr, self.dLabel2XmlLabel[sLabel])
         return sLabel
-    
+
+class NodeType_PageXml_type_woText(NodeType_PageXml_type):
+    """
+            for document wo HTR: no text
+    """
+    def _get_GraphNodeText(self, doc, domNdPage, ndBlock, ctxt=None):
+        return u""
+   
+
 #---------------------------------------------------------------------------------------------------------------------------    
-class NodeType_PageXml_type_GTBooks(NodeType_PageXml_type):
+class NodeType_PageXml_type_NestedText(NodeType_PageXml_type):
     """
     In those PageXml, the text is not always is in the type attribute! 
     
@@ -228,7 +271,7 @@ class NodeType_PageXml_type_GTBooks(NodeType_PageXml_type):
             if len(lNdText) > 1: raise ValueError("More than 1 textual content for this node: %s"%str(ndBlock))
             
             #let's try to get th etext of the words, and concatenate...
-            traceln("Warning: no text in node %s => looking at words!"%ndBlock.prop("id")) 
+            # traceln("Warning: no text in node %s => looking at words!"%ndBlock.prop("id")) 
             lsText = [ntext.content.decode('utf-8').strip() for ntext in ctxt.xpathEval('.//pc:Word/pc:TextEquiv//text()')] #if we have both PlainText and UnicodeText in XML, :-/
             return " ".join(lsText)
         

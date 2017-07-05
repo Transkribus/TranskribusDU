@@ -63,8 +63,11 @@ class NodeType_DS(NodeType):
                 sLabel = self.dXmlLabel2Label[sXmlLabel]
             except KeyError:
                 #not a label of interest
-                if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
-                    raise ValueError("Invalid label in node %s"%str(domnode))            
+                try:
+                    self.checkIsIgnored(sXmlLabel)
+                    #if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
+                except:
+                    raise ValueError("Invalid label '%s' in node %s"%(sXmlLabel, str(domnode)))
 
         if not sLabel: raise ValueError("Missing label in node %s"%str(domnode))
         
@@ -115,12 +118,9 @@ class NodeType_DS(NodeType):
                 
             #and create a Block
             assert ndBlock
-            blk = Block(page.pnum, (x1, y1, w, h), sText, orientation, classIndex, self, ndBlock, domid=domid)
+            blk = Block(page, (x1, y1, w, h), sText, orientation, classIndex, self, ndBlock, domid=domid)
             assert blk.node
             
-            #link it to its page
-            blk.page = page
-
             yield blk
             
         ctxt.xpathFreeContext()       

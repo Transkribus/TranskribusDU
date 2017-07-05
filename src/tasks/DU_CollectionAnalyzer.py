@@ -222,7 +222,7 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
 
     def runPageXml(self, sRootDir):
         lFolder = [os.path.basename(folder) for folder in glob.iglob(os.path.join(sRootDir, self.sDocPattern)) 
-                                if os.path.isdir(os.path.join(sRootDir, folder))]
+                                if os.path.isdir(folder)]
         lFolder.sort()
         print "Documents: ", lFolder
         
@@ -250,7 +250,7 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
         print os.path.join(sRootDir, self.sDocPattern)
         print glob.glob(os.path.join(sRootDir, self.sDocPattern))
         lDocFile = [os.path.basename(filename) for filename in glob.iglob(os.path.join(sRootDir, self.sDocPattern)) 
-                                if os.path.isfile(os.path.join(sRootDir, filename))]
+                                if os.path.isfile(filename)]
         lDocFile.sort()
         print "Documents: ", lDocFile
         
@@ -314,8 +314,12 @@ if __name__ == "__main__":
         ltTagAttr = [ (name, "type") for name in ["Page", "TextRegion", "GraphicRegion", "CharRegion", "RelationType"]]
         print sRootDir, sDocPattern, sPagePattern, ltTagAttr
     except:
-        print "Usage: %s sRootDir sDocPattern [sPagePattern]"%(sys.argv[0] )
+        print """Usage: %s sRootDir sDocPattern [sPagePattern]
+For Multi-PageXml, only root directory and document name pattern
+For PageXml, give also the Xml filename pattern
+"""%sys.argv[0]
         exit(1)
+        
             
 #         if bMODEUN:
 #             #all tag supporting the attribute type in PageXml 2003
