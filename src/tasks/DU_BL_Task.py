@@ -114,9 +114,10 @@ class DU_BL_Task(DU_CRF_Task):
             mdl.loadTransformers(ts_trn)
         except crf.Model.ModelException:
             fe = self.cFeatureDefinition(**self.config_extractor_kwargs)
-            lY = [g.buildLabelMatrix() for g in lGraph_trn]
-            lY_flat = np.hstack(lY)
-            fe.fitTranformers(lGraph_trn,lY_flat)
+            #lY = [g.buildLabelMatrix() for g in lGraph_trn]
+            #lY_flat = np.hstack(lY)
+            #fe.fitTranformers(lGraph_trn,lY_flat)
+            fe.fitTranformers(lGraph_trn)
             fe.cleanTransformers()
             mdl.setTranformers(fe.getTransformers())
             mdl.saveTransformers()

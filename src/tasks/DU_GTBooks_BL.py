@@ -37,18 +37,25 @@ from common.trace import traceln
 from tasks import _checkFindColDir, _exit
 
 from crf.Graph_MultiPageXml import Graph_MultiPageXml
-from crf.NodeType_PageXml   import NodeType_PageXml_type_GTBooks
-
+from crf.NodeType_PageXml   import NodeType_PageXml_type_NestedText
 from DU_CRF_Task import DU_CRF_Task
 from DU_BL_Task import DU_Baseline
 from crf.FeatureDefinition_PageXml_GTBooks import FeatureDefinition_GTBook
 
 # ===============================================================================================================
 
-lLabels = ['TOC-entry', 'caption', 'catch-word'
-                         , 'footer', 'footnote', 'footnote-continued'
-                         , 'header', 'heading', 'marginalia', 'page-number'
-                         , 'paragraph', 'signature-mark']   #EXACTLY as in GT data!!!!
+lLabels =  ['TOC-entry'         #0
+            , 'caption'
+            , 'catch-word'
+                         , 'footer'
+                         , 'footnote'                #4
+                         , 'footnote-continued'
+                         , 'header'             #6
+						 , 'heading'          #7
+                         , 'marginalia'
+                         , 'page-number'    #9
+                         , 'paragraph'    #10
+                         , 'signature-mark']
 lIgnoredLabels = None
 
 nbClass = len(lLabels)
@@ -56,21 +63,44 @@ nbClass = len(lLabels)
 """
 if you play with a toy collection, which does not have all expected classes, you can reduce those.
 """
-lActuallySeen = [0, 4, 7, 9, 10]
-# lActuallySeen = None
+lActuallySeen = [4, 6, 7, 9, 10]
+#lActuallySeen = [4, 6]
+"""
+                0-            TOC-entry    5940 occurences       (   2%)  (   2%)
+                1-              caption     707 occurences       (   0%)  (   0%)
+                2-           catch-word     201 occurences       (   0%)  (   0%)
+                3-               footer      11 occurences       (   0%)  (   0%)
+                4-             footnote   36942 occurences       (  11%)  (  11%)
+                5-   footnote-continued    1890 occurences       (   1%)  (   1%)
+                6-               header   15910 occurences       (   5%)  (   5%)
+                7-              heading   18032 occurences       (   6%)  (   6%)
+                8-           marginalia    4292 occurences       (   1%)  (   1%)
+                9-          page-number   40236 occurences       (  12%)  (  12%)
+               10-            paragraph  194927 occurences       (  60%)  (  60%)
+               11-       signature-mark    4894 occurences       (   2%)  (   2%)
+"""
+lActuallySeen = None
 if lActuallySeen:
-    print "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING"
+    traceln("REDUCING THE CLASSES TO THOSE SEEN IN TRAINING")
     lIgnoredLabels  = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
     lLabels         = [lLabels[i] for i in lActuallySeen ]
-    print len(lLabels)          , lLabels
-    print len(lIgnoredLabels)   , lIgnoredLabels
+    traceln(len(lLabels)          , lLabels)
+    traceln(len(lIgnoredLabels)   , lIgnoredLabels)
     nbClass = len(lLabels) + 1  #because the ignored labels will become OTHER
 
-#DEFINING THE CLASS OF GRAPH WE USE
-DU_GRAPH = Graph_MultiPageXml
-nt = NodeType_PageXml_type_GTBooks("gtb"                   #some short prefix because labels below are prefixed with it
-                      , lLabels
-                      , lIgnoredLabels
+    #DEFINING THE CLASS OF GRAPH WE USE
+    DU_GRAPH = Graph_MultiPageXml
+    nt = NodeType_PageXml_type_NestedText("gtb"                   #some short prefix because labels below are prefixed with it
+                          , lLabels
+                          , lIgnoredLabels
+                              , True    #no label means OTHER
+                              )
+else:
+    #DEFINING THE CLASS OF GRAPH WE USE
+    DU_GRAPH = Graph_MultiPageXml
+    nt = NodeType_PageXml_type_NestedText("gtb"                   #some short prefix because labels below are prefixed with it
+                          , lLabels
+                          , lIgnoredLabels
                       , False    #no label means OTHER
                       )
 nt.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
