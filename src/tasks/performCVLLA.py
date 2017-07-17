@@ -41,6 +41,7 @@ from common.trace import traceln
 from xml_formats.PageXml import PageXml
 from xml_formats.PageXml import MultiPageXml
 
+from util.Polygon import Polygon
 import libxml2
   
 class LAProcessor(Component.Component):
@@ -150,7 +151,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
     else:
         cNomacs = "/opt/Tools/src/tuwien-2017/nomacs/nomacs"
         
-    
+
     #--- INIT -------------------------------------------------------------------------------------------------------------    
     def __init__(self):
         """
@@ -164,6 +165,10 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         self.bTemplate = False
         self.bBaseLine = False
         self.bSeparator = False
+        self.bRegularTextLine = False
+
+        self.xmlns='http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
+
         
     def setParams(self, dParams):
         """
@@ -183,7 +188,8 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             self.bSeparator = dParams["bSeparator"]
         if dParams.has_key("template"):         
             self.bTemplate = dParams["template"]                        
-
+        if dParams.has_key("regTL"):         
+            self.bRegularTextLine = dParams["regTL"]  
 
                 
     
@@ -285,7 +291,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
 #                 traceln("   *** WARNING: XML file is invalid against the schema: '%s'"%self.outputFileName)
 #         traceln(" Ok!")        
     
-        return doc
+        return doc, sMPXML
     
     
     def extractFileNamesFromMPXML(self,mpxmlFile):
@@ -365,10 +371,42 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
 #         lFullPathXMLNames.sort()
         lFullPathXMLNames = self.extractFileNamesFromMPXML(doc)
 #         print lFullPathXMLNames
-        doc = self.storeMPXML(lFullPathXMLNames)     
+        doc, sMPXML= self.storeMPXML(lFullPathXMLNames)     
+        if self.bRegularTextLine:
+            self.regularTextLines(doc)
+        doc.saveFormatFileEnc(sMPXML,"UTF-8",True)       
+
         return doc   
     
-        
+    def regularTextLines(self,doc):
+        """
+            from a baseline: create a regular TextLine:
+            
+            also: for slanted baseline: 
+                
+        """
+ 
+        lTextLines = PageXml.getChildByName(doc.getRootElement(),'TextLine')
+        for tl in lTextLines:
+            print tl
+            coord= tl.children
+            baseline = tl.children.next
+            sPoints=baseline.prop('points')
+            lsPair = sPoints.split(' ')
+            lXY = list()
+            for sPair in lsPair:
+                try:
+                    (sx,sy) = sPair.split(',')
+                    lXY.append( (int(sx), int(sy)) )
+                except ValueError:print tl
+            plg = Polygon(lXY)  
+            iHeight=15
+            x1,y1, x2,y2 = plg.getBoundingBox()
+            print  x1,y1, x2,y2 
+            print x1,y1-iHeight,x2,y1-iHeight,x2,y2,x1,y2
+            print 
+            coord.setProp('points',"%d,%d %d,%d %d,%d %d,%d"%(x1,y1-iHeight,x2,y1-iHeight,x2,y2,x1,y2))                     
+            print tl
     def run(self,doc):
         """
             GT from TextRegion
@@ -401,6 +439,8 @@ if __name__ == "__main__":
     tp.add_option("--bl", dest="bBaseline", action="store_true", default=False, help="detect baselines")
     tp.add_option("--region", dest="bRegion", action="store_true", default=False, help="detect Region")
     tp.add_option("--sep", dest="bSeparator", action="store_true", default=False, help="detect separator (graphical lines)")
+    tp.add_option("--regTL", dest="regTL", action="store_true", default=False, help="generate regular TextLines")
+
     tp.add_option("--form", dest="template", action="store", type="string", help="perform templat registration")
         
     #parse the command line
