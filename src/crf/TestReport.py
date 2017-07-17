@@ -235,13 +235,14 @@ class TestReportConfusion(TestReport):
         oret = TestReportConfusion(name, [], lsClassName=o0.lsClassName, lsDocName=[] if o0.lsDocName else None)
         
         #we also build one TestConfusionReport per baseline method
-        oret.lBaselineTestReport = [TestReportConfusion(bsln.name, [], lsClassName=o0.lsClassName, lsDocName=None) for bsln in o0.getBaselineTestReports()]
+        oret.lBaselineTestReport = [TestReportConfusion(bsln.name, [], lsClassName=bsln.lsClassName, lsDocName=None) 
+                                    for bsln in o0.getBaselineTestReports()]
             
         for oTestRpt in loTestRpt:
-            assert oTestRpt.nbClass == oret.nbClass , "Internal Error: cannot aggregate TestReport with heterogeneous number of classes."
             assert len(oTestRpt.getBaselineTestReports()) == len(oret.lBaselineTestReport), "Error: cannot aggregate TestReport with heterogeneous number of baselines."
             for oBsln, oBsln0 in zip(oTestRpt.getBaselineTestReports(), o0.getBaselineTestReports()):
-                assert oBsln.name == oBsln0.name, "Error: cannot aggregate TestReport with heterogeneous baselines." 
+                assert oBsln.name    == oBsln0.name    , "Error: cannot aggregate TestReport with heterogeneous baselines." 
+                assert oBsln.nbClass == oBsln0.nbClass , "Internal Error: cannot aggregate TestReport with heterogeneous number of classes."
             oret.accumulate(oTestRpt)
             
         return oret
