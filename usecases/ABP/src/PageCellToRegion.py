@@ -7,6 +7,8 @@
     simply replace cells by TextRegion
     this is a need for ABP transcribers
     
+    
+    ex: 
 """
 
 
@@ -67,12 +69,14 @@ class table2TextRegion(Component.Component):
         x1,y1,x2,y2 = plg.getBoundingBox()
         cellX1=x1
         cellX2=x2
+        cellY1= y1
+        cellY2=y2
         
-        print x1,x2
+#         print x1,x2
         minx,miny,maxx,maxy = 9e9,9e9,0,0
         for line in lTextLines:
             lXY = PageXml.getPointList(line)  #the polygon
-            print lXY
+#             print lXY
             if lXY == []:
                 continue
             plg = Polygon(lXY)  
@@ -86,8 +90,12 @@ class table2TextRegion(Component.Component):
             maxx = max(maxx,x2)            
             maxy = max(maxy,y2)
         
-        miny -= 50        
-        maxy += 50
+        
+        # new request: height= max(cell,text
+        miny -= 20        
+        maxy += 20
+        miny=min(miny,cellY1)
+        maxy=max(maxy,cellY2)
 
         minx -= 20 
         maxx += 20       
@@ -146,6 +154,7 @@ class table2TextRegion(Component.Component):
             lCells.sort(key=lambda x:int(x.prop('row')))
             for i,cell in enumerate(lCells):
                 cell.unlinkNode()
+                print cell
                 table.parent.addChild(cell)
                 cell.setName('TextRegion')
                 cell.setProp('custom',"readingOrder {index:%d;}"%i)
