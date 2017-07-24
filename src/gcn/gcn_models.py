@@ -74,8 +74,6 @@ class GCNModel(object):
         #print('E:',self.E.shape)
 
         #TODO Do we project the firt layer or not ?
-        #TODO Dropout
-        #TODO L2 Regularization
         # Initialize the weights and biases for a simple one full connected network
         self.W_classif = tf.Variable(tf.random_uniform((self.node_dim, self.n_classes),
                                                        -1.0 / math.sqrt(self.node_dim),
@@ -105,7 +103,6 @@ class GCNModel(object):
             self.hidden_layers.append(Hi)
         else:
             for i in range(self.num_layers):
-
                 Hi_ = tf.matmul(self.hidden_layers[-1],self.Wnode)
                 Hi = self.activation(tf.matmul(N,Hi_))
                 self.hidden_layers.append(Hi)

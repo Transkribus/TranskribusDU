@@ -32,6 +32,14 @@ from gcn.gcn_datasets import GCNDataset
 from gcn.gcn_models import GCNModel
 
 def make_fake_gcn_dataset():
+    '''
+    Build a fake graph dataset from the iris dataset
+    
+    Consider each point as a node, and for each node add an edge  with a point of the same class
+    and an edge for a point of different class
+    
+    :return: 
+    '''
     #TODO Fix this this is not compatible with version 3.0
     X,Y=load_iris(return_X_y=True)
 
@@ -140,6 +148,7 @@ class UT_gcn(unittest.TestCase):
         print('Accuracy LR',acc)
 
     def test_03_buildEdgeMat(self):
+        #Test of building the EdgeMatrix representation needed for learning the edge feature
         dataset=GCNDataset('UT_iris_0')
         dataset.load_pickle('iris_graph.pickle')
         dataset.print_stats()
@@ -182,7 +191,6 @@ class UT_gcn(unittest.TestCase):
 
 
         Wedge  = tf.Variable(tf.ones([1,edge_dim], dtype=np.float32, name='Wedge'))
-
         tf_EA=tf.constant(EA)
 
         Em =(tf.matmul(Wedge,tf_EA))
@@ -197,7 +205,6 @@ class UT_gcn(unittest.TestCase):
             print(Z_.shape)
             #TODO check somestuff on Z
 
-        #Build it once
     def test_04_learn_edge(self):
         dataset=GCNDataset('UT_iris_0')
         dataset.load_pickle('iris_graph.pickle')
