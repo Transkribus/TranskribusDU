@@ -12,6 +12,7 @@ import pprint
 import json
 import itertools
 import random
+import scipy.sparse as sp
 
 class GCNModel(object):
 
@@ -22,6 +23,7 @@ class GCNModel(object):
         self.learning_rate=learning_rate
         self.activation=tf.nn.relu
         self.mu=mu
+        self.learn_edge=False
 
     def create_model(self):
         self.node_dim= self.dataset.X.shape[1]
@@ -38,8 +40,34 @@ class GCNModel(object):
         self.Bnode = tf.Variable(tf.zeros([self.node_dim]), name='Bnode',dtype=np.float32)
 
         edge_dim=float(1.0/float(self.edge_dim))
-        self.Wedge  = tf.Variable(tf.random_normal([self.edge_dim,self.edge_dim],mean=0.0,stddev=edge_dim, dtype=np.float32, name='Wedge'))
+        #self.Wedge  = tf.Variable(tf.random_normal([self.edge_dim],mean=0.0,stddev=edge_dim, dtype=np.float32, name='Wedge'))
+        self.Wedge  = tf.Variable(tf.ones([1,self.edge_dim], dtype=np.float32, name='Wedge'))
+
         self.Bedge = tf.Variable(tf.zeros([self.edge_dim]), name='Bedge',dtype=np.float32)
+
+
+
+        nb_node = self.dataset.A.shape[0]
+        if self.learn_edge:
+
+            edge_dim= self.edge_dim
+            EA =np.zeros((edge_dim,(nb_node*nb_node)),dtype=np.float32)
+
+            #Build a adjecency sparse matrix for the i_dim of the edge
+            i_list =[]
+            j_list=[]
+            for x,y in zip(self.dataset.E[:,0],self.dataset.E[:,1]):
+                i_list.append(int(x))
+                j_list.append(int(y))
+
+            for i in range(edge_dim):
+                idim_mat =sp.coo_matrix((self.dataset.E[:,i+2],(i_list,j_list)), shape=(nb_node, nb_node))
+                D= np.asarray(idim_mat.todense()).squeeze()
+                EA[i,:]=np.reshape(D,-1)
+            self.EA=EA
+            self.tf_EA=tf.constant(EA)
+
+
         #print('X:',self.X.shape)
         #print('Y:',self.Y.shape,' class distrib:',np.bincount(self.Y))
         #print('A:',self.A.shape)
@@ -68,22 +96,29 @@ class GCNModel(object):
         N=tf.constant(np.dot(Dinv_,self.dataset.A+np.identity(self.dataset.A.shape[0]).dot(Dinv_)),dtype=np.float32)
         print(N)
 
-        print('NB_LAYES',self.num_layers)
-        for i in range(self.num_layers):
-            print('Toto')
-            Hi_ = tf.matmul(self.hidden_layers[-1],self.Wnode)
-            Hi = self.activation(tf.matmul(N,Hi_))
+
+        if self.learn_edge:
+            Hi_=tf.matmul(self.hidden_layers[-1],self.Wnode)
+            Em =(tf.matmul(self.Wedge,self.tf_EA))
+            Z=tf.reshape(Em,(nb_node,nb_node))
+            Hi =self.activation(tf.matmul(Z,Hi_))
             self.hidden_layers.append(Hi)
+        else:
+            for i in range(self.num_layers):
+
+                Hi_ = tf.matmul(self.hidden_layers[-1],self.Wnode)
+                Hi = self.activation(tf.matmul(N,Hi_))
+                self.hidden_layers.append(Hi)
 
         #Wrong Here ....
         #self.logits = self.activation(tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif))
-        #self.logits = tf.nn.dropout(tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif),keep_prob=0.9)
         self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
         #Le code rajoute du Dropout aussi
 
-
         cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(self.logits, self.y_input)
-        self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif)
+        #cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
+        #TODO Add L2 Regularization  for Wedge and Node ...
+        self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wedge)
 
 
         self.correct_prediction = tf.equal(tf.argmax(tf.nn.softmax(self.logits), 1), tf.argmax(self.y_input, 1))
@@ -116,7 +151,13 @@ class GCNModel(object):
     #Residual Connection 0,1,2
     #Initialize with logistic Regression
 
+    #Compute the Tensor EdgeMatrix ...
+    #Ensuite ,c'est juste un tensor dot product ....
 
+
+
+#TODO Class EdgeGCNModels
+#PICKLE version 3.4 to get the data ...
 
 
 

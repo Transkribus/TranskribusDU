@@ -1,9 +1,11 @@
-
+import sys
 '''
 Graph Convolution Network Datasets
 '''
 import pickle
 import numpy as np
+PY3 = sys.version_info[0] == 3
+
 class GCNDataset(object):
 
     def __init__(self,dataname):
@@ -14,8 +16,13 @@ class GCNDataset(object):
         self.Y=None
 
     def load_pickle(self,pickle_fname):
-        f=open(pickle_fname,'rb')
-        L=pickle.load(f)
+
+        if PY3:
+            f=open(pickle_fname, 'rb')
+            L = pickle.load(f, encoding='latin1')
+        else:
+            f=open(pickle_fname,'rb')
+            L=pickle.load(f)
 
         self.X=L[0]
         self.Y=L[1]
