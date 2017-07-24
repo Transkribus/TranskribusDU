@@ -10,13 +10,12 @@ class GCNDataset(object):
 
     def __init__(self,dataname):
         self.name=dataname
-        self.X=None  #Correspond F_n^0
-        self.E=None  #Correspond F_e^0 Edge Feature Matrix
-        self.A=None       #Correspond to N in JL notation, Adjacency Matrix
-        self.Y=None
+        self.X=None  #Correspond F_n^0 ; node features
+        self.E=None  #Correspond F_e^0 Edge Feature Matrix E[:,0] input_node, E[:,1] output_node, the remaining columns are edge features
+        self.A=None  #Correspond to N in JL notation, Adjacency Matrix
+        self.Y=None  #Labels for the node in 1 vsall format ie is a matrix n_node time n_label
 
     def load_pickle(self,pickle_fname):
-
         if PY3:
             f=open(pickle_fname, 'rb')
             L = pickle.load(f, encoding='latin1')
