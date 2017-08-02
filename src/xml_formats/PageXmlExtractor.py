@@ -53,7 +53,11 @@ class DocPageSet:
         if not self._ltiRange: raise ValueError("empty range: '%s'"%sSpec)
     
     # -----    
-    def getDocID(self): return self.sDocID
+    def getDocID(self, bSkipPath=False):
+        if bSkipPath:
+            return os.path.basename(self.sDocID)
+        else:
+            return self.sDocID
     
     def getRangeString(self): return ",".join( "%d-%d"%(a,b) if a != b else "%d"%a for (a,b) in self._ltiRange )
     
@@ -79,6 +83,12 @@ def testDocPageSet():
     o = DocPageSet("111=1")
     assert o.getDocID() == "111"
     assert [i for i in o.iterPageNumber()] == [1]
+
+    o = DocPageSet("a/b/c/111=1")
+    assert o.getDocID() == "a/b/c/111"
+    assert o.getDocID(True) == "111"
+    assert [i for i in o.iterPageNumber()] == [1]
+
 
     o = DocPageSet("333=1,10-20,23,40-50")
     assert o.getDocID() == "333"
@@ -170,7 +180,7 @@ class PageXmlExtractor:
             for n in o.iterPageNumber():
                 cnt += 1
                 sFilename = lsFilename[n-1]
-                ltOrigin.append( (cnt, o.getDocID(), n, sFilename) ) # new-PNum, docID, orig-PNum, orig-filename
+                ltOrigin.append( (cnt, o.getDocID(True), n, sFilename) ) # new-PNum, docID, orig-PNum, orig-filename
 
         if jsonOriginFilename:
             with codecs.open(jsonOriginFilename, "wb",'utf-8') as fd: json.dump(ltOrigin, fd, indent=True)        
