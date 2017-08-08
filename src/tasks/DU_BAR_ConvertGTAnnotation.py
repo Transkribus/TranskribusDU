@@ -68,12 +68,14 @@ class DU_BAR_Convert:
     sSemAttr = "DU_sem"
     sSgmAttr = "DU_sgm"
     sNumAttr = "DU_num"
-    
+
+    sOther = "other"
+        
     #Mapping to new semantic annotation
     dAnnotMapping = {"header"       :"header",
                      "heading"      :"heading",
                      "page-number"  :"page-number",
-                     "marginalia"   : None,
+                     "marginalia"   : sOther,
                      "p"            :"resolution-paragraph",
                      "m"            :"resolution-marginalia",
                      ""             :"resolution-number"
@@ -176,11 +178,13 @@ class DU_BAR_Convert:
             try:
                 lbl = PageXml.getCustomAttr(nd, "structure", "type")
             except PageXmlException:
+                nd.setProp(self.sSemAttr, self.sOther)
+                nd.setProp(self.sSgmAttr, self.sOther)
                 continue    #this node has no annotation whatsoever
             
             if lbl in ["heading", "header", "page-number", "marginalia"]:
                 semLabel = lbl
-                sgmLabel = None #those elements are not part of a resolution
+                sgmLabel = self.sOther #those elements are not part of a resolution
                 sResoNum = None
             else:
                 o = self.creResolutionHumanLabel.match(lbl)
@@ -204,14 +208,15 @@ class DU_BAR_Convert:
 
             #always have a semantic label                
             sNewSemLbl = self.dAnnotMapping[semLabel]
+            assert sNewSemLbl
             nd.setProp(self.sSemAttr, sNewSemLbl)       #DU annotation
             
             #resolution parts also have a segmentation label and a resolution number
-            if sgmLabel: 
-                nd.setProp(self.sSgmAttr, sgmLabel)     #DU annotation
+            assert sgmLabel
+            nd.setProp(self.sSgmAttr, sgmLabel)     #DU annotation
+            
+            if sResoNum:
                 nd.setProp(self.sNumAttr, sResoNum)
-            else:
-                assert not sResoNum
 
     
 def test_RE():
