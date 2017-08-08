@@ -215,7 +215,7 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
     """
     Annalyse a collection of PageXmlDocuments
     """
-    def __init__(self, sDocPattern, sPagePattern, lTag, bCustom=False):
+    def __init__(self, sDocPattern, sPagePattern, lTag, sCustom=None):
         """
         sRootDir is the root directory of the collection
         sDocPattern is the pattern followed by folders, assuming one folder contains one document
@@ -226,7 +226,7 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
         self.sDocPattern    = sDocPattern
         self.sPagePattern   = sPagePattern
         self.lTag           = lTag
-        self.bCustom        = bool(bCustom)
+        self.sCustom        = sCustom
         self.ltCRES          = [] #list of tuple (cre, replacement-string)
         
     def setLabelPattern(self, sRE, sRepl):
@@ -288,11 +288,14 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
             lNdTag = ctxt.xpathEval(".//pg:%s"%tag)
             for nd in lNdTag:
                 self.seenDocTag(name, tag)
-                if self.bCustom:
-                    try:
-                        lbl = PageXml.getCustomAttr(nd, "structure", "type")
-                    except:
-                        lbl = ""
+                if self.sCustom != None:
+                    if self.sCustom == "":
+                        try:
+                            lbl = PageXml.getCustomAttr(nd, "structure", "type")
+                        except:
+                            lbl = ''
+                    else:
+                        lbl = nd.prop(self.sCustom)
                 else:
                     lbl = nd.prop("type")
                     
@@ -314,8 +317,8 @@ if __name__ == "__main__":
 #                       , help="Run a model on the given non-annotated collection.")    
 #     parser.add_option("-w", "--warm", dest='warm',  action="store_true"
 #                       , help="Attempt to warm-start the training")   
-    parser.add_option("-c", "--custom", dest='custom',  action="store_true"
-                      , help="Read @custom Xml attribute instead of @type")   
+    parser.add_option("-c", "--custom", dest='custom',  action="store", type="string"
+                      , help="With --custom= , it reads @custom Xml attribute instead of @type, or if you specify --custom=toto, it will read the @toto attribute.")   
     parser.add_option("--pattern", dest='pattern',  action="store"
                       , help="Replace the given pattern in the label by # (specific for BAR so far...)")  
 
@@ -365,7 +368,7 @@ For PageXml, give also the Xml filename pattern
 # #             print "Usage: %s sRootDir sDocPattern [sPagePattern] [Tag Attr]+"%(sys.argv[0] )
 #         exit(1)
 
-    doer = PageXmlCollectionAnalyzer(sDocPattern, sPagePattern, lTag, bCustom=options.custom)
+    doer = PageXmlCollectionAnalyzer(sDocPattern, sPagePattern, lTag, sCustom=options.custom)
     if options.pattern != None:
         doer.setLabelPattern(options.pattern, "#")
         
