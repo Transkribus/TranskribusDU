@@ -67,6 +67,11 @@ class NodeType_PageXml(NodeType):
         self.sxpNode    = sxpNode
         self.sxpTextual = sxpTextual
     
+    def getXpathExpr(self):
+        """
+        get any Xpath related information to extract the nodes from an XML file
+        """
+        return (self.sxpNode, self.sxpTextual)
     
     def parseDomNodeLabel(self, domnode, defaultCls=None):
         """

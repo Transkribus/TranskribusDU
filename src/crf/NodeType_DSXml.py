@@ -45,7 +45,13 @@ class NodeType_DS(NodeType):
     def setXpathExpr(self, sxpNode): #, sxpTextual)):
         self.sxpNode    = sxpNode
 #         self.sxpTextual = sxpTextual    #always in TOKENs in DS XML
-        
+
+    def getXpathExpr(self):
+        """
+        get any Xpath related information to extract the nodes from an XML file
+        """
+        return self.sxpNode
+    
     def parseDomNodeLabel(self, domnode, defaultCls=None):
         """
         Parse and set the graph node label and return its class index
