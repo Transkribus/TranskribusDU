@@ -31,7 +31,7 @@
     under grant agreement No 674943.
     
 """
-import sys, os, random, re
+import sys, os, re
 import libxml2
 
 try: #to ease the use without proper Python installation
@@ -89,7 +89,6 @@ class DU_BAR_Convert:
     #=== CONFIGURATION ====================================================================
     def __init__(self): 
 
-        random.seed()
         pass
     
         
@@ -128,10 +127,7 @@ class DU_BAR_Convert:
         elif sPrevSegmLabel == self.sSegmHo:    return self.sSegmHeigh
         else:
             assert sPrevSegmLabel == None
-            if random.random() < 0.5:   #Return the next random floating point number in the range [0.0, 1.0).
-                return self.sSegmHeigh
-            else:
-                return self.sSegmHo
+            return self.sSegmHeigh
 
     def _iter_TextRegionNodeTop2Bottom(self, domNdPage, page):
         """
