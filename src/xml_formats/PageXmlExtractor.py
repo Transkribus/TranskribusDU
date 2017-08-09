@@ -252,7 +252,7 @@ JL Meunier - Aug. 2017
     
     if options.file != None:
         if options.file in["", "-"]: options.file = "extraction_" + "_".join(map(str, lDocPageSet))     #automatic filename
-        sToFile = options.files if options.file.lower().endswith(".mpxml") else options.file+".mpxml"   #automatic .mpxml extension
+        sToFile = options.file if options.file.lower().endswith(".mpxml") else options.file+".mpxml"   #automatic .mpxml extension
         print "Extracting into file: ", sToFile
         n = PageXmlExtractor.extractPagesToFile(lDocPageSet, sToFile)    
 
