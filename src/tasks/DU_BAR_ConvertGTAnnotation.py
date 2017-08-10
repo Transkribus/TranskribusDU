@@ -101,7 +101,7 @@ class DU_BAR_Convert:
         doc = libxml2.parseFile(sFilename)
 
         #the Heigh/Ho annotation runs over consecutive pages, so we keep those values accross pages
-        self.prevResolutionNumber, self.prevSgmLbl = None, None
+        self._initSegmentationLabel()
         self.lSeenResoNum = list()
 
         for pnum, page, domNdPage in g._iter_Page_DomNode(doc):
@@ -118,7 +118,10 @@ class DU_BAR_Convert:
         return sDUFilename
            
     # -----------------------------------------------------------------------------------------------------------
-    
+
+    def _initSegmentationLabel(self):
+        self.prevResolutionNumber, self.prevSgmLbl = None, None
+            
     def _getNextSegmentationLabel(self, sPrevSegmLabel=None):
         """
         alternate beween HEIGH and HO, 1st at random 
@@ -169,6 +172,11 @@ class DU_BAR_Convert:
         """
         
         """
+        
+        #change: on each page we start by Heigh
+        bRestartAtEachPageWithHeigh = True
+        if bRestartAtEachPageWithHeigh: self._initSegmentationLabel()
+        
         for nd in self._iter_TextRegionNodeTop2Bottom(domNdPage, page):
             
             try:
@@ -196,7 +204,7 @@ class DU_BAR_Convert:
                     sgmLabel = self.prevSgmLbl
                 else:
                     sgmLabel = self._getNextSegmentationLabel(self.prevSgmLbl) 
-                    assert sResoNum not in self.lSeenResoNum, "ERROR: the ordering of the block has not preserved resolution number contiguity"
+                    assert bRestartAtEachPageWithHeigh or sResoNum not in self.lSeenResoNum, "ERROR: the ordering of the block has not preserved resolution number contiguity"
                     self.lSeenResoNum.append(sResoNum)
                         
                 self.prevResolutionNumber, self.prevSgmLbl = sResoNum, sgmLabel
@@ -214,6 +222,63 @@ class DU_BAR_Convert:
             if sResoNum:
                 nd.setProp(self.sNumAttr, sResoNum)
 
+# #not a good idea, I think
+# class DU_BAR_Convert_v2(DU_BAR_Convert):
+#     """
+#     For segmentation labels, we only use 'Heigh' or 'Ho' whatever the semantic label is.
+#     (we use to label 'Other' texts that were not part of a resolution)
+#     """
+# 
+#     def _initSegmentationLabel(self):
+#         self.prevResolutionNumber   = None
+#         self.curSgmLbl              = self.sSegmHeigh
+#             
+#     def _switchSegmentationLabel(self):
+#         """
+#         alternate beween HEIGH and HO, 1st at random 
+#         """
+#         self.curSgmLbl = self.sSegmHeigh if self.curSgmLbl == self.sSegmHo else self.sSegmHo
+# 
+#     def _convertPageAnnotation(self, pnum, page, domNdPage):
+#         """
+#         
+#         """
+#         for nd in self._iter_TextRegionNodeTop2Bottom(domNdPage, page):
+#             
+#             try:
+#                 lbl = PageXml.getCustomAttr(nd, "structure", "type")
+#                 
+#                 #
+#                 if lbl in ["heading", "header", "page-number", "marginalia"]:
+#                     semLabel = self.dAnnotMapping[lbl]
+#                     sResoNum = None
+#                 else:
+#                     o = self.creResolutionHumanLabel.match(lbl)
+#                     if not o: raise ValueError("%s is not a valid human annotation" % lbl)
+#                     semLabel = self.dAnnotMapping[o.group(1)]   #"" for the resolution number
+#                     
+#                     #now decide on the segmentation label
+#                     sResoNum = o.group(2)
+#                     if not sResoNum: raise ValueError("%s is not a valid human annotation - missing resolution number" % lbl)
+#                     
+#                     #now switch between heigh and ho !! :))
+#                     if self.prevResolutionNumber != None and self.prevResolutionNumber != sResoNum:
+#                         #it is not the first resolution and it has a new number  
+#                         self._switchSegmentationLabel()
+# 
+#                         assert sResoNum not in self.lSeenResoNum, "ERROR: the ordering of the block has not preserved resolution number contiguity"
+#                         self.lSeenResoNum.append(sResoNum)
+#                             
+#                     self.prevResolutionNumber = sResoNum
+#                 
+#             except PageXmlException:
+#                 semLabel = self.sOther
+#                 sResoNum = None
+#                 
+#             nd.setProp(self.sSemAttr, semLabel)
+#             nd.setProp(self.sSgmAttr, self.curSgmLbl)
+#             if sResoNum:
+#                 nd.setProp(self.sNumAttr, sResoNum)
     
 def test_RE():
     cre = DU_BAR_Convert.creResolutionHumanLabel
@@ -233,6 +298,8 @@ def test_RE():
     o = cre.match("az103a")
     assert o == None
               
+
+
     
 if __name__ == "__main__":
     from optparse import OptionParser
