@@ -569,7 +569,10 @@ if __name__ == "__main__":
     print mdl.getModelInfo()
     
     import matplotlib.pyplot as plt
+    fig = plt.figure()
+    fig.canvas.set_window_title("dir=%s  model=%s  "%(sModelDir, sModelName))
     plt.plot(mdl.ssvm.loss_curve_)
+    plt.xlabel("Iteration / 10")
     plt.ylabel("Loss")
     plt.show()
 
