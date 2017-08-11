@@ -87,6 +87,11 @@ class CrossPageEdge(Edge): pass
 
 class CrossMirrorPageEdge(Edge): pass    
 
+class CrossMirrorContinuousPageVerticalEdge(Edge): 
+    def __init__(self, A, B, length):
+        Edge.__init__(self, A, B)
+        self.length = length
+
 class VirtualEdge(Edge): pass    
 
 # --- SamePageEdge SUB-CLASSES ----------------------------
