@@ -222,64 +222,89 @@ class DU_BAR_Convert:
             if sResoNum:
                 nd.setProp(self.sNumAttr, sResoNum)
 
-# #not a good idea, I think
-# class DU_BAR_Convert_v2(DU_BAR_Convert):
-#     """
-#     For segmentation labels, we only use 'Heigh' or 'Ho' whatever the semantic label is.
-#     (we use to label 'Other' texts that were not part of a resolution)
-#     """
-# 
-#     def _initSegmentationLabel(self):
-#         self.prevResolutionNumber   = None
-#         self.curSgmLbl              = self.sSegmHeigh
-#             
-#     def _switchSegmentationLabel(self):
-#         """
-#         alternate beween HEIGH and HO, 1st at random 
-#         """
-#         self.curSgmLbl = self.sSegmHeigh if self.curSgmLbl == self.sSegmHo else self.sSegmHo
-# 
-#     def _convertPageAnnotation(self, pnum, page, domNdPage):
-#         """
-#         
-#         """
-#         for nd in self._iter_TextRegionNodeTop2Bottom(domNdPage, page):
-#             
-#             try:
-#                 lbl = PageXml.getCustomAttr(nd, "structure", "type")
-#                 
-#                 #
-#                 if lbl in ["heading", "header", "page-number", "marginalia"]:
-#                     semLabel = self.dAnnotMapping[lbl]
-#                     sResoNum = None
-#                 else:
-#                     o = self.creResolutionHumanLabel.match(lbl)
-#                     if not o: raise ValueError("%s is not a valid human annotation" % lbl)
-#                     semLabel = self.dAnnotMapping[o.group(1)]   #"" for the resolution number
-#                     
-#                     #now decide on the segmentation label
-#                     sResoNum = o.group(2)
-#                     if not sResoNum: raise ValueError("%s is not a valid human annotation - missing resolution number" % lbl)
-#                     
-#                     #now switch between heigh and ho !! :))
-#                     if self.prevResolutionNumber != None and self.prevResolutionNumber != sResoNum:
-#                         #it is not the first resolution and it has a new number  
-#                         self._switchSegmentationLabel()
-# 
-#                         assert sResoNum not in self.lSeenResoNum, "ERROR: the ordering of the block has not preserved resolution number contiguity"
-#                         self.lSeenResoNum.append(sResoNum)
-#                             
-#                     self.prevResolutionNumber = sResoNum
-#                 
-#             except PageXmlException:
-#                 semLabel = self.sOther
-#                 sResoNum = None
-#                 
-#             nd.setProp(self.sSemAttr, semLabel)
-#             nd.setProp(self.sSgmAttr, self.curSgmLbl)
-#             if sResoNum:
-#                 nd.setProp(self.sNumAttr, sResoNum)
+class DU_BAR_Convert_v2(DU_BAR_Convert):
+    """
+    For segmentation labels, we only use 'Heigh' or 'Ho' whatever the semantic label is, so that the task is purely a segmentation task.
     
+    Heading indicate the start of a resolution, and is part of it.
+    Anything else (Header page-number, marginalia) is part of the resolution.
+    
+    """
+ 
+    def _initSegmentationLabel(self):
+        self.prevResolutionNumber   = None
+        self._curSgmLbl              = None
+             
+    def _switchSegmentationLabel(self):
+        """
+        alternate beween HEIGH and HO, 1st is Heigh
+        """
+        if self._curSgmLbl == None:
+            self._curSgmLbl = self.sSegmHeigh
+        else:
+            self._curSgmLbl = self.sSegmHeigh if self._curSgmLbl == self.sSegmHo else self.sSegmHo
+        return self._curSgmLbl
+ 
+    def _getCurrentSegmentationLabel(self):
+        """
+        self.curSgmLbl   or Heigh if not yet set!
+        """
+        if self._curSgmLbl == None: self._curSgmLbl = self.sSegmHeigh
+        return self._curSgmLbl
+
+    def _convertPageAnnotation(self, pnum, page, domNdPage):
+        """
+         
+        """
+        for nd in self._iter_TextRegionNodeTop2Bottom(domNdPage, page):
+             
+            try:
+                sResoNum = None
+                lbl = PageXml.getCustomAttr(nd, "structure", "type")
+                 
+                if lbl in ["heading"]:  
+                    semLabel                  = self.dAnnotMapping[lbl]
+                    #heading may indicate a new resolution!
+                    if self.prevResolutionNumber == None: 
+                        sgmLabel                  = self._getCurrentSegmentationLabel()    #for instance 2 consecutive headings
+                    else:
+                        sgmLabel                  = self._switchSegmentationLabel()
+                        self.prevResolutionNumber = None  #so that next number does not switch Heigh/Ho label
+                elif lbl in ["header", "page-number", "marginalia"]:
+                    #continuation of a resolution
+                    semLabel                  = self.dAnnotMapping[lbl]
+                    sgmLabel                  = self._getCurrentSegmentationLabel()
+                else:
+                    o = self.creResolutionHumanLabel.match(lbl)
+                    if not o: raise ValueError("%s is not a valid human annotation" % lbl)
+                    semLabel = self.dAnnotMapping[o.group(1)]   #"" for the resolution number
+                     
+                    #Here we have a resolution number!
+                    sResoNum = o.group(2)
+                    if not sResoNum: raise ValueError("%s is not a valid human annotation - missing resolution number" % lbl)
+                     
+                    #now switch between heigh and ho !! :))
+                    if self.prevResolutionNumber != None and self.prevResolutionNumber != sResoNum:
+                        #we got a new number, so switching segmentation label!  
+                        sgmLabel = self._switchSegmentationLabel()
+                    else:
+                        #either same number or switching already done due to a heading
+                        sgmLabel = self._getCurrentSegmentationLabel()
+ 
+                    self.prevResolutionNumber = sResoNum
+                 
+            except PageXmlException:
+                semLabel = self.sOther
+                sgmLabel = self._getCurrentSegmentationLabel()
+                 
+            nd.setProp(self.sSemAttr, semLabel)
+            nd.setProp(self.sSgmAttr, sgmLabel)
+            if sResoNum:
+                nd.setProp(self.sNumAttr, sResoNum) #only when the number is part of the humanannotation!
+
+
+
+#------------------------------------------------------------------------------------------------------    
 def test_RE():
     cre = DU_BAR_Convert.creResolutionHumanLabel
     
@@ -299,6 +324,7 @@ def test_RE():
     assert o == None
               
 
+#------------------------------------------------------------------------------------------------------    
 
     
 if __name__ == "__main__":
@@ -320,7 +346,8 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
     
     # --- 
-    doer = DU_BAR_Convert()
+    #doer = DU_BAR_Convert()
+    doer = DU_BAR_Convert_v2()
     for sFilename in args:
         print "- Processing %s" % sFilename
         sOutputFilename = doer.convertDoc(sFilename)
