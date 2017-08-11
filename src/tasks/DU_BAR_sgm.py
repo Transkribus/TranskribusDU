@@ -55,7 +55,8 @@ class DU_BAR_sgm(DU_CRF_Task):
     DU_GRAPH = Graph_MultiPageXml
     
 
-    lLabels2 = ['heigh', 'ho', 'other']
+    #lLabels2 = ['heigh', 'ho', 'other']
+    lLabels2 = ['heigh', 'ho']
 
     # Some TextRegion have no segmentation label at all, and were labelled'other' by the converter
     lIgnoredLabels2 = None
