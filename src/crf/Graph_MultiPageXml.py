@@ -388,7 +388,7 @@ class FactorialGraph_MultiContinuousPageXml(FactorialGraph_MultiPageXml, Contino
     
     """
     def __init__(self, lNode = [], lEdge = []):
-        FactorialGraph_MultiPageXml.__init(lNode, lEdge)
+        FactorialGraph_MultiPageXml.__init__(self, lNode, lEdge)
         
         EdgeTransformerClassShifter.setDefaultEdgeClass([HorizontalEdge, VerticalEdge, CrossPageEdge, CrossMirrorContinuousPageVerticalEdge])
 
@@ -410,14 +410,13 @@ class FactorialGraph_MultiContinuousPageXml(FactorialGraph_MultiPageXml, Contino
         for pnum, page, domNdPage in self._iter_Page_DomNode(self.doc):
             #now that we have the page, let's create the node for each type!
             lPageNode = list()
-            setPageNdDomId = set() #the set of DOM id
             # because the node types are supposed to have an empty intersection
                             
-            lPageNode = nodeType0._iter_GraphNode(self.doc, domNdPage, page)
+            lPageNode = list(nodeType0._iter_GraphNode(self.doc, domNdPage, page))
             
-            #check that each node appears once
-            setPageNdDomId = set([nd.domid for nd in lPageNode])
-            assert len(setPageNdDomId) == len(lPageNode), "ERROR: some nodes fit with multiple NodeTypes"
+#             #check that each node appears once
+#             setPageNdDomId = set([nd.domid for nd in lPageNode])
+#             assert len(setPageNdDomId) == len(list(lPageNode)), "ERROR: some nodes fit with multiple NodeTypes"
             
         
             self.lNode.extend(lPageNode)
