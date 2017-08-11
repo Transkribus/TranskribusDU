@@ -442,7 +442,9 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         traceln("   Labels      : ", self.getGraphClass().getLabelNameList())
         if np.min(aLabelCount) == 0:
             sMsg = "*** ERROR *** Label(s) not observed in data."
-            traceln( sMsg+" Label(s): %s"% np.where(aLabelCount[:] == 0)[0] )
+            #traceln( sMsg+" Label(s): %s"% np.where(aLabelCount[:] == 0)[0] )
+            lMissingLabels = [self.getGraphClass().getLabelNameList()[i] for i in np.where(aLabelCount[:] == 0)[0]]
+            traceln( sMsg+" Label(s): %s"% lMissingLabels )
             raise ValueError(sMsg)
         return True
 
