@@ -56,7 +56,8 @@ class DU_BAR_sgm(DU_CRF_Task):
     
 
     #lLabels2 = ['heigh', 'ho', 'other']
-    lLabels2 = ['heigh', 'ho']
+    #lLabels2 = ['heigh', 'ho']
+    lLabels2 = ['B', 'I', 'E']  #we never see any S...  , 'S']
 
     # Some TextRegion have no segmentation label at all, and were labelled'other' by the converter
     lIgnoredLabels2 = None

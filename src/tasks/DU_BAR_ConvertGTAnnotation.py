@@ -303,6 +303,104 @@ class DU_BAR_Convert_v2(DU_BAR_Convert):
                 nd.setProp(self.sNumAttr, sResoNum) #only when the number is part of the humanannotation!
 
 
+class DU_BAR_Convert_BIES(DU_BAR_Convert):
+    """
+    For segmentation labels, we only use B I E S whatever the semantic label is, so that the task is purely a segmentation task.
+    
+    Heading indicate the start of a resolution, and is part of it.
+    Anything else (Header page-number, marginalia) is part of the resolution.
+    
+    """
+    B = "B"
+    I = "I"
+    E = "E"
+    S = "S"
+    
+    def _initSegmentationLabel(self):
+        self._prevNd  = None
+        self._prevNum = False
+        self._prevIsB = None
+    def _convertPageAnnotation(self, pnum, page, domNdPage):
+        """
+         
+        """
+        for nd in self._iter_TextRegionNodeTop2Bottom(domNdPage, page):
+            sResoNum = None
+            bCurrentIsAStart = None
+            try:
+                lbl = PageXml.getCustomAttr(nd, "structure", "type")
+                 
+                if lbl == "heading":  
+                    semLabel                  = self.dAnnotMapping[lbl]
+                    #heading indicate the start of a new resolution, unless the previous is already a start!
+                    if self._prevIsB: 
+                        bCurrentIsAStart = False
+                    else:
+                        bCurrentIsAStart = True
+                        self._prevNum = False #to prevent starting again when find the resolution number
+                elif lbl in ["header", "page-number", "marginalia"]:
+                    semLabel         = self.dAnnotMapping[lbl]
+                    #continuation of a resolution, except at very beginning (first node)
+                    if self._prevNd == None:
+                        bCurrentIsAStart = True
+                    else:
+                        bCurrentIsAStart = False
+                else:
+                    o = self.creResolutionHumanLabel.match(lbl)
+                    if not o: raise ValueError("%s is not a valid human annotation" % lbl)
+                    semLabel = self.dAnnotMapping[o.group(1)]   #"" for the resolution number
+                     
+                    #Here we have a resolution number!
+                    sResoNum = o.group(2)
+                    if not sResoNum: raise ValueError("%s is not a valid human annotation - missing resolution number" % lbl)
+                     
+                    if self._prevNum != False and self._prevNum != sResoNum:
+                        #we got a new number, so switching segmentation label!  
+                        bCurrentIsAStart = True
+                    else:
+                        #either same number or switching already done due to a heading
+                        bCurrentIsAStart = False
+                    self._prevNum = sResoNum
+ 
+                 
+            except PageXmlException:
+                semLabel = self.sOther
+                bCurrentIsAStart = False
+                 
+            #Now tagging!!
+            #Semantic (easy)
+            nd.setProp(self.sSemAttr, semLabel)
+
+            # BIES, tough... 
+            if bCurrentIsAStart:
+                if self._prevIsB:
+                    #make previous a singleton!
+                    if self._prevNd: self._prevNd.setProp(self.sSgmAttr, self.S)
+                else:
+                    #make previous a End
+                    if self._prevNd: self._prevNd.setProp(self.sSgmAttr, self.E)
+                self._prevIsB = True #for next cycle!
+            else:
+                if self._prevIsB:
+                    #confirm previous a a B
+                    if self._prevNd: self._prevNd.setProp(self.sSgmAttr, self.B)
+                else:
+                    #confirm previous as a I
+                    if self._prevNd: self._prevNd.setProp(self.sSgmAttr, self.I)
+                self._prevIsB = False #for next cycle!
+
+            if sResoNum: nd.setProp(self.sNumAttr, sResoNum) #only when the number is part of the humanannotation!
+            self._prevNd  = nd #for next cycle!
+        # end for
+        
+        if self._prevIsB:
+            #make previous a singleton!
+            if self._prevNd: self._prevNd.setProp(self.sSgmAttr, self.S)
+        else:
+            #make previous a End
+            if self._prevNd: self._prevNd.setProp(self.sSgmAttr, self.E)
+        return
+        
 
 #------------------------------------------------------------------------------------------------------    
 def test_RE():
@@ -347,7 +445,8 @@ if __name__ == "__main__":
     
     # --- 
     #doer = DU_BAR_Convert()
-    doer = DU_BAR_Convert_v2()
+    #doer = DU_BAR_Convert_v2()
+    doer = DU_BAR_Convert_BIES()
     for sFilename in args:
         print "- Processing %s" % sFilename
         sOutputFilename = doer.convertDoc(sFilename)
