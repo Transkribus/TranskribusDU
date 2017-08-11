@@ -35,7 +35,7 @@ except ImportError:
 
 from common.trace import traceln
 
-from crf.Graph_MultiPageXml import Graph_MultiPageXml
+from crf.Graph_MultiPageXml import Graph_MultiContinousPageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from DU_CRF_Task import DU_CRF_Task
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_T_PageXml_StandardOnes_noText
@@ -52,7 +52,7 @@ class DU_BAR_sgm(DU_CRF_Task):
 
     # ===============================================================================================================
     #DEFINING THE CLASS OF GRAPH WE USE
-    DU_GRAPH = Graph_MultiPageXml
+    DU_GRAPH = Graph_MultiContinousPageXml
     
 
     #lLabels2 = ['heigh', 'ho', 'other']

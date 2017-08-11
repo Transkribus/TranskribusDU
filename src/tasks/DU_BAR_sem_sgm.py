@@ -35,7 +35,7 @@ except ImportError:
 
 from common.trace import traceln
 
-from crf.Graph_MultiPageXml import FactorialGraph_MultiPageXml
+from crf.Graph_MultiPageXml import FactorialGraph_MultiContinuousPageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from DU_CRF_Task import DU_FactorialCRF_Task
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_T_PageXml_StandardOnes_noText
@@ -52,7 +52,7 @@ class DU_BAR_sem_sgm(DU_FactorialCRF_Task):
 
     # ===============================================================================================================
     #DEFINING THE CLASS OF GRAPH WE USE
-    DU_GRAPH = FactorialGraph_MultiPageXml
+    DU_GRAPH = FactorialGraph_MultiContinuousPageXml
     
     #---------------------------------------------
     lLabels1 = ['heading', 'header', 'page-number', 'resolution-number', 'resolution-marginalia', 'resolution-paragraph', 'other']
@@ -70,7 +70,8 @@ class DU_BAR_sem_sgm(DU_FactorialCRF_Task):
     DU_GRAPH.addNodeType(nt1)
 
     #---------------------------------------------
-    lLabels2 = ['heigh', 'ho', 'other']
+    #lLabels2 = ['heigh', 'ho', 'other']
+    lLabels2 = ['heigh', 'ho']
     
     nt2 = NodeType_PageXml_type_woText("sgm"                   #some short prefix because labels below are prefixed with it
                           , lLabels2
