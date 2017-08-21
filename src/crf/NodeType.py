@@ -98,6 +98,12 @@ class NodeType:
         """
         raise Exception("Method must be overridden")
     
+    def getXpathExpr(self):
+        """
+        get any Xpath related information to extract the nodes from an XML file
+        """
+        raise Exception("Method must be overridden")
+    
     def getLabelNameList(self):
         """
         Return the list of label known to the classifier (slightly different from their XML value)

@@ -364,7 +364,6 @@ class Graph:
          for the graph
         return a triplet
         """
-        assert not self._bMultitype
         node_features = node_transformer.transform(self.lNode)
         edges = self._BuildEdgeMatrix_S()
         edge_features = edge_transformer.transform(self.lEdge)
