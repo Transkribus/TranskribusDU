@@ -61,6 +61,7 @@ class Model:
         self._edge_transformer   = None
         
         self._lMdlBaseline       = []  #contains possibly empty list of models
+        self.bTrainEdgeBaseline  = False
         
         self._nbClass = None
             
@@ -276,7 +277,9 @@ class Model:
                 traceln("\t [%.1fs] done\n"%chronoOff())
             del X_flat, Y_flat
         
-        self._trainEdgeBaseline(lX, lY) #we always train a predefined model on edges
+        if self.bTrainEdgeBaseline:
+            traceln(' - training edge baseline')
+            self._trainEdgeBaseline(lX, lY) #we always train a predefined model on edges
         
         return True
 

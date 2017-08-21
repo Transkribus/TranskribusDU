@@ -67,6 +67,11 @@ class NodeType_PageXml(NodeType):
         self.sxpNode    = sxpNode
         self.sxpTextual = sxpTextual
     
+    def getXpathExpr(self):
+        """
+        get any Xpath related information to extract the nodes from an XML file
+        """
+        return (self.sxpNode, self.sxpTextual)
     
     def parseDomNodeLabel(self, domnode, defaultCls=None):
         """
@@ -211,7 +216,13 @@ class NodeType_PageXml_type(NodeType_PageXml):
 
     def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun):
         NodeType_PageXml.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther, BBoxDeltaFun)
-            
+
+    def setLabelAttribute(self, sAttrName="type"):
+        """
+        set the name of the Xml attribute that contains the label
+        """
+        self.sLabelAttr = sAttrName
+                    
     def parseDomNodeLabel(self, domnode, defaultCls=None):
         """
         Parse and set the graph node label and return its class index
