@@ -34,7 +34,7 @@ from ObjectModel.treeTemplateClass import treeTemplateClass
     
 class lineMiner(Component.Component):
     """
-        pageVerticalMiner class: a component to mine column-like page layout
+        lineMiner class: a component to mine column-like page layout
     """
     
     
@@ -299,7 +299,7 @@ class lineMiner(Component.Component):
                 
                 ## store parsed sequences in mytemplate
                 ### patterns are competing: generate a set of parsing ??? 
-                for mytemplate in lFullTemplates[:1]: # dTemplatesCnd.keys():
+                for mytemplate in lFullTemplates[:10]: # dTemplatesCnd.keys():
 #                     for _,_, mytemplate in dTemplatesCnd[templateType][:1]:
                         mytemplate.print_()
 #                         print '___'*30
@@ -310,7 +310,7 @@ class lineMiner(Component.Component):
                                 elt.resetFeatures()
                                 elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['virtual'],myLevel=XMLDSTEXTClass)
                                 elt.computeSetofFeatures()
-                                elt.lFeatureForParsing=elt.getSetofFeatures()
+                                elt.lFeatureForParsing = elt.getSetofFeatures()
                             else:
                                 elt.setSequenceOfFeatures(elt.lFeatureForParsing)                        
 #                 self.printTreeView(lCurList)        
@@ -360,7 +360,7 @@ class lineMiner(Component.Component):
             return obs / np.amax(obs)
 
         
-        N= len(lTemplates) + 1.0
+        N= len(lTemplates) + 1
         
         initialProb = np.ones(N) 
         initialProb = np.reshape(initialProb,(N,1))
