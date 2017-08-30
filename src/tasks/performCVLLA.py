@@ -139,15 +139,16 @@ SaveInfo\Mode=2
 SaveInfo\DeleteOriginal=false
 SaveInfo\InputDirIsOutputDir=true
 PluginBatch\pluginList=Forms Analysis | Apply Template (Single)
-PluginBatch\FormAnalysis\FormFeatures\threshLineLenRatio=0.6
-PluginBatch\FormAnalysis\FormFeatures\distThreshold=30
-PluginBatch\FormAnalysis\FormFeatures\errorThr=15
 PluginBatch\FormAnalysis\FormFeatures\\formTemplate="%s"
+PluginBatch\FormAnalysis\FormFeatures\distThreshold=200
+PluginBatch\FormAnalysis\FormFeatures\colinearityThreshold=20
+PluginBatch\FormAnalysis\FormFeatures\variationThresholdLower=0.2
+PluginBatch\FormAnalysis\FormFeatures\variationThresholdUpper=0.3
 PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
      """
      
     if sys.platform == 'win32':
-        cNomacs = '"C:\\Program Files\\READFramework\\nomacs-x64\\nomacs.exe"'
+        cNomacs = '"C:\\Program Files\\READFramework\\bin\\nomacs.exe"'
     else:
         cNomacs = "/opt/Tools/src/tuwien-2017/nomacs/nomacs"
         
@@ -197,13 +198,14 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         """
             find the page where the first TableRegion occurs and extract it
         """
+        
         lT = PageXml.getChildByName(doc.getRootElement(),'TableRegion')
         if lT == []:
             return None
         firstTable=lT[0]
         # lazy guy!
         page = firstTable.parent
-        newDoc,_ = PageXml.createPageXmlDocument('XRCE', '', 0,0)
+        newDoc,_ = PageXml.createPageXmlDocument('NLE', '', 0,0)
         page.unlinkNode()
         newDoc.setRootElement(page)
         ### need to add the ns!!
@@ -313,6 +315,10 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             ## create profile for lA
             ## (execution)    
         """
+        
+        
+        ## 1 generate xml files if only pxml are there
+        
         xmlpath=os.path.abspath("%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid))
         
         lXMLNames = [ "%s%s%s"%(xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
@@ -331,11 +337,12 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
                 oldname = "%s%s%s" %(xmlpath,os.sep,name)
                 newname = "%s%s%s" % (xmlpath,os.sep,name)
                 newname = newname[:-5]+'.xml' 
-                doc =  libxml2.parseFile(oldname)
+                tmpdoc =  libxml2.parseFile(oldname)
 #                 self.unLinkTable(doc)
-                doc.saveFileEnc(newname,"UTF-8")                         
+                tmpdoc.saveFileEnc(newname,"UTF-8")                         
         
         
+        ## Table registration 
         if self.bTemplate:
             templatePage = self.findTemplate(doc)
             ## RM  previous *.xml
@@ -355,11 +362,15 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
                 os.system(job)
                 traceln('table registration done: %s'% prnregfilename)            
         
+        
+        ## separator detection
         if self.bSeparator:
             prnglfilename = self.createLinesProfile()
             job = LAProcessor.cNomacs+ " --batch %s"%(prnglfilename)
             os.system(job)
             traceln( 'GL done: %s' % prnglfilename)    
+        
+        ## baseline detection
         if self.bBaseLine:
             prnlafilename = self.createLAProfile()
             job = LAProcessor.cNomacs+ " --batch %s"%(prnlafilename)
@@ -370,8 +381,10 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
 #         lFullPathXMLNames = [ "%s%s%s" % (xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
 #         lFullPathXMLNames.sort()
         lFullPathXMLNames = self.extractFileNamesFromMPXML(doc)
-#         print lFullPathXMLNames
+        print len(lFullPathXMLNames)
         doc, sMPXML= self.storeMPXML(lFullPathXMLNames)     
+        
+        ## te
         if self.bRegularTextLine:
             self.regularTextLines(doc)
         doc.saveFormatFileEnc(sMPXML,"UTF-8",True)       
@@ -418,7 +431,6 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         """
         mpagedoc = self.performLA(doc)
 
-
     
 
 if __name__ == "__main__":
@@ -437,11 +449,11 @@ if __name__ == "__main__":
     tp.add_option("--coldir", dest="coldir", action="store", type="string", help="collection folder")
     tp.add_option("--docid", dest="docid", action="store", type="string", help="document id")
     tp.add_option("--bl", dest="bBaseline", action="store_true", default=False, help="detect baselines")
-    tp.add_option("--region", dest="bRegion", action="store_true", default=False, help="detect Region")
+    tp.add_option("--region", dest="bRegion", action="store_true", default=False, help="keep Region")
     tp.add_option("--sep", dest="bSeparator", action="store_true", default=False, help="detect separator (graphical lines)")
     tp.add_option("--regTL", dest="regTL", action="store_true", default=False, help="generate regular TextLines")
-
-    tp.add_option("--form", dest="template", action="store", type="string", help="perform templat registration")
+    tp.add_option("--form", dest="template", action="store_true", default=False, help="perform template registration")
+    #tp.add_option("--form", dest="template", action="store", type="string", help="perform template registration")
         
     #parse the command line
     dParams, args = tp.parseCommandLine()
@@ -452,3 +464,5 @@ if __name__ == "__main__":
     doc = tp.loadDom()
     tp.run(doc)
     
+
+
