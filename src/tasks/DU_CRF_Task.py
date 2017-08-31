@@ -516,10 +516,10 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         assert iFold_stored == abs(iFold), "Internal error. Inconsistent fold details on disk."
         
         if iFold > 0: #normal case
-            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm, bPickleOnly=False)
+            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm, bPickleOnly=bPickleOnly)
         else:
             traceln("Switching train and test data for fold %d"%abs(iFold))
-            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, test_index, train_index, bWarm=bWarm, bPickleOnly=False)
+            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, test_index, train_index, bWarm=bWarm, bPickleOnly=bPickleOnly)
         
         fnFoldResults = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_TestReport.pkl"%iFold)
         crf.Model.Model.gzip_cPickle_dump(fnFoldResults, oReport)
