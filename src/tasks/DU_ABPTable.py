@@ -193,7 +193,7 @@ if __name__ == "__main__":
             """
             Run one fold
             """
-            oReport = doer._nfold_RunFoldFromDisk(options.iFoldRunNum, options.warm)
+            oReport = doer._nfold_RunFoldFromDisk(options.iFoldRunNum, options.warm, options.pkl)
             traceln(oReport)
         elif options.bFoldFinish:
             tstReport = doer._nfold_Finish()
