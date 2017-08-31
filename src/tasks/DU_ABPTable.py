@@ -52,7 +52,7 @@ class DU_ABPTable(DU_CRF_Task):
     """
     sXmlFilenamePattern = "*.mpxml"
     
-    sLabeledXmlFilenamePattern = "*.mpxml"
+    sLabeledXmlFilenamePattern = "*.a_mpxml"
 
     sLabeledXmlFilenameEXT = ".mpxml"
 
@@ -211,7 +211,7 @@ if __name__ == "__main__":
         traceln("Results are in %s"%sReportPickleFilename)
         crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
     elif lTrn:
-        doer.train_save_test(lTrn, lTst, options.warm)
+        doer.train_save_test(lTrn, lTst, options.warm, options.trn_pkl)
         try:    traceln("Baseline best estimator: %s"%doer.bsln_mdl.best_params_)   #for GridSearch
         except: pass
         traceln(" --- CRF Model ---")
