@@ -179,7 +179,7 @@ See DU_StAZH_b.py
     
     #---  COMMAND LINE PARSZER --------------------------------------------------------------------
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
-        usage = """"%s <model-folder> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+
+        usage = """"%s <model-folder> <model-name> [--rm] [--trn <col-dir> [--warm] [--trn_pkl]]+ [--tst <col-dir>]+ [--run <col-dir>]+
 or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish] [--fold <col-dir>]+
 CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--crf-njobs <int>] [crf-inference_cache <int>] [best-params=<model-name>]
 
@@ -187,6 +187,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         --rm  : remove all model data from the folder
         --trn : train a model using the given data (multiple --trn are possible)
                   --warm/-w: warm-start the training if applicable
+                  --trn_pkl: store the training data as a pickle file containing PyStruct data structure (lX, lY) and exit
         --tst : test the model using the given test collection (multiple --tst are possible)
         --run : predict using the model for the given collection (multiple --run are possible)
         
@@ -210,6 +211,8 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         
         parser.add_option("--trn", dest='lTrn',  action="append", type="string"
                           , help="Train or continue previous training session using the given annotated collection.")    
+        parser.add_option("--trn_pkl", dest='trn_pkl', action="store_true"
+                          , help="Pickle PyStruct data using the training annotated collection, and exit.")    
         parser.add_option("--tst", dest='lTst',  action="append", type="string"
                           , help="Test a model using the given annotated collection.")    
         parser.add_option("--run", dest='lRun',  action="append", type="string"
@@ -318,7 +321,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             os.rmdir(self.sModelDir)
         return 
     
-    def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False):
+    def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False, bPickleOnly=False):
         """
         - Train a model on the tTRN collections, if not empty.
         - Test the trained model using the lTST collections, if not empty.
@@ -341,7 +344,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
         
         self.traceln("- creating a %s model"%self.cModelClass)
-        oReport = self._train_save_test(self.sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst)
+        oReport = self._train_save_test(self.sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst, bPickleOnly)
 
         return oReport
 
@@ -605,7 +608,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         return loTstRpt
 
     #----------------------------------------------------------------------------------------------------------    
-    def _train_save_test(self, sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst):
+    def _train_save_test(self, sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst, bPickleOnly=False):
         """
         used both by train_save_test and _nfold_runFold
         """
@@ -644,6 +647,15 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             mdl.saveTransformers()
         self.traceln(" done [%.1fs]"%chronoOff("FeatExtract"))
         
+        if bPickleOnly:
+            self.traceln("- Computing data structure of all graphs and features...")
+            lX, lY = mdl.get_lX_lY(lGraph_trn)
+            sFilename = mdl.getTrainDataFilename()
+            self.traceln("- storing (lX, lY) into %s"%sFilename)
+            mdl.gzip_cPickle_dump(sFilename, (lX, lY))
+            self.traceln("- done, exiting")
+            exit(0)
+            
         self.traceln("- training model...")
         chronoOn("MdlTrn")
         mdl.train(lGraph_trn, True, ts_trn, verbose=1 if self.bVerbose else 0)
