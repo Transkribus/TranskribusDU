@@ -205,24 +205,24 @@ if __name__ == "__main__":
         #-------------------
         
     if lFold:
-        loTstRpt = doer.nfold_Eval(lFold, 3, .25, None, options.trn_pkl)
+        loTstRpt = doer.nfold_Eval(lFold, 3, .25, None, options.pkl)
         import crf.Model
         sReportPickleFilename = os.path.join(sModelDir, sModelName + "__report.txt")
         traceln("Results are in %s"%sReportPickleFilename)
         crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
     elif lTrn:
-        doer.train_save_test(lTrn, lTst, options.warm, options.trn_pkl)
+        doer.train_save_test(lTrn, lTst, options.warm, options.pkl)
         try:    traceln("Baseline best estimator: %s"%doer.bsln_mdl.best_params_)   #for GridSearch
         except: pass
         traceln(" --- CRF Model ---")
         traceln(doer.getModel().getModelInfo())
     elif lTst:
         doer.load()
-        tstReport = doer.test(lTst)
+        tstReport = doer.test(lTst, options.pkl)
         traceln(tstReport)
     
     if lRun:
         doer.load()
-        lsOutputFilename = doer.predict(lRun)
+        lsOutputFilename = doer.predict(lRun, options.pkl)
         traceln("Done, see in:\n  %s"%lsOutputFilename)
     

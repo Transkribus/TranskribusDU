@@ -181,7 +181,7 @@ See DU_StAZH_b.py
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
         usage = """"%s <model-folder> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+
 or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish] [--fold <col-dir>]+
-[--trn_pkl]
+[--pkl]
 CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--crf-njobs <int>] [crf-inference_cache <int>] [best-params=<model-name>]
 
         For the named MODEL using the given FOLDER for storage:
@@ -196,7 +196,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         --fold-run    : run the given fold, if --warm/-w, then warm-start if applicable 
         --fold-finish : collect and aggregate the results of all folds that were run.
 
-        --trn_pkl: store the training data as a pickle file containing PyStruct data structure (lX, lY) and exit
+        --pkl         : store the data as a pickle file containing PyStruct data structure (lX, lY) and exit
         
         --crf-njobs    : number of parallel training jobs
         
@@ -227,8 +227,8 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                           , help="Evaluate by cross-validation a model on the given annotated collection.")    
         parser.add_option("-w", "--warm", dest='warm',  action="store_true"
                           , help="To make warm-startable model and warm-start if a model exist already.")   
-        parser.add_option("--trn_pkl", dest='trn_pkl', action="store_true"
-                          , help="Pickle PyStruct data using the training annotated collection, and exit.")    
+        parser.add_option("--pkl", dest='pkl', action="store_true"
+                          , help="GZip and pickle PyStruct data as (lX, lY), and exit.")    
         parser.add_option("--rm", dest='rm',  action="store_true"
                           , help="Remove all model files")   
         parser.add_option("--crf-njobs", dest='crf_njobs',  action="store", type="int"
@@ -610,6 +610,14 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         return loTstRpt
 
     #----------------------------------------------------------------------------------------------------------    
+    def _pickleData(self, mdl, lGraph, name):
+        self.traceln("- Computing data structure of all graphs and features...")
+        lX, lY = mdl.get_lX_lY(lGraph)
+        sFilename = mdl.getTrainDataFilename(name)
+        self.traceln("- storing (lX, lY) into %s"%sFilename)
+        mdl.gzip_cPickle_dump(sFilename, (lX, lY))
+        return
+                    
     def _train_save_test(self, sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst, bPickleOnly):
         """
         used both by train_save_test and _nfold_runFold
@@ -650,19 +658,13 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         self.traceln(" done [%.1fs]"%chronoOff("FeatExtract"))
         
         if bPickleOnly:
-            self.traceln("- Computing data structure of all graphs and features...")
-            lX, lY = mdl.get_lX_lY(lGraph_trn)
-            sFilename = mdl.getTrainDataFilename()
-            self.traceln("- storing (lX, lY) into %s"%sFilename)
-            mdl.gzip_cPickle_dump(sFilename, (lX, lY))
-            self.traceln("- done, exiting")
-            exit(0)
-            
-        self.traceln("- training model...")
-        chronoOn("MdlTrn")
-        mdl.train(lGraph_trn, True, ts_trn, verbose=1 if self.bVerbose else 0)
-        mdl.save()
-        self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
+            self._pickleData(mdl, lGraph_trn, "trn")
+        else:
+            self.traceln("- training model...")
+            chronoOn("MdlTrn")
+            mdl.train(lGraph_trn, True, ts_trn, verbose=1 if self.bVerbose else 0)
+            mdl.save()
+            self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
         
         # OK!!
         self._mdl = mdl
@@ -671,9 +673,16 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             self.traceln("- loading test graphs")
             lGraph_tst = self.cGraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
             self.traceln(" %d graphs loaded"%len(lGraph_tst))
-            oReport = mdl.test(lGraph_tst)
+            if bPickleOnly:
+                self._pickleData(mdl, lGraph_tst, "tst")
+            else:
+                oReport = mdl.test(lGraph_tst)
         else:
             oReport = None
+
+        if bPickleOnly:
+            self.traceln("- pickle done, exiting")
+            exit(0)
         
         return oReport
     

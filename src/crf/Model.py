@@ -80,8 +80,8 @@ class Model:
         return os.path.join(self.sDir, self.sName+"_config.json")
     def getBaselineFilename(self):
         return os.path.join(self.sDir, self.sName+"_baselines.pkl")
-    def getTrainDataFilename(self):
-        return os.path.join(self.sDir, self.sName+"_tlXlY.pkl")
+    def getTrainDataFilename(self, name):
+        return os.path.join(self.sDir, self.sName+"_tlXlY_%s.pkl"%name)
         
     @classmethod
     def _getParamsFilename(cls, sDir, sName):
