@@ -179,15 +179,15 @@ See DU_StAZH_b.py
     
     #---  COMMAND LINE PARSZER --------------------------------------------------------------------
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
-        usage = """"%s <model-folder> <model-name> [--rm] [--trn <col-dir> [--warm] [--trn_pkl]]+ [--tst <col-dir>]+ [--run <col-dir>]+
+        usage = """"%s <model-folder> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+
 or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish] [--fold <col-dir>]+
+[--trn_pkl]
 CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--crf-njobs <int>] [crf-inference_cache <int>] [best-params=<model-name>]
 
         For the named MODEL using the given FOLDER for storage:
         --rm  : remove all model data from the folder
         --trn : train a model using the given data (multiple --trn are possible)
                   --warm/-w: warm-start the training if applicable
-                  --trn_pkl: store the training data as a pickle file containing PyStruct data structure (lX, lY) and exit
         --tst : test the model using the given test collection (multiple --tst are possible)
         --run : predict using the model for the given collection (multiple --run are possible)
         
@@ -195,6 +195,8 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         --fold-init   : generate the content of the N folds 
         --fold-run    : run the given fold, if --warm/-w, then warm-start if applicable 
         --fold-finish : collect and aggregate the results of all folds that were run.
+
+        --trn_pkl: store the training data as a pickle file containing PyStruct data structure (lX, lY) and exit
         
         --crf-njobs    : number of parallel training jobs
         
@@ -211,8 +213,6 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         
         parser.add_option("--trn", dest='lTrn',  action="append", type="string"
                           , help="Train or continue previous training session using the given annotated collection.")    
-        parser.add_option("--trn_pkl", dest='trn_pkl', action="store_true"
-                          , help="Pickle PyStruct data using the training annotated collection, and exit.")    
         parser.add_option("--tst", dest='lTst',  action="append", type="string"
                           , help="Test a model using the given annotated collection.")    
         parser.add_option("--run", dest='lRun',  action="append", type="string"
@@ -227,6 +227,8 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                           , help="Evaluate by cross-validation a model on the given annotated collection.")    
         parser.add_option("-w", "--warm", dest='warm',  action="store_true"
                           , help="To make warm-startable model and warm-start if a model exist already.")   
+        parser.add_option("--trn_pkl", dest='trn_pkl', action="store_true"
+                          , help="Pickle PyStruct data using the training annotated collection, and exit.")    
         parser.add_option("--rm", dest='rm',  action="store_true"
                           , help="Remove all model files")   
         parser.add_option("--crf-njobs", dest='crf_njobs',  action="store", type="int"
@@ -561,7 +563,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             
         return oNFoldReport
 
-    def _nfold_RunFold(self, iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=False):
+    def _nfold_RunFold(self, iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=False, bPickleOnly=False):
         """
         Run this fold
         Return a TestReport object
@@ -575,7 +577,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         self.traceln("- creating a %s model"%self.cModelClass)
         sFoldModelName = self.sModelName+"_fold_%d"%iFold
         
-        oReport = self._train_save_test(sFoldModelName, bWarm, lFoldFilename_trn, ts_trn, lFoldFilename_tst)
+        oReport = self._train_save_test(sFoldModelName, bWarm, lFoldFilename_trn, ts_trn, lFoldFilename_tst, bPickleOnly)
 
         fnFoldReport = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_STATS.txt"%iFold)
         with open(fnFoldReport, "w") as fd:
@@ -583,7 +585,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         
         return oReport
     
-    def nfold_Eval(self, lsTrnColDir, n_splits=3, test_size=0.25, random_state=None):
+    def nfold_Eval(self, lsTrnColDir, n_splits=3, test_size=0.25, random_state=None, bPickleOnly=False):
         """
         n-fold evaluation on the training data
         
@@ -601,14 +603,14 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         loTstRpt = []
         
         for i, (train_index, test_index) in enumerate(splitter.split(lFilename_trn)):
-            oReport = self._nfold_RunFold(i+1, ts_trn, lFilename_trn, train_index, test_index)
+            oReport = self._nfold_RunFold(i+1, ts_trn, lFilename_trn, train_index, test_index, bPickleOnly=False)
             traceln(oReport)
             loTstRpt.append(oReport)
         
         return loTstRpt
 
     #----------------------------------------------------------------------------------------------------------    
-    def _train_save_test(self, sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst, bPickleOnly=False):
+    def _train_save_test(self, sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst, bPickleOnly):
         """
         used both by train_save_test and _nfold_runFold
         """

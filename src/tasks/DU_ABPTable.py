@@ -205,7 +205,7 @@ if __name__ == "__main__":
         #-------------------
         
     if lFold:
-        loTstRpt = doer.nfold_Eval(lFold, 3, .25, None)
+        loTstRpt = doer.nfold_Eval(lFold, 3, .25, None, options.trn_pkl)
         import crf.Model
         sReportPickleFilename = os.path.join(sModelDir, sModelName + "__report.txt")
         traceln("Results are in %s"%sReportPickleFilename)
