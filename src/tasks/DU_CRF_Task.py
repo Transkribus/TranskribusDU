@@ -504,7 +504,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                 
         return splitter, ts_trn, lFilename_trn
 
-    def _nfold_RunFoldFromDisk(self, iFold, bWarm=False):
+    def _nfold_RunFoldFromDisk(self, iFold, bWarm=False, bPickleOnly=False):
         """
         Run the fold iFold
         Store results on disk
@@ -516,10 +516,10 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         assert iFold_stored == abs(iFold), "Internal error. Inconsistent fold details on disk."
         
         if iFold > 0: #normal case
-            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm)
+            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm, bPickleOnly=False)
         else:
             traceln("Switching train and test data for fold %d"%abs(iFold))
-            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, test_index, train_index, bWarm=bWarm)
+            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, test_index, train_index, bWarm=bWarm, bPickleOnly=False)
         
         fnFoldResults = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_TestReport.pkl"%iFold)
         crf.Model.Model.gzip_cPickle_dump(fnFoldResults, oReport)
@@ -624,7 +624,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         """
         mdl = self.cModelClass(sModelName, self.sModelDir)
         
-        if os.path.exists(mdl.getModelFilename()) and not bWarm: 
+        if os.path.exists(mdl.getModelFilename()) and not bWarm and not bPickleOnly: 
             raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
             
         mdl.configureLearner(**self.config_learner_kwargs)
