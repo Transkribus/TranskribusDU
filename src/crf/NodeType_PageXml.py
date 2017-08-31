@@ -180,6 +180,7 @@ class NodeType_PageXml(NodeType):
             
         ctxt.xpathFreeContext()       
         if TEST_getPageXmlBlock:
+            import util.xml_utils
             util.xml_utils.toFile(doc, "TEST_getPageXmlBlock.mpxml", True)
         
         raise StopIteration()        

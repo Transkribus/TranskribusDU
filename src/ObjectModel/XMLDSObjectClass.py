@@ -101,6 +101,10 @@ class  XMLDSObjectClass(XMLObjectClass):
             self.addAttribute(prop.name,prop.getContent())
             # add attributes
             prop = prop.next
+            
+        self.addAttribute('x2', float(self.getAttribute('x'))+self.getWidth())
+        self.addAttribute('y2',float(self.getAttribute('y'))+self.getHeight() )
+        
         child = domNode.children
         self._id = self.getAttribute('id')
         if self.getID() is None:
