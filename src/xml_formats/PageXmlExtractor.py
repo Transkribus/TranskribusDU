@@ -33,7 +33,7 @@ class DocPageSet:
         
         self.sDocID = sDocID
         self._ltiRange = []
-        prev_a = None
+        prev_b = None
         for sPageRange in sPageRangeSet.split(","):
             lsN = sPageRange.split('-')
             if len(lsN) == 1:
@@ -45,10 +45,10 @@ class DocPageSet:
                 raise ValueError("invalid range: '%s'"%sPageRange)
             if not(a<=b): raise ValueError("Invalid range: '%s'"%sPageRange)
             self._ltiRange.append( (a,b) )     #222=1-10
-            if prev_a < b:
-                prev_a = b
+            if prev_b < a:
+                prev_b = b
             else:
-                raise ValueError("unordered or overlapping ranges: '%d' >= '%d' '%s'"%(prev_a, b, sSpec))
+                raise ValueError("unordered or overlapping ranges: '%d' >= '%d' '%s'"%(prev_b, a, sSpec))
         if not self.sDocID:   raise ValueError("missing docID: '%s'"%sSpec)
         if not self._ltiRange: raise ValueError("empty range: '%s'"%sSpec)
     

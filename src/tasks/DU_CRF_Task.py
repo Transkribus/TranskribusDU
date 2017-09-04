@@ -181,6 +181,7 @@ See DU_StAZH_b.py
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
         usage = """"%s <model-folder> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+
 or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish] [--fold <col-dir>]+
+[--pkl]
 CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--crf-njobs <int>] [crf-inference_cache <int>] [best-params=<model-name>]
 
         For the named MODEL using the given FOLDER for storage:
@@ -194,6 +195,8 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         --fold-init   : generate the content of the N folds 
         --fold-run    : run the given fold, if --warm/-w, then warm-start if applicable 
         --fold-finish : collect and aggregate the results of all folds that were run.
+
+        --pkl         : store the data as a pickle file containing PyStruct data structure (lX, lY) and exit
         
         --crf-njobs    : number of parallel training jobs
         
@@ -224,6 +227,8 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                           , help="Evaluate by cross-validation a model on the given annotated collection.")    
         parser.add_option("-w", "--warm", dest='warm',  action="store_true"
                           , help="To make warm-startable model and warm-start if a model exist already.")   
+        parser.add_option("--pkl", dest='pkl', action="store_true"
+                          , help="GZip and pickle PyStruct data as (lX, lY), and exit.")    
         parser.add_option("--rm", dest='rm',  action="store_true"
                           , help="Remove all model files")   
         parser.add_option("--crf-njobs", dest='crf_njobs',  action="store", type="int"
@@ -318,7 +323,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             os.rmdir(self.sModelDir)
         return 
     
-    def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False):
+    def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False, bPickleOnly=False):
         """
         - Train a model on the tTRN collections, if not empty.
         - Test the trained model using the lTST collections, if not empty.
@@ -341,7 +346,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
         
         self.traceln("- creating a %s model"%self.cModelClass)
-        oReport = self._train_save_test(self.sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst)
+        oReport = self._train_save_test(self.sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst, bPickleOnly)
 
         return oReport
 
@@ -499,7 +504,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                 
         return splitter, ts_trn, lFilename_trn
 
-    def _nfold_RunFoldFromDisk(self, iFold, bWarm=False):
+    def _nfold_RunFoldFromDisk(self, iFold, bWarm=False, bPickleOnly=False):
         """
         Run the fold iFold
         Store results on disk
@@ -511,10 +516,10 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         assert iFold_stored == abs(iFold), "Internal error. Inconsistent fold details on disk."
         
         if iFold > 0: #normal case
-            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm)
+            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm, bPickleOnly=bPickleOnly)
         else:
             traceln("Switching train and test data for fold %d"%abs(iFold))
-            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, test_index, train_index, bWarm=bWarm)
+            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, test_index, train_index, bWarm=bWarm, bPickleOnly=bPickleOnly)
         
         fnFoldResults = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_TestReport.pkl"%iFold)
         crf.Model.Model.gzip_cPickle_dump(fnFoldResults, oReport)
@@ -558,7 +563,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             
         return oNFoldReport
 
-    def _nfold_RunFold(self, iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=False):
+    def _nfold_RunFold(self, iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=False, bPickleOnly=False):
         """
         Run this fold
         Return a TestReport object
@@ -572,7 +577,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         self.traceln("- creating a %s model"%self.cModelClass)
         sFoldModelName = self.sModelName+"_fold_%d"%iFold
         
-        oReport = self._train_save_test(sFoldModelName, bWarm, lFoldFilename_trn, ts_trn, lFoldFilename_tst)
+        oReport = self._train_save_test(sFoldModelName, bWarm, lFoldFilename_trn, ts_trn, lFoldFilename_tst, bPickleOnly)
 
         fnFoldReport = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_STATS.txt"%iFold)
         with open(fnFoldReport, "w") as fd:
@@ -580,7 +585,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         
         return oReport
     
-    def nfold_Eval(self, lsTrnColDir, n_splits=3, test_size=0.25, random_state=None):
+    def nfold_Eval(self, lsTrnColDir, n_splits=3, test_size=0.25, random_state=None, bPickleOnly=False):
         """
         n-fold evaluation on the training data
         
@@ -598,20 +603,28 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         loTstRpt = []
         
         for i, (train_index, test_index) in enumerate(splitter.split(lFilename_trn)):
-            oReport = self._nfold_RunFold(i+1, ts_trn, lFilename_trn, train_index, test_index)
+            oReport = self._nfold_RunFold(i+1, ts_trn, lFilename_trn, train_index, test_index, bPickleOnly=False)
             traceln(oReport)
             loTstRpt.append(oReport)
         
         return loTstRpt
 
     #----------------------------------------------------------------------------------------------------------    
-    def _train_save_test(self, sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst):
+    def _pickleData(self, mdl, lGraph, name):
+        self.traceln("- Computing data structure of all graphs and features...")
+        lX, lY = mdl.get_lX_lY(lGraph)
+        sFilename = mdl.getTrainDataFilename(name)
+        self.traceln("- storing (lX, lY) into %s"%sFilename)
+        mdl.gzip_cPickle_dump(sFilename, (lX, lY))
+        return
+                    
+    def _train_save_test(self, sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst, bPickleOnly):
         """
         used both by train_save_test and _nfold_runFold
         """
         mdl = self.cModelClass(sModelName, self.sModelDir)
         
-        if os.path.exists(mdl.getModelFilename()) and not bWarm: 
+        if os.path.exists(mdl.getModelFilename()) and not bWarm and not bPickleOnly: 
             raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
             
         mdl.configureLearner(**self.config_learner_kwargs)
@@ -644,11 +657,14 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             mdl.saveTransformers()
         self.traceln(" done [%.1fs]"%chronoOff("FeatExtract"))
         
-        self.traceln("- training model...")
-        chronoOn("MdlTrn")
-        mdl.train(lGraph_trn, True, ts_trn, verbose=1 if self.bVerbose else 0)
-        mdl.save()
-        self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
+        if bPickleOnly:
+            self._pickleData(mdl, lGraph_trn, "trn")
+        else:
+            self.traceln("- training model...")
+            chronoOn("MdlTrn")
+            mdl.train(lGraph_trn, True, ts_trn, verbose=1 if self.bVerbose else 0)
+            mdl.save()
+            self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
         
         # OK!!
         self._mdl = mdl
@@ -657,9 +673,16 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             self.traceln("- loading test graphs")
             lGraph_tst = self.cGraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
             self.traceln(" %d graphs loaded"%len(lGraph_tst))
-            oReport = mdl.test(lGraph_tst)
+            if bPickleOnly:
+                self._pickleData(mdl, lGraph_tst, "tst")
+            else:
+                oReport = mdl.test(lGraph_tst)
         else:
             oReport = None
+
+        if bPickleOnly:
+            self.traceln("- pickle done, exiting")
+            exit(0)
         
         return oReport
     
