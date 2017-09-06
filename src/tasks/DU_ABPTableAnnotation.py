@@ -238,7 +238,7 @@ class DU_ABPTableAnnotator(DU_CRF_Task):
                     sLabel = sep.type.parseDomNodeLabel(sep.node)
 #                     cls = DU_GRAPH._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
                 except ValueError:  
-                    sep.node.setProp(lText[0].type.sLabelAttr,lLabels[6])
+                    sep.node.setProp(sep.type.sLabelAttr,lLabels[6])
             
             
             doc =graph.doc    
