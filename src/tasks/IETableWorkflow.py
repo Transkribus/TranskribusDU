@@ -37,7 +37,6 @@ import json
 import glob
 from optparse import OptionParser
 
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 try:
@@ -166,6 +165,8 @@ class TableProcessing(Component.Component):
     def downloadCollection(self,colid,destDir,docid,bForce=False):
         """
             download colID
+            
+            replace destDir by '.'  ?
         """
         
 #         options.server, proxies, loggingLevel=logging.WARN)
@@ -200,12 +201,14 @@ class TableProcessing(Component.Component):
         traceln("- Done")
         return 
 
-    def applyHTR(self,colid,docid,modelname,dictionary,sPages="2"):
+    def applyHTR(self,colid,docid,nbPages,modelname,dictionary):
         """
             apply HTR on docid
             
             htr id is needed: we have htrmodename
         """
+        
+        sPages= "1-%d"%(nbPages)
         sModelID = None
         # get modelID
         print modelname
@@ -277,8 +280,7 @@ class TableProcessing(Component.Component):
         latool.docid = docid
         latool.bTemplate, latool.bSeparator , latool.bBaseLine , latool.bRegularTextLine = True,True,True,True
         # creates xml and a new mpxml 
-        mpxml_doc = latool.run(mpxml_doc)
-#         lPXMFiles = latool.extractFileNamesFromMPXML(mpxml_doc)  
+        mpxml_doc,nbPages = latool.performLA(mpxml_doc)
          
         # tag text for BIES cell
         #python ../../src/tasks/DU_ABPTable_T.py modelMultiType tableRow2 --run=trnskrbs_5400
@@ -290,7 +292,8 @@ class TableProcessing(Component.Component):
         ## needed predict at file level, and do not store dom, but return it
         BIESFiles  = doer.predict([coldir],docid)
         BIESDom = self.loadDom(BIESFiles[0])
-         
+#         res= BIESDom.saveFormatFileEnc('test.mpxml', "UTF-8",True)
+        
         # MPXML2DS
         #python ../../src/xml_formats/Page2DS.py --pattern=trnskrbs_5400/col/17442_du.mpxml -o trnskrbs_5400/xml/17442.ds_xml  --docid=17442
         dsconv = primaAnalysis()
@@ -329,10 +332,10 @@ class TableProcessing(Component.Component):
         
         #upload
         # python ../../../TranskribusPyClient/src/TranskribusCommands/TranskribusDU_transcriptUploader.py --nodu trnskrbs_5400 5400 17442
-#         self.upLoadDocument(colid, coldir,docid,sNote='test')
+        self.upLoadDocument(colid, coldir,docid,sNote='test')
         
         ## apply HTR
-        jobid = self.applyHTR(colid,docid, self.sHTRmodel,self.sDictName)
+        jobid = self.applyHTR(colid,docid, nbPages,self.sHTRmodel,self.sDictName)
         bWait=True
         traceln("waiting for job %s"%jobid)
         while bWait:
@@ -388,6 +391,8 @@ class TableProcessing(Component.Component):
         if self.bRegenerateMPXML and self.docid is not None:
             l = glob.glob(os.path.join(self.coldir,sCOL,self.docid, "*.pxml"))
             doc = MultiPageXml.makeMultiPageXml(l)
+            outputFileName = os.path.join(self.coldir, sCOL, self.docid+TableProcessing.sMPXMLExtension)
+            res= doc.saveFormatFileEnc(outputFileName, "UTF-8",True)       
             return doc
         return None
         
