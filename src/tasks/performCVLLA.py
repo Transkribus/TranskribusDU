@@ -149,8 +149,11 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
      
     if sys.platform == 'win32':
         cNomacs = '"C:\\Program Files\\READFramework\\bin\\nomacs.exe"'
+        cNomacsold = '"C:\\Program Files\\READFramework\\nomacs-x64\\nomacs.exe"'
+
     else:
         cNomacs = "/opt/Tools/src/tuwien-2017/nomacs/nomacs"
+        cNomacsold = "/opt/Tools/src/tuwien-2017/nomacs/nomacs"
         
 
     #--- INIT -------------------------------------------------------------------------------------------------------------    
@@ -206,6 +209,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         # lazy guy!
         page = firstTable.parent
         newDoc,_ = PageXml.createPageXmlDocument('NLE', '', 0,0)
+        ## why unlink he page???  30/08/2017
         page.unlinkNode()
         newDoc.setRootElement(page)
         ### need to add the ns!!
@@ -296,13 +300,14 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         return doc, sMPXML
     
     
-    def extractFileNamesFromMPXML(self,mpxmlFile):
+    def extractFileNamesFromMPXML(self,doc):
         """
             to insure correct file order !
         """
         xmlpath=os.path.abspath("%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid))
 
         lNd = PageXml.getChildByName(doc.getRootElement(), 'Page')
+#         for i in lNd:print i
         return map(lambda x:"%s%s%s.xml"%(xmlpath,os.sep,x.prop('imageFilename')[:-4]), lNd)
     
     def performLA(self,doc):
@@ -316,10 +321,12 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             ## (execution)    
         """
         
-        
+        # extract list of files sorted as in MPXML
+        lFullPathXMLNames = self.extractFileNamesFromMPXML(doc)
+        nbPages = len(lFullPathXMLNames) 
         ## 1 generate xml files if only pxml are there
         
-        xmlpath=os.path.abspath("%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid))
+        xmlpath=os.path.abspath(os.path.join (self.coldir,'col',self.docid))
         
         lXMLNames = [ "%s%s%s"%(xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
         isXml = [] != lXMLNames        
@@ -328,7 +335,8 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             isXml = False        
         isPXml = [] != [ name for name in os.listdir(xmlpath) if os.path.basename(name)[-5:] =='.pxml']              
         assert not isXml and isPXml
-        
+
+        # recreate doc?  (mpxml)
         
         lPXMLNames = [ name for name in os.listdir(xmlpath) if os.path.basename(name)[-5:] =='.pxml']
         if not isXml:
@@ -373,23 +381,20 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         ## baseline detection
         if self.bBaseLine:
             prnlafilename = self.createLAProfile()
-            job = LAProcessor.cNomacs+ " --batch %s"%(prnlafilename)
+#             job = LAProcessor.cNomacs+ " --batch %s"%(prnlafilename)
+            job = LAProcessor.cNomacsold+ " --batch %s"%(prnlafilename)
+
             os.system(job)
             traceln('LA done: %s' % prnlafilename)        
         
-#         #need to be sorted!!
-#         lFullPathXMLNames = [ "%s%s%s" % (xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
-#         lFullPathXMLNames.sort()
-        lFullPathXMLNames = self.extractFileNamesFromMPXML(doc)
-        print len(lFullPathXMLNames)
         doc, sMPXML= self.storeMPXML(lFullPathXMLNames)     
         
-        ## te
+        ## text rectangles as textline region 
         if self.bRegularTextLine:
             self.regularTextLines(doc)
         doc.saveFormatFileEnc(sMPXML,"UTF-8",True)       
 
-        return doc   
+        return doc, nbPages
     
     def regularTextLines(self,doc):
         """
@@ -398,12 +403,21 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             also: for slanted baseline: 
                 
         """
- 
+        self.xmlns='http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
+
         lTextLines = PageXml.getChildByName(doc.getRootElement(),'TextLine')
         for tl in lTextLines:
-            print tl
-            coord= tl.children
-            baseline = tl.children.next
+            #get Coords
+            ctxt = tl.doc.xpathNewContext()
+            ctxt.xpathRegisterNs("a", self.xmlns)
+            xpath  = "./a:%s" % ("Coords")
+            ctxt.setContextNode(tl)
+            lCoords = ctxt.xpathEval(xpath)            
+            coord= lCoords[0]
+            xpath  = "./a:%s" % ("Baseline")
+            ctxt.setContextNode(tl)
+            lBL = ctxt.xpathEval(xpath)            
+            baseline = lBL[0]
             sPoints=baseline.prop('points')
             lsPair = sPoints.split(' ')
             lXY = list()
@@ -413,13 +427,13 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
                     lXY.append( (int(sx), int(sy)) )
                 except ValueError:print tl
             plg = Polygon(lXY)  
-            iHeight=15
+            iHeight = 15  # in pixel  15up +15 down = 30
             x1,y1, x2,y2 = plg.getBoundingBox()
-            print  x1,y1, x2,y2 
-            print x1,y1-iHeight,x2,y1-iHeight,x2,y2,x1,y2
-            print 
-            coord.setProp('points',"%d,%d %d,%d %d,%d %d,%d"%(x1,y1-iHeight,x2,y1-iHeight,x2,y2,x1,y2))                     
-            print tl
+            if coord: 
+                coord.setProp('points',"%d,%d %d,%d %d,%d %d,%d" % (x1,y1-iHeight,x2,y1-iHeight,x2,y2,x1,y2))
+            else:
+                print tl                     
+#             print tl
     def run(self,doc):
         """
             GT from TextRegion
@@ -429,8 +443,8 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             delete TextLine
             
         """
-        mpagedoc = self.performLA(doc)
-
+        doc,nbpages=  self.performLA(doc)
+        return doc
     
 
 if __name__ == "__main__":
