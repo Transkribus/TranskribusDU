@@ -23,6 +23,8 @@ except ImportError:
     import TranskribusDU_version
     
 from common.Component import Component
+from common.trace import traceln, trace
+
 from xml_formats.PageXml import PageXml
 from ObjectModel.xmlDSDocumentClass import XMLDSDocument
 
@@ -159,6 +161,12 @@ class DS2PageXMLConvertor(Component):
         coordsNode.setProp('points', self.BB2Polylines(DSObject.getX(),DSObject.getY(), DSObject.getHeight(),DSObject.getWidth()))        
         domNode.addChild(coordsNode)            
         
+        
+        for attr in ['custom', 'structure','col']:
+            if DSObject.hasAttribute(attr):
+                domNode.setProp(attr, DSObject.getAttribute(attr))
+        # if blpoints:  build Baseline        
+        
         # type 
         if DSObject.hasAttribute('type'):
             domNode.setProp('type', DSObject.getAttribute('type'))
@@ -251,21 +259,23 @@ class DS2PageXMLConvertor(Component):
                 self.outputFileName = os.path.dirname(self.inputFileName)+os.sep+img[:-3]+"_%.4d"%(i+1) + ".xml"
             else:
                 self.outputFile = self.storagePath + os.sep+img[:-3]+"_%.4d"%(i+1) + ".xml"
-            print "output: %s" % self.outputFileName
+#             print "output: %s" % self.outputFileName
             try:self.writeDom(doc, bIndent=True)
             except IOError:return -1            
         return 0
     
-    def storeMultiPageXml(self,lListDocs):
+    def storeMultiPageXml(self,lListDocs,outputFileName=None):
         """
             write a multipagePageXml file
         """
         from xml_formats.PageXml import MultiPageXml
         mp = MultiPageXml()
         newDoc = mp.makeMultiPageXmlMemory(map(lambda (x,y):x,lListDocs))
-        outputFileName = os.path.dirname(self.inputFileName) + os.sep + ".."+os.sep +"col" + os.sep + os.path.basename(self.inputFileName)[:-4] + "_du.mpxml"
-        newDoc.saveFormatFileEnc(outputFileName, "UTF-8",True)
-        print "output: %s" % outputFileName
+        if outputFileName is None:
+            outputFileName = os.path.dirname(self.inputFileName) + os.sep + ".."+os.sep +"col" + os.sep + os.path.basename(self.inputFileName)[:-7] + "_du.mpxml"
+        res= newDoc.saveFormatFileEnc(outputFileName, "UTF-8",True)
+#         print res
+#         print "output: %s" % outputFileName
         
     def run(self,domDoc):
         """
@@ -276,8 +286,8 @@ class DS2PageXMLConvertor(Component):
         lPageXmlDoc=[]
         lPages= ODoc.getPages()   
         for page in lPages:
-            print page, page.getAttribute('imageFilename')
-            pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='XRCE', filename = os.path.basename(page.getAttribute('imageFilename')), imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
+#             traceln("%s %s"%(page, page.getAttribute('imageFilename')))
+            pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='NLE', filename = os.path.basename(page.getAttribute('imageFilename')), imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
             self.pageXmlNS = pageXmlDoc.getRootElement().ns()
 #             print "??",self.bRegionOnly
             if self.bRegionOnly:
@@ -287,8 +297,8 @@ class DS2PageXMLConvertor(Component):
             #store pageXml
             lPageXmlDoc.append((pageXmlDoc,page.getAttribute('imageFilename')))
 #             print pageXmlDoc.serialize('UTF-8', 1)
-            res= PageXml.validate(pageXmlDoc.doc)
-            print "document is valid:", res 
+#             res= PageXml.validate(pageXmlDoc.doc)
+#             print "document is valid:", res 
         
         return lPageXmlDoc
     
@@ -309,7 +319,7 @@ if __name__ == "__main__":
     docConv.setParams(dParams)
     doc = docConv.loadDom()
     lPageXml = docConv.run(doc)
-    print docConv.bMultiPages
+#     print docConv.bMultiPages
     if lPageXml != []:# and docM.getOutputFileName() != "-":
         if docConv.bMultiPages:
             docConv.storeMultiPageXml(lPageXml)
