@@ -29,6 +29,9 @@
 
 import cPickle
 import regex
+import gzip
+from keras.models import load_model
+import numpy as np  
 
 
 class recordClass(object):
@@ -43,7 +46,9 @@ class recordClass(object):
         self._name =name
         # list of fields
         self._lFields = []
-
+        # mandatory fields
+        self._lmandatoryFields = []
+        
         # link to the document : a (list of) documentObject where the record occurs
         self._location = None        
         
@@ -60,9 +65,11 @@ class recordClass(object):
     def getName(self): return self._name
     def setName(self,s): self._name =s
     def getFields(self): return self._lFields
-    def addField(self,field, mandatory=False):
+    def addField(self,field):
         if field not in self.getFields():
             self.getFields().append(field)
+            if field.isMandatory():
+                self._lmandatoryFields.append(field)
     
     def getFieldByName(self,name):
         for f in self.getFields():
@@ -72,6 +79,19 @@ class recordClass(object):
     def setDocumentElement(self,docElt): self._location = docElt
     def getDocumentElement(self): return self._location
     
+    def isComplete(self,cnd):
+        """
+            cnd has all mandatory fields with value
+        """
+        
+        cpt=0
+        for field in self.getFields():
+            if field.isMandatory():
+                if cnd.getFieldByName(field.getName()) is not None and cnd.getFieldByName(field.getName()).getValue() is not None:
+                    cpt+=1
+                
+        return cpt == len(self._lmandatoryFields) 
+        
     #specifc example for table
     def propagate(self,table):
         """
@@ -116,11 +136,12 @@ class recordClass(object):
             
             if a candidate has several values for a field: use LA distance, score for find the right one? 
             
+            
+            a candidate is a LAobject
         """
-        docElt, lFields = cnd
         score=0
         for field in self.getFields():
-            if field in lFields:
+            if  cnd.getFieldByName(field.getName()) is not None and cnd.getFieldByName(field.getName()).getValue() is not None:
                 score+=1
                 if field.isMandatory():
                     score+=1
@@ -134,8 +155,29 @@ class recordClass(object):
         """
             score each candidate and scor them
         """
-        
+            
+        self.getCandidates().sort(key=lambda x:self.scoreCandidat(x),reverse=True)
+#         for cand in self.getCandidates():
+#             print cand, self.scoreCandidat(cand)        
     
+    def display(self):
+        """
+            list candidates (and location)
+            
+            a candidate must be a LAobject 
+        """
+        for cand in self.getCandidates():
+            # currently cell
+            print  self.isComplete(cand), cand.getContent().encode('utf-8')
+            for field in cand.getFields():
+                print "f:",field.getName(), field.getBestValue(), field.isMandatory()
+            
+        
+    def generateOutput(self):
+        """
+            serialization for output format 
+        """
+        raise "must be instanciated"
     
 class fieldClass(object):
     """
@@ -149,6 +191,7 @@ class fieldClass(object):
         # backref to record
         self._myrecord = None
         
+        self._bMandatory = False
         # how to extract textual representation
         self._lTaggers = []
         
@@ -167,11 +210,26 @@ class fieldClass(object):
     def __str__(self):return "%s-%s"%(self.getName(),self.getValue())        
     def __repr__(self):  return "%s-%s"%(self.getName(),self.getValue())        
     
+    #lastname-['lastname', (u'List', (2, 0, 0), u'Ritt', 987), (u'List', (0, 0, 0), u'List', 2436), (u'illeg', (2, 0, 0), u'\xd6ller', 1648), (u'der', (1, 0, 1), u'Kern', 4501), (u'der', (1, 0, 1), u'Denk', 3129)]
+    #firstname-['firstname', (u'Anna', (2, 0, 0), u'Lina', 607), (u'Anna', (2, 0, 0), u'Afra', 523), (u'Anna', (0, 0, 2), u'Anna M', 27), (u'Anna', (0, 0, 0), u'Anna', 158517), (u'Anna', (2, 0, 0), u'Mina', 61), (u'Anna', (2, 0, 0), u'Erna', 233), (u'List', (2, 0, 0), u'Lina', 607), (u'illeg', (1, 1, 0), u'Ilse', 50)]
+
+
     def getName(self): return self._name
     def setName(self,s): self._name =s        
 
     def getValue(self): return self._value
     def setValue(self,v): self._value = v   
+    
+    def getBestValue(self):
+        # currently: (u'List', (2, 0, 0), u'Ritt', 987)
+        if self.getValue() is not None:
+            #take fuzzy match score!
+            self.getValue().sort(key=lambda x:x[1][0]+x[1][1]+x[1][2])
+            return self.getValue()[0]
+            
+    
+    def isMandatory(self): return self._bMandatory
+    def setMandatory(self): self._bMandatory = True
     
     def addTagger(self,t): 
         self._lTaggers.append(t)
@@ -182,7 +240,7 @@ class fieldClass(object):
         for t in self.getTaggers():
             res= t.runMe(o)
             if res:
-                lres.append([self.getName()]+res)
+                lres.append(res)
         return lres
     
     def cloneMe(self):
@@ -200,7 +258,7 @@ class taggerClass(object):
         
         a mapping function is required when the tagger does more than needed (more ne than the one to be extracted)
     """
-    FSTTYPE =   0               # requires path/myressource.fst 
+    FSTTYPE =   0               # requires path/myresource.fst 
     MLCRFTYPE  =   1            # requires path to modeldirectory     
     EXTERNALTAGGERTYPE = 2      # path to exe ; assume text as input
     
@@ -214,12 +272,14 @@ class taggerClass(object):
         
         ## tagger type paramater: needed resources
         self._path = None
+        self._lresources = None
         
         self._externalTagger = None
     def getName(self): return self._name
     def setName(self,s): self._name =s    
     
-        
+
+    def getResources(self): return self._lresources        
     def runMe(self,documentObject):
         """
             tag s
@@ -248,33 +308,104 @@ class taggerClass(object):
             apply external tagger
         """    
         
+ 
+class KerasTagger(taggerClass):
+    """
+        see textkeras
+        
+        to be finalized
+    """ 
+    def __init__(self,name):
+        taggerClass.__init__(self, name)
+          
+    def loadResources(self,lfilenames):
+    
+        modelfile, otherfile= lfilenames
+        self.model = load_model(modelfile)
+    
+        self.max_features,self.max_sentence_len, self.DEFAULT_N_CLASSES,self.tag_vector_map , self.node_transformer = cPickle.load(gzip.open(otherfile, 'rb'))
+    
+    def runMe(self,documentObject):
+        
+        txt = documentObject.getContent()
+        allwords= self.node_transformer.transform(txt.split())
+        wordsvec = []
+        for w in allwords:
+            wordsvec.append(w)
+        lX = list()
+        nil_X = np.zeros(self.max_features)
+        pad_length = self.max_sentence_len - len(wordsvec)
+        lX.append( ((pad_length)*[nil_X]) + wordsvec)
+        lX=np.array(lX)
+        
+        y_pred = self.model.predict(lX)
+        
+        for i,_ in enumerate(lX): 
+            pred_seq = y_pred[i]
+            pred_tags = []
+            for class_prs in pred_seq:
+                class_vec = np.zeros(self.DEFAULT_N_CLASSES, dtype=np.int32)
+                class_vec[ np.argmax(class_prs) ] = 1
+                if tuple(class_vec.tolist()) in self.tag_vector_map:
+                    pred_tags.append(self.tag_vector_map[tuple(class_vec.tolist())])
+            print txt.encode('utf-8'),pred_tags              
+        
+        
+        ## mapping 
+        
+        return pred_tags[-len(allwords):]
+            
+class CRFTagger(taggerClass):
+    """
+        
+    """    
     
     
-    
-    
+    def defineLabelMapping(self,dMapping):
+        # mapping between label number and label name
+        self.dMapping = dMapping
+        
+    def loadResources(self,lfilenames):
+        """
+            load all need files
+        """
+        
+        model, trans= lfilenames
+        self.model = cPickle.load(gzip.open(model, 'rb'))
+        self.trans = cPickle.load(gzip.open(trans, 'rb'))
+       
+    def runMe(self,documentObject): 
+        txt = documentObject.getContent()
+        allwords= self.trans.transform(txt.split())
+        lY_pred = self.model.predict(allwords)
+        # mapp output !
+        print lY_pred    
     
 class RETaggerClass(taggerClass):
     
     def __init__(self,name='tagger'):
         taggerClass.__init__(self, name)
-        self._lressources = None
+        self._lresources = None
         
-    def loadRessources(self,lfilenames):
+    def loadResources(self,lfilenames):
         """
             Open and read ressoruce files
             
         """
         
-        self._lressources=[]
+        self._lresources=[]
         for filename in lfilenames:
             lre,ln=cPickle.load(open(filename,'r'))
-            self._lressources.append((filename,lre,ln))
+            self._lresources.append((filename,lre,ln))
         
-        return self._lressources
+        return self._lresources
     
     def runMe(self,documentObject):
         """
             return what? tag and offset in documentObject.getContent()?
+            
+            value : u'Anna', (2, 0, 0), u'Lina', 607)
+                    string,  edit distance (useful?), dictentry, weight
         """  
         
         # contains: token + score
@@ -282,12 +413,13 @@ class RETaggerClass(taggerClass):
         
         txt = documentObject.getContent()
         ltokens = txt.split()
-        for _, lreNames,lnames in self._lressources:
+        for _, lreNames,lnames in self._lresources:
             for token in ltokens:
                 for i,myre in enumerate(lreNames):
                     xx = myre.fullmatch(token)
+#                     print token.encode('utf-8'), myre, xx
                     if xx:
-                        if len(token) >1 and sum(xx.fuzzy_counts) <3:
+                        if len(token) >1 and sum(xx.fuzzy_counts) <1:
                             lParsingRes.append((token,xx.fuzzy_counts,lnames[i][0],lnames[i][1]))
 #                             print token,_,xx.fuzzy_counts,lnames[i]      
                             
@@ -306,6 +438,6 @@ class dateRETaggerClass(RETaggerClass):
         for m in lmonth:
             lReNames.append(regex.compile(r"(%s){e<=3}"%regex.escape(m), regex.IGNORECASE))
             lNames.append((m,1))
-        self._lressources = [('REDate',lReNames, lNames)]
+        self._lresources = [('REDate',lReNames, lNames)]
         
     
