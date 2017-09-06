@@ -129,6 +129,9 @@ class IETest(Component.Component):
                         if curChunk != []:
                             lChunks.append(curChunk)
                         curChunk=[txt]
+                    elif txt.getAttribute("type") == 'RO':
+                        ## add Other as well???
+                        curChunk.append(txt)
                         
                 if curChunk != []:
                     lChunks.append(curChunk)
@@ -167,6 +170,7 @@ class IETest(Component.Component):
         """
         rowMiner= tableRowMiner()
         lYcuts = rowMiner.columnMining(table,predefinedCuts)
+        print lYcuts
         # shift up offset
         [x.setValue(x.getValue()-10) for x in lYcuts]
 
@@ -185,7 +189,7 @@ class IETest(Component.Component):
         
 
 
-    def generateRessources(self,table,record):
+    def generateresources(self,table,record):
         """
             Once template has decorated table cells: 
                 Extract when fieldvalue when reliable:
@@ -241,14 +245,13 @@ class IETest(Component.Component):
             lres= []
             for field in cell.getFields():
                 if field is not None:
-                    print cell.getIndex(), cell.getFields(), cell.getContent().encode('utf-8')
                     res = field.applyTaggers(cell)
-#                     print field, res
+                    print field, res
                     if res != []:
                         field.setValue(res[0])
                     if res != []:
                         lres.append(res)
-
+                    print cell.getIndex(), cell.getFields(), cell.getContent().encode('utf-8')
         
         ### now at record level ?
         ### scope = propagation using only docObject (hardcoded ?)
@@ -512,7 +515,7 @@ class IETest(Component.Component):
 
         lRef = []
         ctxt = RefData.xpathNewContext()
-        lPages = ctxt.xpathEval('//%s' % ('PAGE'))
+        lPages = ctxt.xpathEval('//%s' % ('PAGE[@pagenum<31]'))
         for page in lPages:
             pnum=page.prop('pagenum')
             xpath = "./%s" % ("RECORD")
@@ -543,7 +546,7 @@ class IETest(Component.Component):
             bFound = False
             bErr , bMiss= False, False
             runElt = lRun[i]
-            print '\t\t===',runElt
+#             print '\t\t===',runElt
             while not bFound and iRef <= refLen - 1:  
                 curRef = lRef[iRef]
                 if runElt and curRef not in lRefCovered and self.testCompareRecordFirstNameLastName(runElt, curRef):
@@ -572,6 +575,7 @@ class IETest(Component.Component):
         
     def testCompareRecordFirstName(self, refdata, rundata, bVisual=False):
         return refdata[0] == rundata[0] and refdata[1].lower() == rundata[1].lower()
+    
     def testCompareRecordFirstNameLastName(self, refdata, rundata, bVisual=False):
         if refdata[0] != rundata[0]: return False
         TH = 80 #(len(refdata[2])-2.0)/len(refdata[2])*100
@@ -634,7 +638,7 @@ class IETest(Component.Component):
         that is understandable to a human and to a program. Nicely serialized Python data or XML is fine
         """
         
-        
+        self.evalData=None
         doc = self.loadDom(filename)
         self.run(doc)
 #         self.generateTestOutput()
