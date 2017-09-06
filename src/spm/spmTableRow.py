@@ -55,7 +55,7 @@ class tableRowMiner(Component.Component):
         
         
         # TH for comparing numerical features for X
-        self.THNUMERICAL= 10
+        self.THNUMERICAL = 15
         # use for evaluation
         self.THCOMP = 10
         self.evalData= None
@@ -89,10 +89,24 @@ class tableRowMiner(Component.Component):
         flattened_sequences = [ list(set(itertools.chain(*sequence))) for sequence in sequences ]
         support_counts = dict(Counter(item for flattened_sequence in flattened_sequences for item in flattened_sequence))
         actual_supports = {item:support_counts.get(item)/float(sequence_count) for item in support_counts.keys()}        
-        lOneSupport= [k for k,v in actual_supports.iteritems() if v > 0.5 ]
+#         lOneSupport= [k for k,v in actual_supports.iteritems() if v >= 0.5 ]
+        lOneSupport= [k for k,v in actual_supports.iteritems() if v >= 0.33 ]
+
+#         print actual_supports
         return lOneSupport
     
-    def columnMining(self,table):
+    
+    def createFeatureFromValue(self,elt,value,name):
+        feature = featureObject()
+        feature.setName(name)
+        feature.setTH(self.THNUMERICAL)
+        feature.addNode(elt)
+        feature.setObjectName(elt)
+        feature.setValue(float(value))
+        feature.setType(featureObject.NUMERICAL)
+        return feature
+    
+    def columnMining(self,table,predefinedCuts=[]):
         """
             for a table: take itemset=colmun, item=cell(Y) + separator
             - test: is a same rowgrid for all pages: row of fixed positions, size
@@ -104,27 +118,37 @@ class tableRowMiner(Component.Component):
             
         """
 
-                    
+     
         lElts=  table.getColumns() #getAllNamedObjects(XMLDSTABLECOLUMNClass)
         for elt in lElts:
+            # how to add separator?
             elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['y'],myLevel=XMLDSTABLECELLClass)
+            ## add predefinedCuts here
             elt.computeSetofFeatures()
-            print elt.getSetofFeatures()
-        
+            for prevFea in predefinedCuts:
+                f = self.createFeatureFromValue(elt,round(prevFea), 'y')
+                elt.addFeature(f)
+#                 print f
+#             print elt.getSetofFeatures()
         seqGen = sequenceMiner()
+        seqGen.bDebug = False
         seqGen.setMaxSequenceLength(1)
         seqGen.setSDC(0.7) # related to noise level       AND STRUCTURES (if many columns)          
-        _  = seqGen.featureGeneration(lElts,2) # more at token level, but at text level: freq=2
+#         _  = seqGen.featureGeneration(lElts,2) # more at token level, but at text level: freq=2
         seqGen.setObjectLevel(XMLDSTABLECELLClass)
         for elt in lElts:
             elt.lFeatureForParsing=elt.getSetofFeatures()
-            print elt, elt.lFeatureForParsing
+            elt.lFeatureForParsing.sort(key = lambda x:x.getValue())
+#             print elt, elt.lFeatureForParsing
 #             
         lSortedFeatures = seqGen.featureGeneration(lElts,2)
+#         print lSortedFeatures
         lmaxSequence = seqGen.generateItemsets(lElts)
-        seqGen.bDebug = False
-        lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.5)
+#         for elt in lElts:
+#             print elt, elt.getCanonicalFeatures()
+        lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.25)
         lOneSupport =self.testHighSupport(lSeq)
+        lOneSupport.sort(key = lambda x:x.getValue())
         return lOneSupport
         
 #         lTerminalTemplates=[]
@@ -165,7 +189,7 @@ class tableRowMiner(Component.Component):
             for elt in lElts:
                 elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['y'],myLevel=XMLDSTABLECELLClass)
                 elt.computeSetofFeatures()
-                print elt.getSetofFeatures()
+#                 print elt.getSetofFeatures()
             seqGen = sequenceMiner()
             seqGen.setMaxSequenceLength(1)
             seqGen.setSDC(0.7) # related to noise level       AND STRUCTURES (if many columns)          
@@ -182,12 +206,12 @@ class tableRowMiner(Component.Component):
             lTerminalTemplates=[]
             lCurList=lElts[:]
             lCurList,lTerminalTemplates = self.mineLineFeature(seqGen,lCurList,lTerminalTemplates)                  
-            print lTerminalTemplates
+#             print lTerminalTemplates
             for mytemplate in lTerminalTemplates:
                 page.addVerticalTemplate(mytemplate)
                 page.addVSeparator(mytemplate,mytemplate.getPattern())            
             del seqGen
-        self.tagAsRegion(lPages)
+#         self.tagAsRegion(lPages)
 
     def mineLineFeature(self,seqGen,lCurList,lTerminalTemplates):
         """
