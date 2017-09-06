@@ -44,6 +44,8 @@ from xml_formats.PageXml import PageXml
 from xml_formats.Page2DS import primaAnalysis
 from xml_formats.PageXml import MultiPageXml
 
+from util.Polygon import Polygon
+
 import libxml2
 
 class TableProcessor(Component.Component):
@@ -164,7 +166,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         self.coldir = None
         self.docid= None
         self.bTextRegion = False
-        
+        self.bRegularTextLine=False
     def setParams(self, dParams):
         """
         Always call first the Component setParams
@@ -178,7 +180,8 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         if dParams.has_key("bTextRegion"):         
             self.bTextRegion = dParams["bTextRegion"]
 
-
+        if dParams.has_key("bRegTL"):         
+            self.bRegularTextLine = dParams["bRegTL"]
 
 
                 
@@ -300,10 +303,19 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         
         doc = MultiPageXml.makeMultiPageXml(lFiles)
 
+
+        ## add cornerNode
+        lCells = PageXml.getChildByName(doc.getRootElement(),'TableCell')
+        for domNode in lCells:
+            cornerNode = libxml2.newNode('CornerPts')
+            cornerNode.setContent("0 1 2 3")
+            cornerNode.setNs(doc.getRootElement().ns())
+            domNode.addChild(cornerNode)            
+
         sMPXML  = docDir+".mpxml"
-        print sMPXML
         doc.saveFormatFileEnc(sMPXML,"UTF-8",True)       
         
+        return doc, sMPXML
 #         trace("\t\t- validating the MultiPageXml ...")
 #         if not MultiPageXml.validate(doc): 
 #                 traceln("   *** WARNING: XML file is invalid against the schema: '%s'"%self.outputFileName)
@@ -332,7 +344,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         else:
             oldOut=  self.outputFileName
             self.outputFileName = "%s%s%s.templ.xml" % (self.coldir,os.sep,self.docid)
-            print self.outputFileName 
+#             print self.outputFileName 
             self.writeDom(templatePage, True)
             self.outputFileName = oldOut
             prnregfilename= self.createRegistrationProfile()
@@ -356,7 +368,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         #need to be sorted!!
         lFullPathXMLNames = [ "%s%s%s" % (xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
         lFullPathXMLNames.sort()
-        self.storeMPXML(lFullPathXMLNames)        
+        return self.storeMPXML(lFullPathXMLNames)        
     
     def createGTWithtextRegion(self):
         """
@@ -407,14 +419,37 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         os.system(job)
         print 'LA done', prnlafilename 
 
+        
+        
         lFullPathXMLNames = [ "%s%s%s" % (xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
         lFullPathXMLNames.sort()
 
-        self.storeMPXML(lFullPathXMLNames)
+        return self.storeMPXML(lFullPathXMLNames)
         
         ## convert xml into mpxml
         
-        
+    def regularTextLines(self,doc):
+        """
+            from a baseline: create a regular TextLine: rectangle along the baseline
+                
+        """
+ 
+        lTextLines = PageXml.getChildByName(doc.getRootElement(),'TextLine')
+        for tl in lTextLines:
+            coord= tl.children
+            baseline = tl.children.next
+            sPoints=baseline.prop('points')
+            lsPair = sPoints.split(' ')
+            lXY = list()
+            for sPair in lsPair:
+                try:
+                    (sx,sy) = sPair.split(',')
+                    lXY.append( (int(sx), int(sy)) )
+                except ValueError:print tl
+            plg = Polygon(lXY)  
+            iHeight = 50  # not points!!  300 dpi : 62.5
+            x1,y1, x2,y2 = plg.getBoundingBox()
+            coord.setProp('points',"%d,%d %d,%d %d,%d %d,%d"%(x1,y1-iHeight,x2,y1-iHeight,x2,y2,x1,y2))                     
         
     def run(self,doc):
         """
@@ -428,29 +463,15 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         self.unLinkTextLines(doc)
 
         if self.bTextRegion:
-            self.createGTWithtextRegion()
+            doc, sMPXML = self.createGTWithtextRegion()
         else:
-            self.createGTWithTableColumn(doc)
+            doc, sMPXML =self.createGTWithTableColumn(doc)
         
-        
-        return 
-        
-        ## convert *.xml into DS
-        dsconv =primaAnalysis()
-        dsconv.dpi=300
-        dsconv.sPttrn = "%scol%s%s%s%s" % (self.coldir,os.sep,self.docid,os.sep,"*.xml")
-        print dsconv.sPttrn
-        dsconv.sDocID = self.docid
-        doc = dsconv.run()
-        dsconv.outputFileName = self.outputFileName
-        print dsconv.outputFileName
-        dsconv.writeDom(doc, True)
+        if self.bRegularTextLine:
+            self.regularTextLines(doc)
+        doc.saveFormatFileEnc(sMPXML,"UTF-8",True)       
 
-        ## convert ds into .mpxml
-        ## upload  (option)
-        
-        # row detection
-
+        return True 
     
 
 if __name__ == "__main__":
@@ -469,6 +490,7 @@ if __name__ == "__main__":
     tp.add_option("--coldir", dest="coldir", action="store", type="string", help="collection folder")
     tp.add_option("--docid", dest="docid", action="store", type="string", help="document id")
     tp.add_option("--useTR", dest="bTextRegion", action="store_true", default=False, help="use TextRegion forGT")
+    tp.add_option("--regTL", dest="bRegTL", action="store_true", default=False, help="generate regular TextLines")
         
     #parse the command line
     dParams, args = tp.parseCommandLine()
