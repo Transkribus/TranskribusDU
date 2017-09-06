@@ -211,16 +211,15 @@ class TableProcessing(Component.Component):
         sPages= "1-%d"%(nbPages)
         sModelID = None
         # get modelID
-        print modelname
         lColModels =  self.myTrKCient.listRnns(colid)
         for model in lColModels:
             if model['name'] == modelname:
                 sModelID  = model['htrId']
+                traceln('model id = %s'%sModelID)
                 #some old? models do not have params field
 #             try: traceln("%s\t%s\t%s" % (model['htrId'],model['name'],model['params']))
 #             except KeyError: traceln("%s\t%s\tno params" % (model['htrId'],model['name']))
-#         raise sModelID != None, "no model ID found for %s" %(modelname)
-        sModelID = "427"
+        raise sModelID != None, "no model ID found for %s" %(modelname)
         jobid = self.myTrKCient.htrRnnDecode(colid, sModelID, dictionary, docid, sPages)
         traceln(jobid)        
         return jobid
@@ -316,7 +315,6 @@ class TableProcessing(Component.Component):
 #             if DS2MPXML.bMultiPages:
             newDoc = MultiPageXml.makeMultiPageXmlMemory(map(lambda (x,y):x,lPageXml))
             outputFileName = os.path.join(self.coldir, sCOL, self.docid+TableProcessing.sMPXMLExtension)
-            print "??",outputFileName
             res= newDoc.saveFormatFileEnc(outputFileName, "UTF-8",True)
 #             else:
 #                 DS2MPXML.storePageXmlSetofFiles(lPageXml)
