@@ -279,7 +279,8 @@ class  XMLDSPageClass(XMLDSObjectClass):
             
     #### SEGMENTATION
     
-    def createVerticalZones(self,Template):
+
+    def createVerticalZonesOLD(self,Template,tagLevel=XMLDSTEXTClass):
         """
            Create 'columns' according to X cuts and populate with objects (text)    
            
@@ -318,7 +319,8 @@ class  XMLDSPageClass(XMLDSObjectClass):
         prevCut=xcut.getValue()
 #             print self, region.getX(), region.getY(), region.getHeight(),region.getWidth()    
         lclippedObjects=[]
-        for subObject in self.getAllNamedObjects(XMLDSTEXTClass):
+        #
+        for subObject in self.getAllNamedObjects(tagLevel):
             co = subObject.clipMe(region)
             if co :
                 co.setParent(region) 
@@ -326,7 +328,46 @@ class  XMLDSPageClass(XMLDSObjectClass):
         if lclippedObjects != []:
             region.setObjectsList(lclippedObjects)
 #                 print '\t=',  lclippedObjects
-        self.addVerticalObject(Template,region)               
+        self.addVerticalObject(Template,region)       
+    
+    
+    def createVerticalZones(self,Template,tagLevel=XMLDSTEXTClass):
+        """
+           Create 'columns' according to X cuts and populate with objects (text)    
+           
+        """
+        #reinit lVerticalObjects
+        self.lVerticalObjects[Template]=[]
+        
+        # create regions
+        prevCut=0
+        for xcut in self.getdVSeparator(Template):
+            region=XMLDSObjectClass()
+            region.setName('VRegion')
+            region.addAttribute('x', prevCut)
+            region.addAttribute('y', 0)
+            region.addAttribute('height', self.getAttribute('height'))
+            region.addAttribute('width', str(xcut.getValue()-prevCut))
+            region.setPage(self)
+            prevCut=xcut.getValue()
+            self.addVerticalObject(Template,region)
+
+        #last column
+        region=XMLDSObjectClass()
+        region.setName('VRegion')
+        region.addAttribute('x', prevCut)
+        region.addAttribute('y', 0)
+        region.addAttribute('height', self.getAttribute('height'))
+        region.addAttribute('width', str(self.getWidth() - prevCut))
+        prevCut=xcut.getValue()
+        self.addVerticalObject(Template,region)      
+
+        
+        ## populate regions
+        for subObject in self.getAllNamedObjects(tagLevel):
+            region= subObject.bestRegionsAssignment(self.getVerticalObjects(Template))
+            if region:
+                region.addObject(subObject)
         
 
     def getSetOfMutliValuedFeatures(self,TH,lMyFeatures,myObject):
