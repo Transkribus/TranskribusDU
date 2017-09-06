@@ -343,6 +343,8 @@ class sequenceGrammar():
             
         # get coverage
         lFinalList  = self.getCoverage(lParsings)
+        if lFinalList == []:
+            return None
         
         ## finale clean output
         lRes=[]

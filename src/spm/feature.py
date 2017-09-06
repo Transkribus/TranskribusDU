@@ -56,6 +56,8 @@ class  featureObject(object):
         ##12/08/2016
         self._weight = 1.0
         
+        ##18/07/2017
+        self._kleeneplus=0.0 
         
         # take care: refers to the lnde of the canonical feature (most frequent nearest feature)
         # for canonical feature: list of nodes of all nearest features
@@ -87,7 +89,9 @@ class  featureObject(object):
 
     def getWeight(self): return self._weight
     def setWeight(self,w): self._weight = w
-    
+ 
+    def getKleenePlus(self): return self._kleeneplus
+    def setKleenePlus(self,kp): self._kleeneplus = kp    
 
     def matchLCS(self,perc, t1, t2):
         (s1, n1) = t1
