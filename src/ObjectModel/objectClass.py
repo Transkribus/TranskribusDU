@@ -39,6 +39,12 @@ class  objectClass(sequenceAPI):
         
         # list of structures
         self._lStructures = []
+        
+        
+        
+        ## FOR IE 
+        self._lFields = []
+        
     
     def __str__(self): return self.getName()
     def __repr__(self): return "%s"%self.getName()
@@ -137,7 +143,35 @@ class  objectClass(sequenceAPI):
         for obj in self.getObjects():
             obj.display(level+1)
             
-       
+    ########### IE part ########### 
+    ### move to objectClass?
+    
+    def addField(self,field,value=None):
+        """
+            add field (record field) to this cell: this cell is supposed to contain such a field
+        """
+        if field not in self.getFields():
+            self.getFields().append(field)
+        return field
+
+    def getFieldByName(self,name):
+        lName = filter(lambda x:x.getName() == name,self.getFields())
+        if lName == []:
+            return None
+        else:
+            return lName[0]
+        
+    def getFields(self): return self._lFields
+    
+    def extractFields(self):
+        """
+            extract fields
+        """
+        for field in self.getFields():
+            #take first tagger
+            if field.getTagger() != []:
+                value = field.getTagger()[0].parse(self.getContent())
+                field.setValue(value)    
             
             
     # also in zoneClass
