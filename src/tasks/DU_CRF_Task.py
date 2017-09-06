@@ -382,19 +382,26 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
 
         return oReport
 
-    def predict(self, lsColDir,sDocId=None):
+
+    def predict(self, lsColDir,docid=None):
         """
         Return the list of produced files
         """
         self.traceln("-"*50)
-        self.traceln("Trained model '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
         self.traceln("Predicting for collection(s):", lsColDir)
         self.traceln("-"*50)
 
         if not self._mdl: raise Exception("The model must be loaded beforehand!")
         
-        #list the train and test files
-        _     , lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
+        #list files
+        if docid is None:
+            _     , lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
+        # predict for this file only
+        else:
+            try: 
+                lFilename = [os.path.abspath(os.path.join(lsColDir[0], 'col',docid+MultiPageXml.sEXT  ))]
+            except IndexError:raise Exception("a collection directory must be provided!")
+            
         
         DU_GraphClass = self.getGraphClass()
 
