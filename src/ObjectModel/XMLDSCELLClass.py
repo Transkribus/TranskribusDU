@@ -50,6 +50,10 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
         # contains a list of fields (tag)
         self._lFields = []
         self.setName(self.name)
+        
+        #default
+        self.addAttribute('rowSpan', 1)
+        self.addAttribute('colSpan', 1)
     
     def __str__(self):
         return "%s %s"%(self.getName(),self.getIndex())    
@@ -60,7 +64,6 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
     def getColSpan(self): return int(self.getAttribute('colSpan'))
     def getRowSpan(self): return int(self.getAttribute('rowSpan'))
     
-    def getFields(self): return self._lFields
 
     def isDeSpannedRow(self): return self.bDeSpannedRow
     def isDeSpannedCol(self): return self.bDeSpannedCol
@@ -68,26 +71,7 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
     def setSpannedCell(self,c): self._spannedCell = c
     def getSpannedCell(self): return self._spannedCell
     
-    ########### IE part ########### 
-    ### move to objectClass?
-    
-    def addField(self,field,value=None):
-        """
-            add field (record field) to this cell: this cell is supposed to contain such a field
-        """
-        if field not in self.getFields():
-            self.getFields().append(field)
-        return field
-    
-    def extractFields(self):
-        """
-            extract fields
-        """
-        for field in self.getFields():
-            #take first tagger
-            if field.getTagger() != []:
-                value = field.getTagger()[0].parse(self.getContent())
-                field.setValue(value)
+
         
     
     ### dom tagging
@@ -95,6 +79,8 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
         self.tagMe()
         self.getNode().setProp('row',str(self.getIndex()[0]))
         self.getNode().setProp('col',str(self.getIndex()[1]))        
+        self.getNode().setProp('rowSpan',str(self.getRowSpan()))
+        self.getNode().setProp('colSpan',str(self.getColSpan()))        
     
     ########### LOAD FROM DSXML ################
     
@@ -114,6 +100,11 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
         ctxt = domNode.doc.xpathNewContext()
         ctxt.setContextNode(domNode)
         
+        # add default values if missinf
+        try:  self.getRowSpan()
+        except: self.addAttribute('rowSpan',"1")
+        try: self.getColSpan()
+        except:  self.addAttribute('colSpan',"1")
         # onlt sTEXT?
         ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sTEXT))
         ctxt.xpathFreeContext()
