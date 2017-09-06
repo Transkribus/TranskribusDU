@@ -48,15 +48,16 @@ class  XMLDSObjectClass(XMLObjectClass):
     def setWidth(self,w): self.addAttribute('width',w)
     
     
-    def addObject(self,o): 
+    def addObject(self,o,bDom=False): 
         ## move dom node as well
-        ##     why ??? 30/05/2017
+        ##     why ??? 30/05/2017    add Boolean : 30/08/2017
         if o not in self.getObjects():
             self.getObjects().append(o)
-            o.setParent(self) 
-#             if o.getNode() is not None and self.getNode() is not None:
-#                 o.getNode().unlinkNode()
-#                 self.getNode().addChild(o.getNode())
+            o.setParent(self)
+            if bDom: 
+                if o.getNode() is not None and self.getNode() is not None:
+                    o.getNode().unlinkNode()
+                    self.getNode().addChild(o.getNode())
                
     
 
@@ -149,12 +150,22 @@ class  XMLDSObjectClass(XMLObjectClass):
                     myObject.setPage(self.getPage())
                     myObject.fromDom(child)   
                 
-                
-                
             child = child.next
          
          
-         
+        
+    def bestRegionsAssignment(self,lRegions):
+        """
+            find the best (max overlap for self) region  for self
+        """
+
+        lOverlap=[]        
+        for region in lRegions:
+            lOverlap.append(self.signedRatioOverlap(region))
+        
+        if max(lOverlap) == 0: return None
+        return lRegions[lOverlap.index(max(lOverlap))]
+        
     def clipMe(self,clipRegion,lSubObject=[]):
         """
         
