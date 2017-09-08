@@ -1,0 +1,157 @@
+# -*- coding: utf-8 -*-
+"""
+
+
+    ABPResourceGeneration.py
+
+    from ABP csv files generates pickle files for generator 
+    
+
+    copyright Naverlabs 2017
+    READ project 
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    
+    
+    Developed  for the EU project READ. The READ project has received funding 
+    from the European Union�s Horizon 2020 research and innovation programme 
+    under grant agreement No 674943.
+"""
+from __future__ import unicode_literals
+
+import os
+from optparse import OptionParser
+
+import csv
+
+import cPickle, gzip
+
+
+class ResourceGen(object):
+    #DEFINE the version, usage and description of this particular component
+    version = "v1.0"
+    description = "convert ABP csv to pickle"
+    name="RessourceGen"
+    usage= ""       
+
+    def __init__(self):
+        
+        self.outputDir  = None
+        self.lFileRes = []
+        self.lOutNames = []   
+        self.lDelimitor=[] 
+        self.bFreqOne = False
+        self.bHeader = True
+    ## Add a parameter to the component
+    ## Syntax is similar to optparse.OptionParser.add_option (the Python module optparse, class OptionParser, method add_option)
+    #@param *args    (passing by position)
+    #@param **kwargs (passing by name)
+    def add_option(self, *args, **kwargs):
+        """add a new command line option to the parser"""
+        self.parser.add_option(*args, **kwargs)
+        
+    def createCommandLineParser(self):
+        self.parser = OptionParser(usage=self.usage, version=self.version)
+        self.parser.description = self.description
+        self.add_option("--freqone", dest="freqone",  action="store_true",  help="assume freq=1 for all entries")
+        self.add_option("--outdir", dest="outputDir", default="-", action="store", type="string", help="output folder", metavar="<dir>")
+        self.add_option("--res", dest="lres",  action="append", type="string", help="resources for tagger/genrator/HTR")
+        self.add_option("--name", dest="lnames",  action="append", type="string", help="output file names")
+        self.add_option("--delimitor", dest="ldelimits",  action="append", type="string", help="CSV delimitors")
+
+    def parseCommandLine(self):
+        (options, args) = self.parser.parse_args()
+        
+        dOptions = {}
+        for k,v in options.__dict__.items():
+            if v != None: dOptions[k] = v
+        return dOptions, args
+    
+    def setParams(self, dParams):
+        """
+        Here, we set our internal attribute according to a possibly specified value (otherwise it stays at its default value)
+        """
+        #if some input or output was defined, they take precedence to the config
+        if dParams.has_key("outputDir"): self.outputDir = dParams["outputDir"]        
+        
+        if  dParams.has_key("lres"): self.lFileRes=dParams['lres']
+        if  dParams.has_key("lnames"): self.lOutNames=dParams['lnames']
+        if  dParams.has_key("ldelimits"): self.lDelimitor=dParams['ldelimits']
+        if  dParams.has_key("freqone"): self.bFreqOne=True
+    
+
+    def createResource(self,destDir,dbfilename,outname,sDelimiter=' ', nbEntries=-1):
+        """
+            create resource files (picke)
+        """
+        import operator
+        
+        if sDelimiter == 'tab':sDelimiter=str('\t')
+        
+        db={}
+        with open(dbfilename,'rb') as dbfilename:
+            dbreader= csv.reader(dbfilename,delimiter=sDelimiter )
+            for lFields in dbreader:
+                if lFields == []:
+                    continue
+                try: 
+                    int(lFields[1])
+                    if self.bFreqOne:lFields[1] = 1
+
+                    if '.' not in lFields[0] and len(lFields[0])>3:
+                        try:
+                            db[lFields[0].decode('utf-8').strip()] += int(lFields[1])
+                        except KeyError: db[lFields[0].decode('utf-8').strip()] = int(lFields[1])
+                except IndexError:
+                    #just one column with the string; no frequency
+                    db[lFields[0].decode('utf-8').strip()] = 1
+                except ValueError:
+                    continue
+        sorted_db = sorted(db.items(), key=operator.itemgetter(1),reverse=True)
+        
+        # where to store them
+        outFile=gzip.open(os.path.join(destDir,outname+'.pkl'),'w')
+        print os.path.join(destDir,outname+".pkl")
+        cPickle.dump(sorted_db, outFile)
+        outFile.close()        
+        
+        return dict(sorted_db[:nbEntries])
+        
+    def loadResources(self,filename):
+        """
+            Open and read resource files
+            take just (Value,freq)
+        """
+        self._lresources =[]
+        res = cPickle.load(gzip.open(filename,'r'))
+        return res
+        
+    def run(self):
+        print self.lFileRes,self.lOutNames,self.lDelimitor
+        for filename,outname ,sep in zip(self.lFileRes,self.lOutNames,self.lDelimitor):
+            print filename,outname,sep
+            mydict = self.createResource(self.outputDir, filename,outname,sDelimiter=sep,nbEntries=-1)
+#             print self.loadResources(os.path.join(self.outputDir,outname+'.pkl'))
+
+if __name__ == "__main__":
+    cmp = ResourceGen()
+
+    #prepare for the parsing of the command line
+    cmp.createCommandLineParser()
+
+    dParams, args = cmp.parseCommandLine()
+    
+    #Now we are back to the normal programmatic mode, we set the componenet parameters
+    cmp.setParams(dParams)
+    cmp.run()
