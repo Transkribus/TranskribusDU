@@ -28,7 +28,7 @@
 """
 
 import cPickle
-import regex
+# import regex
 import gzip
 from keras.models import load_model
 import numpy as np  

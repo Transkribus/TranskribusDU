@@ -29,48 +29,42 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import unicode_literals
 
 import random
 import cPickle
-
+import gzip
 
 class Generator(object):
     def __init__(self):
         
-        self._name = self.__class__.__name__
         # structure of the object: list of Generator
         self._structure = None
 
-        self._generation =None
+        self._generation = None
+        self._serialization = None
         self._value = None        
-        self._lresources = None
 
-    def __str__(self): return self._name
-    def __repr__(self): return self._name
+        self._lresources = None
+        
+        # nice label for ML (getName is too long)
+        self._label = None
+
+        # contains GT version  (X,Y)
+        self._GT= None
+    def __str__(self): return self.getName()
+    def __repr__(self): return self.getName()
+    
+        
+    def getLabel(self): return self._label
+    def setLabel(self,l): self._label= l 
+    
+    def getName(self): return self.__class__.__name__
     
     #   getGeneratedValue()
     def getRandomElt(self,mylist):
         return mylist[random.randint(0,len(mylist)-1)]
     
-    def parseElement(self,elt):
-        """
-            not used 
-        """
-        if type(elt)  == list:
-            # alternative
-            # select one element according to weight
-            #  [ (a,pb), (b,pb) ]
-            #  return a 
-            pass
-        elif type(elt) == tuple:
-            # sequence
-            # return the sequence
-            pass
-        elif type(elt) == Generator:
-            return elt
-            pass
-        elif type(elt) == str:
-            pass
 
     def loadResources(self,lfilenames):
         """
@@ -80,8 +74,8 @@ class Generator(object):
         """
         self._lresources =[]
         for filename in lfilenames:
-            lre,ln = cPickle.load(open(filename,'r'))
-            self._lresources.extend(ln)
+            res= cPickle.load(gzip.open(filename,'r'))
+            self._lresources.extend(res)
         return self._lresources
               
     def getValue(self):
@@ -89,12 +83,6 @@ class Generator(object):
             return value 
         """
         return self._value
-    
-    def getAnnotation(self):
-        """
-            return annotation
-        """
-        raise 'must be instanciated'
 
     def serialize(self):
         """
@@ -103,10 +91,14 @@ class Generator(object):
                 DSXML for DSdocument,...
             
         """
+        raise Exception, 'must be instantiated'
+    
     def exportAnnotatedData(self):
         """
             generate annotated data for self
         """
+        raise Exception, 'must be instantiated'
+    
     def generate(self):
         """
             return object : value, annotation
@@ -121,31 +113,6 @@ class Generator(object):
                     self._generation.append(obj.generate())
                 else:
                     pass
-        return (self,self._generation)
+        return self
         
 
-class textGenerator(Generator):
-    def __init__(self,lang):
-        import locale
-        self.lang = lang
-        locale.setlocale(locale.LC_TIME, self.lang)        
-        Generator.__init__(self)
-
-    def layout(self):
-        """
-            take text and add:
-                CR  (can also split a token with X = Y)
-
-            paramters: width and justification?  
-                justification: random: l, r, c, any
-                CR : 
-             
-        """
-    def addNoise(self):
-        """
-            change content (ATR error)
-            
-            return new value?   self._noisyValue
-            store the correct one somewhere
-        """
-        

@@ -29,8 +29,12 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import unicode_literals
 
-import platform
+import os
+import cPickle
+import csv
+
 
 from generator import Generator 
 
@@ -42,21 +46,66 @@ class textGenerator(Generator):
         locale.setlocale(locale.LC_TIME, self.lang)        
         Generator.__init__(self)
 
-    def layout(self):
-        """
-            take text and add:
-                CR  (can also split a token with X = Y)
 
-            paramters: width and justification?  
-                justification: random: l, r, c, any
-                CR : 
-             
+    def getSeparator(self):
         """
-    def addNoise(self):
+            separator between token
         """
-            change content (ATR error)
-            
-            return new value?   self._noisyValue
-            store the correct one somewhere
-        """
+        return " "
+    
+    def generate(self):
+        self._generation = self.getRandomElt(self._value)
+        return self
+    
+    def exportAnnotatedData(self):
+        ## export (generated value, label) for terminal 
+        self._GT  = []
         
+        if type(self._generation) == unicode:
+            self._GT.append((self._generation,self.getName()))
+        elif type(self._generation) == int:
+            self._GT.append((self._generation,self.getName()))         
+        else:
+            for i,obj  in enumerate(self._generation):
+                if type(obj) == unicode:
+                    self._GT.append((obj._generation,self.getName()))
+                elif type(obj) == int:
+                    self._GT.append((obj._generation,self.getName()))                       
+                else:
+                    self._GT.extend(obj.exportAnnotatedData())
+        return self._GT 
+            
+    def serialize(self):
+        self._serialization  = ""
+        
+        #terminal
+        if type(self._generation) == unicode:
+            self._serialization +=  self._generation
+        elif type(self._generation) == int:
+            self._serialization += "%d"%self._generation            
+        else:
+            for i,obj  in enumerate(self._generation):
+                if type(obj) == unicode:
+                    self._serialization +=  obj
+                elif type(obj) == int:
+                    self._serialization +=  "%d"%self._generation                         
+                else:
+                    if i == 0:
+                        self._serialization +=  obj.serialize()
+                    else:
+                        self._serialization += self.getSeparator() + obj.serialize()                        
+    #             self._serialization += self.getSeparator() + obj.serialize()
+        return self._serialization    
+    
+
+if __name__ == '__main__':
+    print "toto"
+    cmp.textGenerator()
+    cmp.createCommandLineParser()
+    dParams, args = cmp.parseCommandLine()
+    
+    #Now we are back to the normal programmatic mode, we set the componenet parameters
+    cmp.setParams(dParams)
+    #This component is quite special since it does not take one XML as input but rather a series of files.
+    #doc = cmp.loadDom()
+    doc = cmp.run()    
