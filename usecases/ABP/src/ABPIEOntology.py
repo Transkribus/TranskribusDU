@@ -189,6 +189,7 @@ class NodeTransformerTextEnclosed(Transformer):
     """
     def transform(self, lw):
         return map(lambda x: x, lw) 
+
 class ABPTagger(KerasTagger):
     sName='fnln'
     def __init__(self):
