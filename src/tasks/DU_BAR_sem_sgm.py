@@ -134,7 +134,7 @@ class DU_BAR_sem_sgm(DU_FactorialCRF_Task):
         Return the list of produced files
         """
 #         self.sXmlFilenamePattern = "*.a_mpxml"
-        return DU_CRF_Task.predict(self, lsColDir,sDocId)
+        return DU_FactorialCRF_Task.predict(self, lsColDir,sDocId)
 
 
 if __name__ == "__main__":
