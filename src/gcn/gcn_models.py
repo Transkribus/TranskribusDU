@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 @author: Stéphane Clinchant
+
+Code for Original GCN is in /opt/MLS_db/usr/sclincha/GraphConvolutionNets/gcn
+
 """
 try:
     import tensorflow as tf
@@ -32,7 +35,8 @@ class GCNModel(object):
 
         self.node_input = tf.placeholder(tf.float32, [None, self.node_dim], name='X_')
         self.edge_input = tf.placeholder(tf.float32, [None, self.edge_dim], name='E')
-        self.y_input = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
+        self.y_input    = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
+
 
         std_dev_in=float(1.0/ float(self.node_dim))
         self.Wnode  = tf.Variable(np.identity(self.node_dim, dtype=np.float32), name='Wnode')
@@ -96,6 +100,7 @@ class GCNModel(object):
 
 
         if self.learn_edge:
+            #TODO Add Multiple Layers
             Hi_=tf.matmul(self.hidden_layers[-1],self.Wnode)
             Em =(tf.matmul(self.Wedge,self.tf_EA))
             Z=tf.reshape(Em,(nb_node,nb_node))
@@ -156,5 +161,124 @@ class GCNModel(object):
 #TODO Class EdgeGCNModels
 #PICKLE version 3.4 to get the data ...
 
+#TWO POssible Update
+# I give the full graph anbd learn from it
+# Or I pass one graph at a time ...
 
 
+class GCNModelGraphList(object):
+    def __init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1):
+        self.node_dim=node_dim
+        self.edge_dim=edge_dim
+        self.n_classes=nb_classes
+        self.num_layers=num_layers
+        self.learning_rate=learning_rate
+        self.activation=tf.nn.relu
+        self.mu=mu
+        self.learn_edge=True
+
+    def create_model(self):
+        self.nb_node    = tf.placeholder(tf.int32,(), name='nb_node')
+        self.node_input = tf.placeholder(tf.float32, [None, self.node_dim], name='X_')
+        self.y_input    = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
+        self.EA_input   =  tf.placeholder(tf.float32, name='EA_input')
+        self.NA_input   =  tf.placeholder(tf.float32, name='NA_input')
+
+
+        std_dev_in=float(1.0/ float(self.node_dim))
+        self.Wnode  = tf.Variable(np.identity(self.node_dim, dtype=np.float32), name='Wnode')
+        #self.Wnode= tf.Variable(tf.random_normal([self.node_dim,self.node_dim],mean=0.0,stddev=std_dev_in, dtype=np.float32), name='Wnode')
+        self.Bnode = tf.Variable(tf.zeros([self.node_dim]), name='Bnode',dtype=np.float32)
+
+        edge_dim=float(1.0/float(self.edge_dim))
+        #self.Wedge  = tf.Variable(tf.random_normal([self.edge_dim],mean=0.0,stddev=edge_dim, dtype=np.float32, name='Wedge'))
+        self.Wedge  = tf.Variable(tf.ones([1,self.edge_dim], dtype=np.float32, name='Wedge'))
+
+        self.Bedge = tf.Variable(tf.zeros([self.edge_dim]), name='Bedge',dtype=np.float32)
+
+
+        #TODO Do we project the firt layer or not ?
+        # Initialize the weights and biases for a simple one full connected network
+        self.W_classif = tf.Variable(tf.random_uniform((self.node_dim, self.n_classes),
+                                                       -1.0 / math.sqrt(self.node_dim),
+                                                       1.0 / math.sqrt(self.node_dim)),
+                                     name="W_classif",dtype=np.float32)
+        self.B_classif = tf.Variable(tf.zeros([self.n_classes]), name='B_classif',dtype=np.float32)
+
+
+        self.H = self.activation(tf.add(tf.matmul(self.node_input,self.Wnode),self.Bnode))
+        #self.H = self.activation(tf.nn.dropout(tf.add(tf.matmul(self.node_input,self.Wnode),self.Bnode),keep_prob=0.8))
+        self.hidden_layers=[self.H]
+
+
+        for i in range(self.num_layers):
+            #TODO Add Multiple Layers
+            Hi_=tf.matmul(self.hidden_layers[-1],self.Wnode)
+            Em =(tf.matmul(self.Wedge,self.EA_input))
+            Z=tf.reshape(Em,tf.stack([self.nb_node,self.nb_node]))
+            #Zn=tf.matmul(self.NA_input,Z)
+            Hi=self.activation(tf.matmul(Z,Hi_))
+            #Hi=tf.nn.dropout(self.activation(tf.matmul(Z,Hi_)),0.8)
+            self.hidden_layers.append(Hi)
+
+        #Wrong Here ....
+        #self.logits = self.activation(tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif))
+        self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
+        #Le code rajoute du Dropout aussi
+
+        cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(self.logits, self.y_input)
+        #cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
+        #TODO Add L2 Regularization  for Wedge and Node ...
+        self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wedge)
+
+
+        self.correct_prediction = tf.equal(tf.argmax(tf.nn.softmax(self.logits), 1), tf.argmax(self.y_input, 1))
+        self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
+
+
+        self.optalg = tf.train.AdagradOptimizer(self.learning_rate)
+        #self.optalg = tf.train.AdamOptimizer(self.learning_rate)
+        #self.optalg = tf.train.GradientDescentOptimizer(self.learning_rate)
+        self.grads_and_vars = self.optalg.compute_gradients(self.loss)
+        self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
+
+
+        # Add ops to save and restore all the variables.
+        self.init = tf.global_variables_initializer()
+
+    #We do not use the edge features here
+    #todo add a distance on the edge
+    def train(self,session,n_node,X,EA,Y,NA,n_iter=1,verbose=False):
+        #TrainEvalSet Here
+        for i in range(n_iter):
+            feed_batch={
+                        self.nb_node:n_node,
+                        self.node_input:X,
+                        self.EA_input:EA,
+                        self.y_input:Y,
+                        self.NA_input:NA,
+            }
+            Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
+            if verbose:
+                print('Training Loss',Ops[1])
+
+
+
+    def test(self,session,n_node,X,EA,Y,NA):
+        #TrainEvalSet Here
+        feed_batch={
+                        self.nb_node:n_node,
+                        self.node_input:X,
+                        self.EA_input:EA,
+                        self.y_input:Y,
+                        self.NA_input:NA,
+        }
+        Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
+        print('Test Loss',Ops[0],' Test Accuracy:',Ops[1])
+        return Ops[1]
+
+#Autre alternative ... Put everything in a single graph ...
+#Do test with multiple layers ....
+# Check than inputs are normalized ...
+#Are labels consistants ...
+# I could flatten lx,ly and get lr performance ..

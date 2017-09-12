@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import pdb
+import random
 __author__ = 'sclincha'
 
 
@@ -29,7 +30,7 @@ from sklearn.preprocessing import LabelBinarizer,Normalizer
 from sklearn.linear_model import LogisticRegression
 from gcn.gcn_datasets import GCNDataset
 
-from gcn.gcn_models import GCNModel
+from gcn.gcn_models import GCNModel,GCNModelGraphList
 
 def make_fake_gcn_dataset():
     '''
@@ -234,11 +235,63 @@ class UT_gcn(unittest.TestCase):
             print(we)
         #Bug was due to two activation function of the logit ....
 
+    def test_05_load_jl_pickle(self):
+
+        pickle_fname='/opt/project/read/testJL/TABLE/abp_models/abp_CV10_fold_10_tlXlY_trn.pkl'
+        gcn_graph= GCNDataset.load_transkribus_pickle(pickle_fname)
+        print(len(gcn_graph),'loaded graph')
+
+    def test_06_create_graphlist_model(self):
+        pickle_fname='/opt/project/read/testJL/TABLE/abp_models/abp_CV10_fold_10_tlXlY_trn.pkl'
+        gcn_graph= GCNDataset.load_transkribus_pickle(pickle_fname)
+
+        node_dim=gcn_graph[0].X.shape[1]
+        edge_dim=gcn_graph[0].E.shape[1] -2.0
+        nb_class=gcn_graph[0].Y.shape[1]
+
+        #__init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1):
+        gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=2,learning_rate=0.1,mu=0.0)
+
+        gcn_model.create_model()
 
 
+        #Make Big Graph ....
+        total_node=sum([g.X.shape[0] for g in gcn_graph])
+        total_nf = np.vstack([g.X for g in gcn_graph])
+        total_y  = np.vstack([g.Y for g in gcn_graph])
+        total_EA  =np.hstack([g.EA for g in gcn_graph])
+
+        #pdb.set_trace()
+
+        nb_iter=300
+        with tf.Session() as session:
+            session.run([gcn_model.init])
+            #Sample each graph
+            #random
+            for i in range(1000):
+                random.shuffle(gcn_graph)
+
+                if i%100==0:
+                    print('Epoch',i)
+                    mean_acc=[]
+                    for g in gcn_graph:
+                        acc=gcn_model.test(session,g.X.shape[0],g.X,g.EA,g.Y,g.NA)
+                        mean_acc.append(acc)
+                    print('     Mean Accuracy',np.mean(mean_acc))
+                else:
+                    for g in gcn_graph:
+                        gcn_model.train(session,g.X.shape[0],g.X,g.EA,g.Y,g.NA,n_iter=1)
+
+                #Mean Accuracy 0.504272 LR
+                # Mean Accuracy 0.60 1 Layer ...
+                #gcn_model.train(session,total_node,total_nf,total_EA,total_y,n_iter=100)
 
 
-
+            mean_acc=[]
+            for g in gcn_graph:
+                acc=gcn_model.test(session,g.X.shape[0],g.X,g.EA,g.Y,g.NA)
+                mean_acc.append(acc)
+            print('Mean Accuracy',np.mean(mean_acc))
 
 
 
