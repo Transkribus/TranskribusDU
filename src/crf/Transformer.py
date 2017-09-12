@@ -27,7 +27,7 @@
 """
 from sklearn.base import BaseEstimator, TransformerMixin
 
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, QuantileTransformer
 
 class Transformer(BaseEstimator, TransformerMixin):
     def __init__(self):
@@ -68,7 +68,8 @@ class TransformerListByType(list, Transformer):
         assert len(self) == len(l), "Internal error"
         return [ t.transform(lo) for t, lo in zip(self, l)]
 
-class RobustStandardScaler(StandardScaler):
+#before 12/9/2017: class RobustStandardScaler(StandardScaler):
+class EmptySafe_StandardScaler(StandardScaler):
     """
     Same as its super class apart that it  does not crash when th einput array is empty
     """
@@ -80,4 +81,21 @@ class RobustStandardScaler(StandardScaler):
                 return X #just do not crash
             else:
                 #StandardScaler failed for some other reason
+                raise e
+
+#we keep this name, but it is misleading with sklearn.preprocessing.RobustScaler
+RobustStandardScaler = EmptySafe_StandardScaler
+
+class EmptySafe_QuantileTransformer(QuantileTransformer):
+#bad name class RobustStandardScaler(StandardScaler):
+    """
+    Same as its super class apart that it  does not crash when th einput array is empty
+    """
+    def transform(self, X, y=None, copy=None):
+        try:
+            return QuantileTransformer.transform(self, X, y, copy)
+        except ValueError as e:
+            if X.shape[0] == 0:
+                return X #just do not crash
+            else:
                 raise e

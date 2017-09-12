@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    Standard PageXml features
+    Standard PageXml features, but using a QuantileTransformer for numerical features instead of a StandardScaler
 
     Copyright Xerox(C) 2016 JL. Meunier
 
@@ -25,21 +25,19 @@
     
 """
 
-import numpy as np
-
 from sklearn.pipeline import Pipeline, FeatureUnion
 #not robust to empty arrays, so use our robust intermediary class instead
 #from sklearn.preprocessing import StandardScaler
 from crf.Transformer import EmptySafe_QuantileTransformer as QuantileTransformer
 
 from crf.Transformer import TransformerListByType
-from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures
-from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures_v2, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
+from crf.Transformer_PageXml import NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures
+from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures_v2, EdgeNumericalSelector
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
 from FeatureDefinition import FeatureDefinition
 
-class FeatureDefinition_PageXml_StandardOnes_noText_v2(FeatureDefinition):
+class FeatureDefinition_PageXml_StandardOnes_noText_v3(FeatureDefinition):
     
     n_QUANTILES = 16
     
