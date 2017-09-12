@@ -93,7 +93,7 @@ class EmptySafe_QuantileTransformer(QuantileTransformer):
     """
     def transform(self, X, y=None, copy=None):
         try:
-            return QuantileTransformer.transform(self, X, y, copy)
+            return QuantileTransformer.transform(self, X)
         except ValueError as e:
             if X.shape[0] == 0:
                 return X #just do not crash
