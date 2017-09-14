@@ -213,20 +213,18 @@ class GCNModelGraphList(object):
                                                                -1.0 / math.sqrt(self.node_dim),
                                                                1.0 / math.sqrt(self.node_dim)),name='Wnl0',dtype=tf.float32)
 
-        self.Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0',dtype=np.float32)
+        self.Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0',dtype=tf.float32)
         self.Wnode_layers.append(Wnl0)
         Wel0 =tf.Variable(tf.ones([1,self.edge_dim], dtype=np.float32, name='Wel0'))
 
         for i in range(self.num_layers):
             Wnli =tf.Variable(tf.random_uniform( (self.node_indim, self.node_indim),
-                                                               -1.0 / math.sqrt(float(self.node_indim)),
-                                                               1.0 / math.sqrt(float(self.node_indim))),name='Wnl'+str(i),dtype=tf.float32)
+                                                               -1.0 / math.sqrt(self.node_indim),
+                                                               1.0 / math.sqrt(self.node_indim)),name='Wnl',dtype=tf.float32)
 
             Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
 
-            Weli =tf.Variable(tf.random_uniform((self.edge_dim, self.edge_dim),
-                                                               -1.0 / math.sqrt(self.node_indim),
-                                                               1.0 / math.sqrt(self.node_indim)),name='Wel'+str(i),dtype=tf.float32)
+            Weli = tf.Variable(tf.ones([1, self.edge_dim],dtype=tf.float32))
 
             Beli = tf.Variable(tf.zeros([self.edge_dim]), name='Bel'+str(i),dtype=tf.float32)
 
