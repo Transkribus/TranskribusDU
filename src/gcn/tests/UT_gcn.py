@@ -304,6 +304,7 @@ class UT_gcn(unittest.TestCase):
 
         #__init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1):
         gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=2,learning_rate=0.001,mu=0.0,node_indim=5)
+        #gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
 
         gcn_model.create_model()
 
