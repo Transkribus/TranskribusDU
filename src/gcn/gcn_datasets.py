@@ -55,7 +55,7 @@ class GCNDataset(object):
 
     def compute_N(self):
         #Fixe
-        Dinv_ = np.diag(np.power(self.A.sum(axis=1),-0.5))
+        Dinv_ = np.diag(np.power(1.0+self.A.sum(axis=1),-0.5))
 
         #Dinv  =tf.constant(Dinv_)
         #A     =tf.constant(self.dataset.A)
@@ -103,18 +103,26 @@ class GCNDataset(object):
             graph.Y=lb.transform(ly)
             #We are making the adacency matrix here
             nb_node=nf.shape[0]
+            #Correct this edge should be swap ..
             A=sp.coo_matrix((np.ones(edge.shape[0]),(edge[:,0],edge[:,1])), shape=(nb_node, nb_node))
             graph.A=A
 
             edge_normalizer=Normalizer()
             #Normalize EA
             efn=edge_normalizer.fit_transform(ef)
+            #Duplicate Edge
+            edge_swap=np.array(edge)
+            edge_swap[:,0]=edge[:,1]
+            edge_swap[:,1]=edge[:,0]
 
-            graph.E=np.hstack([edge,efn])#check order
+            E0=np.hstack([edge,ef])#check order
+            E1=np.hstack([edge_swap,ef])#check order
+
+            graph.E=np.vstack([E0,E1])#check order
             gcn_list.append(graph)
             graph.compute_EA()
             graph.compute_N()
-            graph.normalize()
+            #graph.normalize()
         return gcn_list
 
 

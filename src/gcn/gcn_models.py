@@ -167,7 +167,7 @@ class GCNModel(object):
 
 
 class GCNModelGraphList(object):
-    def __init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1):
+    def __init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1,node_indim=-1):
         self.node_dim=node_dim
         self.edge_dim=edge_dim
         self.n_classes=nb_classes
@@ -176,6 +176,12 @@ class GCNModelGraphList(object):
         self.activation=tf.nn.relu
         self.mu=mu
         self.learn_edge=True
+        self.optalg = tf.train.AdamOptimizer(self.learning_rate)
+
+        if node_indim==-1:
+            self.node_indim=self.node_dim
+
+
 
     def create_model(self):
         self.nb_node    = tf.placeholder(tf.int32,(), name='nb_node')
@@ -190,11 +196,47 @@ class GCNModelGraphList(object):
         #self.Wnode= tf.Variable(tf.random_normal([self.node_dim,self.node_dim],mean=0.0,stddev=std_dev_in, dtype=np.float32), name='Wnode')
         self.Bnode = tf.Variable(tf.zeros([self.node_dim]), name='Bnode',dtype=np.float32)
 
-        edge_dim=float(1.0/float(self.edge_dim))
         #self.Wedge  = tf.Variable(tf.random_normal([self.edge_dim],mean=0.0,stddev=edge_dim, dtype=np.float32, name='Wedge'))
         self.Wedge  = tf.Variable(tf.ones([1,self.edge_dim], dtype=np.float32, name='Wedge'))
 
         self.Bedge = tf.Variable(tf.zeros([self.edge_dim]), name='Bedge',dtype=np.float32)
+
+
+        self.Wnode_layers=[]
+        self.Bnode_layers=[]
+        self.Wed_layers=[]
+        self.Bed_layers=[]
+
+        #Should Project edge as well ...
+
+        Wnl0 = tf.Variable(tf.random_uniform((self.node_dim, self.node_indim),
+                                                               -1.0 / math.sqrt(self.node_dim),
+                                                               1.0 / math.sqrt(self.node_dim)),name='Wnl0',dtype=tf.float32)
+
+        self.Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0',dtype=np.float32)
+        self.Wnode_layers.append(Wnl0)
+        Wel0 =tf.Variable(tf.ones([1,self.edge_dim], dtype=np.float32, name='Wel0'))
+
+        for i in range(self.num_layers):
+            Wnli =tf.Variable(tf.random_uniform( (self.node_indim, self.node_indim),
+                                                               -1.0 / math.sqrt(float(self.node_indim)),
+                                                               1.0 / math.sqrt(float(self.node_indim))),name='Wnl'+str(i),dtype=tf.float32)
+
+            Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
+
+            Weli =tf.Variable(tf.random_uniform((self.edge_dim, self.edge_dim),
+                                                               -1.0 / math.sqrt(self.node_indim),
+                                                               1.0 / math.sqrt(self.node_indim)),name='Wel'+str(i),dtype=tf.float32)
+
+            Beli = tf.Variable(tf.zeros([self.edge_dim]), name='Bel'+str(i),dtype=tf.float32)
+
+            self.Wnode_layers.append(Wnli)
+            self.Bnode_layers.append(Bnli)
+            self.Wed_layers.append  (Weli)
+            self.Bed_layers.append(Beli)
+
+
+
 
 
         #TODO Do we project the firt layer or not ?
@@ -207,38 +249,30 @@ class GCNModelGraphList(object):
 
 
         self.H = self.activation(tf.add(tf.matmul(self.node_input,self.Wnode),self.Bnode))
-        #self.H = self.activation(tf.nn.dropout(tf.add(tf.matmul(self.node_input,self.Wnode),self.Bnode),keep_prob=0.8))
         self.hidden_layers=[self.H]
 
-
+        I = tf.eye(self.nb_node)
         for i in range(self.num_layers):
             #TODO Add Multiple Layers
             Hi_=tf.matmul(self.hidden_layers[-1],self.Wnode)
+            #Em =(tf.matmul(self.Wedge,self.EA_input,b_is_sparse=True))
             Em =(tf.matmul(self.Wedge,self.EA_input))
             Z=tf.reshape(Em,tf.stack([self.nb_node,self.nb_node]))
             #Zn=tf.matmul(self.NA_input,Z)
-            Hi=self.activation(tf.matmul(Z,Hi_))
+            Hi=self.activation(tf.matmul(Z+I,Hi_))
+            #Hi=self.activation(tf.matmul(Z,Hi_))
             #Hi=tf.nn.dropout(self.activation(tf.matmul(Z,Hi_)),0.8)
             self.hidden_layers.append(Hi)
 
-        #Wrong Here ....
-        #self.logits = self.activation(tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif))
         self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
-        #Le code rajoute du Dropout aussi
-
         cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(self.logits, self.y_input)
         #cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
-        #TODO Add L2 Regularization  for Wedge and Node ...
         self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wedge)
 
 
         self.correct_prediction = tf.equal(tf.argmax(tf.nn.softmax(self.logits), 1), tf.argmax(self.y_input, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
-
-        self.optalg = tf.train.AdagradOptimizer(self.learning_rate)
-        #self.optalg = tf.train.AdamOptimizer(self.learning_rate)
-        #self.optalg = tf.train.GradientDescentOptimizer(self.learning_rate)
         self.grads_and_vars = self.optalg.compute_gradients(self.loss)
         self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
 
@@ -246,8 +280,6 @@ class GCNModelGraphList(object):
         # Add ops to save and restore all the variables.
         self.init = tf.global_variables_initializer()
 
-    #We do not use the edge features here
-    #todo add a distance on the edge
     def train(self,session,n_node,X,EA,Y,NA,n_iter=1,verbose=False):
         #TrainEvalSet Here
         for i in range(n_iter):
@@ -277,8 +309,3 @@ class GCNModelGraphList(object):
         print('Test Loss',Ops[0],' Test Accuracy:',Ops[1])
         return Ops[1]
 
-#Autre alternative ... Put everything in a single graph ...
-#Do test with multiple layers ....
-# Check than inputs are normalized ...
-#Are labels consistants ...
-# I could flatten lx,ly and get lr performance ..
