@@ -384,8 +384,8 @@ class DeepTagger(Component.Component):
         """
             load models and aux data
         """
-        self.model = load_model('%s/%s.hd5'% (self.dirName,self.sModelName))
-        self.max_features,self.max_sentence_len, self.nbClasses,self.tag_vector , self.node_transformer = cPickle.load(gzip.open('%s/%s.trans.keras2.mdl'% (self.dirName,self.sModelName), 'rb'))
+        self.model = load_model(os.path.join(self.dirName,self.sModelName+'.hd5'))
+        self.max_features,self.max_sentence_len, self.nbClasses,self.tag_vector , self.node_transformer = cPickle.load(gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'r'))
           
         
     
@@ -422,7 +422,7 @@ class DeepTagger(Component.Component):
                     if tuple(class_vec.tolist()) in self.tag_vector:
                         pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
 #                 print zip(mysent.encode('utf-8').split(),pred_tags[pad_length:])
-                lRes.append(mysent.split(),pred_tags[pad_length:])   
+                lRes.append((mysent.split(),pred_tags[pad_length:]))   
 
         return lRes
     
