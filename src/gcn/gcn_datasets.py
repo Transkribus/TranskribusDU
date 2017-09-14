@@ -80,7 +80,11 @@ class GCNDataset(object):
         gcn_list=[]
 
         f=gzip.open(pickle_fname,'rb')
-        Z=pickle.load(f)
+        if PY3:
+            Z = pickle.load(f, encoding='latin1')
+        else:
+            Z=pickle.load(f)
+
         lX=Z[0]
         lY=Z[1]
         graph_id=0

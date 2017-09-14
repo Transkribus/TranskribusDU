@@ -177,9 +177,12 @@ class GCNModelGraphList(object):
         self.mu=mu
         self.learn_edge=True
         self.optalg = tf.train.AdamOptimizer(self.learning_rate)
+        self.stack_instead_add=False
 
         if node_indim==-1:
             self.node_indim=self.node_dim
+        else:
+            self.node_indim=node_indim
 
 
 
@@ -213,7 +216,7 @@ class GCNModelGraphList(object):
                                                                -1.0 / math.sqrt(self.node_dim),
                                                                1.0 / math.sqrt(self.node_dim)),name='Wnl0',dtype=tf.float32)
 
-        self.Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0',dtype=tf.float32)
+        Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0',dtype=tf.float32)
         Wel0 =tf.Variable(tf.ones([1,self.edge_dim], dtype=np.float32, name='Wel0'))
 
         self.Wed_layers.append(Wel0)
@@ -238,10 +241,16 @@ class GCNModelGraphList(object):
 
         #TODO Do we project the firt layer or not ?
         # Initialize the weights and biases for a simple one full connected network
-        self.W_classif = tf.Variable(tf.random_uniform((2*self.node_indim, self.n_classes),
-                                                       -1.0 / math.sqrt(self.node_dim),
-                                                       1.0 / math.sqrt(self.node_dim)),
-                                     name="W_classif",dtype=np.float32)
+        if self.stack_instead_add:
+            self.W_classif = tf.Variable(tf.random_uniform((2*self.node_indim, self.n_classes),
+                                                           -1.0 / math.sqrt(self.node_dim),
+                                                           1.0 / math.sqrt(self.node_dim)),
+                                        name="W_classif",dtype=np.float32)
+        else:
+            self.W_classif = tf.Variable(tf.random_uniform((self.node_indim, self.n_classes),
+                                                           -1.0 / math.sqrt(self.node_dim),
+                                                           1.0 / math.sqrt(self.node_dim)),
+                                        name="W_classif",dtype=np.float32)
         self.B_classif = tf.Variable(tf.zeros([self.n_classes]), name='B_classif',dtype=np.float32)
 
 
@@ -249,24 +258,39 @@ class GCNModelGraphList(object):
         self.hidden_layers=[self.H]
 
         I = tf.eye(self.nb_node)
-        for i in range(self.num_layers):
+
+        if self.num_layers==1:
             #TODO Add Multiple Layers
             Hi_=tf.matmul(self.hidden_layers[-1],self.Wnode)
             #Em =(tf.matmul(self.Wedge,self.EA_input,b_is_sparse=True))
             Em =(tf.matmul(self.Wedge,self.EA_input))
             Z=tf.reshape(Em,tf.stack([self.nb_node,self.nb_node]))
             #Zn=tf.matmul(self.NA_input,Z)
-            P= tf.matmul(Z,Hi_)
-            #TODO Change this for other TF version
-            #Hp= tf.concat(1,[Hi_,P])
-            Hp= tf.concat([Hi_,P],1)
+
+            if self.stack_instead_add:
+                P= tf.matmul(Z,Hi_)
+                Hp= tf.concat([Hi_,P],1)
+            else:
+                Hp= tf.matmul(Z+I,Hi_)
             Hi=self.activation(Hp)
-            #Hi=self.activation(tf.matmul(Z,Hi_))
-            #Hi=tf.nn.dropout(self.activation(tf.matmul(Z,Hi_)),0.8)
             self.hidden_layers.append(Hi)
 
+        elif self.num_layers>1:
+
+            H0 = self.activation(tf.add(tf.matmul(self.node_input,Wnl0),Bnl0))
+            self.hidden_layers=[H0]
+            for i in range(self.num_layers):
+                Hi_ = tf.matmul(self.hidden_layers[-1],self.Wnode_layers[i])
+                Emi = (tf.matmul(self.Wed_layers[i],self.EA_input))
+                Z=tf.reshape(Emi,tf.stack([self.nb_node,self.nb_node]))
+                if self.stack_instead_add:
+                    raise NotImplementedError
+                else:
+                    Hi= tf.matmul(Z+I,Hi_)
+                self.hidden_layers.append(Hi)
+
         self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
-        #cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(self.logits, self.y_input)
+
         cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
         self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wedge)
 
