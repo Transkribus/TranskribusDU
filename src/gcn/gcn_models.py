@@ -214,9 +214,9 @@ class GCNModelGraphList(object):
                                                                1.0 / math.sqrt(self.node_dim)),name='Wnl0',dtype=tf.float32)
 
         self.Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0',dtype=tf.float32)
-        self.Wnode_layers.append(Wnl0)
         Wel0 =tf.Variable(tf.ones([1,self.edge_dim], dtype=np.float32, name='Wel0'))
 
+        self.Wed_layers.append(Wel0)
         for i in range(self.num_layers):
             Wnli =tf.Variable(tf.random_uniform( (self.node_indim, self.node_indim),
                                                                -1.0 / math.sqrt(self.node_indim),
@@ -236,10 +236,9 @@ class GCNModelGraphList(object):
 
 
 
-
         #TODO Do we project the firt layer or not ?
         # Initialize the weights and biases for a simple one full connected network
-        self.W_classif = tf.Variable(tf.random_uniform((self.node_dim, self.n_classes),
+        self.W_classif = tf.Variable(tf.random_uniform((2*self.node_indim, self.n_classes),
                                                        -1.0 / math.sqrt(self.node_dim),
                                                        1.0 / math.sqrt(self.node_dim)),
                                      name="W_classif",dtype=np.float32)
@@ -257,14 +256,18 @@ class GCNModelGraphList(object):
             Em =(tf.matmul(self.Wedge,self.EA_input))
             Z=tf.reshape(Em,tf.stack([self.nb_node,self.nb_node]))
             #Zn=tf.matmul(self.NA_input,Z)
-            Hi=self.activation(tf.matmul(Z+I,Hi_))
+            P= tf.matmul(Z,Hi_)
+            #TODO Change this for other TF version
+            #Hp= tf.concat(1,[Hi_,P])
+            Hp= tf.concat([Hi_,P],1)
+            Hi=self.activation(Hp)
             #Hi=self.activation(tf.matmul(Z,Hi_))
             #Hi=tf.nn.dropout(self.activation(tf.matmul(Z,Hi_)),0.8)
             self.hidden_layers.append(Hi)
 
         self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
-        cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(self.logits, self.y_input)
-        #cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
+        #cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(self.logits, self.y_input)
+        cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
         self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wedge)
 
 
