@@ -39,7 +39,8 @@ from xml_formats.PageXml import MultiPageXml
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from DU_CRF_Task import DU_CRF_Task
-from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
+#from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
+from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
 
 
 from xml_formats.Page2DS import primaAnalysis
@@ -123,7 +124,8 @@ class DU_ABPTable(DU_CRF_Task):
                                  , 'max_iter'         : 1000 if max_iter        is None else max_iter
                          }
                      , sComment=sComment
-                     ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
+                     #,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
+                     ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
                      )
         
         #self.setNbClass(3)     #so that we check if all classes are represented in the training set
