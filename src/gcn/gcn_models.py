@@ -211,19 +211,26 @@ class GCNModelGraphList(object):
         self.Bed_layers=[]
 
         #Should Project edge as well ...
-
-        Wnl0 = tf.Variable(tf.random_uniform((self.node_dim, self.node_indim),
-                                                               -1.0 / math.sqrt(self.node_dim),
-                                                               1.0 / math.sqrt(self.node_dim)),name='Wnl0',dtype=tf.float32)
+        if self.node_indim!=self.node_dim:
+            Wnl0 = tf.Variable(tf.random_uniform((self.node_dim, self.node_indim),
+                                                                   -1.0 / math.sqrt(self.node_dim),
+                                                                   1.0 / math.sqrt(self.node_dim)),name='Wnl0',dtype=tf.float32)
+        else:
+            Wnl0 = tf.Variable(tf.eye(self.node_dim),name='Wnl0',dtype=tf.float32)
 
         Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0',dtype=tf.float32)
         Wel0 =tf.Variable(tf.ones([1,self.edge_dim], dtype=np.float32, name='Wel0'))
 
-        self.Wed_layers.append(Wel0)
+        #self.Wed_layers.append(Wel0)
         for i in range(self.num_layers):
-            Wnli =tf.Variable(tf.random_uniform( (self.node_indim, self.node_indim),
+            if self.stack_instead_add:
+                Wnli =tf.Variable(tf.random_uniform( (2*self.node_indim, self.node_indim),
                                                                -1.0 / math.sqrt(self.node_indim),
                                                                1.0 / math.sqrt(self.node_indim)),name='Wnl',dtype=tf.float32)
+            else:
+                Wnli =tf.Variable(tf.random_uniform( (self.node_indim, self.node_indim),
+                                                                   -1.0 / math.sqrt(self.node_indim),
+                                                                   1.0 / math.sqrt(self.node_indim)),name='Wnl',dtype=tf.float32)
 
             Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
 
@@ -276,17 +283,30 @@ class GCNModelGraphList(object):
             self.hidden_layers.append(Hi)
 
         elif self.num_layers>1:
-
+            #TODO Fix activation before convolve or after ..
             H0 = self.activation(tf.add(tf.matmul(self.node_input,Wnl0),Bnl0))
-            self.hidden_layers=[H0]
+
+            if self.stack_instead_add:
+                Em0 =(tf.matmul(Wel0,self.EA_input))
+                Z0=tf.reshape(Em0,tf.stack([self.nb_node,self.nb_node]))
+                P= tf.matmul(Z0,H0)
+                Hp= tf.concat([H0,P],1)
+                self.hidden_layers=[Hp]
+            else:
+                self.hidden_layers=[H0]
+
             for i in range(self.num_layers):
                 Hi_ = tf.matmul(self.hidden_layers[-1],self.Wnode_layers[i])
                 Emi = (tf.matmul(self.Wed_layers[i],self.EA_input))
                 Z=tf.reshape(Emi,tf.stack([self.nb_node,self.nb_node]))
                 if self.stack_instead_add:
-                    raise NotImplementedError
+                    P= tf.matmul(Z,Hi_)
+                    Hp= tf.concat([Hi_,P],1)
+                    Hi=self.activation(Hp)
+                    self.hidden_layers.append([Hi])
                 else:
-                    Hi= tf.matmul(Z+I,Hi_)
+                    Hp= tf.matmul(Z+I,Hi_)
+                    Hi=self.activation(Hp)
                 self.hidden_layers.append(Hi)
 
         self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
