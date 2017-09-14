@@ -242,7 +242,7 @@ class UT_gcn(unittest.TestCase):
         print(len(gcn_graph),'loaded graph')
 
     def test_06_create_graphlist_model(self):
-        pickle_fname='/opt/project/read/testJL/TABLE/abp_models/abp_CV10_fold_10_tlXlY_trn.pkl'
+        pickle_fname='/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
         gcn_graph= GCNDataset.load_transkribus_pickle(pickle_fname)
 
         node_dim=gcn_graph[0].X.shape[1]
@@ -250,7 +250,7 @@ class UT_gcn(unittest.TestCase):
         nb_class=gcn_graph[0].Y.shape[1]
 
         #__init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1):
-        gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=2,learning_rate=0.1,mu=0.0)
+        gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.1,mu=0.0)
 
         gcn_model.create_model()
 
@@ -271,7 +271,7 @@ class UT_gcn(unittest.TestCase):
             for i in range(1000):
                 random.shuffle(gcn_graph)
 
-                if i%100==0:
+                if i%10==0:
                     print('Epoch',i)
                     mean_acc=[]
                     for g in gcn_graph:
@@ -281,10 +281,6 @@ class UT_gcn(unittest.TestCase):
                 else:
                     for g in gcn_graph:
                         gcn_model.train(session,g.X.shape[0],g.X,g.EA,g.Y,g.NA,n_iter=1)
-
-                #Mean Accuracy 0.504272 LR
-                # Mean Accuracy 0.60 1 Layer ...
-                #gcn_model.train(session,total_node,total_nf,total_EA,total_y,n_iter=100)
 
 
             mean_acc=[]
