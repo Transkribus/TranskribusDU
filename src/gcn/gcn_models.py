@@ -167,7 +167,7 @@ class GCNModel(object):
 
 
 class GCNModelGraphList(object):
-    def __init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1,node_indim=-1):
+    def __init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1,node_indim=-1,nconv_edge=1):
         self.node_dim=node_dim
         self.edge_dim=edge_dim
         self.n_classes=nb_classes
@@ -178,12 +178,26 @@ class GCNModelGraphList(object):
         self.learn_edge=True
         self.optalg = tf.train.AdamOptimizer(self.learning_rate)
         self.stack_instead_add=False
+        self.nconv_edge=nconv_edge
 
         if node_indim==-1:
             self.node_indim=self.node_dim
         else:
             self.node_indim=node_indim
 
+
+    def convolve(self,Wedge,EA,H,nb_node,nconv):
+        Em =(tf.matmul(Wedge,EA))
+        #Use activation here or not ?
+        Z=tf.reshape(Em,(nconv,nb_node,nb_node))
+
+        Cops=[]
+        for i in range(nconv):
+            Hi=tf.matmul(Z[i],H)
+            Cops.append(Hi)
+
+        P=tf.concat(Cops,1)
+        return P
 
 
     def create_model(self):
@@ -199,8 +213,8 @@ class GCNModelGraphList(object):
         #self.Wnode= tf.Variable(tf.random_normal([self.node_dim,self.node_dim],mean=0.0,stddev=std_dev_in, dtype=np.float32), name='Wnode')
         self.Bnode = tf.Variable(tf.zeros([self.node_dim]), name='Bnode',dtype=np.float32)
 
-        #self.Wedge  = tf.Variable(tf.random_normal([self.edge_dim],mean=0.0,stddev=edge_dim, dtype=np.float32, name='Wedge'))
-        self.Wedge  = tf.Variable(tf.ones([1,self.edge_dim], dtype=np.float32, name='Wedge'))
+        self.Wedge  = tf.Variable(tf.random_normal( [int(self.nconv_edge),int(self.edge_dim)],mean=0.0,stddev=1.0), dtype=tf.float32, name='Wedge')
+        #self.Wedge  = tf.Variable(tf.ones([self.nconv_edge,self.edge_dim], dtype=np.float32, name='Wedge'))
 
         self.Bedge = tf.Variable(tf.zeros([self.edge_dim]), name='Bedge',dtype=np.float32)
 
@@ -224,7 +238,7 @@ class GCNModelGraphList(object):
         #self.Wed_layers.append(Wel0)
         for i in range(self.num_layers):
             if self.stack_instead_add:
-                Wnli =tf.Variable(tf.random_uniform( (2*self.node_indim, self.node_indim),
+                Wnli =tf.Variable(tf.random_uniform( (self.node_indim*self.nconv_edge+self.node_indim, self.node_indim),
                                                                -1.0 / math.sqrt(self.node_indim),
                                                                1.0 / math.sqrt(self.node_indim)),name='Wnl',dtype=tf.float32)
             else:
@@ -249,12 +263,12 @@ class GCNModelGraphList(object):
         #TODO Do we project the firt layer or not ?
         # Initialize the weights and biases for a simple one full connected network
         if self.stack_instead_add:
-            self.W_classif = tf.Variable(tf.random_uniform((2*self.node_indim, self.n_classes),
+            self.W_classif = tf.Variable(tf.random_uniform((self.node_indim*self.nconv_edge+self.node_indim, self.n_classes),
                                                            -1.0 / math.sqrt(self.node_dim),
                                                            1.0 / math.sqrt(self.node_dim)),
                                         name="W_classif",dtype=np.float32)
         else:
-            self.W_classif = tf.Variable(tf.random_uniform((self.node_indim, self.n_classes),
+            self.W_classif = tf.Variable(tf.random_uniform((self.node_indim*self.nconv_edge, self.n_classes),
                                                            -1.0 / math.sqrt(self.node_dim),
                                                            1.0 / math.sqrt(self.node_dim)),
                                         name="W_classif",dtype=np.float32)
@@ -269,16 +283,15 @@ class GCNModelGraphList(object):
         if self.num_layers==1:
             #TODO Add Multiple Layers
             Hi_=tf.matmul(self.hidden_layers[-1],self.Wnode)
-            #Em =(tf.matmul(self.Wedge,self.EA_input,b_is_sparse=True))
-            Em =(tf.matmul(self.Wedge,self.EA_input))
-            Z=tf.reshape(Em,tf.stack([self.nb_node,self.nb_node]))
-            #Zn=tf.matmul(self.NA_input,Z)
-
+            #Em =(tf.matmul(self.Wedge,self.EA_input))
+            #Z=tf.reshape(Em,tf.stack([self.nb_node,self.nb_node]))
+            P =self.convolve(self.Wedge,self.EA_input,Hi_,self.nb_node,self.nconv_edge)
             if self.stack_instead_add:
-                P= tf.matmul(Z,Hi_)
+                #P= tf.matmul(Z,Hi_)
                 Hp= tf.concat([Hi_,P],1)
             else:
-                Hp= tf.matmul(Z+I,Hi_)
+                #Hp= tf.matmul(Z+I,Hi_)
+                Hp= P+Hi_
             Hi=self.activation(Hp)
             self.hidden_layers.append(Hi)
 
@@ -287,9 +300,10 @@ class GCNModelGraphList(object):
             H0 = self.activation(tf.add(tf.matmul(self.node_input,Wnl0),Bnl0))
 
             if self.stack_instead_add:
-                Em0 =(tf.matmul(Wel0,self.EA_input))
-                Z0=tf.reshape(Em0,tf.stack([self.nb_node,self.nb_node]))
-                P= tf.matmul(Z0,H0)
+                #Em0 =(tf.matmul(Wel0,self.EA_input))
+                #Z0=tf.reshape(Em0,tf.stack([self.nb_node,self.nb_node]))
+                #P= tf.matmul(Z0,H0)
+                P=self.convolve(Wel0,self.EA_input,self.nb_node,self.nconv_edge)
                 Hp= tf.concat([H0,P],1)
                 self.hidden_layers=[Hp]
             else:
@@ -297,15 +311,17 @@ class GCNModelGraphList(object):
 
             for i in range(self.num_layers):
                 Hi_ = tf.matmul(self.hidden_layers[-1],self.Wnode_layers[i])
-                Emi = (tf.matmul(self.Wed_layers[i],self.EA_input))
-                Z=tf.reshape(Emi,tf.stack([self.nb_node,self.nb_node]))
+                #Emi = (tf.matmul(self.Wed_layers[i],self.EA_input))
+                P=self.convolve(self.Wed_layers[i],self.EA_input,self.nb_node,self.nconv_edge)
+                #Z=tf.reshape(Emi,tf.stack([self.nb_node,self.nb_node]))
                 if self.stack_instead_add:
-                    P= tf.matmul(Z,Hi_)
+                    #P= tf.matmul(Z,Hi_)
                     Hp= tf.concat([Hi_,P],1)
                     Hi=self.activation(Hp)
                     self.hidden_layers.append([Hi])
                 else:
-                    Hp= tf.matmul(Z+I,Hi_)
+                    #Hp= tf.matmul(Z+I,Hi_)
+                    Hp= P+Hi_
                     Hi=self.activation(Hp)
                 self.hidden_layers.append(Hi)
 

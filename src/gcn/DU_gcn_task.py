@@ -24,7 +24,7 @@ tf.app.flags.DEFINE_string('train', '', "FilePath Train pickle file")
 tf.app.flags.DEFINE_string('test', '', "FilePath for the pickle")
 tf.app.flags.DEFINE_string('fold', '', "FilePath for the pickle")
 tf.app.flags.DEFINE_string('out_dir', '', "outdirectory for saving the results")
-tf.app.flags.DEFINE_integer('gridid', -1, 'gridid')
+tf.app.flags.DEFINE_integer('configid', 0, 'gridid')
 
 # Details of the training configuration.
 tf.app.flags.DEFINE_float('learning_rate', 0.1, """How large a learning rate to use when training, default 0.1 .""")
@@ -47,6 +47,24 @@ def get_config(config_id=0):
         config['mu'] = 0.0
         config['num_layers'] = 1
         config['node_indim'] = -1
+
+    elif config_id==1:
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.0
+        config['num_layers'] = 1
+        config['node_indim'] = -1
+
+    elif config_id==2:
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.0
+        config['num_layers'] = 1
+        config['node_indim'] = -1
+        config['nconv_edge'] = 10
+
     else:
         raise NotImplementedError
 
@@ -65,7 +83,9 @@ def run_model(gcn_graph, config_params, gcn_graph_test):
                                                  num_layers=config_params['num_layers'],
                                                  learning_rate=config_params['lr'],
                                                  mu=config_params['mu'],
-                                                 node_indim=config_params['node_indim'])
+                                                 node_indim=config_params['node_indim'],
+                                                 nconv_edge=config_params['nconv_edge']
+                                                 )
 
         gcn_model.stack_instead_add = config_params['stack_instead_add']
         gcn_model.create_model()
@@ -112,7 +132,7 @@ def main(_):
     train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
     test_graph = GCNDataset.load_transkribus_pickle(pickle_test)
 
-    config = get_config(0)
+    config = get_config(FLAGS.configid)
     acc_test = run_model(train_graph, config, test_graph)
     print('Accuracy Test', acc_test)
 
