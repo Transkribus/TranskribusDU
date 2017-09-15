@@ -341,7 +341,7 @@ class GCNModelGraphList(object):
 
 
 
-    def test(self,session,n_node,X,EA,Y,NA):
+    def test(self,session,n_node,X,EA,Y,NA,verbose=True):
         #TrainEvalSet Here
         feed_batch={
                         self.nb_node:n_node,
@@ -351,6 +351,7 @@ class GCNModelGraphList(object):
                         self.NA_input:NA,
         }
         Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
-        print('Test Loss',Ops[0],' Test Accuracy:',Ops[1])
+        if verbose:
+            print('Test Loss',Ops[0],' Test Accuracy:',Ops[1])
         return Ops[1]
 
