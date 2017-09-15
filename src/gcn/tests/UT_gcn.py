@@ -348,8 +348,8 @@ class UT_gcn(unittest.TestCase):
         nb_class=gcn_graph[0].Y.shape[1]
 
         #__init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1):
-        gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=2,learning_rate=0.01,mu=0.0,node_indim=5)
-        gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=2,learning_rate=0.01,mu=0.0,node_indim=-1)
+        #gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=2,learning_rate=0.01,mu=0.0,node_indim=5)
+        gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=3,learning_rate=0.01,mu=0.0,node_indim=-1)
         #gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
         gcn_model.stack_instead_add=True
         gcn_model.create_model()
@@ -382,6 +382,91 @@ class UT_gcn(unittest.TestCase):
                 acc=gcn_model.test(session,g.X.shape[0],g.X,g.EA,g.Y,g.NA)
                 mean_acc.append(acc)
             print('Mean Accuracy',np.mean(mean_acc))
+
+    def test_09_conv_reshape(self):
+
+        dataset=GCNDataset('UT_iris_0')
+        dataset.load_pickle('iris_graph.pickle')
+        dataset.print_stats()
+
+        A=dataset.A
+        E=dataset.E
+        print(A.shape)
+        print(E.shape)
+        nb_node = A.shape[0]
+        edge_dim= dataset.E.shape[1]-2 #Preprocess That
+
+        EA =np.zeros((edge_dim,(nb_node*nb_node)),dtype=np.float32)
+        #edge_idx=list(zip(E[:,0],E[:,1]))
+        #edge_idx = [(int(x[0]),int(x[1])) for x in edge_idx]
+        i_list =[]
+        j_list=[]
+        for x,y in zip(E[:,0],E[:,1]):
+            i_list.append(int(x))
+            j_list.append(int(y))
+
+        for i in range(edge_dim):
+            #Build a adjecency sparse matrix for the i_dim of the edge
+            #pdb.set_trace()
+            idim_mat =sp.coo_matrix((E[:,i+2],(i_list,j_list)), shape=(nb_node, nb_node))
+
+            D= np.asarray(idim_mat.todense()).squeeze()
+            EA[i,:]=np.reshape(D,-1)
+
+        print(EA.shape)
+        print(E[0:4,:])
+
+        #Print rep of first edge
+        print('Representation of first node')
+        print(EA[:,int(E[0,1])])
+        print(EA[:,int(E[1,1])])
+        #Print rep of first edge
+        print('Representation of second node')
+        print(EA[:,nb_node+int(E[2,1])])
+        print(EA[:,nb_node+int(E[3,1])])
+
+
+        nconv=2
+        w_edge_conv=np.ones((nconv,edge_dim))
+        w_edge_conv[1,:]=-1.0
+
+        Wedge  = tf.Variable(w_edge_conv, dtype=np.float32, name='Wedge')
+        Wn     = tf.Variable(tf.eye(dataset.X.shape[1],dtype=tf.float32), dtype=np.float32, name='Wnode')
+        tf_EA=tf.constant(EA)
+
+        Em =(tf.matmul(Wedge,tf_EA))
+
+        #Looks ok but not noure
+        Z=tf.reshape(Em,(nconv,nb_node,nb_node))
+
+        H0= tf.matmul(tf.constant(dataset.X,dtype=tf.float32),Wn)
+        #H=tf.matmul(Z,H0)
+        #H=tf.matmul(H0,Z,transpose_a=True)
+        #Safe way for loop
+        Cops=[]
+        for i in range(nconv):
+            Hi=tf.matmul(Z[i],H0)
+            Cops.append(Hi)
+
+        H=tf.concat(Cops,1)
+
+        init = tf.global_variables_initializer()
+        with tf.Session() as session:
+            session.run(init)
+            Em_=session.run(Em)
+            Z_=session.run(Z)
+            print(Em_.shape)
+            print(Z_.shape)
+            print(Z_[0,0,:])
+            print(Z_[1,0,:])
+            #TODO check somestuff on Z
+            H_ = session.run(H)
+            print(H_.shape)
+            print(H_[0,:])
+            print(H_[1,:])
+
+
+
 
 
 
