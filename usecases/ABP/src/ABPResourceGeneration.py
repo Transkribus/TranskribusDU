@@ -109,17 +109,17 @@ class ResourceGen(object):
                     int(lFields[1])
                     if self.bFreqOne:lFields[1] = 1
 
-                    if '.' not in lFields[0] and len(lFields[0])>3:
+                    if  len(lFields[0].strip()) > 0:
                         try:
                             db[lFields[0].decode('utf-8').strip()] += int(lFields[1])
                         except KeyError: db[lFields[0].decode('utf-8').strip()] = int(lFields[1])
                 except IndexError:
                     #just one column with the string; no frequency
-                    db[lFields[0].decode('utf-8').strip()] = 1
+                    if  len(lFields[0].strip()) > 0:
+                        db[lFields[0].decode('utf-8').strip()] = 1
                 except ValueError:
                     continue
         sorted_db = sorted(db.items(), key=operator.itemgetter(1),reverse=True)
-        
         # where to store them
         outFile=gzip.open(os.path.join(destDir,outname+'.pkl'),'w')
         print os.path.join(destDir,outname+".pkl")
