@@ -33,10 +33,11 @@ from __future__ import unicode_literals
   
 import sys,os
 import codecs
+from optparse import OptionParser
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
-import common.Component as Component
+# import common.Component as Component
 from common.trace import traceln
 
 from sklearn.pipeline import Pipeline, FeatureUnion
@@ -44,8 +45,10 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.base import BaseEstimator, TransformerMixin
 from keras.models import Sequential, load_model
 from keras.layers  import Bidirectional, Dropout
+from keras.layers.wrappers import TimeDistributed
 from keras.layers.recurrent import LSTM
-from keras.layers.core import Dense
+from keras.layers.core import Dense, Masking
+
 import numpy as np
 
 import cPickle
@@ -77,13 +80,12 @@ class NodeTransformerTextEnclosed(Transformer):
         return map(lambda x: x, lw) 
     
 
-class DeepTagger(Component.Component):
+class DeepTagger():
     usage = "" 
     version = "v.01"
     description = "description: keras/bilstm ner"
         
     def __init__(self):
-        Component.Component.__init__(self, "keras NER", self.usage, self.version, self.description) 
         
         self.dirName = None
         self.sModelName = None
@@ -91,12 +93,15 @@ class DeepTagger(Component.Component):
 
         self.nbClasses = None
         self.max_sentence_len = 0
-        self.max_features = 500
+        self.max_features = 100
         self.maxngram = 3
         
-        self.nbEpochs = 100
+        self.nbEpochs = 10
         self.batch_size = 50
         
+        self.hiddenSize= 32
+        
+        self.bGridSearch  = False
         self.bTraining, self.bTesting, self.bPredict = False,False,False
         self.lTrain = []
         self.lTest  = []
@@ -110,33 +115,35 @@ class DeepTagger(Component.Component):
         """
         
         """
-        Component.Component.setParams(self, dParams)
 
-        if dParams.has_key("dirname"): 
-            self.dirName = dParams["dirname"]
+        if dParams.dirname:
+            self.dirName = dParams.dirname
         
-        if dParams.has_key("name"): 
-            self.sModelName = dParams["name"]
+        if dParams.name:
+            self.sModelName = dParams.name
         
-        if dParams.has_key("nbEpochs"): 
-            self.nbEpochs = dParams["nbEpochs"]
-        
-        if dParams.has_key("nbfeatures"): 
-            self.max_features = dParams["nbfeatures"]             
+        if dParams.nbEpochs:
+            self.nbEpochs = dParams.nbEpochs
 
-        if dParams.has_key("ngram"): 
-            self.maxngram = dParams["ngram"]   
+        if dParams.hidden:
+            self.hiddenSize = dParams.hidden
+                    
+        if dParams.nbfeatures:
+            self.max_features = dParams.nbfeatures            
+
+        if dParams.ngram:
+            self.maxngram = dParams.ngram  
                         
-        if dParams.has_key("training"): 
-            self.lTrain = dParams["training"]      
+        if dParams.training:
+            self.lTrain = dParams.training
             self.bTraining=True                  
         
-        if dParams.has_key("testing"): 
-            self.lTest = dParams["testing"]
+        if dParams.testing:
+            self.lTest = dParams.testing
             self.bTesting=True 
         
-        if dParams.has_key("predict"): 
-            self.lPredict = dParams["predict"]
+        if dParams.predict:
+            self._sent =dParams.predict.decode('latin-1')
             self.bPredict=True 
         
         
@@ -163,7 +170,8 @@ class DeepTagger(Component.Component):
         """
         
         self.nbClasses = 0
-        lClasses=[]
+        
+        self.lClasses=[]
                
         for fname in lFName:
             f=codecs.open(fname,encoding='utf-8')
@@ -184,17 +192,17 @@ class DeepTagger(Component.Component):
                         continue
                         
                     assert len(b) != 0 
-                    if b not in lClasses:
-                        lClasses.append(b)
+                    if b not in self.lClasses:
+                        self.lClasses.append(b)
                     x.append((a,b))
         
             if x != []:
                 lTmp.append(x)
             f.close()
             
-        self.nbClasses = len(lClasses) + 1
+        self.nbClasses = len(self.lClasses) + 1
             
-        for tag_class_id,b in enumerate(lClasses):
+        for tag_class_id,b in enumerate(self.lClasses):
             one_hot_vec = np.zeros(self.nbClasses, dtype=np.int32)
             one_hot_vec[tag_class_id] = 1                
             self.tag_vector[b] = tuple(one_hot_vec)
@@ -202,6 +210,7 @@ class DeepTagger(Component.Component):
                             
         # Add nil class
         if 'NIL' not in self.tag_vector:
+            self.lClasses.append('NIL')
             one_hot_vec = np.zeros(self.nbClasses, dtype=np.int32)
             one_hot_vec[self.nbClasses-1] = 1
             self.tag_vector['NIL'] = tuple(one_hot_vec)
@@ -221,6 +230,49 @@ class DeepTagger(Component.Component):
         return lX,lY
 
     
+    def load_data_for_testing(self,lFName):
+        """
+            load data as training data (x,y)
+            nbClasses must be known!
+            loadModel first!
+        """
+        
+        
+        for fname in lFName:
+            f=codecs.open(fname,encoding='utf-8')
+        
+            lTmp=[]
+            x=[]
+            for l in f:
+                l = l.strip()
+                if l =='EOS':
+                    if len(x)<=9:
+                        lTmp.append(x)
+                    x=[]
+                else:
+                    try:
+                        a,b=l.split('\t')
+                    except  ValueError:
+                        #print 'cannot find value and label in: %s'%(l)
+                        continue
+                        
+                    assert len(b) != 0 
+                    x.append((a,b))
+        
+            if x != []:
+                lTmp.append(x)
+            f.close()
+            
+        lX = []
+        lY = []    
+        for sample in lTmp:
+            lX.append(map(lambda (x,y):x,sample))
+            lY.append(map(lambda (x,y):y,sample))
+        
+        del lTmp
+        
+        return lX,lY
+
 
     def storeModel(self,model, aux):
         """
@@ -231,56 +283,31 @@ class DeepTagger(Component.Component):
         
         #max_features,max_sentence_len, self.nbClasses,self.tag_vector , node_transformer
         cPickle.dump((self.maxngram,self.max_features,self.max_sentence_len,self.nbClasses,self.tag_vector,self.node_transformer),gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'wb'))
-        traceln('dump done in %s/%s.%s' % (self.dirName,self.sModelName,self.sAux))        
+        traceln('aux data dumped in %s/%s.%s' % (self.dirName,self.sModelName,self.sAux))        
+        
+    def loadModels(self):
+        """
+            load models and aux data
+        """
+        self.model = load_model(os.path.join(self.dirName,self.sModelName+'.hd5'))
+        traceln('model loaded: %s/%s.hd5' % (self.dirName,self.sModelName))  
+        self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses,self.tag_vector , self.node_transformer = cPickle.load(gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'r'))
+        traceln('aux data loaded: %s/%s.%s' % (self.dirName,self.sModelName,self.sAux))        
+        traceln("ngram: %s\tmaxfea=%s\tpadding=%s\tnbclasses=%s" % (self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses))
         
     def training(self,traindata):
         """
             training
         """
-
-        train_X,train_Y = traindata #self.load_data(self.lTrain)
+        train_X,_ = traindata #self.load_data(self.lTrain)
+        
+        self.initTransformeur()
         
         fX= [item  for sublist in train_X  for item in sublist ]
-        # print fX
-        # print map(type,fX)
         self.node_transformer.fit(fX)
-    
-        #allwords= self.node_transformer.transform(fX)
-        
-        i=0
-        lX = list()
-        lY= list()
-    #     max_sentence_len=10
-        for x,y in zip(train_X,train_Y):
-            n=len(x)
-            words = self.node_transformer.transform(x)
-#             print 'xy',x,y, words
-            wordsvec = []
-            elem_tags = []
-#             for ix,ss in enumerate(allwords[i:i+n]):
-            for ix,ss in enumerate(words):
-                assert len(ss) == self.max_features, len(ss)
-                wordsvec.append(ss)
-                elem_tags.append(list(self.tag_vector[y[ix]]))
-        
-        #     print wordsvec
-            nil_X = np.zeros(self.max_features)
-            nil_Y = np.array(self.tag_vector['NIL'])
-            pad_length = self.max_sentence_len - len(wordsvec)
-            lX.append( ((pad_length)*[nil_X]) + wordsvec)
-            lY.append( ((pad_length)*[nil_Y]) + elem_tags)        
-            
-        #     lX.append(wordsvec)
-        
-            i +=n
-        del self.node_transformer
-        del fX
-        del train_X
-        del train_Y
-        
-        print('Training.\n')        
-        lX=np.array(lX)
-        lY=np.array(lY)
+#         
+        lX,lY = self.prepareTensor(traindata)
+
         print lX.shape
         print lY.shape
 
@@ -291,83 +318,68 @@ class DeepTagger(Component.Component):
         #model.add(Embedding(input_dim=max_features, input_length=10,output_dim=100,batch_input_shape=(lX.shape[0],max_sentence_len,max_features)))
         #emb= Embedding(input_dim=max_features, input_length=10,output_dim=100,batch_input_shape=(lX.shape[0],max_sentence_len,max_features))
         
-        # print model.input_shape
-        # print model.output_shape
-        
-        model.add(Bidirectional(LSTM(50, return_sequences=True), input_shape=(self.max_sentence_len,self.max_features)))
+#         model.add(Bidirectional(LSTM(hidden_size,return_sequences = True),input_shape=(self.max_sentence_len,self.max_features)))
+
+        model.add(Masking(mask_value=0., input_shape=(self.max_sentence_len, self.max_features)))
+        model.add(Bidirectional(LSTM(self.hiddenSize,return_sequences = True))) 
         model.add(Dropout(0.5))
-    #     model.add(Bidirectional(LSTM(50, return_sequences=True)))
-    #     model.add(Dropout(0.5))
-        #print model.output_shape
-        #model.add(Dense(5, activation = 'softmax'))
-        # model.add(Dense(2, input_dim=nb_words))
-        # model.add(Dense(1, activation='sigmoid'))
-    #     model.add(TimeDistributed(Dense(self.nbClasses, activation='softmax')))
-        model.add(Dense(self.nbClasses, activation='softmax'))
-        model.compile(loss='categorical_crossentropy', optimizer='adam',metrics=['accuracy'])
+        model.add(TimeDistributed(Dense(self.nbClasses, activation='softmax')))
+        model.compile(loss='categorical_crossentropy', optimizer='adam',metrics=['categorical_accuracy']    )
         print model.summary()
-        
-        history = model.fit(lX, lY, epochs = self.nbEpochs,batch_size = self.batch_size, verbose = 1,validation_split = 0.33, shuffle=True)
-    #     import matplotlib.pyplot as plt
-#         print(history.history.keys())
+        _ = model.fit(lX, lY, epochs = self.nbEpochs,batch_size = self.batch_size, verbose = 1,validation_split = 0.33, shuffle=True)
         
         del lX,lY
         
         auxdata = self.max_features,self.max_sentence_len,self.nbClasses,self.tag_vector,self.node_transformer
+        
         return model, auxdata
 
+    def prepareTensor(self,annotated):
+        lx,ly = annotated 
+        
+        lX = list()
+        lY= list()
+        # = np.array()
+        for x,y in zip(lx,ly):
+            words = self.node_transformer.transform(x)
+            wordsvec = []
+            elem_tags = []
+            for ix,ss in enumerate(words):
+                wordsvec.append(ss)
+                elem_tags.append(list(self.tag_vector[y[ix]]))
+        
+            nil_X = np.zeros(self.max_features)
+            nil_Y = np.array(self.tag_vector['NIL'])
+            pad_length = self.max_sentence_len - len(wordsvec)
+            lX.append( wordsvec +((pad_length)*[nil_X]) )
+            lY.append( elem_tags + ((pad_length)*[nil_Y]) )        
+
+        del lx
+        del ly
+            
+        lX=np.array(lX)
+        lY=np.array(lY)
+        
+        return lX,lY
+        
+        
     def testModel(self,testdata):
         """
             test model
         """
-        #model = load_model('%s/%s.hd5'% (self.dirName,self.sModelName))
-        #self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses,self.tag_vector , self.node_transformer = cPickle.load(gzip.open('%s/%s.%s'% (self.dirName,self.sModelName,self.sAux), 'rb'))
         
-        test_x,test_y = testdata #self.load_data(lTestFile)
-        
-#         fX= [item  for sublist in test_x  for item in sublist ]
-#         allwords= node_transformer.transform(fX)
-        # print allwords
-        
-        i=0
-        lX = list()
-        lY= list()
-        for x,y in zip(test_x,test_y):
-    #         print 'xy',x,y
-            n=len(x)
-            wordsvec = []
-            elem_tags = []
-            words = self.node_transformer.transform(x)
-            for ix,ss in enumerate(words):
-        #         print ss.shape,ss
-                wordsvec.append(ss)
-                elem_tags.append(list(self.tag_vector[y[ix]]))
-        
-        #     print wordsvec
-            nil_X = np.zeros(self.max_features)
-            nil_Y = np.array(self.tag_vector['NIL'])
-            pad_length = self.max_sentence_len - len(wordsvec)
-            lX.append( ((pad_length)*[nil_X]) + wordsvec)
-            lY.append( ((pad_length)*[nil_Y]) + elem_tags)        
-            
-        #     lX.append(wordsvec)
-        
-            i +=n
-            
-        # test_x needed
-        del test_y
-         
-        print('testing.\n')        
-        
-        lX=np.array(lX)
-        lY=np.array(lY)
+        lX,lY= self.prepareTensor(testdata)
+
+        print lX.shape
+        print lY.shape
 
         scores = self.model.evaluate(lX,lY,verbose=True)
         print zip(self.model.metrics_names,scores)
         
+        test_x, _ = testdata
         
         y_pred = self.model.predict(lX)
-        for i,x in enumerate(lX): 
+        for i,_ in enumerate(lX): 
             pred_seq = y_pred[i]
             pred_tags = []
             pad_length = self.max_sentence_len - len(test_x[i])
@@ -376,17 +388,10 @@ class DeepTagger(Component.Component):
                 class_vec[ np.argmax(class_prs) ] = 1
                 if tuple(class_vec.tolist()) in self.tag_vector:
                     pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
-                    #pred_tags.append(self.tag_vector[tuple(class_vec.tolist())])
-            print test_x[i],pred_tags[pad_length:]    
+            print test_x[i],pred_tags[:len(test_x[i])]    
         
         
-    def loadModels(self):
-        """
-            load models and aux data
-        """
-        self.model = load_model(os.path.join(self.dirName,self.sModelName+'.hd5'))
-        self.max_features,self.max_sentence_len, self.nbClasses,self.tag_vector , self.node_transformer = cPickle.load(gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'r'))
-          
+ 
         
     
     def predict(self,lsent):
@@ -397,7 +402,11 @@ class DeepTagger(Component.Component):
         lRes= []
         for mysent in lsent :
     #         print self.tag_vector
+            if len(mysent.split())> self.max_sentence_len:
+                print 'max sent length: %s'%self.max_sentence_len
+                continue
             allwords= self.node_transformer.transform(mysent.split())
+#             print mysent.split()
 #             n=len(mysent.split())
             wordsvec = []
             for w in allwords:
@@ -408,9 +417,6 @@ class DeepTagger(Component.Component):
             lX.append( ( pad_length*[nil_X]) + wordsvec)
             lX=np.array(lX)
             assert pad_length*[nil_X] + wordsvec >= self.max_sentence_len
-        #     lpred = model.predict(lX)
-        #     lpred = model.predict_classes(lX)
-        #     print map(lambda x:self.tag_vector[x],lpred[0])
             y_pred = self.model.predict(lX)
             for i,_ in enumerate(lX):
                 pred_seq = y_pred[i]
@@ -419,57 +425,76 @@ class DeepTagger(Component.Component):
                 for class_prs in pred_seq:
                     class_vec = np.zeros(self.nbClasses, dtype=np.int32)
                     class_vec[ np.argmax(class_prs) ] = 1
+#                     print class_prs[class_prs >0.1]
                     if tuple(class_vec.tolist()) in self.tag_vector:
                         pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
 #                 print zip(mysent.encode('utf-8').split(),pred_tags[pad_length:])
-                lRes.append((mysent.split(),pred_tags[pad_length:]))   
+#                 lRes.append((mysent.split(),pred_tags[pad_length:]))   
+                lRes.append((mysent.split(),pred_tags[:len(allwords)]))   
 
         return lRes
     
+    def gridSearch(self):
+        """
+            perform grid search training
+            assume epochs,ngram, nbfeatures   as N,N
+            assume testing data for cross valid 
+        """
+        
     def run(self):
         """
             
         """
+        if self.bGridSearch:
+            self.gridSearch()
+            
         if self.bTraining:
             lX, lY = self.load_data(self.lTrain)
-            print len(lX),len(lY)
-            self.initTransformeur()
             model, other = self.training((lX,lY))
             # store
             self.storeModel(model,other)
+            del lX, lY
+            del self.node_transformer
             del model
+            
         if self.bTesting:
-            # frist load model and aux data (for nbClasses!!)
             self.loadModels()
-            lX,lY = self.load_data(self.lTest)
+            lX,lY = self.load_data_for_testing(self.lTest)
             res = self.testModel((lX,lY))
                        
         if self.bPredict:
             # which input  format: [unicode]
             self.loadModels()
-            lsent = self.load_dataForPrediction(self.lPredict)
+            lsent = [self._sent]
+            print lsent
             res = self.predict(lsent)
+            print res
+            toklabelscore  = zip(res[0][0],res[0][1])
+            print toklabelscore
+            for tok,(label,score) in toklabelscore:
+                print tok.encode('utf-8'), label,score
 
 if __name__ == '__main__':
     
     cmp = DeepTagger()
-    cmp.createCommandLineParser()
+    cmp.parser = OptionParser(usage="", version="0.1")
+    cmp.parser.description = "BiLSTM approach for NER"
     cmp.parser.add_option("--name", dest="name",  action="store", type="string", help="model name")
     cmp.parser.add_option("--dir", dest="dirname",  action="store", type="string", help="directory to store model")
 
     cmp.parser.add_option("--training", dest="training",  action="append", type="string", help="training data")
         
+    cmp.parser.add_option("--hidden", dest="hidden",  action="store", type="int", help="hidden layer dimension")    
     cmp.parser.add_option("--epochs", dest="nbEpochs",  action="store", type="int", help="nb epochs for training")    
     cmp.parser.add_option("--ngram", dest="ngram",  action="store", type="int", help="ngram size")    
-    cmp.parser.add_option("--nbfeatures", dest="nbfeatures",  action="store", type="string", help="nb features")    
+    cmp.parser.add_option("--nbfeatures", dest="nbfeatures",  action="store", type="int", help="nb features")    
 
     cmp.parser.add_option("--testing", dest="testing",  action="append", type="string", help="test data")    
-    cmp.parser.add_option("--run", dest="predict",  action="append", type="string", help="data to be categorized")    
+    cmp.parser.add_option("--run", dest="predict",  action="store", type="string", help="string to be categorized")    
 
-    dParams, args = cmp.parseCommandLine()
-
+    (options, args) = cmp.parser.parse_args()
     #Now we are back to the normal programmatic mode, we set the component parameters
-    cmp.setParams(dParams)
+    cmp.setParams(options)
     #This component is quite special since it does not take one XML as input but rather a series of files.
     #doc = cmp.loadDom()
     doc = cmp.run()    
