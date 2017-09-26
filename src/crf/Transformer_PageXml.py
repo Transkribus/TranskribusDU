@@ -184,6 +184,14 @@ class Node1HotFeatures(Transformer):
             
         return a
 
+#------------------------------------------------------------------------------------------------------
+class Node1ConstantFeature(Transformer):
+    """
+    we generate one constant feature per node. (1.0)
+    """
+    def transform(self, lNode):
+        return np.ones( ( len(lNode), 1 ) , dtype=np.float64)
+
 # #------------------------------------------------------------------------------------------------------
 # class NodePNumFeatures(Transformer):
 #     """
