@@ -35,6 +35,8 @@ import random
 import cPickle
 import gzip
 
+import numpy as np
+
 class Generator(object):
     def __init__(self):
         
@@ -52,6 +54,15 @@ class Generator(object):
 
         # contains GT version  (X,Y)
         self._GT= None
+        
+        
+        # weighted resources:
+        self.totalW = None
+        self._prob = None
+        self._flatlr= None
+        self._lweightedIndex = None
+        self.isWeighted = False
+        
     def __str__(self): return self.getName()
     def __repr__(self): return self.getName()
     
@@ -63,8 +74,55 @@ class Generator(object):
     
     #   getGeneratedValue()
     def getRandomElt(self,mylist):
-        return mylist[random.randint(0,len(mylist)-1)]
+        if self.isWeighted:
+            ret= self.getWeightedRandomElt(mylist)
+            return self.getWeightedRandomElt(mylist)
+        else:
+            ii =random.randint(0,len(mylist)-1)
+            return mylist[ii]
     
+    def getWeightedRandomElt(self,myList):
+        """
+            weight the drawing with element weight (frequency)
+            
+            too slows to draw each time a value:
+                - > generate man values and pop when needed!
+        """
+        # need to generate again if pop empty
+        try:
+            ind= self._lweightedIndex.pop()
+        except IndexError:
+            self._lweightedIndex  = list(np.random.choice(self._flatlr,100000,p=self._prob))
+            ind= self._lweightedIndex.pop()
+        return unicode(ind)
+    
+        ret = np.random.choice(self._flatlr,1,p=self._prob)[0]  
+        if type(ret) ==  np.unicode_:
+            ret = unicode(ret)
+        return ret        
+       
+       
+        
+    def loadResourcesFromList(self,lLists):
+        """
+            Open and read resource files
+            take just (Value,freq)
+        """
+        self._lresources =[]
+        for mylist in lLists:
+            self._lresources.extend(mylist)
+        if self.totalW is None:
+            self.totalW = 1.0 * sum(map(lambda (_,y):y, self._lresources))
+        if self.totalW != len(self._lresources):
+            self.isWeighted = True
+        if self._prob is None:
+            self._prob = map(lambda (_,y):y / self.totalW,self._lresources)           
+        if self._flatlr is None:
+            self._flatlr = map(lambda (x,_):x,self._lresources)
+        # generate many (100000) at one ! otherwise too slow
+        self._lweightedIndex  = list(np.random.choice(self._flatlr,100000,p=self._prob))
+
+        return self._lresources        
 
     def loadResources(self,lfilenames):
         """
@@ -74,8 +132,19 @@ class Generator(object):
         """
         self._lresources =[]
         for filename in lfilenames:
-            res= cPickle.load(gzip.open(filename,'r'))
+            res = cPickle.load(gzip.open(filename,'r'))
             self._lresources.extend(res)
+        if self.totalW is None:
+            self.totalW = 1.0 * sum(map(lambda (_,y):y, self._lresources))
+        if self.totalW != len(self._lresources):
+            self.isWeighted = True
+        if self._prob is None:
+            self._prob = map(lambda (_,y):y / self.totalW,self._lresources)           
+        if self._flatlr is None:
+            self._flatlr = map(lambda (x,_):x,self._lresources)
+        # generate many (100000) at one ! otherwise too slow
+        self._lweightedIndex  = list(np.random.choice(self._flatlr,100000,p=self._prob))
+
         return self._lresources
               
     def getValue(self):
@@ -110,9 +179,15 @@ class Generator(object):
             for i in range(number):
                 generateProb = 1.0 * random.uniform(1,100)
                 if generateProb < proba:
-                    self._generation.append(obj.generate())
+                    obj.generate()
+                    self._generation.append(obj)
                 else:
                     pass
         return self
-        
+    
+if __name__ == "__main__":
 
+    g= Generator()
+    g.loadResources(['resources/profession.pkl'])
+    g.generate()
+    print g
