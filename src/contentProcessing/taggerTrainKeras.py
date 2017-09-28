@@ -122,6 +122,9 @@ class DeepTagger():
         if dParams.name:
             self.sModelName = dParams.name
         
+        if dParams.batchSize:
+            self.batch_size = dParams.batchSize
+    
         if dParams.nbEpochs:
             self.nbEpochs = dParams.nbEpochs
 
@@ -388,7 +391,7 @@ class DeepTagger():
                 class_vec[ np.argmax(class_prs) ] = 1
                 if tuple(class_vec.tolist()) in self.tag_vector:
                     pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
-            print test_x[i],pred_tags[:len(test_x[i])]    
+            print test_x[i],lY[i],pred_tags[:len(test_x[i])]    
         
         
  
@@ -414,7 +417,7 @@ class DeepTagger():
             lX = list()
             nil_X = np.zeros(self.max_features)
             pad_length = self.max_sentence_len - len(wordsvec)
-            lX.append( ( pad_length*[nil_X]) + wordsvec)
+            lX.append( wordsvec +((pad_length)*[nil_X]) )
             lX=np.array(lX)
             assert pad_length*[nil_X] + wordsvec >= self.max_sentence_len
             y_pred = self.model.predict(lX)
@@ -485,6 +488,8 @@ if __name__ == '__main__':
     cmp.parser.add_option("--training", dest="training",  action="append", type="string", help="training data")
         
     cmp.parser.add_option("--hidden", dest="hidden",  action="store", type="int", help="hidden layer dimension")    
+    cmp.parser.add_option("--batch", dest="batchSize",  action="store", type="int", help="batch size")    
+
     cmp.parser.add_option("--epochs", dest="nbEpochs",  action="store", type="int", help="nb epochs for training")    
     cmp.parser.add_option("--ngram", dest="ngram",  action="store", type="int", help="ngram size")    
     cmp.parser.add_option("--nbfeatures", dest="nbfeatures",  action="store", type="int", help="nb features")    
