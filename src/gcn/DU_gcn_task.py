@@ -22,7 +22,7 @@ FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('train', '', "FilePath Train pickle file")
 tf.app.flags.DEFINE_string('test', '', "FilePath for the pickle")
-tf.app.flags.DEFINE_string('fold', '', "FilePath for the pickle")
+tf.app.flags.DEFINE_integer('fold', '1', "FilePath for the pickle")
 tf.app.flags.DEFINE_string('out_dir', '', "outdirectory for saving the results")
 tf.app.flags.DEFINE_integer('configid', 0, 'gridid')
 
@@ -33,28 +33,31 @@ tf.app.flags.DEFINE_integer('nb_layer', 1, """How many layers """)
 tf.app.flags.DEFINE_bool('stack_PN', False, "whehter to concator add the vector induced from the neighbors")
 tf.app.flags.DEFINE_integer('eval_iter', 256, """How often to evaluate the training results.""")
 tf.app.flags.DEFINE_string('path_report', 'default', """Path for saving the results """)
+tf.app.flags.DEFINE_string('grid_configs', '3_4_5', """Configs to be runned on all the folds """)
 
-pickle_fname = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
 
 
 def get_config(config_id=0):
     config = {}
 
     if config_id == 0:
-        config['nb_iter'] = 2000
+        config['nb_iter'] = 1000
         config['lr'] = 0.001
         config['stack_instead_add'] = True
         config['mu'] = 0.0
         config['num_layers'] = 1
         config['node_indim'] = -1
+        config['nconv_edge'] = 1
 
     elif config_id==1:
-        config['nb_iter'] = 2000
+        #config['nb_iter'] = 2000
+        config['nb_iter'] = 1000
         config['lr'] = 0.001
         config['stack_instead_add'] = False
         config['mu'] = 0.0
         config['num_layers'] = 1
         config['node_indim'] = -1
+        config['nconv_edge'] = 1
 
     elif config_id==2:
         config['nb_iter'] = 2000
@@ -64,6 +67,37 @@ def get_config(config_id=0):
         config['num_layers'] = 1
         config['node_indim'] = -1
         config['nconv_edge'] = 10
+
+    elif config_id==3:
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.0
+        config['num_layers'] = 1
+        config['node_indim'] = -1
+        config['nconv_edge'] = 50
+
+    elif config_id==4:
+        #config['nb_iter'] = 2000
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.0
+        config['num_layers'] = 2
+        config['node_indim'] = -1
+        config['nconv_edge'] = 7
+
+    elif config_id==5:
+        #config['nb_iter'] = 2000
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.0
+        config['num_layers'] = 3
+        config['node_indim'] = -1 #INDIM =2 not working here
+        config['nconv_edge'] = 10
+
+
 
     else:
         raise NotImplementedError
@@ -124,17 +158,51 @@ def run_model(gcn_graph, config_params, gcn_graph_test):
     return mean_acc_test
 
 
-def main(_):
+def main_fold(foldid,configid,outdir):
     pickle_train = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
-        FLAGS.fold) + '_tlXlY_trn.pkl'
-    pickle_test = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(FLAGS.fold) + '_tlXlY_tst.pkl'
+        foldid) + '_tlXlY_trn.pkl'
+    pickle_test = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(foldid) + '_tlXlY_tst.pkl'
 
     train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
     test_graph = GCNDataset.load_transkribus_pickle(pickle_test)
 
-    config = get_config(FLAGS.configid)
+    config = get_config(configid)
     acc_test = run_model(train_graph, config, test_graph)
     print('Accuracy Test', acc_test)
+
+    #To be improved ....the file result
+    mean_acc=np.mean(acc_test)
+    fresult_fname=os.path.join(outdir,'fold_'+str(foldid)+'_configid_'+str(configid)+'_acc_'+str(mean_acc))
+    os.system( 'touch '+fresult_fname)
+
+
+def main(_):
+
+    if FLAGS.fold==-1:
+        #Do it on all the fold for the specified configs
+        FOLD_IDS=[1,2,3,4]
+        sel_configs_ = FLAGS.grid_configs.split('_')
+        sel_configs =  [int(x) for x in sel_configs_]
+        print('GRID on FOLDS',FOLD_IDS)
+        print('Model Configs', sel_configs)
+
+        for cid in sel_configs:
+            for fid in FOLD_IDS:
+                print('Running Fold',fid,'on Config',cid)
+                main_fold(fid,cid,FLAGS.out_dir)
+
+    else:
+
+        pickle_train = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
+            FLAGS.fold) + '_tlXlY_trn.pkl'
+        pickle_test = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(FLAGS.fold) + '_tlXlY_tst.pkl'
+
+        train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
+        test_graph = GCNDataset.load_transkribus_pickle(pickle_test)
+
+        config = get_config(FLAGS.configid)
+        acc_test = run_model(train_graph, config, test_graph)
+        print('Accuracy Test', acc_test)
 
 
 if __name__ == '__main__':

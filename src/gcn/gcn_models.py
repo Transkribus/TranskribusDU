@@ -117,7 +117,8 @@ class GCNModel(object):
         self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
         #Le code rajoute du Dropout aussi
 
-        cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(self.logits, self.y_input)
+        #cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(self.logits, self.y_input)
+        cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
         #cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
         #TODO Add L2 Regularization  for Wedge and Node ...
         self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wedge)
@@ -188,6 +189,8 @@ class GCNModelGraphList(object):
 
     def convolve(self,Wedge,EA,H,nb_node,nconv):
         Em =(tf.matmul(Wedge,EA))
+        print('EM',Em.get_shape())
+        print (nb_node,nconv)
         #Use activation here or not ?
         Z=tf.reshape(Em,(nconv,nb_node,nb_node))
 
@@ -233,7 +236,7 @@ class GCNModelGraphList(object):
             Wnl0 = tf.Variable(tf.eye(self.node_dim),name='Wnl0',dtype=tf.float32)
 
         Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0',dtype=tf.float32)
-        Wel0 =tf.Variable(tf.ones([1,self.edge_dim], dtype=np.float32, name='Wel0'))
+        Wel0 =tf.Variable(tf.random_normal([int(self.nconv_edge),int(self.edge_dim)],mean=0.0,stddev=1.0), dtype=np.float32, name='Wel0')
 
         #self.Wed_layers.append(Wel0)
         for i in range(self.num_layers):
@@ -241,6 +244,7 @@ class GCNModelGraphList(object):
                 Wnli =tf.Variable(tf.random_uniform( (self.node_indim*self.nconv_edge+self.node_indim, self.node_indim),
                                                                -1.0 / math.sqrt(self.node_indim),
                                                                1.0 / math.sqrt(self.node_indim)),name='Wnl',dtype=tf.float32)
+                print('Wnli shape',Wnli.get_shape())
             else:
                 Wnli =tf.Variable(tf.random_uniform( (self.node_indim, self.node_indim),
                                                                    -1.0 / math.sqrt(self.node_indim),
@@ -248,7 +252,9 @@ class GCNModelGraphList(object):
 
             Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
 
-            Weli = tf.Variable(tf.ones([1, self.edge_dim],dtype=tf.float32))
+            #Weli = tf.Variable(tf.ones([int(self.nconv_edge),int(self.edge_dim)],dtype=tf.float32))
+            Weli = tf.Variable(tf.random_normal([int(self.nconv_edge), int(self.edge_dim)], mean=0.0, stddev=1.0),
+                               dtype=np.float32, name='Wel_')
 
             Beli = tf.Variable(tf.zeros([self.edge_dim]), name='Bel'+str(i),dtype=tf.float32)
 
@@ -290,34 +296,42 @@ class GCNModelGraphList(object):
                 #P= tf.matmul(Z,Hi_)
                 Hp= tf.concat([Hi_,P],1)
             else:
-                #Hp= tf.matmul(Z+I,Hi_)
+                #Hp= tf.matmul(Z+I,Hi_) #If multiple edge, can not add as it does not have the same dimensionality
                 Hp= P+Hi_
             Hi=self.activation(Hp)
+            Hi_shape = Hi.get_shape()
+            print(Hi_shape)
             self.hidden_layers.append(Hi)
 
         elif self.num_layers>1:
             #TODO Fix activation before convolve or after ..
+            #TODO Fix probelem of id betwwen layers layer 0 adn 1 are mixed
             H0 = self.activation(tf.add(tf.matmul(self.node_input,Wnl0),Bnl0))
 
             if self.stack_instead_add:
                 #Em0 =(tf.matmul(Wel0,self.EA_input))
                 #Z0=tf.reshape(Em0,tf.stack([self.nb_node,self.nb_node]))
                 #P= tf.matmul(Z0,H0)
-                P=self.convolve(Wel0,self.EA_input,self.nb_node,self.nconv_edge)
+                P=self.convolve(Wel0,self.EA_input,H0,self.nb_node,self.nconv_edge)
                 Hp= tf.concat([H0,P],1)
                 self.hidden_layers=[Hp]
             else:
                 self.hidden_layers=[H0]
 
-            for i in range(self.num_layers):
+            print('H0_shape',self.hidden_layers[0].get_shape())
+            for i in range(self.num_layers-1):
                 Hi_ = tf.matmul(self.hidden_layers[-1],self.Wnode_layers[i])
+                print('Hi_shape',Hi_.get_shape())
                 #Emi = (tf.matmul(self.Wed_layers[i],self.EA_input))
-                P=self.convolve(self.Wed_layers[i],self.EA_input,self.nb_node,self.nconv_edge)
+                P=self.convolve(self.Wed_layers[i],self.EA_input,Hi_,self.nb_node,self.nconv_edge)
                 #Z=tf.reshape(Emi,tf.stack([self.nb_node,self.nb_node]))
+                print('P_shape',P.get_shape())
                 if self.stack_instead_add:
                     #P= tf.matmul(Z,Hi_)
                     Hp= tf.concat([Hi_,P],1)
                     Hi=self.activation(Hp)
+                    Hi_shape= Hi.get_shape()
+                    print(Hi_shape)
                     self.hidden_layers.append([Hi])
                 else:
                     #Hp= tf.matmul(Z+I,Hi_)
