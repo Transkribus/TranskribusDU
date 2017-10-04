@@ -578,7 +578,7 @@ class DeepTagger():
             lChunk.append((chunk,tag))
         
         lRes=[]
-        for (lList,label)in lChunk:
+        for (lList,label) in lChunk:
             tok = " ".join(map(lambda (x,tok,y): tok,lList))
             toffset = (min(map(lambda (offset,x,y): offset,lList)),max(map(lambda (offset,x,y): offset,lList)))
             lScore = (map(lambda (offset,_,score): score,lList))
@@ -621,7 +621,7 @@ class DeepTagger():
             lChunk.append((chunk,tag))
         
         lRes=[]
-        for (lList,label)in lChunk:
+        for (lList,label) in lChunk:
             tok = " ".join(map(lambda (x,tok,y): tok,lList))
             toffset = (min(map(lambda (offset,x,y): offset,lList)),max(map(lambda (offset,x,y): offset,lList)))
             lScore = (map(lambda (offset,_,score): score,lList))
@@ -708,8 +708,7 @@ class DeepTagger():
                         pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
 #                 print zip(mysent.encode('utf-8').split(),pred_tags[pad_length:])
 #                 lRes.append((mysent.split(),pred_tags[pad_length:]))   
-                self.prepareOutput(mysent.split(),pred_tags[:len(allwords)])
-                lRes.append((mysent.split(),pred_tags[:len(allwords)]))   
+                lRes.append(self.prepareOutput(mysent.split(),pred_tags[:len(allwords)]))
 
         return lRes
     
