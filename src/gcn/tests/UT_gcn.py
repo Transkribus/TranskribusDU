@@ -510,19 +510,52 @@ class UT_gcn(unittest.TestCase):
                 mean_acc.append(acc)
             print('Mean Accuracy',np.mean(mean_acc))
 
+    def test_11_2layers(self):
+            pickle_fname = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
+            gcn_graph = GCNDataset.load_transkribus_pickle(pickle_fname)
+
+            gcn_graph_test = [gcn_graph[8], gcn_graph[18], gcn_graph[29]]
+            node_dim = gcn_graph[0].X.shape[1]
+            edge_dim = gcn_graph[0].E.shape[1] - 2.0
+            nb_class = gcn_graph[0].Y.shape[1]
 
 
+            print('Node Dim',node_dim)
+            print('Edge Dim',edge_dim)
 
+            gcn_model = GCNModelGraphList(node_dim, edge_dim, nb_class, num_layers=2, learning_rate=0.01, mu=0.0,
+                                          node_indim=-1, nconv_edge=5)
+            # gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
+            gcn_model.stack_instead_add = True
+            gcn_model.create_model()
 
+            # pdb.set_trace()
 
+            nb_iter = 50
+            with tf.Session() as session:
+                session.run([gcn_model.init])
+                # Sample each graph
+                # random
+                for i in range(500):
+                    # random.shuffle(gcn_graph_test)
 
+                    if i % 10 == 0:
+                        print('Epoch', i)
+                        mean_acc = []
+                        for g in gcn_graph_test:
+                            #                        print('G Stats #node,#edge',g.X.shape[0],g.E.shape[0])
+                            acc = gcn_model.test(session, g.X.shape[0], g.X, g.EA, g.Y, g.NA)
+                            mean_acc.append(acc)
+                        print('     Mean Accuracy', np.mean(mean_acc))
+                    else:
+                        for g in gcn_graph_test:
+                            gcn_model.train(session, g.X.shape[0], g.X, g.EA, g.Y, g.NA, n_iter=1)
 
-
-
-
-
-
-
+                mean_acc = []
+                for g in gcn_graph_test:
+                    acc = gcn_model.test(session, g.X.shape[0], g.X, g.EA, g.Y, g.NA)
+                    mean_acc.append(acc)
+                print('Mean Accuracy', np.mean(mean_acc))
 
 
 if __name__ == '__main__':
