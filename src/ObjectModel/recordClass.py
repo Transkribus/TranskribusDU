@@ -26,12 +26,13 @@
     under grant agreement No 674943.    
 
 """
+from __future__ import unicode_literals
 
 import cPickle
 # import regex
 import gzip
-from keras.models import load_model
-import numpy as np  
+#from keras.models import load_model
+from contentProcessing.taggerTrainKeras import DeepTagger
 
 
 class recordClass(object):
@@ -67,6 +68,7 @@ class recordClass(object):
     def getFields(self): return self._lFields
     def addField(self,field):
         if field not in self.getFields():
+            field.setRecord(self)
             self.getFields().append(field)
             if field.isMandatory():
                 self._lmandatoryFields.append(field)
@@ -132,7 +134,7 @@ class recordClass(object):
     def scoreCandidat(self,cnd):
         """
             sum of the valued fields
-            negative score if mantadary fields are not present 
+            negative score if mandatory fields are not present 
             
             if a candidate has several values for a field: use LA distance, score for find the right one? 
             
@@ -141,13 +143,17 @@ class recordClass(object):
         """
         score=0
         for field in self.getFields():
-            if  cnd.getFieldByName(field.getName()) is not None and cnd.getFieldByName(field.getName()).getValue() is not None:
-                score+=1
-                if field.isMandatory():
+            # lookup cnd.objects as well!
+            lObjects = [cnd]
+            lObjects.extend(cnd.getObjects())
+            for obj in lObjects:
+                if  obj.getFieldByName(field.getName()) is not None and obj.getFieldByName(field.getName()).getValue() is not None:
                     score+=1
-            elif field.isMandatory():
-                score -=1
-        
+                    if field.isMandatory():
+                        score+=1
+                elif field.isMandatory():
+                    score -=1
+            
         return score
                 
                 
@@ -168,9 +174,11 @@ class recordClass(object):
         """
         for cand in self.getCandidates():
             # currently cell
-            print  self.isComplete(cand), cand.getContent().encode('utf-8')
-            for field in cand.getFields():
-                print "f:",field.getName(), field.getBestValue(), field.isMandatory()
+            if len(cand.getContent()) > 5:
+                print  cand.getContent().encode('utf-8')
+                for field in cand.getFields():
+                    if field.getBestValue() is not None:
+                        print "f:",field.getName().encode('utf-8'), field.getBestValue().encode('utf-8'), field.isMandatory()
             
         
     def generateOutput(self):
@@ -189,11 +197,14 @@ class fieldClass(object):
         self._value = None
         
         # backref to record
-        self._myrecord = None
+        self._record = None
         
         self._bMandatory = False
         # how to extract textual representation
         self._lTaggers = []
+        
+        # label from taggers corresponding to this field
+        self._lMapping = []
         
         # C side
         self._object        = None      # reference to the document object of the field (list?)
@@ -210,9 +221,6 @@ class fieldClass(object):
     def __str__(self):return "%s-%s"%(self.getName(),self.getValue())        
     def __repr__(self):  return "%s-%s"%(self.getName(),self.getValue())        
     
-    #lastname-['lastname', (u'List', (2, 0, 0), u'Ritt', 987), (u'List', (0, 0, 0), u'List', 2436), (u'illeg', (2, 0, 0), u'\xd6ller', 1648), (u'der', (1, 0, 1), u'Kern', 4501), (u'der', (1, 0, 1), u'Denk', 3129)]
-    #firstname-['firstname', (u'Anna', (2, 0, 0), u'Lina', 607), (u'Anna', (2, 0, 0), u'Afra', 523), (u'Anna', (0, 0, 2), u'Anna M', 27), (u'Anna', (0, 0, 0), u'Anna', 158517), (u'Anna', (2, 0, 0), u'Mina', 61), (u'Anna', (2, 0, 0), u'Erna', 233), (u'List', (2, 0, 0), u'Lina', 607), (u'illeg', (1, 1, 0), u'Ilse', 50)]
-
 
     def getName(self): return self._name
     def setName(self,s): self._name =s        
@@ -220,12 +228,40 @@ class fieldClass(object):
     def getValue(self): return self._value
     def setValue(self,v): self._value = v   
     
+    def setRecord(self,r): self._record = r
+    def getRecord(self):return self._record
+    
+    def setLabelMapping(self,l): self._lMapping = l
+    
+    def extractLabel(self,lres):
+        """
+            extract only lables in lMapping
+            [ 
+            (  [u'Theresia', u'irainger', u'Eder.', u'Baur.', u'im'], 
+            [(u'firstNameGenerator', 0.99970764), (u'lastNameGenerator', 0.99180144), (u'locationGenerator', 0.99952209), (u'locationGenerator', 0.99951875), (u'locationGenerator', 0.60138053)])]
+            
+            
+            cand= filter(lambda (tok,(label,score)):label.split('_')[1] in self._lMapping,zip(res[0],res[1]))
+             
+            
+            new verson with BIES
+
+            [((0, 1), u'Anna Maria', u'firstNameGenerator',[0.222,0.222]), ((2, 2), u'Stadler', u'lastNameGenerator',[0.22]), ((3, 3), 'MAx', u'firstNameGenerator'), ((4, 4), 'Str', u'lastNameGenerator',[0.22])]
+
+            list of : (toffset,string,label,score)
+            
+            
+        """
+        return filter(lambda (offset,value,label,score):label in self._lMapping,lres)
+    
     def getBestValue(self):
-        # currently: (u'List', (2, 0, 0), u'Ritt', 987)
+        # old (u'List', (2, 0, 0), u'Ritt', 987)
+        # now [(u'Theresia',  0.9978103), (u'Sebald',0.71877468)]
         if self.getValue() is not None:
-            #take fuzzy match score!
-            self.getValue().sort(key=lambda x:x[1][0]+x[1][1]+x[1][2])
-            return self.getValue()[0]
+            # score = list! take max
+            self.getValue().sort(key = lambda x:max(x[1]),reverse=True)
+            ## onlt content, not score
+            return self.getValue()[0][0]
             
     
     def isMandatory(self): return self._bMandatory
@@ -239,8 +275,9 @@ class fieldClass(object):
         lres=[]
         for t in self.getTaggers():
             res= t.runMe(o)
+            ## assume one sample!  (.proedict assume  a  list of content)
             if res:
-                lres.append(res)
+                lres.extend(res[0])
         return lres
     
     def cloneMe(self):
@@ -248,7 +285,9 @@ class fieldClass(object):
         clone.setName(self.getName())
         clone.setValue(self.getValue())
         clone._lTaggers = self._lTaggers
-        
+        clone._lMapping = self._lMapping
+        clone._record  = self._record
+        clone._bMandatory = self.isMandatory()
         return clone 
 
 class taggerClass(object):
@@ -258,9 +297,10 @@ class taggerClass(object):
         
         a mapping function is required when the tagger does more than needed (more ne than the one to be extracted)
     """
-    FSTTYPE =   0               # requires path/myresource.fst 
-    MLCRFTYPE  =   1            # requires path to modeldirectory     
-    EXTERNALTAGGERTYPE = 2      # path to exe ; assume text as input
+    FSTTYPE             = 0               # requires path/myresource.fst 
+    MLCRFTYPE           = 1            # requires path to modeldirectory
+    DEEP                = 2     
+    EXTERNALTAGGERTYPE  = 3      # path to exe ; assume text as input
     
     def __init__(self,name=None):
         self._name = name
@@ -311,50 +351,38 @@ class taggerClass(object):
  
 class KerasTagger(taggerClass):
     """
-        see textkeras
-        
-        to be finalized
+        see taggerTrainKeras
+            -> use directly DeepTagger?
     """ 
     def __init__(self,name):
         taggerClass.__init__(self, name)
-          
-    def loadResources(self,lfilenames):
+        self.myTagger = DeepTagger()
+        self.myTagger.bPredict = True
+#         self.myTagger.sModelName = None
+#         self.myTagger.dirName = 'IE
+#         self.myTagger.loadModels()
     
-        modelfile, otherfile= lfilenames
-        self.model = load_model(modelfile)
-    
-        self.max_features,self.max_sentence_len, self.DEFAULT_N_CLASSES,self.tag_vector_map , self.node_transformer = cPickle.load(gzip.open(otherfile, 'rb'))
+    def loadResources(self,sModelName,dirName):
+        # location from sModeName, dirName
+        self.myTagger.sModelName = sModelName
+        self.myTagger.dirName = dirName        
+        self.myTagger.loadModels()
     
     def runMe(self,documentObject):
-        
-        txt = documentObject.getContent()
-        allwords= self.node_transformer.transform(txt.split())
-        wordsvec = []
-        for w in allwords:
-            wordsvec.append(w)
-        lX = list()
-        nil_X = np.zeros(self.max_features)
-        pad_length = self.max_sentence_len - len(wordsvec)
-        lX.append( ((pad_length)*[nil_X]) + wordsvec)
-        lX=np.array(lX)
-        
-        y_pred = self.model.predict(lX)
-        
-        for i,_ in enumerate(lX): 
-            pred_seq = y_pred[i]
-            pred_tags = []
-            for class_prs in pred_seq:
-                class_vec = np.zeros(self.DEFAULT_N_CLASSES, dtype=np.int32)
-                class_vec[ np.argmax(class_prs) ] = 1
-                if tuple(class_vec.tolist()) in self.tag_vector_map:
-                    pred_tags.append(self.tag_vector_map[tuple(class_vec.tolist())])
-            print txt.encode('utf-8'),pred_tags              
-        
-        
-        ## mapping 
-        
-        return pred_tags[-len(allwords):]
-            
+        '''
+            delete '.' because of location in GT
+        '''
+#         res = self.myTagger.predict([documentObject.getContent()])
+#         return res
+    
+        if self.myTagger.bMultiType:
+            res = self.myTagger.predict_multiptype([documentObject.getContent()])
+        else:
+            res = self.myTagger.predict([documentObject.getContent()])
+
+        print res
+        return res
+    
 class CRFTagger(taggerClass):
     """
         
@@ -379,7 +407,7 @@ class CRFTagger(taggerClass):
         allwords= self.trans.transform(txt.split())
         lY_pred = self.model.predict(allwords)
         # mapp output !
-        print lY_pred    
+#         print lY_pred    
     
 class RETaggerClass(taggerClass):
     
@@ -389,7 +417,7 @@ class RETaggerClass(taggerClass):
         
     def loadResources(self,lfilenames):
         """
-            Open and read ressoruce files
+            Open and read resource files
             
         """
         
@@ -426,18 +454,18 @@ class RETaggerClass(taggerClass):
         return lParsingRes  
     
     
-class dateRETaggerClass(RETaggerClass):
-    """
-        class for recognizing date 
-    """
-    def __init__(self,name='datetagger'):
-        RETaggerClass.__init__(self, name)
-        lmonth=['januar', 'februar', 'mars' ,'april','mai','juni','juli','august','october','november','december']
-        lReNames=[]
-        lNames=[]
-        for m in lmonth:
-            lReNames.append(regex.compile(r"(%s){e<=3}"%regex.escape(m), regex.IGNORECASE))
-            lNames.append((m,1))
-        self._lresources = [('REDate',lReNames, lNames)]
+# class dateRETaggerClass(RETaggerClass):
+#     """
+#         class for recognizing date 
+#     """
+#     def __init__(self,name='datetagger'):
+#         RETaggerClass.__init__(self, name)
+#         lmonth=['januar', 'februar', 'mars' ,'april','mai','juni','juli','august','october','november','december']
+#         lReNames=[]
+#         lNames=[]
+#         for m in lmonth:
+#             lReNames.append(regex.compile(r"(%s){e<=3}"%regex.escape(m), regex.IGNORECASE))
+#             lNames.append((m,1))
+#         self._lresources = [('REDate',lReNames, lNames)]
         
     
