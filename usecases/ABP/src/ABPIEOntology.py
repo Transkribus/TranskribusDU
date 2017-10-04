@@ -27,50 +27,76 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import unicode_literals
+
+
 import sys, os.path
-from ObjectModel.documentClass import documentObject
 sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'src')
-from ObjectModel.recordClass import recordClass,fieldClass,KerasTagger, RETaggerClass, dateRETaggerClass
+from ObjectModel.recordClass import recordClass,fieldClass,KerasTagger, RETaggerClass #, dateRETaggerClass
+from ObjectModel.documentClass import documentObject
 
 import libxml2
 
 class deathRecord(recordClass):
     sName = 'deathrecord' 
-    def __init__(self):
+    def __init__(self,sModelName,sModelDir):
         recordClass.__init__(self,deathRecord.sName)
         
-        myTagger=ABPTagger()
+        myTagger = ABPTagger()
+        myTagger.loadResources(sModelName ,sModelDir )  
+        
         fnField = firstNameField()
-        #fnField.addTagger(fnameTagger())
+        fnField.setLabelMapping( ['firstNameGenerator'])
         fnField.addTagger(myTagger)
         fnField.setMandatory()
         self.addField(fnField)
     
         nfield = lastNameField()
-        #nfield.addTagger(lnameTagger())
         nfield.addTagger(myTagger)
-
+        nfield.setLabelMapping(['lastNameGenerator'])
         nfield.setMandatory()
         self.addField(nfield)
+
+        lfield= locationField()
+        lfield.addTagger(myTagger)
+        lfield.setLabelMapping(['locationGenerator'])
+        self.addField(lfield)
         
         ofield= occupationField()
+        ofield.addTagger(myTagger)
+        ofield.setLabelMapping(['professionGenerator'])
         self.addField(ofield)
-        
-        sField= situationField()
-        self.addField(sField)
-        
+#         
+        sfield= situationField() 
+        sfield.addTagger(myTagger)
+        sfield.setLabelMapping(['familyStatus'])
+        self.addField(sfield)
+#         
         dDate= deathDate()
-        dDate.addTagger(dateRETaggerClass())
+        dDate.addTagger(myTagger)
+#         dDate.setLabelMapping(['weekDayDateGenerator','MonthDayDateGenerator','MonthDateGenerator'])         
+        dDate.setLabelMapping(['MonthDateGenerator'])         
+
         self.addField(dDate)
         
         bDate= burialDate()
-        self.addField(bDate)
-        
-        self.addField(locationField())
+        bDate.addTagger(myTagger)
+#         bDate.setLabelMapping(['weekDayDateGenerator','MonthDayDateGenerator','MonthDateGenerator'])         
+        bDate.setLabelMapping(['MonthDateGenerator'])         
 
-        self.addField(deathreasonField())
+        self.addField(bDate)         
 
+        blfield= burialLocation()
+        blfield.addTagger(myTagger)
+        blfield.setLabelMapping(['locationGenerator'])
+        self.addField(blfield)
 
+        reasonField = deathreasonField()
+        reasonField.addTagger(myTagger)
+        reasonField.setLabelMapping(['deathreasonGenerator'])
+        self.addField(reasonField)        
+
+    
     def generateOutput(self,outDom):
         """
             generateOutput
@@ -94,10 +120,11 @@ class deathRecord(recordClass):
         ## store all with score; evaluation uses scoresTH
         lPages={}
         for cand in self.getCandidates():
+            print cand, cand.getPage(), cand.getAllFields()
             try:lPages[cand.getPage()].append(cand)
             except:lPages[cand.getPage()]=[cand]
 
-        for page in lPages:
+        for page in sorted(lPages):
             # page node
             domp=libxml2.newNode('PAGE')
             domp.setProp('number',str(page.getNumber()))
@@ -108,9 +135,9 @@ class deathRecord(recordClass):
                 record = libxml2.newNode('RECORD')
                 # record fields
                 nbRecords = 0
-                for field in cand.getFields():
+                for field in cand.getAllFields():
                     if field.getName() is not None and field.getBestValue() is not None:
-                        record.setProp(field.getName(),field.getBestValue()[0].encode('utf-8'))
+                        record.setProp(field.getName(),field.getBestValue().encode('utf-8'))
                         nbRecords+=1
                 if nbRecords > 0:
                     domp.addChild(record)
@@ -119,7 +146,7 @@ class deathRecord(recordClass):
 
 
 class deathreasonField(fieldClass):
-    sName='death reason'
+    sName='deathreason'
     def __init__(self):
         fieldClass.__init__(self, deathreasonField.sName)
         
@@ -137,6 +164,11 @@ class burialDate(fieldClass):
     sName='burialDate'
     def __init__(self):
         fieldClass.__init__(self, burialDate.sName)
+          
+class burialLocation(fieldClass):
+    sName='burialLocation'
+    def __init__(self):
+        fieldClass.__init__(self, burialLocation.sName)
                     
 class firstNameField(fieldClass):
     sName = 'firstname'
@@ -191,11 +223,14 @@ class NodeTransformerTextEnclosed(Transformer):
         return map(lambda x: x, lw) 
 
 class ABPTagger(KerasTagger):
-    sName='fnln'
+    sName='abprecord'
     def __init__(self):
         KerasTagger.__init__(self, ABPTagger.sName)
-        self._typeOfTagger = self.FSTTYPE
-        self.loadResources( ( 'models/%s.hd5'%('fnln'), 'models/%s.trans.keras2.mdl' %('fnln') ) )    
+        self._typeOfTagger = self.DEEP
+#         self.loadResources( ( 'models/%s.hd5'%('fnln'), 'models/%s.aux.pkl' %('abprecord') ) )    
+#         self.loadResources('model1_h64_nbf2000_epoch3', 'IEdata/model' )    
+#         self.loadResources('model1_h32_nbf5000_epoch3', 'IEdata/model' )    
+    
     
 class fnameTagger(RETaggerClass):
     sName= 'firstNameTagger'
@@ -216,21 +251,21 @@ class lnameTagger(RETaggerClass):
         self.loadResources(self._lpath)
       
       
-class dateTagger(dateRETaggerClass):    
-    sName="German Date"
-    def __init__(self):
-        RETaggerClass.__init__(self, dateTagger.sName)
+# class dateTagger(dateRETaggerClass):    
+#     sName="German Date"
+#     def __init__(self):
+#         RETaggerClass.__init__(self, dateTagger.sName)
         
 
 #def test_ieo():  
 if __name__ == "__main__":
         
     dr =deathRecord()
-
-    
     mydocO= documentObject()
-    mydocO.setContent(u'Veronika Schmid')
+    mydocO.setContent('Veronika Schmid')
     for field in dr.getFields():
         lParsingRes = field.applyTaggers(mydocO)
+        foo = field.extractLabel(lParsingRes)
         print field.getName(),lParsingRes
+        print foo
 

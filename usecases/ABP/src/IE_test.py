@@ -28,6 +28,7 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import unicode_literals
 
 import sys, os.path
 import libxml2
@@ -73,8 +74,8 @@ class IETest(Component.Component):
         self.sTemplate = None
         self.BuseStoredTemplate = False
         
-        # assume table (withrow/col) is provided
-        self.bDoIE=False
+        self.sModelDir = None
+        self.sModelName = None
         
         # for --test
         self.evalData = None
@@ -89,8 +90,7 @@ class IETest(Component.Component):
             self.colname = dParams["coldir"]
         if dParams.has_key("docid"):         
             self.docid = dParams["docid"]
-        if dParams.has_key("docie"):         
-            self.bDoIE = dParams["docie"]
+
 
         if dParams.has_key("template"):         
             self.sTemplate = dParams["template"]
@@ -98,87 +98,11 @@ class IETest(Component.Component):
         if dParams.has_key("UseStoredTemplate"):         
             self.BuseStoredTemplate = dParams["UseStoredTemplate"]            
             
-    def tagCells(self, table):
-        """
-            cells are 'fake' cells from template tool:
-            type RI  RB RI RE RO
-            group text according
+        if dParams.has_key('modelName'):
+            self.sModelName = dParams['modelName']
+        if dParams.has_key('modelDir'):
+            self.sModelDir = dParams['modelDir']            
             
-        """
-        for col in table.getColumns():
-            lNewCells=[]
-            # keep original positions
-            col.resizeMe(XMLDSTABLECELLClass)
-            for cell in col.getCells():
-#                 print cell
-                curChunk=[]
-                lChunks = []
-#                 print map(lambda x:x.getAttribute('type'),cell.getObjects())
-#                 print map(lambda x:x.getID(),cell.getObjects())
-                cell.getObjects().sort(key=lambda x:x.getY())
-                for txt in cell.getObjects():
-#                     print txt.getAttribute("type")
-                    if txt.getAttribute("type") == 'RS':
-                        if curChunk != []:
-                            lChunks.append(curChunk)
-                            curChunk=[]
-                        lChunks.append([txt])
-                    elif txt.getAttribute("type") in ['RI', 'RE']:
-                        curChunk.append(txt)
-                    elif txt.getAttribute("type") == 'RB':
-                        if curChunk != []:
-                            lChunks.append(curChunk)
-                        curChunk=[txt]
-                    elif txt.getAttribute("type") == 'RO':
-                        ## add Other as well???
-                        curChunk.append(txt)
-                        
-                if curChunk != []:
-                    lChunks.append(curChunk)
-                    
-                if lChunks != []:
-                    # create new cells
-                    table.delCell(cell)
-                    irow= cell.getIndex()[0]
-                    for i,c in enumerate(lChunks):
-#                         print map(lambda x:x.getAttribute('type'),c)
-                        #create a new cell per chunk and replace 'cell'
-                        newCell = XMLDSTABLECELLClass()
-                        newCell.setPage(cell.getPage())
-                        newCell.setParent(table)
-                        newCell.setName(ds_xml.sCELL)
-                        newCell.setIndex(irow+i,cell.getIndex()[1])
-                        newCell.setObjectsList(c)
-                        newCell.resizeMe(XMLDSTEXTClass)
-                        newCell.tagMe2()
-                        for o in newCell.getObjects():
-                            o.setParent(newCell)
-                            o.tagMe()
-#                         table.addCell(newCell)
-                        lNewCells.append(newCell)
-                    cell.getNode().unlinkNode()
-                    del(cell)
-            col.setObjectsList(lNewCells[:])
-            [table.addCell(c) for c in lNewCells]        
-        
-#             print col.tagMe()
-        
-
-    def processRows(self,table,predefinedCuts=[]):
-        """
-        apply mining to get Y cuts for rows
-        """
-        rowMiner= tableRowMiner()
-        lYcuts = rowMiner.columnMining(table,predefinedCuts)
-        print lYcuts
-        # shift up offset
-        [x.setValue(x.getValue()-10) for x in lYcuts]
-
-        table.createRowsWithCuts(lYcuts)
-        table.reintegrateCellsInColRow()
-
-        table.buildNDARRAY()
-        
         
     def labelTable(self,table):
         """
@@ -189,28 +113,6 @@ class IETest(Component.Component):
         
 
 
-    def generateresources(self,table,record):
-        """
-            Once template has decorated table cells: 
-                Extract when fieldvalue when reliable:
-                    each field has to define reliable string/context (RE?)
-                    
-            Not for generic fields  (name, date,...) ?
-            
-            for generic fields: extract addition content (cum sacrement,....)        
-        """
-        
-        
-    def mineForTemplate(self):
-        """
-            how to automatically generate IETableTemplate
-            tag all cells with taggers  (too long?)
-            mine per column?  (spm to keep order?)
-            
-            
-        """
-        
-        
     def extractData(self,table,myRecord, lTemplate):
         """
             layout 
@@ -240,39 +142,43 @@ class IETest(Component.Component):
         
         #tag fields with template
         for cell in table.getCells():
-#             if cell.getFields() != []:
-#                 print table.getPage(),cell.getIndex(), cell.getFields(), cell.getContent().encode('utf-8')
-            lres= []
+            if cell.getFields() != []:
+                print table.getPage(),cell.getIndex(), cell.getFields(), cell.getContent().encode('utf-8')
             for field in cell.getFields():
                 if field is not None:
                     res = field.applyTaggers(cell)
-                    print field, res
-                    if res != []:
-                        field.setValue(res[0])
-                    if res != []:
-                        lres.append(res)
-                    print cell.getIndex(), cell.getFields(), cell.getContent().encode('utf-8')
+                    print res
+                    # res [ (token,label,score) ...]
+                    extractedValues = field.extractLabel(res)
+                    if extractedValues != []:
+                        print extractedValues
+                        extractedValues = map(lambda (offset,value,label,score):(value,score),extractedValues)
+                        field.setValue(extractedValues)
+                    print 'found:',field, field.getValue()
         
+
         ### now at record level ?
         ### scope = propagation using only docObject (hardcoded ?)
         ### where to put the propagation mechanism?
 #         myRecord.propagate(table)
         
-        #for each cell: take the record and
-        ### FR NOW: TAKE THE FIRST COLUMN
-        firstCol = table.getColumns()[0]
-        for cell in firstCol.getCells():
-            myRecord.addCandidate(cell)
+        ## 'backpropagation:  select the rows, and collection subobjects with fields  (cells)
         
-        myRecord.display()
+        for row in table.getRows():
+            myRecord.addCandidate(row)
+        
+#         #for each cell: take the record and
+#         ### FR NOW: TAKE THE FIRST COLUMN
+#         firstCol = table.getColumns()[0]
+#         for cell in firstCol.getCells():
+#             myRecord.addCandidate(cell)
+        
         
         myRecord.rankCandidates()
         
         lcand = myRecord.getCandidates()
 #         print lcand
-        
-        self.evalData = myRecord.generateOutput(self.evalData)
-        
+#         myRecord.display()        
         
     def mergeLineAndCells(self,lPages):
         """
@@ -294,22 +200,42 @@ class IETest(Component.Component):
             [dAssign[line].addObject(line) for line in dAssign.keys()]
             [cell.getObjects().sort(key=lambda x:x.getY()) for cell in lCells]
                 
-                
+       
+    def testGTText(self,page):
+        """
+            extract region text and parse it 
+        """         
+        from contentProcessing.taggerTrainKeras import DeepTagger
+        
+        myTagger = DeepTagger()
+        myTagger.bPredict = True
+        myTagger.sModelName = '2mix_cm'
+        myTagger.dirName = 'IEdata/model/'
+        myTagger.loadModels()
+        
+        for region in page.getObjects():
+            print region.getContent().encode('utf-8')
+            res= myTagger.predict([region.getContent()])
+            try:
+                res= myTagger.predict([region.getContent()])
+                print res
+            except: print 'SENT WITH ISSUES : [%s]' % (region.getContent().encode('utf-8'))
 
     def processWithTemplate(self,table,dr):
         """
-            acocridng to the # of columns, apply the corresponding template 
+            according to the # of columns, apply the corresponding template 
         """
 
         lTemplate10 = [  
              ((slice(1,None),slice(0,1)) ,[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ])
-#            , ((slice(1,None),slice(1,2)) ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
-#            , ((slice(1,None),slice(2,3)) ,[ dr.getFieldByName('location') ]) 
-#            , ((slice(1,None),slice(3,4)) ,[ dr.getFieldByName('familySituation') ])
-#            , ((slice(1,None),slice(4,5)) ,[ dr.getFieldByName('deathCause'), dr.getFieldByName('doctor') ])
-#            , ((slice(1,None),slice(5,6)) ,[ dr.getFieldByName('deathDate') ])
-#            , ((slice(1,None),slice(6,7)) ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('burialLocation') ])
-#            , ((slice(1,None),slice(7,8)) ,[ dr.getFieldByName('age')])
+            , ((slice(1,None),slice(1,2)) ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
+            , ((slice(1,None),slice(2,3)) ,[ dr.getFieldByName('location') ]) 
+            , ((slice(1,None),slice(3,4)) ,[ dr.getFieldByName('situation') ])
+             ,((slice(1,None),slice(4,5)) ,[ dr.getFieldByName('deathreason')])
+#             ,((slice(1,None),slice(4,5)) ,[ dr.getFieldByName('deathCause'), dr.getFieldByName('doctor') ])
+            , ((slice(1,None),slice(5,6)) ,[ dr.getFieldByName('deathDate') ])
+            , ((slice(1,None),slice(6,7)) ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('burialLocation') ])
+            , ((slice(1,None),slice(7,8)) ,[ dr.getFieldByName('age')])
 #            , ((slice(1,None),slice(8,9)) ,[ dr.getFieldByName('priester')])
 #            , ((slice(1,None),slice(9,10)),[ dr.getFieldByName('notes')])
            ]
@@ -321,7 +247,8 @@ class IETest(Component.Component):
         self.extractData(table,dr,lTemplate)
         # select best solutions
         # store inthe proper final format
-        
+        return dr 
+    
     def run(self,doc):
         """
             
@@ -329,19 +256,18 @@ class IETest(Component.Component):
         self.doc= doc
         self.ODoc = XMLDSDocument()
         self.ODoc.loadFromDom(self.doc,listPages = range(self.firstPage,self.lastPage+1))        
-#         self.ODoc.loadFromDom(self.doc,listPages = range(30,31))        
 
         self.lPages = self.ODoc.getPages()   
         
-        # not always?
-#         self.mergeLineAndCells(self.lPages)
-     
+        dr = deathRecord(self.sModelName,self.sModelDir)     
+        
+        
         for page in self.lPages:
-            print("page"), page.getNumber()
+            print("page: "), page.getNumber()
+#             self.testGTText(page)
+#             continue
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
             for table in lTables:
-                if self.bDoIE:
-                    dr = deathRecord()
                     if self.BuseStoredTemplate:
 #                         rowscuts = map(lambda r:r.getY(),table.getRows())
 #                         self.tagCells(table)
@@ -349,16 +275,15 @@ class IETest(Component.Component):
                         self.processWithTemplate(table, dr)
 #                     else:
 #                         self.extractData(table,dr,lTemplate)
-                else:
-                    rowscuts = map(lambda r:r.getY(),table.getRows())
-                    self.tagCells(table)
-                    self.processRows(table,rowscuts)
+#                 else:
+#                     rowscuts = map(lambda r:r.getY(),table.getRows())
+#                     self.tagCells(table)
+#                     self.processRows(table,rowscuts)
                 ## field tagging
                 
         
-        ## upload pagexml
-        ## now run HTR
-        
+        self.evalData = dr.generateOutput(self.evalData)
+        print self.evalData.serialize('utf-8',True)
 
     def generateTestOutput(self):
         """
@@ -480,13 +405,18 @@ class IETest(Component.Component):
             group by page
                 
         """
+
         cntOk = cntErr = cntMissed = 0
-        RefData = libxml2.parseMemory(srefData.strip("\n"), len(srefData.strip("\n")))
-        try:
-            RunData = libxml2.parseMemory(srunData.strip("\n"), len(srunData.strip("\n")))
-        except:
-            RunData = None
-            return (cntOk, cntErr, cntMissed)        
+#         srefData = srefData.decode('utf-8')
+        #.strip("\n")
+        
+        RefData = libxml2.parseMemory(srefData.strip("\n").encode('utf-8'), len(srefData.strip("\n").encode('utf-8')))
+        RunData = libxml2.parseMemory(srunData.strip("\n").encode('utf-8'), len(srunData.strip("\n").encode('utf-8')))
+#         try:
+#             RunData = libxml2.parseMemory(srunData.strip("\n"), len(srunData.strip("\n")))
+#         except:
+#             RunData = None
+#             return (cntOk, cntErr, cntMissed)        
          
         lRun = []
         if RunData:
@@ -515,7 +445,7 @@ class IETest(Component.Component):
 
         lRef = []
         ctxt = RefData.xpathNewContext()
-        lPages = ctxt.xpathEval('//%s' % ('PAGE[@pagenum<31]'))
+        lPages = ctxt.xpathEval('//%s' % ('PAGE[@pagenum <31]'))
         for page in lPages:
             pnum=page.prop('pagenum')
             xpath = "./%s" % ("RECORD")
@@ -577,16 +507,23 @@ class IETest(Component.Component):
         return refdata[0] == rundata[0] and refdata[1].lower() == rundata[1].lower()
     
     def testCompareRecordFirstNameLastName(self, refdata, rundata, bVisual=False):
+        # same page !!
         if refdata[0] != rundata[0]: return False
+        
         TH = 80 #(len(refdata[2])-2.0)/len(refdata[2])*100
-        res2, val = matchLCS(TH,(refdata[2].lower(),len(refdata[2])), (rundata[2].lower(),len(rundata[2])) )
-        res1, val = matchLCS(TH,(refdata[1].lower(),len(refdata[1])), (rundata[1].lower(),len(rundata[1])) )
+        refall= refdata[1].lower()+refdata[2].lower()
+        reflen= len(refdata[1])+len(refdata[2])
+        runall= rundata[1].lower()+rundata[2].lower()
+        runlen= len(rundata[1])+len(rundata[2])        
+#         res2, val = matchLCS(TH,(refdata[2].lower(),len(refdata[2])), (rundata[2].lower(),len(rundata[2])) )
+        res1, val = matchLCS(TH,(refall,reflen), (runall,runlen) )
 #         print refdata,rundata, res2 ,res2
 
 #         if res1 :
 #             print refdata[2].lower().encode('utf-8') ,  rundata[2].lower().encode('utf-8') ,val
 
-        return refdata[0] == rundata[0] and res1  and res2
+        return refdata[0] == rundata[0] and res1 # and res2
+
 #         return refdata[0] == rundata[0]  and refdata[2].lower() == rundata[2].lower() and refdata[1].lower() == rundata[1].lower()  
 
     def testCompareFullRecord(self, refdata, rundata, bVisual=False):
@@ -644,7 +581,8 @@ class IETest(Component.Component):
 #         self.generateTestOutput()
 #         self.createFakeData()
         if outFile: self.writeDom(doc)
-        return self.evalData.serialize('utf-8',1)
+        # return unicode
+        return self.evalData.serialize('utf-8',1).decode('utf-8')
     
     def testCompare(self, srefData, srunData, bVisual=False):
         """
@@ -661,24 +599,24 @@ class IETest(Component.Component):
                 
 if __name__ == "__main__":
 
-    
     iec = IETest()
     #prepare for the parsing of the command line
     iec.createCommandLineParser()
     iec.add_option("--coldir", dest="coldir", action="store", type="string", help="collection folder")
     iec.add_option("--docid", dest="docid", action="store", type="string", help="document id")
-    iec.add_option("--doie", dest="docie", action="store_true", default=False, help="onlyperform ie")
+#    iec.add_option("--doie", dest="docie", action="store_true", default=False, help="onlyperform ie")
     iec.add_option("--template", dest="template", action="store", type='string', help="table template for tagging")
     iec.add_option("--usetemplate", dest="UseStoredTemplate", action="store_true", default=False,help="use stored template (ABP)")
     iec.add_option('-f',"--first", dest="first", action="store", type="int", help="first page to be processed")
     iec.add_option('-l',"--last", dest="last", action="store", type="int", help="last page to be processed")
+    iec.add_option("--modelName", dest="modelName", action="store", type="string", help="model to be used")
+    iec.add_option("--modelDir", dest="modelDir", action="store", type="string", help="model folder")
 
     #parse the command line
     dParams, args = iec.parseCommandLine()
     
     #Now we are back to the normal programmatic mode, we set the componenet parameters
     iec.setParams(dParams)
-    
     doc = iec.loadDom()
     iec.run(doc)
     if iec.getOutputFileName() != '-':
