@@ -90,7 +90,7 @@ PluginBatch\LayoutPlugin\Layout Analysis Module\minSuperPixelsPerBlock=15
 PluginBatch\LayoutPlugin\Layout Analysis Module\\removeWeakTextLines=true
 PluginBatch\LayoutPlugin\Layout Analysis Module\scaleMode=1
 PluginBatch\LayoutPlugin\Super Pixel Classification\classifierPath=
-PluginBatch\LayoutPlugin\Super Pixel Labeler\featureFilePath=
+PluginBatch\LayoutPlugin\Super Pixel Labeler\\featureFilePath=
 PluginBatch\LayoutPlugin\Super Pixel Labeler\labelConfigFilePath=
 PluginBatch\LayoutPlugin\Super Pixel Labeler\maxNumFeaturesPerClass=10000
 PluginBatch\LayoutPlugin\Super Pixel Labeler\maxNumFeaturesPerImage=1000000
@@ -149,7 +149,8 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
      
     if sys.platform == 'win32':
         cNomacs = '"C:\\Program Files\\READFramework\\bin\\nomacs.exe"'
-        cNomacsold = '"C:\\Program Files\\READFramework\\nomacs-x64\\nomacs.exe"'
+        #cNomacsold = '"C:\\Program Files\\READFramework\\bin\\nomacs.exe"'
+        cNomacsold = '"C:\\Program Files\\READFramework2\\nomacs-x64\\nomacs.exe"'
 
     else:
         cNomacs = "/opt/Tools/src/tuwien-2017/nomacs/nomacs"
@@ -170,7 +171,8 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         self.bBaseLine = False
         self.bSeparator = False
         self.bRegularTextLine = False
-
+        self.sTemplateFile = None
+        
         self.xmlns='http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
 
         
@@ -195,7 +197,8 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         if dParams.has_key("regTL"):         
             self.bRegularTextLine = dParams["regTL"]  
 
-                
+        if dParams.has_key("templatefile"):         
+            self.sTemplateFile = dParams["templatefile"]                  
     
     def findTemplate(self,doc):
         """
@@ -225,14 +228,16 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
 
         return newDoc
         
-    def createRegistrationProfile(self):
+    def createRegistrationProfile(self,sTemplatefile):
         # get all images files
         localpath =  os.path.abspath("./%s/col/%s"%(self.coldir,self.docid))
         l =      glob.glob(os.path.join(localpath, "*.jpg"))
         l.sort()
         listfile = ";".join(l)
         listfile  = listfile.replace(os.sep,"/")
-        txt=  LAProcessor.cCVLProfileTabReg % (listfile,"%s/col/%s"%(self.coldir,self.docid),os.path.abspath("%s/%s.templ.xml"%(self.coldir,self.docid)).replace(os.sep,"/"))
+#         txt=  LAProcessor.cCVLProfileTabReg % (listfile,"%s/col/%s"%(self.coldir,self.docid),os.path.abspath("%s/%s.templ.xml"%(self.coldir,self.docid)).replace(os.sep,"/"))
+        txt=  LAProcessor.cCVLProfileTabReg % (listfile,"%s/col/%s"%(self.coldir,self.docid),os.path.abspath("%s"%(sTemplatefile)).replace(os.sep,"/"))
+
         # wb mandatory for crlf in windows
         prnfilename = "%s%s%s_reg.prn"%(self.coldir,os.sep,self.docid)
         f=open(prnfilename,'wb')
@@ -253,7 +258,6 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         listfile  = listfile.replace(os.sep,"/")
         localpath = localpath.replace(os.sep,'/')
         txt =  LAProcessor.cCVLLASeparatorProfile % (listfile,localpath)
-
         # wb mandatory for crlf in windows
         prnfilename = "%s%s%s_gl.prn"%(self.coldir,os.sep,self.docid)
         f=open(prnfilename,'wb')
@@ -272,7 +276,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         listfile  = listfile.replace(os.sep,"/")
         localpath = localpath.replace(os.sep,'/')
         txt =  LAProcessor.cCVLLAProfile % (listfile,localpath,self.bKeepRegion)
-
+#         print txt
         # wb mandatory for crlf in windows
         prnfilename = "%s%s%s_la.prn"%(self.coldir,os.sep,self.docid)
         f=open(prnfilename,'wb')
@@ -321,54 +325,60 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             ## (execution)    
         """
         
-        # extract list of files sorted as in MPXML
-        lFullPathXMLNames = self.extractFileNamesFromMPXML(doc)
-        nbPages = len(lFullPathXMLNames) 
-        ## 1 generate xml files if only pxml are there
-        
-        xmlpath=os.path.abspath(os.path.join (self.coldir,'col',self.docid))
-        
-        lXMLNames = [ "%s%s%s"%(xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
-        isXml = [] != lXMLNames        
-        if isXml:
-            [ os.remove("%s%s%s"%(xmlpath,os.sep,name)) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']    
-            isXml = False        
-        isPXml = [] != [ name for name in os.listdir(xmlpath) if os.path.basename(name)[-5:] =='.pxml']              
-        assert not isXml and isPXml
-
-        # recreate doc?  (mpxml)
-        
-        lPXMLNames = [ name for name in os.listdir(xmlpath) if os.path.basename(name)[-5:] =='.pxml']
-        if not isXml:
-            # copy pxml in xml
-            for name in lPXMLNames: 
-                oldname = "%s%s%s" %(xmlpath,os.sep,name)
-                newname = "%s%s%s" % (xmlpath,os.sep,name)
-                newname = newname[:-5]+'.xml' 
-                tmpdoc =  libxml2.parseFile(oldname)
-#                 self.unLinkTable(doc)
-                tmpdoc.saveFileEnc(newname,"UTF-8")                         
+        if self.bTemplate or self.bBaseLine or self.bSeparator:
+            # extract list of files sorted as in MPXML
+            lFullPathXMLNames = self.extractFileNamesFromMPXML(doc)
+            nbPages = len(lFullPathXMLNames) 
+            ## 1 generate xml files if only pxml are there
+            
+            xmlpath=os.path.abspath(os.path.join (self.coldir,'col',self.docid))
+            
+            lXMLNames = [ "%s%s%s"%(xmlpath,os.sep,name) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
+            isXml = [] != lXMLNames        
+            if isXml:
+                [ os.remove("%s%s%s"%(xmlpath,os.sep,name)) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']    
+                isXml = False        
+            isPXml = [] != [ name for name in os.listdir(xmlpath) if os.path.basename(name)[-5:] =='.pxml']              
+            assert not isXml and isPXml
+    
+            # recreate doc?  (mpxml)
+            
+            lPXMLNames = [ name for name in os.listdir(xmlpath) if os.path.basename(name)[-5:] =='.pxml']
+            if not isXml:
+                # copy pxml in xml
+                for name in lPXMLNames: 
+                    oldname = "%s%s%s" %(xmlpath,os.sep,name)
+                    newname = "%s%s%s" % (xmlpath,os.sep,name)
+                    newname = newname[:-5]+'.xml' 
+                    tmpdoc =  libxml2.parseFile(oldname)
+    #                 self.unLinkTable(doc)
+                    tmpdoc.saveFileEnc(newname,"UTF-8")                         
         
         
         ## Table registration 
         if self.bTemplate:
-            templatePage = self.findTemplate(doc)
-            ## RM  previous *.xml
-#             xmlpath=os.path.abspath("%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid))
-            [ os.remove("%s%s%s"%(xmlpath,os.sep,name)) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
-            if templatePage is None:
-                traceln("No table found in this document: %s" % self.docid)
-            else:
-                oldOut=  self.outputFileName
-                self.outputFileName = "%s%s%s.templ.xml" % (self.coldir,os.sep,self.docid)
-                self.writeDom(templatePage, True)
-                self.outputFileName = oldOut
-                prnregfilename= self.createRegistrationProfile()
+            if self.sTemplateFile is None:
+                templatePage = self.findTemplate(doc)
+                ## RM  previous *.xml
+    #             xmlpath=os.path.abspath("%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid))
+                [ os.remove("%s%s%s"%(xmlpath,os.sep,name)) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
+                if templatePage is None:
+                    traceln("No table found in this document: %s" % self.docid)
+                else:
+                    oldOut=  self.outputFileName
+                    self.outputFileName = "%s%s%s.templ.xml" % (self.coldir,os.sep,self.docid)
+                    stemplatefile = "%s%s%s.templ.xml" % (self.coldir,os.sep,self.docid)
+                    self.writeDom(templatePage, True)
+                    self.outputFileName = oldOut
+                    prnregfilename= self.createRegistrationProfile(stemplatefile)
             
-    
-                job = LAProcessor.cNomacs+ " --batch %s"%(prnregfilename)
-                os.system(job)
-                traceln('table registration done: %s'% prnregfilename)            
+            else:
+                raise Exception, 'file template stuff: to be done'
+                prnregfilename= self.createRegistrationProfile(self.sTemplateFile)
+            
+            job = LAProcessor.cNomacs+ " --batch %s"%(prnregfilename)
+            os.system(job)
+            traceln('table registration done: %s'% prnregfilename)            
         
         
         ## separator detection
@@ -387,7 +397,8 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             os.system(job)
             traceln('LA done: %s' % prnlafilename)        
         
-        doc, sMPXML= self.storeMPXML(lFullPathXMLNames)     
+        if self.bTemplate or self.bBaseLine or self.bSeparator:
+            doc, sMPXML= self.storeMPXML(lFullPathXMLNames)     
         
         ## text rectangles as textline region 
         if self.bRegularTextLine:
@@ -427,7 +438,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
                     lXY.append( (int(sx), int(sy)) )
                 except ValueError:print tl
             plg = Polygon(lXY)  
-            iHeight = 15  # in pixel  15up +15 down = 30
+            iHeight = 50  # in pixel  15up +15 down = 30
             x1,y1, x2,y2 = plg.getBoundingBox()
             if coord: 
                 coord.setProp('points',"%d,%d %d,%d %d,%d %d,%d" % (x1,y1-iHeight,x2,y1-iHeight,x2,y2,x1,y2))
@@ -443,8 +454,13 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             delete TextLine
             
         """
-        doc,nbpages=  self.performLA(doc)
-        return doc
+        if not (self.bTemplate or self.bBaseLine or self.bSeparator) and self.bRegularTextLine:
+            self.regularTextLines(doc)
+            self.writeDom(doc, True)  
+            
+        else:
+            doc,nbpages=  self.performLA(doc)
+            return doc
     
 
 if __name__ == "__main__":
@@ -467,6 +483,8 @@ if __name__ == "__main__":
     tp.add_option("--sep", dest="bSeparator", action="store_true", default=False, help="detect separator (graphical lines)")
     tp.add_option("--regTL", dest="regTL", action="store_true", default=False, help="generate regular TextLines")
     tp.add_option("--form", dest="template", action="store_true", default=False, help="perform template registration")
+    tp.add_option("--formfile", dest="templatefile", action="store", type='string', default=None,help="use this template file (pagexml) for registration")
+
     #tp.add_option("--form", dest="template", action="store", type="string", help="perform template registration")
         
     #parse the command line
