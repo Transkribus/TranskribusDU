@@ -379,7 +379,7 @@ class PageXml:
         
     @classmethod
     # --- Creation -------------------------------------
-    def createPageXmlDocument(cls,creatorName='XRCE',filename=None,imgW=0, imgH=0):
+    def createPageXmlDocument(cls,creatorName='NLE',filename=None,imgW=0, imgH=0):
         """
             create a new PageXml document
         """
