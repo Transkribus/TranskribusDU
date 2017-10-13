@@ -53,16 +53,23 @@ class GCNDataset(object):
             EA[i,:]=np.reshape(D,-1)
         self.EA=EA
 
-    def compute_N(self):
-        #Fixe
-        Dinv_ = np.diag(np.power(1.0+self.A.sum(axis=1),-0.5))
-
-        #Dinv  =tf.constant(Dinv_)
-        #A     =tf.constant(self.dataset.A)
-
-        #N=tf.constant(np.dot(Dinv_,self.dataset.A+np.identity(self.dataset.A.shape[0]).dot(Dinv_)),dtype=np.float32)
-        #N=np.dot(Dinv_,self.A+np.identity(self.A.shape[0]).dot(Dinv_))
-        self.NA=Dinv_
+    def compute_NA(self):
+        '''
+        Compute a normalized adjacency matrix as in the original GCN Model
+        :return:
+        '''
+        # Should Compute that once for each graph
+        # Here we add 1.0 and the identity matrix to account for the self-loop
+        degree_vect=np.asarray(self.A.sum(axis=1)).squeeze()
+        #print(degree_vect)
+        Dinv_ = np.diag(np.power(1.0+degree_vect,-0.5))
+        self.Dinv=Dinv_
+        #print(Dinv_.shape)
+        #print(self.A.shape)
+        #Check how this dot deals with the matrix multiplication with sparse matrix
+        #TODO
+        N = np.dot(Dinv_, self.A + np.identity(self.A.shape[0]).dot(Dinv_))
+        self.NA=N
 
     def normalize(self):
         l2_normalizer =Normalizer()
@@ -76,10 +83,13 @@ class GCNDataset(object):
 
 
     @staticmethod
-    def load_transkribus_pickle(pickle_fname):
+    def load_transkribus_pickle(pickle_fname,is_zipped=True,sym_edge=True):
         gcn_list=[]
 
-        f=gzip.open(pickle_fname,'rb')
+        if is_zipped:
+            f=gzip.open(pickle_fname,'rb')
+        else:
+            f = open(pickle_fname, 'rb')
         if PY3:
             Z = pickle.load(f, encoding='latin1')
         else:
@@ -108,8 +118,16 @@ class GCNDataset(object):
             #We are making the adacency matrix here
             nb_node=nf.shape[0]
             #Correct this edge should be swap ..
-            A=sp.coo_matrix((np.ones(edge.shape[0]),(edge[:,0],edge[:,1])), shape=(nb_node, nb_node))
-            graph.A=A
+            #This is not correct for edges, we should add edge swap
+            #A=sp.coo_matrix((np.ones(edge.shape[0]),(edge[:,0],edge[:,1])), shape=(nb_node, nb_node))
+            #TODO Check this then
+            if sym_edge:
+                A1 = sp.coo_matrix((np.ones(edge.shape[0]), (edge[:, 0], edge[:, 1])), shape=(nb_node, nb_node))
+                A2 = sp.coo_matrix((np.ones(edge.shape[0]), (edge[:, 1], edge[:, 0])), shape=(nb_node, nb_node))
+                graph.A=A1+A2
+            else:
+                A1 = sp.coo_matrix((np.ones(edge.shape[0]), (edge[:, 0], edge[:, 1])), shape=(nb_node, nb_node))
+                graph.A = A1
 
             edge_normalizer=Normalizer()
             #Normalize EA
@@ -122,12 +140,108 @@ class GCNDataset(object):
             E0=np.hstack([edge,ef])#check order
             E1=np.hstack([edge_swap,ef])#check order
 
-            graph.E=np.vstack([E0,E1])#check order
+            if sym_edge:
+                graph.E=np.vstack([E0,E1])#check order
+            else:
+                graph.E = E0
             gcn_list.append(graph)
             graph.compute_EA()
-            graph.compute_N()
+            graph.compute_NA()
             #graph.normalize()
         return gcn_list
+
+    @staticmethod
+    def load_snake_pickle(pickle_fname):
+
+        #return GCNDataset.load_transkribus_pickle(pickle_fname,is_zipped=False)
+        return GCNDataset.load_transkribus_pickle(pickle_fname, is_zipped=False,sym_edge=False)
+        gcn_list = []
+
+
+        f = open(pickle_fname, 'rb')
+        if PY3:
+            Z = pickle.load(f, encoding='latin1')
+        else:
+            Z = pickle.load(f)
+
+        lX = Z[0]
+        lY = Z[1]
+        graph_id = 0
+
+        lb = LabelBinarizer()
+        lys = []
+
+        for _, ly in zip(lX, lY):
+            lys.extend(list(ly))
+
+        lb.fit(lys)
+
+        for lx, ly in zip(lX, lY):
+            nf = lx[0]
+            edge = lx[1]
+            ef = lx[2]
+
+            graph = GCNDataset(str(graph_id))
+            graph.X = nf
+            graph.Y = lb.transform(ly)
+            # We are making the adacency matrix here
+            nb_node = nf.shape[0]
+            # Correct this edge should be swap ..
+            # This is not correct for edges, we should add edge swap
+            # A=sp.coo_matrix((np.ones(edge.shape[0]),(edge[:,0],edge[:,1])), shape=(nb_node, nb_node))
+
+
+            #Now build the edge feature matrix
+            #
+            #
+            #Tmp
+            '''
+            EF=[]
+            A_list_i=[]
+            A_list_j = []
+            for node_s,node_t,edge_feat in zip(edge[:,0],edge[:,1],ef):
+                A_list_i.append(node_s)
+                A_list_j.append(node_t)
+
+                #Right Edge
+                if edge_feat[0]==1:
+                    #EF.append([1,0])
+                    EF.append([1,0,0,0])
+                    #Now add the reverse edge
+
+                    A_list_i.append(node_t)
+                    A_list_j.append(node_s)
+
+                    EF.append([0, 1, 0, 0])
+
+                elif edge_feat[1]==1:
+                    #EF.append([0, 1])
+                    EF.append([0, 0, 1, 0])
+
+                    A_list_i.append(node_t)
+                    A_list_j.append(node_s)
+
+                    EF.append([0, 0, 0, 1])
+                else:
+                    print(edge_feat)
+                    raise ValueError('Invalid Edge Feature')
+
+            A = sp.coo_matrix((np.ones(len(EF)), (A_list_i, A_list_j)), shape=(nb_node, nb_node))
+            graph.A = A
+            '''
+
+            graph.E = np.array(EF,dtype='f')  # check order
+            print(graph.E)
+            gcn_list.append(graph)
+            graph.compute_EA()
+            graph.compute_NA()
+            # graph.normalize()
+
+
+        return gcn_list
+
+
+
 
 
 
