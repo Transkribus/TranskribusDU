@@ -131,7 +131,7 @@ class IETest(Component.Component):
               
             
         """
-        
+        self.bDebug = False
         table.buildNDARRAY()
         if lTemplate is not None:
             # convert string to tableTemplateObject
@@ -143,18 +143,16 @@ class IETest(Component.Component):
         #tag fields with template
         for cell in table.getCells():
             if cell.getFields() != []:
-                print table.getPage(),cell.getIndex(), cell.getFields(), cell.getContent().encode('utf-8')
+                if self.bDebug:print table.getPage(),cell.getIndex(), cell.getFields(), cell.getContent().encode('utf-8')
             for field in cell.getFields():
                 if field is not None:
                     res = field.applyTaggers(cell)
-                    print res
                     # res [ (token,label,score) ...]
                     extractedValues = field.extractLabel(res)
                     if extractedValues != []:
-                        print extractedValues
                         extractedValues = map(lambda (offset,value,label,score):(value,score),extractedValues)
                         field.setValue(extractedValues)
-                    print 'found:',field, field.getValue()
+                        if self.bDebug: print 'found:',field, field.getValue()
         
 
         ### now at record level ?
@@ -226,7 +224,21 @@ class IETest(Component.Component):
             according to the # of columns, apply the corresponding template 
         """
 
-        lTemplate10 = [  
+        # selection of the dictionaries per columns
+        lTemplateHTR = [  
+             ((slice(1,None),slice(0,1))  ,[ 'firstlastname'])
+            , ((slice(1,None),slice(1,2)) ,[ 'occupation','religion' ])
+            , ((slice(1,None),slice(2,3)) ,[ 'location' ]) 
+            , ((slice(1,None),slice(3,4)) ,[ 'situation' ])
+             ,((slice(1,None),slice(4,5)) ,[ 'deathreason'])  # Artz?
+            , ((slice(1,None),slice(5,6)) ,[ 'date' ])
+            , ((slice(1,None),slice(6,7)) ,[ 'date','location' ])
+            , ((slice(1,None),slice(7,8)) ,[ 'age'])
+#            , ((slice(1,None),slice(8,9)) ,[ dr.getFieldByName('priester')])
+#            , ((slice(1,None),slice(9,10)),[ dr.getFieldByName('notes')])
+           ]
+        
+        lTemplateIE = [  
              ((slice(1,None),slice(0,1)) ,[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ])
             , ((slice(1,None),slice(1,2)) ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
             , ((slice(1,None),slice(2,3)) ,[ dr.getFieldByName('location') ]) 
@@ -241,7 +253,7 @@ class IETest(Component.Component):
            ]
         
         
-        lTemplate = lTemplate10
+        lTemplate = lTemplateIE
         
         
         self.extractData(table,dr,lTemplate)
