@@ -323,7 +323,7 @@ def get_config(config_id=0):
         config['mu'] = 0.0
         #config['num_layers'] = 2 #Mean Node  Accuracy 0.92
         #config['num_layers'] = 3 #Mean Node  Accuracy 0.9381
-        config['num_layers'] = 5  # --> 9523 converges quickly 
+        config['num_layers'] = 9 # --> 9523 converges quickly
         config['node_indim'] = -1  # INDIM =2 not working here #Should add bias to convolutions, no ?
         config['nconv_edge'] =4  #Already by default
         config['snake']=True
@@ -345,15 +345,27 @@ def get_config(config_id=0):
         config['dropout_mode'] = 2
 
     elif config_id == 24:
-        config['nb_iter'] = 500
-        config['lr'] = 0.01
+        config['nb_iter'] = 800
+        config['lr'] = 0.001
         config['stack_instead_add'] = True
         config['mu'] = 0.0
-        config['num_layers'] = 2
+        config['num_layers'] = 9
         config['node_indim'] = -1  # INDIM =2 not working here
-        config['nconv_edge'] =20
-        config['dropout_rate'] = 0.7
-        config['dropout_mode'] = 2
+        config['nconv_edge'] =5
+        config['dropout_rate'] = 0.0
+        config['dropout_mode'] = 0
+        #config['shared_We'] = True
+
+    elif config_id == 25:
+        config['nb_iter'] = 500
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.0
+        config['num_layers'] = 20
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] =2
+        config['dropout_rate'] = 0.0
+        config['dropout_mode'] = 0
         #config['shared_We'] = True
 
 
