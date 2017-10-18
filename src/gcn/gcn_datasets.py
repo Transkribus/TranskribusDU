@@ -154,7 +154,8 @@ class GCNDataset(object):
     def load_snake_pickle(pickle_fname):
 
         #return GCNDataset.load_transkribus_pickle(pickle_fname,is_zipped=False)
-        return GCNDataset.load_transkribus_pickle(pickle_fname, is_zipped=False,sym_edge=False)
+        #return GCNDataset.load_transkribus_pickle(pickle_fname, is_zipped=False,sym_edge=False)
+
         gcn_list = []
 
 
@@ -195,7 +196,7 @@ class GCNDataset(object):
             #
             #
             #Tmp
-            '''
+
             EF=[]
             A_list_i=[]
             A_list_j = []
@@ -206,42 +207,72 @@ class GCNDataset(object):
                 #Right Edge
                 if edge_feat[0]==1:
                     #EF.append([1,0])
-                    EF.append([1,0,0,0])
+                    EF.append([node_s,node_t,1,0,0,0])
                     #Now add the reverse edge
 
                     A_list_i.append(node_t)
                     A_list_j.append(node_s)
 
-                    EF.append([0, 1, 0, 0])
+                    EF.append([node_t,node_s,0, 1, 0, 0])
 
                 elif edge_feat[1]==1:
                     #EF.append([0, 1])
-                    EF.append([0, 0, 1, 0])
+                    EF.append([node_s,node_t,0, 0, 1, 0])
 
                     A_list_i.append(node_t)
                     A_list_j.append(node_s)
 
-                    EF.append([0, 0, 0, 1])
+                    EF.append([node_t,node_s,0, 0, 0, 1])
                 else:
                     print(edge_feat)
                     raise ValueError('Invalid Edge Feature')
 
             A = sp.coo_matrix((np.ones(len(EF)), (A_list_i, A_list_j)), shape=(nb_node, nb_node))
             graph.A = A
-            '''
+
 
             graph.E = np.array(EF,dtype='f')  # check order
-            print(graph.E)
+            #print(graph.E)
             gcn_list.append(graph)
             graph.compute_EA()
             graph.compute_NA()
+            #print('Edge Features ,shape',graph.E.shape)
             # graph.normalize()
 
 
         return gcn_list
 
+    @staticmethod
+    def merge_graph(graph_a,graph_b):
+
+        graph = GCNDataset('Union_'+graph_a.name+':'+graph_b.name)
+
+        graph.X = np.vstack((graph_a.X,graph_b.X))
+
+        #Change Index of node in the Edge matrix
+        Ea=np.array(graph_a.E)
+        nb_node_a=graph_a.X.shape[0]
+        Eb=np.array(graph_b.E)
+        Eb[:,0] = Eb[:,0] +nb_node_a
+        Eb[:,1] = Eb[:,1] +nb_node_a
+
+        #print(Ea.shape)
+        #print(Eb.shape)
+        graph.E =np.vstack((Ea,Eb))
+
+        nb_node_total = graph.X.shape[0]
+
+        graph.compute_EA()
+        graph.A=np.diag(np.ones(nb_node_total))
+        graph.NA =np.diag(np.ones(nb_node_total))
+        #print('Warning ....')
+        #print('Normalized Adcency not set')
+        #print('Adjacency not set')
 
 
+        graph.Y=np.vstack((graph_a.Y,graph_b.Y))
+
+        return graph
 
 
 

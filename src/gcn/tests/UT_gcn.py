@@ -557,6 +557,36 @@ class UT_gcn(unittest.TestCase):
                     mean_acc.append(acc)
                 print('Mean Accuracy', np.mean(mean_acc))
 
+    def test_12_merge_graph(self):
+        #3 nodes
+        Xa=np.array([ [1.0,2.0],[6.3,1.0],[4.3,-2.0]])
+        Ea=np.array([ [0,1,1,0.5],[1,2,0,0.2]  ])
+
+        Xb = np.array([[6.3, 1.0], [1.3, -2.0]])
+        Eb = np.array([[0, 1, 1, 0.5] ])
+
+
+        gA = GCNDataset('GA')
+        gA.X = Xa
+        gA.E = Ea
+
+        gB = GCNDataset('GB')
+        gB.X = Xb
+        gB.E = Eb
+
+        print('Graph A')
+        print(gA.X,gA.E.shape)
+
+        print('Graph B')
+        print(gB.X, gB.E.shape)
+
+        gc = GCNDataset.merge_graph(gA,gB)
+
+        print(gc.X)
+        print(gc.E)
+
+        print(gc.EA)
+
 
 if __name__ == '__main__':
     unittest.main()
