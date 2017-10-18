@@ -11,6 +11,7 @@ import math
 import numpy as np
 import scipy.sparse as sp
 import random
+import gcn_datasets
 
 
 def init_glorot(shape, name=None):
@@ -163,7 +164,8 @@ class GCNModel(object):
 
 
 class GCNModelGraphList(object):
-    def __init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1,node_indim=-1,nconv_edge=1):
+    def __init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1,node_indim=-1,nconv_edge=1,
+                 residual_connection=False,shared_We=False,dropout_rate=0.0,dropout_mode=0):
         self.node_dim=node_dim
         self.edge_dim=edge_dim
         self.n_classes=nb_classes
@@ -175,6 +177,11 @@ class GCNModelGraphList(object):
         self.optalg = tf.train.AdamOptimizer(self.learning_rate)
         self.stack_instead_add=False
         self.nconv_edge=nconv_edge
+        self.residual_connection=residual_connection
+        self.shared_We = shared_We
+        self.dropout_rate=dropout_rate
+        self.dropout_mode=0
+        self.optim_mode=0
 
         if node_indim==-1:
             self.node_indim=self.node_dim
@@ -204,22 +211,23 @@ class GCNModelGraphList(object):
         self.y_input    = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
         self.EA_input   =  tf.placeholder(tf.float32, name='EA_input')
         self.NA_input   =  tf.placeholder(tf.float32, name='NA_input')
+        self.dropout_p  = tf.placeholder(tf.float32,(), name='dropout_prob')
 
 
         std_dev_in=float(1.0/ float(self.node_dim))
-        self.Wnode  = tf.Variable(np.identity(self.node_dim, dtype=np.float32), name='Wnode')
+        #self.Wnode  = tf.Variable(np.identity(self.node_dim, dtype=np.float32), name='Wnode')
         #self.Wnode= tf.Variable(tf.random_normal([self.node_dim,self.node_dim],mean=0.0,stddev=std_dev_in, dtype=np.float32), name='Wnode')
-        self.Bnode = tf.Variable(tf.zeros([self.node_dim]), name='Bnode',dtype=np.float32)
+        #self.Bnode = tf.Variable(tf.zeros([self.node_dim]), name='Bnode',dtype=np.float32)
 
         #Try changing init_normal by init_glorot ...
-        self.Wedge  = tf.Variable(tf.random_normal( [int(self.nconv_edge),int(self.edge_dim)],mean=0.0,stddev=1.0), dtype=tf.float32, name='Wedge')
+        #self.Wedge  = tf.Variable(tf.random_normal( [int(self.nconv_edge),int(self.edge_dim)],mean=0.0,stddev=1.0), dtype=tf.float32, name='Wedge')
         #self.Wedge  = tf.Variable(tf.ones([self.nconv_edge,self.edge_dim], dtype=np.float32, name='Wedge'))
 
         #self.Wedge_logit = init_glorot([int(self.n_classes), int(self.edge_dim)], name='Wedge_logit')
         #self.Wedge_logit = init_glorot([1, int(self.edge_dim)], name='Wedge_logit')
         #self.Yt          = init_glorot([int(self.n_classes), int(self.n_classes)], name='Yt')
 
-        self.Bedge = tf.Variable(tf.zeros([self.edge_dim]), name='Bedge',dtype=np.float32)
+        #self.Bedge = tf.Variable(tf.zeros([self.edge_dim]), name='Bedge',dtype=np.float32)
 
 
         self.Wnode_layers=[]
@@ -228,6 +236,8 @@ class GCNModelGraphList(object):
         self.Bed_layers=[]
 
         #Should Project edge as well ...
+        train_var=[]
+
         if self.node_indim!=self.node_dim:
             Wnl0 = tf.Variable(tf.random_uniform((self.node_dim, self.node_indim),
                                                                    -1.0 / math.sqrt(self.node_dim),
@@ -236,7 +246,11 @@ class GCNModelGraphList(object):
             Wnl0 = tf.Variable(tf.eye(self.node_dim),name='Wnl0',dtype=tf.float32)
 
         Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0',dtype=tf.float32)
-        self.Wel0 =tf.Variable(tf.random_normal([int(self.nconv_edge),int(self.edge_dim)],mean=0.0,stddev=1.0), dtype=np.float32, name='Wel0')
+        #self.Wel0 =tf.Variable(tf.random_normal([int(self.nconv_edge),int(self.edge_dim)],mean=0.0,stddev=1.0), dtype=np.float32, name='Wel0')
+        self.Wel0 = init_glorot([int(self.nconv_edge),int(self.edge_dim)],name='Wel0')
+
+        train_var.extend([Wnl0,Bnl0])
+        train_var.append(self.Wel0)
 
         #self.Wed_layers.append(Wel0)
         for i in range(self.num_layers-1):
@@ -250,19 +264,24 @@ class GCNModelGraphList(object):
                                                                    -1.0 / math.sqrt(self.node_indim),
                                                                    1.0 / math.sqrt(self.node_indim)),name='Wnl',dtype=tf.float32)
 
-            Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
+            #Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
 
             #Weli = tf.Variable(tf.ones([int(self.nconv_edge),int(self.edge_dim)],dtype=tf.float32))
-            Weli = tf.Variable(tf.random_normal([int(self.nconv_edge), int(self.edge_dim)], mean=0.0, stddev=1.0),
-                               dtype=np.float32, name='Wel_')
+            Weli= init_glorot([int(self.nconv_edge), int(self.edge_dim)], name='Wel_')
+            #Weli = tf.Variable(tf.random_normal([int(self.nconv_edge), int(self.edge_dim)], mean=0.0, stddev=1.0),
+            #                   dtype=np.float32, name='Wel_')
 
-            Beli = tf.Variable(tf.zeros([self.edge_dim]), name='Bel'+str(i),dtype=tf.float32)
+            #Beli = tf.Variable(tf.zeros([self.edge_dim]), name='Bel'+str(i),dtype=tf.float32)
 
             self.Wnode_layers.append(Wnli)
-            self.Bnode_layers.append(Bnli)
+            #self.Bnode_layers.append(Bnli)
             self.Wed_layers.append  (Weli)
-            self.Bed_layers.append(Beli)
+            #self.Bed_layers.append(Beli)
 
+        train_var.extend((self.Wnode_layers))
+        train_var.extend((self.Wed_layers))
+
+        self.Hnode_layers=[]
 
 
 
@@ -280,33 +299,54 @@ class GCNModelGraphList(object):
                                         name="W_classif",dtype=np.float32)
         self.B_classif = tf.Variable(tf.zeros([self.n_classes]), name='B_classif',dtype=np.float32)
 
+        train_var.append((self.W_classif))
+        train_var.append((self.B_classif))
 
-        self.H = self.activation(tf.add(tf.matmul(self.node_input,self.Wnode),self.Bnode))
-        self.hidden_layers=[self.H]
+        #self.H = self.activation(tf.add(tf.matmul(self.node_input,self.Wnode),self.Bnode))
 
         I = tf.eye(self.nb_node)
 
+        self.node_dropout_ind = tf.nn.dropout(tf.ones([self.nb_node], dtype=tf.float32), 1 - self.dropout_p)
+        self.ND = tf.diag(self.node_dropout_ind)
+
         if self.num_layers==1:
-            #TODO Add Multiple Layers
-            Hi_=tf.matmul(self.hidden_layers[-1],self.Wnode)
+            self.H = self.activation(tf.add(tf.matmul(self.node_input, Wnl0), Bnl0))
+            self.hidden_layers = [self.H]
+
+            #Hi_=tf.matmul(self.hidden_layers[-1],self.Wnl0)
+            #Hi_=self.H
             #Em =(tf.matmul(self.Wedge,self.EA_input))
             #Z=tf.reshape(Em,tf.stack([self.nb_node,self.nb_node]))
-            P =self.convolve(self.Wedge,self.EA_input,Hi_,self.nb_node,self.nconv_edge)
+            #P =self.convolve(self.Wedge,self.EA_input,Hi_,self.nb_node,self.nconv_edge)
+            P = self.convolve(self.Wel0, self.EA_input, self.H, self.nb_node, self.nconv_edge)
             if self.stack_instead_add:
                 #P= tf.matmul(Z,Hi_)
-                Hp= tf.concat([Hi_,P],1)
+                Hp= tf.concat([self.H,P],1)
             else:
                 #Hp= tf.matmul(Z+I,Hi_) #If multiple edge, can not add as it does not have the same dimensionality
-                Hp= P+Hi_
+                Hp= P+self.H
             Hi=self.activation(Hp)
             Hi_shape = Hi.get_shape()
             print(Hi_shape)
             self.hidden_layers.append(Hi)
 
         elif self.num_layers>1:
-            #TODO Fix activation before convolve or after ..
-            #TODO Fix probelem of id betwwen layers layer 0 adn 1 are mixed
-            H0 = self.activation(tf.add(tf.matmul(self.node_input,Wnl0),Bnl0))
+
+            '''        
+            if self.dropout_mode == 1:
+                self.H = self.activation(tf.matmul(self.ND, tf.add(tf.matmul(self.node_input, self.Wnode), self.Bnode)))
+                self.hidden_layers = [self.H]
+            else:
+                self.H = self.activation(tf.add(tf.matmul(self.node_input, self.Wnode), self.Bnode))
+                self.hidden_layers = [self.H]
+            '''
+
+            if self.dropout_mode==1:
+                H0 = self.activation(tf.matmul(self.ND,tf.add(tf.matmul(self.node_input, Wnl0), Bnl0)))
+            else:
+                H0 = self.activation(tf.add(tf.matmul(self.node_input,Wnl0),Bnl0))
+
+            self.Hnode_layers.append(H0)
 
             if self.stack_instead_add:
                 #Em0 =(tf.matmul(Wel0,self.EA_input))
@@ -320,10 +360,37 @@ class GCNModelGraphList(object):
 
             print('H0_shape',self.hidden_layers[0].get_shape())
             for i in range(self.num_layers-1):
-                Hi_ = tf.matmul(self.hidden_layers[-1],self.Wnode_layers[i])
+
+                if self.dropout_mode == 2:
+                    #Hp = tf.nn.dropout(self.hidden_layers[-1], 1 - self.dropout_p)
+                    #Hi_ = tf.matmul(Hp, self.Wnode_layers[i])
+                    Hi_ = tf.nn.dropout(tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i]), 1-self.dropout_p)
+                else:
+                    Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i])
+
+                # Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i])
+                #Hi_ = tf.nn.dropout(tf.matmul(self.hidden_layers[-1],self.Wnode_layers[i]),0.9)
+                #Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i])
+
+                if self.residual_connection:
+                    Hi_= tf.add(Hi_,self.Hnode_layers[-1])
+
+                self.Hnode_layers.append(Hi_)
+
+
+
                 print('Hi_shape',Hi_.get_shape())
+                print('Hi prevous shape',self.hidden_layers[-1].get_shape())
                 #Emi = (tf.matmul(self.Wed_layers[i],self.EA_input))
-                P=self.convolve(self.Wed_layers[i],self.EA_input,Hi_,self.nb_node,self.nconv_edge)
+                if self.shared_We:
+                    P = self.convolve(self.Wel0, self.EA_input, Hi_, self.nb_node, self.nconv_edge)
+                else:
+                    P =self.convolve(self.Wed_layers[i],self.EA_input,Hi_,self.nb_node,self.nconv_edge)
+
+                if self.dropout_mode== 4:
+                    #Dropout -Edge
+                    P = tf.nn.dropout(P, 1 - self.dropout_p)
+
                 #Z=tf.reshape(Emi,tf.stack([self.nb_node,self.nb_node]))
                 print('P_shape',P.get_shape())
                 if self.stack_instead_add:
@@ -337,9 +404,22 @@ class GCNModelGraphList(object):
                     #Hp= tf.matmul(Z+I,Hi_)
                     Hp= P+Hi_ #Looks like it is going to break with multiple convolution here
                     Hi=self.activation(Hp)
+
+                #if self.residual_connection:
+                #    Hir = tf.add(self.hidden_layers[-1], Hi)
+                #    self.hidden_layers.append(Hir)
+                #else:
                 self.hidden_layers.append(Hi)
 
+        # This dropout the logits as in GCN
+        #if self.dropout_mode == 2:
+        #    Hp = tf.nn.dropout(self.hidden_layers[-1], 1 - self.dropout_p)
+        #    self.hidden_layers.append(Hp)
+
         self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
+
+
+
         #print('Logits ...')
         #print(self.logits_.get_shape())
         #Convolve the Logits as well
@@ -361,10 +441,11 @@ class GCNModelGraphList(object):
         if self.num_layers > 1:
             in_layers_l2 = tf.add_n([tf.nn.l2_loss(v) for v in self.Wnode_layers]) * self.mu
             self.loss = tf.reduce_mean(cross_entropy_source)  + self.mu * tf.nn.l2_loss(
-                self.W_classif) + self.mu * tf.nn.l2_loss(self.Wnode) + in_layers_l2
+                self.W_classif) \
+                    + self.mu * tf.nn.l2_loss(Wnl0) + in_layers_l2
         else:
             self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(
-                self.W_classif) + self.mu * tf.nn.l2_loss(self.Wnode)
+                self.W_classif) + self.mu * tf.nn.l2_loss(Wnl0)
 
         #self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wedge)
 
@@ -372,12 +453,47 @@ class GCNModelGraphList(object):
         self.correct_prediction = tf.equal(tf.argmax(tf.nn.softmax(self.logits), 1), tf.argmax(self.y_input, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
-        self.grads_and_vars = self.optalg.compute_gradients(self.loss)
-        self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
+        if self.optim_mode==0:
+
+            self.grads_and_vars = self.optalg.compute_gradients(self.loss)
+
+            self.gv_Gn=[]
+            for grad, var in self.grads_and_vars:
+                print(grad,var)
+                if grad is not None:
+                    self.gv_Gn.append( ( tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)),var)    )
+
+
+            #self.gv_Gn = [(tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)), val) for grad, val in self.grads_and_vars if  is not None]
+
+
+            self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
+            #self.train_step = self.optalg.apply_gradients(self.gv_Gn)
+
+            #self.tvs = tf.traina
+            #Does it change the dynamics of addgrad here ?
+            self.accum_vars = [tf.Variable(tf.zeros_like(tv.initialized_value()), trainable=False) for g,tv in self.grads_and_vars]
+            self.zero_ops = [tv.assign(tf.zeros_like(tv)) for tv in self.accum_vars]
+            self.accum_ops = [self.accum_vars[i].assign_add(gv[0]) for i, gv in enumerate(self.grads_and_vars)]
+
+            self.train_step_acc = self.optalg.apply_gradients([(self.accum_vars[i], gv[1]) for i, gv in enumerate(self.grads_and_vars)])
+
+        elif self.optim_mode==1:
+            step = tf.Variable(0, trainable=False)
+            #rate = tf.train.exponential_decay(self.learning_rate, step, 1, 0.9999)
+            rate = tf.train.exponential_decay(self.learning_rate, step, 1000, 0.9)
+            self.train_step = tf.train.AdamOptimizer(rate).minimize(self.loss, global_step=step)
+
+        else:
+            raise ValueError('Invalide Optim Options')
 
 
         # Add ops to save and restore all the variables.
         self.init = tf.global_variables_initializer()
+
+
+
+
 
     def get_Wedge(self,session):
         if self.num_layers>1:
@@ -393,12 +509,14 @@ class GCNModelGraphList(object):
     def train(self,session,n_node,X,EA,Y,NA,n_iter=1,verbose=False):
         #TrainEvalSet Here
         for i in range(n_iter):
+            #print('Train',X.shape,EA.shape)
             feed_batch={
                         self.nb_node:n_node,
                         self.node_input:X,
                         self.EA_input:EA,
                         self.y_input:Y,
                         self.NA_input:NA,
+                        self.dropout_p: self.dropout_rate
             }
             Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
             if verbose:
@@ -408,12 +526,14 @@ class GCNModelGraphList(object):
 
     def test(self,session,n_node,X,EA,Y,NA,verbose=True):
         #TrainEvalSet Here
+        #print('Test', X.shape, EA.shape)
         feed_batch={
                         self.nb_node:n_node,
                         self.node_input:X,
                         self.EA_input:EA,
                         self.y_input:Y,
                         self.NA_input:NA,
+                        self.dropout_p: 0.0
         }
         Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
         if verbose:
@@ -424,6 +544,44 @@ class GCNModelGraphList(object):
     def train_lG(self,session,gcn_graph_train):
         for g in gcn_graph_train:
             self.train(session, g.X.shape[0], g.X, g.EA, g.Y, g.NA, n_iter=1)
+
+
+    def train_batch_lG(self,session,gcn_graph_train,n_graph_batch=3):
+
+        ''' This does not seem to work
+        session.run(self.zero_ops)
+        for g in gcn_graph_train:
+
+            feed_batch = {
+                self.nb_node: g.X.shape[0],
+                self.node_input: g.X,
+                self.EA_input: g.EA,
+                self.y_input: g.Y,
+                self.NA_input: g.NA,
+                self.dropout_p: self.dropout_rate
+            }
+
+            Ops = session.run(self.accum_ops, feed_dict=feed_batch)
+            session.run(self.train_step_acc) #this shoudl be equivalent as previous method
+
+        #Here full batch
+        #session.run(self.train_step_acc)
+        '''
+        n_graph=len(gcn_graph_train)
+
+        index=range(n_graph)
+
+        for i in index:
+            g=gcn_graph_train[i]
+
+            j = random.randint(0,n_graph-1)
+            #if j==i:
+            #    j = i+1 if i<n_graph-1 else i-1
+            g_j =gcn_graph_train[j]
+            gc = gcn_datasets.GCNDataset.merge_graph(g, g_j)
+            #Could no multiple update here ...
+            self.train(session, gc.X.shape[0], gc.X, gc.EA, gc.Y, g.NA, n_iter=1)
+
 
 
     def test_lG(self,session,gcn_graph_test,verbose=True):
@@ -527,6 +685,588 @@ class GCNModelGraphList(object):
         return R
 
 
+
+#TODO UnitTest on EdgeSnake
+class EdgeSnake(GCNModelGraphList):
+    def __init__(self, node_dim, edge_dim, nb_classes, num_layers=1, learning_rate=0.1, mu=0.1, node_indim=-1,
+                 nconv_edge=1,
+                 residual_connection=False, shared_We=False, dropout_rate=0.0, dropout_mode=0):
+        self.node_dim = node_dim
+        self.edge_dim = edge_dim
+        self.n_classes = nb_classes
+        self.num_layers = num_layers
+        self.learning_rate = learning_rate
+        self.activation = tf.nn.relu
+        self.mu = mu
+        self.learn_edge = True
+        self.optalg = tf.train.AdamOptimizer(self.learning_rate)
+        self.stack_instead_add = False
+        self.nconv_edge = 4
+        self.residual_connection = residual_connection
+        self.shared_We = shared_We
+        self.dropout_rate = dropout_rate
+        self.dropout_mode = 0
+        self.optim_mode = 0
+
+        if node_indim == -1:
+            self.node_indim = self.node_dim
+        else:
+            self.node_indim = node_indim
+
+
+
+    def create_model(self):
+        self.nb_node = tf.placeholder(tf.int32, (), name='nb_node')
+        self.node_input = tf.placeholder(tf.float32, [None, self.node_dim], name='X_')
+        self.y_input = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
+        self.EA_input = tf.placeholder(tf.float32, name='EA_input')
+        self.NA_input = tf.placeholder(tf.float32, name='NA_input')
+        self.dropout_p = tf.placeholder(tf.float32, (), name='dropout_prob')
+
+        std_dev_in = float(1.0 / float(self.node_dim))
+
+
+        self.Wnode_layers = []
+        self.Bnode_layers = []
+        self.Wed_layers = []
+        self.Bed_layers = []
+
+        # Should Project edge as well ...
+        train_var = []
+
+        if self.node_indim != self.node_dim:
+            Wnl0 = tf.Variable(tf.random_uniform((self.node_dim, self.node_indim),
+                                                 -1.0 / math.sqrt(self.node_dim),
+                                                 1.0 / math.sqrt(self.node_dim)), name='Wnl0', dtype=tf.float32)
+        else:
+            Wnl0 = tf.Variable(tf.eye(self.node_dim), name='Wnl0', dtype=tf.float32)
+
+        Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0', dtype=tf.float32)
+        #self.Wel0 = tf.Variable(tf.random_normal([int(self.nconv_edge), int(self.edge_dim)], mean=0.0, stddev=1.0),
+        #                        dtype=np.float32, name='Wel0')
+
+        self.Wel0 = tf.Variable(tf.eye(4),dtype=np.float32, name='Wel0',trainable=False)
+
+        train_var.extend([Wnl0, Bnl0])
+        train_var.append(self.Wel0)
+
+        # self.Wed_layers.append(Wel0)
+        for i in range(self.num_layers - 1):
+            if self.stack_instead_add:
+                Wnli = tf.Variable(
+                    tf.random_uniform((self.node_indim * self.nconv_edge + self.node_indim, self.node_indim),
+                                      -1.0 / math.sqrt(self.node_indim),
+                                      1.0 / math.sqrt(self.node_indim)), name='Wnl', dtype=tf.float32)
+                print('Wnli shape', Wnli.get_shape())
+            else:
+                Wnli = tf.Variable(tf.random_uniform((self.node_indim, self.node_indim),
+                                                     -1.0 / math.sqrt(self.node_indim),
+                                                     1.0 / math.sqrt(self.node_indim)), name='Wnl',
+                                   dtype=tf.float32)
+
+            # Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
+
+            # Weli = tf.Variable(tf.ones([int(self.nconv_edge),int(self.edge_dim)],dtype=tf.float32))
+            #Weli = tf.Variable(tf.random_normal([int(self.nconv_edge), int(self.edge_dim)], mean=0.0, stddev=1.0),
+            #                   dtype=np.float32, name='Wel_')
+
+            Weli = tf.Variable(tf.eye(4), dtype=np.float32, name='Wel_', trainable=False)
+
+            # Beli = tf.Variable(tf.zeros([self.edge_dim]), name='Bel'+str(i),dtype=tf.float32)
+
+            self.Wnode_layers.append(Wnli)
+            # self.Bnode_layers.append(Bnli)
+            self.Wed_layers.append(Weli)
+            # self.Bed_layers.append(Beli)
+
+        train_var.extend((self.Wnode_layers))
+        train_var.extend((self.Wed_layers))
+
+        self.Hnode_layers = []
+
+        # TODO Do we project the firt layer or not ?
+        # Initialize the weights and biases for a simple one full connected network
+        if self.stack_instead_add:
+            self.W_classif = tf.Variable(
+                tf.random_uniform((self.node_indim * self.nconv_edge + self.node_indim, self.n_classes),
+                                  -1.0 / math.sqrt(self.node_dim),
+                                  1.0 / math.sqrt(self.node_dim)),
+                name="W_classif", dtype=np.float32)
+        else:
+            self.W_classif = tf.Variable(tf.random_uniform((self.node_indim * self.nconv_edge, self.n_classes),
+                                                           -1.0 / math.sqrt(self.node_dim),
+                                                           1.0 / math.sqrt(self.node_dim)),
+                                         name="W_classif", dtype=np.float32)
+        self.B_classif = tf.Variable(tf.zeros([self.n_classes]), name='B_classif', dtype=np.float32)
+
+        train_var.append((self.W_classif))
+        train_var.append((self.B_classif))
+
+        # self.H = self.activation(tf.add(tf.matmul(self.node_input,self.Wnode),self.Bnode))
+
+        I = tf.eye(self.nb_node)
+
+        self.node_dropout_ind = tf.nn.dropout(tf.ones([self.nb_node], dtype=tf.float32), 1 - self.dropout_p)
+        self.ND = tf.diag(self.node_dropout_ind)
+
+        if self.num_layers == 1:
+            self.H = self.activation(tf.add(tf.matmul(self.node_input, Wnl0), Bnl0))
+            self.hidden_layers = [self.H]
+
+            #Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnl0)
+            # Em =(tf.matmul(self.Wedge,self.EA_input))
+            # Z=tf.reshape(Em,tf.stack([self.nb_node,self.nb_node]))
+            # P =self.convolve(self.Wedge,self.EA_input,Hi_,self.nb_node,self.nconv_edge)
+            P = self.convolve(self.Wel0, self.EA_input, self.H, self.nb_node, self.nconv_edge)
+            if self.stack_instead_add:
+                # P= tf.matmul(Z,Hi_)
+                Hp = tf.concat([self.H, P], 1)
+            else:
+                # Hp= tf.matmul(Z+I,Hi_) #If multiple edge, can not add as it does not have the same dimensionality
+                Hp = P + self.H
+            Hi = self.activation(Hp)
+            Hi_shape = Hi.get_shape()
+            print(Hi_shape)
+            self.hidden_layers.append(Hi)
+
+        elif self.num_layers > 1:
+
+
+            if self.dropout_mode == 1:
+                H0 = self.activation(tf.matmul(self.ND, tf.add(tf.matmul(self.node_input, Wnl0), Bnl0)))
+            else:
+                H0 = self.activation(tf.add(tf.matmul(self.node_input, Wnl0), Bnl0))
+
+            self.Hnode_layers.append(H0)
+
+            if self.stack_instead_add:
+                # Em0 =(tf.matmul(Wel0,self.EA_input))
+                # Z0=tf.reshape(Em0,tf.stack([self.nb_node,self.nb_node]))
+                # P= tf.matmul(Z0,H0)
+                P = self.convolve(self.Wel0, self.EA_input, H0, self.nb_node, self.nconv_edge)
+                Hp = tf.concat([H0, P], 1)
+                self.hidden_layers = [Hp]
+            else:
+                self.hidden_layers = [H0]
+
+            print('H0_shape', self.hidden_layers[0].get_shape())
+            for i in range(self.num_layers - 1):
+
+                if self.dropout_mode == 2:
+                    # Hp = tf.nn.dropout(self.hidden_layers[-1], 1 - self.dropout_p)
+                    # Hi_ = tf.matmul(Hp, self.Wnode_layers[i])
+                    Hi_ = tf.nn.dropout(tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i]), 1 - self.dropout_p)
+                else:
+                    Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i])
+
+                # Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i])
+                # Hi_ = tf.nn.dropout(tf.matmul(self.hidden_layers[-1],self.Wnode_layers[i]),0.9)
+                # Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i])
+
+                if self.residual_connection:
+                    Hi_ = tf.add(Hi_, self.Hnode_layers[-1])
+
+                self.Hnode_layers.append(Hi_)
+
+                print('Hi_shape', Hi_.get_shape())
+                print('Hi prevous shape', self.hidden_layers[-1].get_shape())
+                # Emi = (tf.matmul(self.Wed_layers[i],self.EA_input))
+                if self.shared_We:
+                    P = self.convolve(self.Wel0, self.EA_input, Hi_, self.nb_node, self.nconv_edge)
+                else:
+                    P = self.convolve(self.Wed_layers[i], self.EA_input, Hi_, self.nb_node, self.nconv_edge)
+
+                if self.dropout_mode == 4:
+                    # Dropout -Edge
+                    P = tf.nn.dropout(P, 1 - self.dropout_p)
+
+                # Z=tf.reshape(Emi,tf.stack([self.nb_node,self.nb_node]))
+                print('P_shape', P.get_shape())
+                if self.stack_instead_add:
+                    # P= tf.matmul(Z,Hi_)
+                    Hp = tf.concat([Hi_, P], 1)
+                    Hi = self.activation(Hp)
+                    Hi_shape = Hi.get_shape()
+                    print(Hi_shape)
+                    self.hidden_layers.append([Hi])
+                else:
+                    # Hp= tf.matmul(Z+I,Hi_)
+                    Hp = P + Hi_  # Looks like it is going to break with multiple convolution here
+                    Hi = self.activation(Hp)
+
+                # if self.residual_connection:
+                #    Hir = tf.add(self.hidden_layers[-1], Hi)
+                #    self.hidden_layers.append(Hir)
+                # else:
+                self.hidden_layers.append(Hi)
+
+        # This dropout the logits as in GCN
+        # if self.dropout_mode == 2:
+        #    Hp = tf.nn.dropout(self.hidden_layers[-1], 1 - self.dropout_p)
+        #    self.hidden_layers.append(Hp)
+
+        self.logits = tf.add(tf.matmul(self.hidden_layers[-1], self.W_classif), self.B_classif)
+
+        # print('Logits ...')
+        # print(self.logits_.get_shape())
+        # Convolve the Logits as well
+        # works only with 1 convolve
+        # self.logits_convolve =self.convolve(self.Wedge_logit,self.EA_input,self.logits_,self.nb_node,1)
+        # print(self.logits_convolve.get_shape())
+        # Reduce_sum, reduce_max ?here not clear
+        # self.A=tf.matmul(self.logits_convolve,self.Yt) #I should not take the sum over neighbor but the max here
+        # print(self.A.get_shape())
+
+        # self.logits= tf.add(self.logits_,tf.reduce_sum(tf.matmul(self.logits_convolve,self.Yt),axis=1))
+        # self.logits = tf.add(tf.nn.dropout(self.logits_,0.5), self.A)
+        # self.logits = self.logits_
+        cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
+        # cross_entropy_neighbor = tf.nn.softmax_cross_entropy_with_logits(logits=self.A, labels=self.y_input)
+        # cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.A, labels=self.y_input)
+
+        # Global L2 Regulization
+        if self.num_layers > 1:
+            in_layers_l2 = tf.add_n([tf.nn.l2_loss(v) for v in self.Wnode_layers]) * self.mu
+            self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(
+                self.W_classif) \
+                        + self.mu * tf.nn.l2_loss(Wnl0) + in_layers_l2
+        else:
+            self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(
+                self.W_classif) + self.mu * tf.nn.l2_loss(Wnl0)
+
+        # self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wedge)
+
+
+        self.correct_prediction = tf.equal(tf.argmax(tf.nn.softmax(self.logits), 1), tf.argmax(self.y_input, 1))
+        self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
+
+        if self.optim_mode == 0:
+
+            self.grads_and_vars = self.optalg.compute_gradients(self.loss)
+
+            self.gv_Gn = []
+            for grad, var in self.grads_and_vars:
+                print(grad, var)
+                if grad is not None:
+                    self.gv_Gn.append((tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)), var))
+
+            self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
+            #self.train_step = self.optalg.apply_gradients(self.gv_Gn)
+
+            # self.tvs = tf.traina
+            # Does it change the dynamics of addgrad here ?
+            self.accum_vars = [tf.Variable(tf.zeros_like(tv.initialized_value()), trainable=False) for g, tv in
+                               self.grads_and_vars]
+            self.zero_ops = [tv.assign(tf.zeros_like(tv)) for tv in self.accum_vars]
+            self.accum_ops = [self.accum_vars[i].assign_add(gv[0]) for i, gv in enumerate(self.grads_and_vars)]
+
+            self.train_step_acc = self.optalg.apply_gradients(
+                [(self.accum_vars[i], gv[1]) for i, gv in enumerate(self.grads_and_vars)])
+
+        elif self.optim_mode == 1:
+            step = tf.Variable(0, trainable=False)
+            # rate = tf.train.exponential_decay(self.learning_rate, step, 1, 0.9999)
+            rate = tf.train.exponential_decay(self.learning_rate, step, 1000, 0.9)
+            self.train_step = tf.train.AdamOptimizer(rate).minimize(self.loss, global_step=step)
+
+        else:
+            raise ValueError('Invalide Optim Options')
+
+        # Add ops to save and restore all the variables.
+        self.init = tf.global_variables_initializer()
+
+
+
+
+class EdgeYGCN(GCNModelGraphList):
+    def __init__(self, node_dim, edge_dim, nb_classes, num_layers=1, learning_rate=0.1, mu=0.1, node_indim=-1,
+                 nconv_edge=1,
+                 residual_connection=False, shared_We=False, dropout_rate=0.0, dropout_mode=0):
+        self.node_dim = node_dim
+        self.edge_dim = edge_dim
+        self.n_classes = nb_classes
+        self.num_layers = num_layers
+        self.learning_rate = learning_rate
+        self.activation = tf.nn.relu
+        self.mu = mu
+        self.learn_edge = True
+        self.optalg = tf.train.AdamOptimizer(self.learning_rate)
+        self.stack_instead_add = False
+        self.nconv_edge = nconv_edge
+        self.residual_connection = residual_connection
+        self.shared_We = shared_We
+        self.dropout_rate = dropout_rate
+        self.dropout_mode = 0
+        self.optim_mode = 0
+
+        if node_indim == -1:
+            self.node_indim = self.node_dim
+        else:
+            self.node_indim = node_indim
+
+
+
+    def create_model(self):
+        self.nb_node = tf.placeholder(tf.int32, (), name='nb_node')
+        self.node_input = tf.placeholder(tf.float32, [None, self.node_dim], name='X_')
+        self.y_input = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
+        self.EA_input = tf.placeholder(tf.float32, name='EA_input')
+        self.NA_input = tf.placeholder(tf.float32, name='NA_input')
+        self.dropout_p = tf.placeholder(tf.float32, (), name='dropout_prob')
+
+        std_dev_in = float(1.0 / float(self.node_dim))
+
+
+        self.Wnode_layers = []
+        self.Bnode_layers = []
+        self.Wed_layers = []
+        self.Bed_layers = []
+
+        # Should Project edge as well ...
+        train_var = []
+
+        if self.node_indim != self.node_dim:
+            Wnl0 = tf.Variable(tf.random_uniform((self.node_dim, self.node_indim),
+                                                 -1.0 / math.sqrt(self.node_dim),
+                                                 1.0 / math.sqrt(self.node_dim)), name='Wnl0', dtype=tf.float32)
+        else:
+            Wnl0 = tf.Variable(tf.eye(self.node_dim), name='Wnl0', dtype=tf.float32)
+
+        Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0', dtype=tf.float32)
+        self.Wel0 = tf.Variable(tf.random_normal([int(self.nconv_edge), int(self.edge_dim)], mean=0.0, stddev=1.0),
+                                dtype=np.float32, name='Wel0')
+
+        #self.Wel0 = tf.Variable(tf.eye(4),dtype=np.float32, name='Wel0',trainable=False)
+
+        train_var.extend([Wnl0, Bnl0])
+        train_var.append(self.Wel0)
+
+        # self.Wed_layers.append(Wel0)
+        for i in range(self.num_layers - 1):
+            if self.stack_instead_add:
+                Wnli = tf.Variable(
+                    tf.random_uniform((self.node_indim * self.nconv_edge + self.node_indim, self.node_indim),
+                                      -1.0 / math.sqrt(self.node_indim),
+                                      1.0 / math.sqrt(self.node_indim)), name='Wnl', dtype=tf.float32)
+                print('Wnli shape', Wnli.get_shape())
+            else:
+                Wnli = tf.Variable(tf.random_uniform((self.node_indim, self.node_indim),
+                                                     -1.0 / math.sqrt(self.node_indim),
+                                                     1.0 / math.sqrt(self.node_indim)), name='Wnl',
+                                   dtype=tf.float32)
+
+            # Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
+
+            # Weli = tf.Variable(tf.ones([int(self.nconv_edge),int(self.edge_dim)],dtype=tf.float32))
+            Weli = tf.Variable(tf.random_normal([int(self.nconv_edge), int(self.edge_dim)], mean=0.0, stddev=1.0),
+                               dtype=np.float32, name='Wel_')
+
+            #Weli = tf.Variable(tf.eye(4), dtype=np.float32, name='Wel_', trainable=False)
+
+            # Beli = tf.Variable(tf.zeros([self.edge_dim]), name='Bel'+str(i),dtype=tf.float32)
+
+            self.Wnode_layers.append(Wnli)
+            # self.Bnode_layers.append(Bnli)
+            self.Wed_layers.append(Weli)
+            # self.Bed_layers.append(Beli)
+
+        train_var.extend((self.Wnode_layers))
+        train_var.extend((self.Wed_layers))
+
+        self.Hnode_layers = []
+
+        # TODO Do we project the firt layer or not ?
+        # Initialize the weights and biases for a simple one full connected network
+        if self.stack_instead_add:
+            self.W_classif = tf.Variable(
+                tf.random_uniform((self.node_indim * self.nconv_edge + self.node_indim, self.n_classes),
+                                  -1.0 / math.sqrt(self.node_dim),
+                                  1.0 / math.sqrt(self.node_dim)),
+                name="W_classif", dtype=np.float32)
+        else:
+            self.W_classif = tf.Variable(tf.random_uniform((self.node_indim * self.nconv_edge, self.n_classes),
+                                                           -1.0 / math.sqrt(self.node_dim),
+                                                           1.0 / math.sqrt(self.node_dim)),
+                                         name="W_classif", dtype=np.float32)
+        self.B_classif = tf.Variable(tf.zeros([self.n_classes]), name='B_classif', dtype=np.float32)
+
+        train_var.append((self.W_classif))
+        train_var.append((self.B_classif))
+
+        # self.H = self.activation(tf.add(tf.matmul(self.node_input,self.Wnode),self.Bnode))
+
+        I = tf.eye(self.nb_node)
+
+        self.node_dropout_ind = tf.nn.dropout(tf.ones([self.nb_node], dtype=tf.float32), 1 - self.dropout_p)
+        self.ND = tf.diag(self.node_dropout_ind)
+
+        if self.num_layers == 1:
+            self.H = self.activation(tf.add(tf.matmul(self.node_input, Wnl0), Bnl0))
+            self.hidden_layers = [self.H]
+
+            #Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnl0)
+            # Em =(tf.matmul(self.Wedge,self.EA_input))
+            # Z=tf.reshape(Em,tf.stack([self.nb_node,self.nb_node]))
+            # P =self.convolve(self.Wedge,self.EA_input,Hi_,self.nb_node,self.nconv_edge)
+            P = self.convolve(self.Wel0, self.EA_input, self.H, self.nb_node, self.nconv_edge)
+            if self.stack_instead_add:
+                # P= tf.matmul(Z,Hi_)
+                Hp = tf.concat([self.H, P], 1)
+            else:
+                # Hp= tf.matmul(Z+I,Hi_) #If multiple edge, can not add as it does not have the same dimensionality
+                Hp = P + self.H
+            Hi = self.activation(Hp)
+            Hi_shape = Hi.get_shape()
+            print(Hi_shape)
+            self.hidden_layers.append(Hi)
+
+        elif self.num_layers > 1:
+
+            if self.dropout_mode == 1:
+                H0 = self.activation(tf.matmul(self.ND, tf.add(tf.matmul(self.node_input, Wnl0), Bnl0)))
+            else:
+                H0 = self.activation(tf.add(tf.matmul(self.node_input, Wnl0), Bnl0))
+
+            self.Hnode_layers.append(H0)
+
+            if self.stack_instead_add:
+                # Em0 =(tf.matmul(Wel0,self.EA_input))
+                # Z0=tf.reshape(Em0,tf.stack([self.nb_node,self.nb_node]))
+                # P= tf.matmul(Z0,H0)
+                P = self.convolve(self.Wel0, self.EA_input, H0, self.nb_node, self.nconv_edge)
+                Hp = tf.concat([H0, P], 1)
+                self.hidden_layers = [Hp]
+            else:
+                self.hidden_layers = [H0]
+
+            print('H0_shape', self.hidden_layers[0].get_shape())
+            for i in range(self.num_layers - 1):
+
+                if self.dropout_mode == 2:
+                    # Hp = tf.nn.dropout(self.hidden_layers[-1], 1 - self.dropout_p)
+                    # Hi_ = tf.matmul(Hp, self.Wnode_layers[i])
+                    Hi_ = tf.nn.dropout(tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i]), 1 - self.dropout_p)
+                else:
+                    Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i])
+
+                # Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i])
+                # Hi_ = tf.nn.dropout(tf.matmul(self.hidden_layers[-1],self.Wnode_layers[i]),0.9)
+                # Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i])
+
+                if self.residual_connection:
+                    Hi_ = tf.add(Hi_, self.Hnode_layers[-1])
+
+                self.Hnode_layers.append(Hi_)
+
+                print('Hi_shape', Hi_.get_shape())
+                print('Hi prevous shape', self.hidden_layers[-1].get_shape())
+                # Emi = (tf.matmul(self.Wed_layers[i],self.EA_input))
+                if self.shared_We:
+                    P = self.convolve(self.Wel0, self.EA_input, Hi_, self.nb_node, self.nconv_edge)
+                else:
+                    P = self.convolve(self.Wed_layers[i], self.EA_input, Hi_, self.nb_node, self.nconv_edge)
+
+                if self.dropout_mode == 4:
+                    # Dropout -Edge
+                    P = tf.nn.dropout(P, 1 - self.dropout_p)
+
+                # Z=tf.reshape(Emi,tf.stack([self.nb_node,self.nb_node]))
+                print('P_shape', P.get_shape())
+                if self.stack_instead_add:
+                    # P= tf.matmul(Z,Hi_)
+                    Hp = tf.concat([Hi_, P], 1)
+                    Hi = self.activation(Hp)
+                    Hi_shape = Hi.get_shape()
+                    print(Hi_shape)
+                    self.hidden_layers.append([Hi])
+                else:
+                    # Hp= tf.matmul(Z+I,Hi_)
+                    Hp = P + Hi_  # Looks like it is going to break with multiple convolution here
+                    Hi = self.activation(Hp)
+
+                # if self.residual_connection:
+                #    Hir = tf.add(self.hidden_layers[-1], Hi)
+                #    self.hidden_layers.append(Hir)
+                # else:
+                self.hidden_layers.append(Hi)
+
+        # This dropout the logits as in GCN
+        # if self.dropout_mode == 2:
+        #    Hp = tf.nn.dropout(self.hidden_layers[-1], 1 - self.dropout_p)
+        #    self.hidden_layers.append(Hp)
+
+        self.logits = tf.add(tf.matmul(self.hidden_layers[-1], self.W_classif), self.B_classif)
+
+        # print('Logits ...')
+        # print(self.logits_.get_shape())
+        # Convolve the Logits as well
+        # works only with 1 convolve
+        # self.logits_convolve =self.convolve(self.Wedge_logit,self.EA_input,self.logits_,self.nb_node,1)
+        # print(self.logits_convolve.get_shape())
+        # Reduce_sum, reduce_max ?here not clear
+        # self.A=tf.matmul(self.logits_convolve,self.Yt) #I should not take the sum over neighbor but the max here
+        # print(self.A.get_shape())
+
+        # self.logits= tf.add(self.logits_,tf.reduce_sum(tf.matmul(self.logits_convolve,self.Yt),axis=1))
+        # self.logits = tf.add(tf.nn.dropout(self.logits_,0.5), self.A)
+        # self.logits = self.logits_
+        cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
+        # cross_entropy_neighbor = tf.nn.softmax_cross_entropy_with_logits(logits=self.A, labels=self.y_input)
+        # cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.A, labels=self.y_input)
+
+        # Global L2 Regulization
+        if self.num_layers > 1:
+            in_layers_l2 = tf.add_n([tf.nn.l2_loss(v) for v in self.Wnode_layers]) * self.mu
+            self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(
+                self.W_classif) \
+                        + self.mu * tf.nn.l2_loss(Wnl0) + in_layers_l2
+        else:
+            self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(
+                self.W_classif) + self.mu * tf.nn.l2_loss(Wnl0)
+
+        # self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wedge)
+
+
+        self.correct_prediction = tf.equal(tf.argmax(tf.nn.softmax(self.logits), 1), tf.argmax(self.y_input, 1))
+        self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
+
+        if self.optim_mode == 0:
+
+            self.grads_and_vars = self.optalg.compute_gradients(self.loss)
+
+            self.gv_Gn = []
+            for grad, var in self.grads_and_vars:
+                print(grad, var)
+                if grad is not None:
+                    self.gv_Gn.append((tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)), var))
+
+            # self.gv_Gn = [(tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)), val) for grad, val in self.grads_and_vars if  is not None]
+
+
+            self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
+            #self.train_step = self.optalg.apply_gradients(self.gv_Gn)
+
+            # self.tvs = tf.traina
+            # Does it change the dynamics of addgrad here ?
+            self.accum_vars = [tf.Variable(tf.zeros_like(tv.initialized_value()), trainable=False) for g, tv in
+                               self.grads_and_vars]
+            self.zero_ops = [tv.assign(tf.zeros_like(tv)) for tv in self.accum_vars]
+            self.accum_ops = [self.accum_vars[i].assign_add(gv[0]) for i, gv in enumerate(self.grads_and_vars)]
+
+            self.train_step_acc = self.optalg.apply_gradients(
+                [(self.accum_vars[i], gv[1]) for i, gv in enumerate(self.grads_and_vars)])
+
+        elif self.optim_mode == 1:
+            step = tf.Variable(0, trainable=False)
+            # rate = tf.train.exponential_decay(self.learning_rate, step, 1, 0.9999)
+            rate = tf.train.exponential_decay(self.learning_rate, step, 1000, 0.9)
+            self.train_step = tf.train.AdamOptimizer(rate).minimize(self.loss, global_step=step)
+
+        else:
+            raise ValueError('Invalide Optim Options')
+
+        # Add ops to save and restore all the variables.
+        self.init = tf.global_variables_initializer()
 
 
 class GCNBaselineGraphList(object):
