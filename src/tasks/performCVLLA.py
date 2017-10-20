@@ -52,6 +52,15 @@ class LAProcessor(Component.Component):
     version = "v.01"
     description = "description: Nomacs LA processor"
 
+    if sys.platform == 'win32':
+        cNomacs = '"C:\\Program Files\\READFramework\\bin\\nomacs.exe"'
+        cNomacsold = '"C:\\Program Files\\READFramework\\bin\\nomacs.exe"'
+        #cNomacsold = '"C:\\Program Files\\READFramework2\\nomacs-x64\\nomacs.exe"'
+
+    else:
+        cNomacs = "/opt/Tools/src/tuwien-2017/nomacs/nomacs"
+        cNomacsold = "/opt/Tools/src/tuwien-2017/nomacs/nomacs"
+
     
     cCVLLAProfileold="""
 [%%General]  
@@ -147,14 +156,6 @@ PluginBatch\FormAnalysis\FormFeatures\variationThresholdUpper=0.3
 PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
      """
      
-    if sys.platform == 'win32':
-        cNomacs = '"C:\\Program Files\\READFramework\\bin\\nomacs.exe"'
-        #cNomacsold = '"C:\\Program Files\\READFramework\\bin\\nomacs.exe"'
-        cNomacsold = '"C:\\Program Files\\READFramework2\\nomacs-x64\\nomacs.exe"'
-
-    else:
-        cNomacs = "/opt/Tools/src/tuwien-2017/nomacs/nomacs"
-        cNomacsold = "/opt/Tools/src/tuwien-2017/nomacs/nomacs"
         
 
     #--- INIT -------------------------------------------------------------------------------------------------------------    
@@ -198,7 +199,8 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             self.bRegularTextLine = dParams["regTL"]  
 
         if dParams.has_key("templatefile"):         
-            self.sTemplateFile = dParams["templatefile"]                  
+            self.sTemplateFile = dParams["templatefile"]
+            self.bTemplate=True                  
     
     def findTemplate(self,doc):
         """
@@ -218,13 +220,14 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         ### need to add the ns!!
 #         print newDoc.serialize('utf-8',True)
         # Borders must be visible: 
+        # done in template now !!
         #leftBorderVisible="false" rightBorderVisible="false" topBorderVisible="false
-        lcells = PageXml.getChildByName(newDoc.getRootElement(),'TableCell')
-        for cell in lcells:
-            cell.setProp("leftBorderVisible",'true')
-            cell.setProp("rightBorderVisible",'true')
-            cell.setProp("topBorderVisible",'true')
-            cell.setProp("bottomBorderVisible",'true')
+#         lcells = PageXml.getChildByName(newDoc.getRootElement(),'TableCell')
+#         for cell in lcells:
+#             cell.setProp("leftBorderVisible",'true')
+#             cell.setProp("rightBorderVisible",'true')
+#             cell.setProp("topBorderVisible",'true')
+#             cell.setProp("bottomBorderVisible",'true')
 
         return newDoc
         
@@ -314,6 +317,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
 #         for i in lNd:print i
         return map(lambda x:"%s%s%s.xml"%(xmlpath,os.sep,x.prop('imageFilename')[:-4]), lNd)
     
+    
     def performLA(self,doc):
         """
             # for document doc 
@@ -373,7 +377,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
                     prnregfilename= self.createRegistrationProfile(stemplatefile)
             
             else:
-                raise Exception, 'file template stuff: to be done'
+#                 raise Exception, 'file template stuff: to be done'
                 prnregfilename= self.createRegistrationProfile(self.sTemplateFile)
             
             job = LAProcessor.cNomacs+ " --batch %s"%(prnregfilename)
@@ -437,8 +441,9 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
                     (sx,sy) = sPair.split(',')
                     lXY.append( (int(sx), int(sy)) )
                 except ValueError:print tl
-            plg = Polygon(lXY)  
-            iHeight = 50  # in pixel  15up +15 down = 30
+            plg = Polygon(lXY)
+            # 50 seems to large: the manual GT is 30  
+            iHeight = 30  # in pixel
             x1,y1, x2,y2 = plg.getBoundingBox()
             if coord: 
                 coord.setProp('points',"%d,%d %d,%d %d,%d %d,%d" % (x1,y1-iHeight,x2,y1-iHeight,x2,y2,x1,y2))
@@ -457,9 +462,8 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         if not (self.bTemplate or self.bBaseLine or self.bSeparator) and self.bRegularTextLine:
             self.regularTextLines(doc)
             self.writeDom(doc, True)  
-            
         else:
-            doc,nbpages=  self.performLA(doc)
+            doc,nbpages =  self.performLA(doc)
             return doc
     
 
