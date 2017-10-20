@@ -51,7 +51,7 @@ class table2TextRegion(Component.Component):
         """
         Component.Component.setParams(self, dParams)
         if dParams.has_key(self.kDPI)    : self.dpi          = int(dParams[self.kDPI])
-        if dParams.has_key("HTR")    : self.HeightTH         = int(dParams["HTR"])
+#         if dParams.has_key("HTR")    : self.HeightTH         = int(dParams["HTR"])
         if dParams.has_key("vpadding")    : self.vpadding     = dParams["vpadding"]
         if dParams.has_key("hpadding")    : self.hpadding     = dParams["hpadding"]
 
@@ -98,26 +98,31 @@ class table2TextRegion(Component.Component):
             maxy = max(maxy,y2)
         
         
-        # new request: height= max(cell,text)
-        ## new new request: (12/10/2017): min (cell, text)!
-        HCell = cellY2 - cellY1
-        HBBText = maxy - miny
-  
+        """
+            finally: simply use the BB of the textlines + padding
+        """
+        
+#         # new request: height= max(cell,text)
+#         ## new new request: (12/10/2017): min (cell, text)!
+#         HCell = cellY2 - cellY1
+#         HBBText = maxy - miny
+#   
         miny -= self.vpadding # vertical padding (top)       
         maxy += self.vpadding # vertical padding (bottom)
-        
-        # Height computation
-        ## if HBBText <= self.HeightTH * HCell: take HBBText as height for TextREgion
-        if HBBText > self.HeightTH * HCell:
-            miny = max(miny,cellY1)
-            maxy = min(maxy,cellY2)            
-        # else : don't touch miny, maxy  : use only Text for computing Height        
-        
-        # Width computation
+#         
+#         # Height computation
+#         ## if HBBText <= self.HeightTH * HCell: take HBBText as height for TextREgion
+#         if HBBText > self.HeightTH * HCell:
+#             miny = max(miny,cellY1)
+#             maxy = min(maxy,cellY2)            
+#         # else : don't touch miny, maxy  : use only Text for computing Height        
+#         
+#         # Width computation
         minx -= self.hpadding  # horizontal padding 
         maxx += self.hpadding  # horizontal padding 
-        minx = min(cellX1,minx)
-        maxx = max(cellX2, maxx)
+        
+#         minx = min(cellX1,minx)
+#         maxx = max(cellX2, maxx)
 #         print cellX2, maxx
         
         corner = cell.children
@@ -219,7 +224,7 @@ if __name__ == "__main__":
     #prepare for the parsing of the command line
     cmp.createCommandLineParser()
 #     cmp.add_option("", "--"+cmp.kPTTRN, dest=cmp.kPTTRN, action="store", type="string", help="REQUIRED **: File name pattern, e.g. /tmp/*/to?o*.xml"   , metavar="<pattern>")
-    cmp.add_option("--HeightCR", dest="HTH", action="store", type='string', help="Threshold for adapting TextRegion Height")
+#     cmp.add_option("--HeightCR", dest="HTH", action="store", type='string', help="Threshold for adapting TextRegion Height")
     cmp.add_option("--vpadding", dest="vpadding", action="store", type='int', default=20,help="vertical padding (default 20 pixels)")
     cmp.add_option("--hpadding", dest="hpadding", action="store", type='int', default=30,help="horizontal padding (default 30 pixels)")
     
