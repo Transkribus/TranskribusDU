@@ -53,7 +53,8 @@ class DU_ABPTable(DU_CRF_Task):
     """
     sXmlFilenamePattern = "*.mpxml"
     
-    sLabeledXmlFilenamePattern = "*.a_mpxml"
+    #sLabeledXmlFilenamePattern = "*.a_mpxml"
+    sLabeledXmlFilenamePattern = "*.mpxml"
 
     sLabeledXmlFilenameEXT = ".mpxml"
 
@@ -220,11 +221,11 @@ if __name__ == "__main__":
         traceln(doer.getModel().getModelInfo())
     elif lTst:
         doer.load()
-        tstReport = doer.test(lTst, options.pkl)
+        tstReport = doer.test(lTst)
         traceln(tstReport)
     
     if lRun:
         doer.load()
-        lsOutputFilename = doer.predict(lRun, options.pkl)
+        lsOutputFilename = doer.predict(lRun)
         traceln("Done, see in:\n  %s"%lsOutputFilename)
     
