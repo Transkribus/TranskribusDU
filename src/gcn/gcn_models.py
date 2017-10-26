@@ -189,7 +189,8 @@ class GCNModelGraphList(object):
             self.node_indim=node_indim
 
 
-    def convolve(self,Wedge,EA,H,nb_node,nconv):
+    def convolve(self,Wedge,EA,H,nb_node,nconv,stack=True):
+        print('Convolve')
         Em =(tf.matmul(Wedge,EA))
         print('EM',Em.get_shape())
         print (nb_node,nconv)
@@ -201,7 +202,15 @@ class GCNModelGraphList(object):
             Hi=tf.matmul(Z[i],H)
             Cops.append(Hi)
 
-        P=tf.concat(Cops,1)
+        if stack is True:
+            P=tf.concat(Cops,1)
+        else:
+            #Add
+            #TODO Maybe use the mean here
+            #Take the mean and concat instead of adding
+            #Less Parameters
+            P=1.0/(tf.cast(nconv,tf.float32))*tf.add_n(Cops)
+            print('p_add_n',P.get_shape())
         return P
 
 
@@ -293,7 +302,7 @@ class GCNModelGraphList(object):
                                                            1.0 / math.sqrt(self.node_dim)),
                                         name="W_classif",dtype=np.float32)
         else:
-            self.W_classif = tf.Variable(tf.random_uniform((self.node_indim*self.nconv_edge, self.n_classes),
+            self.W_classif = tf.Variable(tf.random_uniform((self.node_indim, self.n_classes),
                                                            -1.0 / math.sqrt(self.node_dim),
                                                            1.0 / math.sqrt(self.node_dim)),
                                         name="W_classif",dtype=np.float32)
@@ -318,7 +327,7 @@ class GCNModelGraphList(object):
             #Em =(tf.matmul(self.Wedge,self.EA_input))
             #Z=tf.reshape(Em,tf.stack([self.nb_node,self.nb_node]))
             #P =self.convolve(self.Wedge,self.EA_input,Hi_,self.nb_node,self.nconv_edge)
-            P = self.convolve(self.Wel0, self.EA_input, self.H, self.nb_node, self.nconv_edge)
+            P = self.convolve(self.Wel0, self.EA_input, self.H, self.nb_node, self.nconv_edge,stack=self.stack_instead_add)
             if self.stack_instead_add:
                 #P= tf.matmul(Z,Hi_)
                 Hp= tf.concat([self.H,P],1)
@@ -383,9 +392,9 @@ class GCNModelGraphList(object):
                 print('Hi prevous shape',self.hidden_layers[-1].get_shape())
                 #Emi = (tf.matmul(self.Wed_layers[i],self.EA_input))
                 if self.shared_We:
-                    P = self.convolve(self.Wel0, self.EA_input, Hi_, self.nb_node, self.nconv_edge)
+                    P = self.convolve(self.Wel0, self.EA_input, Hi_, self.nb_node, self.nconv_edge,stack=self.stack_instead_add)
                 else:
-                    P =self.convolve(self.Wed_layers[i],self.EA_input,Hi_,self.nb_node,self.nconv_edge)
+                    P =self.convolve(self.Wed_layers[i],self.EA_input,Hi_,self.nb_node,self.nconv_edge,stack=self.stack_instead_add)
 
                 if self.dropout_mode== 4:
                     #Dropout -Edge
@@ -458,10 +467,11 @@ class GCNModelGraphList(object):
             self.grads_and_vars = self.optalg.compute_gradients(self.loss)
 
             self.gv_Gn=[]
-            for grad, var in self.grads_and_vars:
-                print(grad,var)
-                if grad is not None:
-                    self.gv_Gn.append( ( tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)),var)    )
+            if self.stack_instead_add:
+                for grad, var in self.grads_and_vars:
+                    print(grad,var)
+                    if grad is not None:
+                        self.gv_Gn.append( ( tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)),var)    )
 
 
             #self.gv_Gn = [(tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)), val) for grad, val in self.grads_and_vars if  is not None]
@@ -472,11 +482,12 @@ class GCNModelGraphList(object):
 
             #self.tvs = tf.traina
             #Does it change the dynamics of addgrad here ?
-            self.accum_vars = [tf.Variable(tf.zeros_like(tv.initialized_value()), trainable=False) for g,tv in self.grads_and_vars]
-            self.zero_ops = [tv.assign(tf.zeros_like(tv)) for tv in self.accum_vars]
-            self.accum_ops = [self.accum_vars[i].assign_add(gv[0]) for i, gv in enumerate(self.grads_and_vars)]
+            if self.stack_instead_add:
+                self.accum_vars = [tf.Variable(tf.zeros_like(tv.initialized_value()), trainable=False) for g,tv in self.grads_and_vars]
+                self.zero_ops = [tv.assign(tf.zeros_like(tv)) for tv in self.accum_vars]
+                self.accum_ops = [self.accum_vars[i].assign_add(gv[0]) for i, gv in enumerate(self.grads_and_vars)]
 
-            self.train_step_acc = self.optalg.apply_gradients([(self.accum_vars[i], gv[1]) for i, gv in enumerate(self.grads_and_vars)])
+                self.train_step_acc = self.optalg.apply_gradients([(self.accum_vars[i], gv[1]) for i, gv in enumerate(self.grads_and_vars)])
 
         elif self.optim_mode==1:
             step = tf.Variable(0, trainable=False)
