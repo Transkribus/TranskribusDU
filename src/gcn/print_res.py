@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import pickle
 
 
 def read_res(fname):
@@ -58,6 +59,44 @@ def print_res(Fs,Cs,P):
             line_res += "   \\\\\n"
         print('C' + str(c), line_res)
 
+def plot_progress(folder_resname,configid=5):
+
+    f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, sharex='col', sharey='row')
+    #ax1.plot(x, y)
+    #ax1.set_title('Sharing x per column, y per row')
+    #ax2.scatter(x, y)
+    #ax3.scatter(x, 2 * y ** 2 - 1, color='r')
+    #ax4.plot(x, 2 * y ** 2 - 1, color='r')
+
+    for fold_id,ax in zip([1,2,3,4],[ax1,ax2,ax3,ax4]):
+        ax.set_ylim([0.6, 1.05])
+        fname=os.path.join(folder_resname,'table_F'+str(fold_id)+'_C'+str(configid)+'.pickle')
+        f = open(fname, 'rb')
+        R = pickle.load(f)
+
+        train=np.array(R['train_acc'])
+        val = np.array(R['val_acc'])
+        test = np.array(R['test_acc'])
+        x=range(train.shape[0])
+        #ax.plot(x,test,'--',x,val,'+',x,train,'.')
+        test_l,= ax.plot(x, test)
+        test_l.set_label('test')
+        val_l, = ax.plot(x, val)
+        val_l.set_label('val')
+        train_l,= ax.plot(x, train)
+        train_l.set_label('train')
+        ax.set_xlabel('epoch % 10')
+        ax.set_ylabel('accuracy')
+        ax.set_title('Fold: '+str(fold_id))
+        ax.legend()
+
+
+    plt.show()
+
+
+
+
+
 
 def get_res(folder_resname):
     L=os.listdir(folder_resname)
@@ -92,7 +131,7 @@ def get_res(folder_resname):
     #Did i change something, use a smaller validation set ? 10% instead of 20
 
 
-import pickle
+
 
 
 def plot_We(fn = 'table_plot_wE/table_F1_C5.pickle'):
@@ -108,7 +147,7 @@ def plot_We(fn = 'table_plot_wE/table_F1_C5.pickle'):
 
 
 
-    W.shape
+
     W = np.vstack(We)
     W.shape
 
@@ -118,6 +157,8 @@ def plot_We(fn = 'table_plot_wE/table_F1_C5.pickle'):
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
     plt.colorbar(im, cax=cax)
+    plt.autoscale(enable=True, axis='x', tight=True)
+    plt.show()
 
 
 if __name__ == '__main__':

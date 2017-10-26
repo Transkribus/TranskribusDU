@@ -52,8 +52,9 @@ def _make_grid_qsub(grid_qsub=0):
         tid=0
         C={}
         for fold_id in [1,2,3,4]:
-            #for config in [3,4,5]:
-            for config in [5]:
+            for config in [3,4,5]:
+            #for config in [3, 4]:
+            #for config in [5]:
                 C[tid]=(fold_id,config)
                 tid+=1
         return C
@@ -322,7 +323,7 @@ def get_config(config_id=0):
         config['stack_instead_add'] = True
         config['mu'] = 0.0
         #config['num_layers'] = 2 #Mean Node  Accuracy 0.92
-        #config['num_layers'] = 3 #Mean Node  Accuracy 0.9381
+        #config['num_layers'] = 5 #Mean Node  Accuracy 0.9381
         config['num_layers'] = 9 # --> 9523 converges quickly
         config['node_indim'] = -1  # INDIM =2 not working here #Should add bias to convolutions, no ?
         config['nconv_edge'] =4  #Already by default
@@ -368,6 +369,27 @@ def get_config(config_id=0):
         config['dropout_mode'] = 0
         #config['shared_We'] = True
 
+    elif config_id == 26: #Config for the Snake with the same feature rep as CRF  ie the fixed_node one
+        config['nb_iter'] = 500
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False #Default True
+        config['mu'] = 0.0
+        config['num_layers'] = 7
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] =10
+        config['dropout_rate'] = 0.0
+        config['dropout_mode'] = 0
+
+    elif config_id==27:
+        #This is config 5 but with stakcing
+        # config['nb_iter'] = 2000
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.0
+        config['num_layers'] = 3
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 10
 
     else:
         raise NotImplementedError
