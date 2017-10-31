@@ -8,10 +8,12 @@ Document Understanding tools
 * Install the latest release of [Python] 2.7.x
 * Install [pip]
 
-### Installation for Windows
+### Installation
 
-* pip install pystruct
-* pip install https://github.com/andre-martins/AD3/archive/master.zip
+* Install AD3 from https://github.com/Transkribus/AD3  (python setup.py install)
+* Install PyStruct from https://github.com/jlmeunier/pystruct   (python setup.py install)
+
+On Windows, installing libxml2 and cvxopt may require those steps:
 * download from [LIBXML2]
 * pip install libxml2_python-2.9.3‑cp27‑none‑win_amd64.whl
 * download from [CVXOPT]
