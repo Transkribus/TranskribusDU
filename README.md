@@ -16,6 +16,8 @@ Document Understanding tools
 On Windows, installing libxml2 and cvxopt may require those steps:
 * download from [LIBXML2]
 * pip install libxml2_python-2.9.3‑cp27‑none‑win_amd64.whl
+* download [numpy+mkl|https://www.lfd.uci.edu/~gohlke/pythonlibs/#numpy]
+* pip install (of the .whl file)
 * download from [CVXOPT]
 * pip install  cvxopt-1.1.9-cp36‑cp36m‑win_amd64.whl  
 
