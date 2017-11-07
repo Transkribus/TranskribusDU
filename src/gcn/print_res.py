@@ -71,8 +71,13 @@ def plot_progress(folder_resname,configid=5):
     for fold_id,ax in zip([1,2,3,4],[ax1,ax2,ax3,ax4]):
         ax.set_ylim([0.6, 1.05])
         fname=os.path.join(folder_resname,'table_F'+str(fold_id)+'_C'+str(configid)+'.pickle')
-        f = open(fname, 'rb')
-        R = pickle.load(f)
+
+        try:
+            f = open(fname, 'rb')
+            R = pickle.load(f)
+        except IOError:
+            print('File not found',fname)
+            pass
 
         train=np.array(R['train_acc'])
         val = np.array(R['val_acc'])

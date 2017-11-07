@@ -39,8 +39,6 @@ tf.app.flags.DEFINE_integer('qsub_taskid', -1, 'qsub_taskid')
 
 
 
-
-
 #For Snake  python DU_gcn_task.py --snake=True --configid=22
 
 
@@ -52,7 +50,8 @@ def _make_grid_qsub(grid_qsub=0):
         tid=0
         C={}
         for fold_id in [1,2,3,4]:
-            for config in [3,4,5]:
+            #for config in [4,5]:
+            for config in [27,28,29]:
             #for config in [3, 4]:
             #for config in [5]:
                 C[tid]=(fold_id,config)
@@ -391,6 +390,30 @@ def get_config(config_id=0):
         config['node_indim'] = -1  # INDIM =2 not working here
         config['nconv_edge'] = 10
 
+
+    elif config_id == 28:
+        # This is config 5 but with stakcing
+        # config['nb_iter'] = 2000
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.0
+        config['num_layers'] = 8
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 10
+
+    elif config_id == 29:
+        # This is config 5 but with stakcing
+        # config['nb_iter'] = 2000
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.0
+        config['num_layers'] = 5
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 20
+
+
     else:
         raise NotImplementedError
 
@@ -664,11 +687,11 @@ def main(_):
 
             config = get_config(FLAGS.configid)
 
-            acc_test = run_model(train_graph, config, test_graph,eval_iter=1)
-            print('Accuracy Test', acc_test)
+            #acc_test = run_model(train_graph, config, test_graph,eval_iter=1)
+            #print('Accuracy Test', acc_test)
 
-            #outpicklefname=os.path.join(FLAGS.out_dir,'table_F'+str(FLAGS.fold)+'_C'+str(FLAGS.configid)+'.pickle')
-            #run_model_train_val_test(train_graph,config,test_graph,outpicklefname)
+            outpicklefname=os.path.join(FLAGS.out_dir,'table_F'+str(FLAGS.fold)+'_C'+str(FLAGS.configid)+'.pickle')
+            run_model_train_val_test(train_graph,config,test_graph,outpicklefname)
 
 
 
