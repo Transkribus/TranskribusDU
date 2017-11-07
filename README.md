@@ -29,8 +29,8 @@ On Windows, installing libxml2 and cvxopt may require those steps:
 Related discussion: <https://read02.uibk.ac.at/wiki/index.php/Document_Understanding>
 
 ### Contacts:
- * Hervé Déjean, herve.dejean@xrce.xerox.com
- * Jean-Luc Meunier, jean-luc.meunier@xrce.xerox.com
+ * Hervé Déjean, herve.dejean@naverlabs.com
+ * Jean-Luc Meunier, jean-luc.meunier@naverlabs.com
 
 
 [Python]: <https://www.python.org>
