@@ -11,7 +11,7 @@ import math
 import numpy as np
 import scipy.sparse as sp
 import random
-import gcn_datasets
+#import gcn_datasets
 
 
 def init_glorot(shape, name=None):
@@ -182,11 +182,98 @@ class GCNModelGraphList(object):
         self.dropout_rate=dropout_rate
         self.dropout_mode=0
         self.optim_mode=0
+        self.fast_convolve=False
+        self.init_fixed=False
 
         if node_indim==-1:
             self.node_indim=self.node_dim
         else:
             self.node_indim=node_indim
+
+
+    def fastconvolve(self,Wedge,F,S,T,H,nconv,Sshape,nb_edge,stack=True):
+        print('Fast Convolve')
+
+        #F is n_edge time nconv
+        #What is faster here on GPU or cpu
+        FW= tf.matmul(F,Wedge,transpose_b=True)
+        self.conv =tf.unstack(FW,axis=1)
+        Cops=[]
+
+        #conv=[]
+        #for i in range(nconv):
+        #    #Fwi=tf.matmul(F,tf.expand_dims(Wedge[i],0))
+        #    Fwi = tf.matmul(tf.expand_dims(Wedge[i],0),F,transpose_b=True)
+        #    conv.append(tf.squeeze(Fwi))
+
+        # FW= tf.matmul(F,Wedge,transpose_b=True)
+        # conv= tf.split(FW, nconv, 1)
+        # conv =tf.unstack(FW,axis=1)
+
+
+        '''
+        #Compute TPi ones.
+        #T is nb_node * edge, H is nb_node time
+        TP=tf.matmul(T,H,a_is_sparse=False,transpose_a=True) #check for  matmul operations
+        #it should have shape nb_edge*node_dim
+        print('TP',TP.get_shape())
+        for i,cw in enumerate(conv):
+            Hic_left = tf.matmul(S,tf.diag(cw),name='matmulS')
+            print(Hic_left)
+            Hi = tf.matmul(Hic_left,TP,name='TP')
+            Cops.append(Hi)
+        '''
+
+
+        '''
+        TP = tf.matmul(T, H, a_is_sparse=False, transpose_a=True)  # check for  matmul operations
+        #D =tf.matrix_diag(conv)
+        #for i in range(nconv):
+        for i, cw in enumerate(self.conv):
+            Hic_left = tf.multiply(S, cw, name='matmulS') #This does the broadcasting
+            self.Z = tf.matmul(Hic_left,T,transpose_b=True)
+            Hi = tf.matmul(Hic_left, TP, name='TP')
+
+            Cops.append(Hi)
+        '''
+
+
+
+
+        #of course if we add we coudl do that simpler
+        #Already transpose here
+        #Tr = tf.SparseTensor(indices=T, values=tf.ones([nb_edge],dtype=tf.float32), dense_shape=Sshape)
+        #TP = tf.sparse_tensor_dense_matmul(tf.sparse_transpose(Tr), H)
+        Tr = tf.SparseTensor(indices=T, values=tf.ones([nb_edge], dtype=tf.float32), dense_shape=[Sshape[1],Sshape[0]])
+        Tr = tf.sparse_reorder(Tr)
+        TP = tf.sparse_tensor_dense_matmul(Tr,H)
+        #TP = tf.matmul(T, H, a_is_sparse=False, transpose_a=True,name='TP')  # check for  matmul operations
+        for i, cw in enumerate(self.conv):
+            #SD= tf.SparseTensor(indices=S,values=cw,dense_shape=[nb_node,nb_edge])
+            # SOME BUG Here, this is more efficient  but I have to pay attentiion
+            # to the ordering of edges and
+
+            SD = tf.SparseTensor(indices=S, values=cw, dense_shape=Sshape)
+            SD =tf.sparse_reorder(SD)
+            self.Z =tf.sparse_tensor_to_dense(SD,validate_indices=False)
+            #self.Z = tf.matmul(tf.sparse_tensor_to_dense(SD), tf.sparse_tensor_to_dense(Tr), transpose_b=False)
+            #sdr=tf.sparse_reorder(self.SD)
+            Hi =tf.sparse_tensor_dense_matmul(SD,TP)
+            #Hi = tf.matmul(SD, TP, name='TP',a_is_sparse=True)
+            Cops.append(Hi)
+
+
+        if stack is True:
+            P=tf.concat(Cops,1)
+        else:
+            #Add
+            #TODO Maybe use the mean here
+            #Take the mean and concat instead of adding
+            #Less Parameters
+            P=1.0/(tf.cast(nconv,tf.float32))*tf.add_n(Cops)
+            print('p_add_n',P.get_shape())
+        return P
+
 
 
     def convolve(self,Wedge,EA,H,nb_node,nconv,stack=True):
@@ -195,11 +282,11 @@ class GCNModelGraphList(object):
         print('EM',Em.get_shape())
         print (nb_node,nconv)
         #Use activation here or not ?
-        Z=tf.reshape(Em,(nconv,nb_node,nb_node))
+        self.Z=tf.reshape(Em,(nconv,nb_node,nb_node))
 
         Cops=[]
         for i in range(nconv):
-            Hi=tf.matmul(Z[i],H)
+            Hi=tf.matmul(self.Z[i],H)
             Cops.append(Hi)
 
         if stack is True:
@@ -216,11 +303,22 @@ class GCNModelGraphList(object):
 
     def create_model(self):
         self.nb_node    = tf.placeholder(tf.int32,(), name='nb_node')
+        self.nb_edge = tf.placeholder(tf.int32, (), name='nb_edge')
         self.node_input = tf.placeholder(tf.float32, [None, self.node_dim], name='X_')
         self.y_input    = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
-        self.EA_input   =  tf.placeholder(tf.float32, name='EA_input')
-        self.NA_input   =  tf.placeholder(tf.float32, name='NA_input')
+        self.EA_input   = tf.placeholder(tf.float32, name='EA_input')
+        self.NA_input   = tf.placeholder(tf.float32, name='NA_input')
         self.dropout_p  = tf.placeholder(tf.float32,(), name='dropout_prob')
+        self.S          = tf.placeholder(tf.float32, name='S')
+        self.Ssparse    = tf.placeholder(tf.int64, name='Ssparse') #indices
+        self.Sshape     = tf.placeholder(tf.int64, name='Sshape') #indices
+
+        self.T          = tf.placeholder(tf.float32,[None,None], name='T')
+        self.Tsparse    = tf.placeholder(tf.int64, name='Tsparse')
+
+        #self.S_indice = tf.placeholder(tf.in, [None, None], name='S')
+
+        self.F          = tf.placeholder(tf.float32,[None,None], name='F')
 
 
         std_dev_in=float(1.0/ float(self.node_dim))
@@ -256,8 +354,12 @@ class GCNModelGraphList(object):
 
         Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0',dtype=tf.float32)
         #self.Wel0 =tf.Variable(tf.random_normal([int(self.nconv_edge),int(self.edge_dim)],mean=0.0,stddev=1.0), dtype=np.float32, name='Wel0')
-        self.Wel0 = init_glorot([int(self.nconv_edge),int(self.edge_dim)],name='Wel0')
+        if self.init_fixed:
+            self.Wel0 = tf.Variable(100*tf.ones([int(self.nconv_edge),int(self.edge_dim)]), name='Wel0',dtype=tf.float32)
+        else:
+            self.Wel0 = init_glorot([int(self.nconv_edge),int(self.edge_dim)],name='Wel0')
 
+        print('Wel0',self.Wel0.get_shape())
         train_var.extend([Wnl0,Bnl0])
         train_var.append(self.Wel0)
 
@@ -327,13 +429,23 @@ class GCNModelGraphList(object):
             #Em =(tf.matmul(self.Wedge,self.EA_input))
             #Z=tf.reshape(Em,tf.stack([self.nb_node,self.nb_node]))
             #P =self.convolve(self.Wedge,self.EA_input,Hi_,self.nb_node,self.nconv_edge)
-            P = self.convolve(self.Wel0, self.EA_input, self.H, self.nb_node, self.nconv_edge,stack=self.stack_instead_add)
+            print("H shape",self.H.get_shape())
+            if self.fast_convolve:
+                P = self.fastconvolve(self.Wel0,self.F,self.Ssparse,self.Tsparse,self.H,self.nconv_edge,self.Sshape,self.nb_edge,stack=self.stack_instead_add)
+                #P = self.fastconvolve(self.Wel0, self.F, self.Ssparse, self.T, self.H, self.nconv_edge,self.Sshape, self.nb_edge, stack=self.stack_instead_add)
+                #P = self.fastconvolve(self.Wel0, self.F, self.S, self.T, self.H, self.nconv_edge, self.Sshape,self.nb_edge, stack=self.stack_instead_add)
+
+            else:
+                P = self.convolve(self.Wel0, self.EA_input, self.H, self.nb_node, self.nconv_edge,stack=self.stack_instead_add)
+
             if self.stack_instead_add:
                 #P= tf.matmul(Z,Hi_)
                 Hp= tf.concat([self.H,P],1)
             else:
                 #Hp= tf.matmul(Z+I,Hi_) #If multiple edge, can not add as it does not have the same dimensionality
-                Hp= P+self.H
+                #Hp= P+self.H
+                Hp = tf.concat([self.H, P], 1)
+
             Hi=self.activation(Hp)
             Hi_shape = Hi.get_shape()
             print(Hi_shape)
@@ -486,12 +598,12 @@ class GCNModelGraphList(object):
 
             #self.tvs = tf.traina
             #Does it change the dynamics of addgrad here ?
-            if self.stack_instead_add:
-                self.accum_vars = [tf.Variable(tf.zeros_like(tv.initialized_value()), trainable=False) for g,tv in self.grads_and_vars]
-                self.zero_ops = [tv.assign(tf.zeros_like(tv)) for tv in self.accum_vars]
-                self.accum_ops = [self.accum_vars[i].assign_add(gv[0]) for i, gv in enumerate(self.grads_and_vars)]
+            #if self.stack_instead_add:
+                #self.accum_vars = [tf.Variable(tf.zeros_like(tv.initialized_value()), trainable=False) for g,tv in self.grads_and_vars]
+                #self.zero_ops = [tv.assign(tf.zeros_like(tv)) for tv in self.accum_vars]
+                #self.accum_ops = [self.accum_vars[i].assign_add(gv[0]) for i, gv in enumerate(self.grads_and_vars)]
 
-                self.train_step_acc = self.optalg.apply_gradients([(self.accum_vars[i], gv[1]) for i, gv in enumerate(self.grads_and_vars)])
+                #self.train_step_acc = self.optalg.apply_gradients([(self.accum_vars[i], gv[1]) for i, gv in enumerate(self.grads_and_vars)])
 
         elif self.optim_mode==1:
             step = tf.Variable(0, trainable=False)
