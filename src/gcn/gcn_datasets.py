@@ -8,6 +8,7 @@ import numpy as np
 PY3 = sys.version_info[0] == 3
 import gzip
 import scipy.sparse as sp
+
 class GCNDataset(object):
 
     def __init__(self,dataname):
@@ -52,6 +53,23 @@ class GCNDataset(object):
             D= np.asarray(idim_mat.todense()).squeeze()
             EA[i,:]=np.reshape(D,-1)
         self.EA=EA
+
+
+    def compute_NodeEdgeMat(self):
+        nb_edge = self.E.shape[0]
+        nb_node = self.X.shape[0]
+
+        edge_list = range(nb_edge)
+        #TODO speed up
+        S = sp.coo_matrix( (np.ones(nb_edge),([ int(i) for i in self.E[:,0]],edge_list)), shape=(nb_node, nb_edge))
+        T = sp.coo_matrix( (np.ones(nb_edge),([ int(i) for i in self.E[:,1]],edge_list)), shape=(nb_node, nb_edge))
+
+        self.S=S
+        self.T=T
+        self.F=self.E[:,2:]
+        return S,T
+
+
 
     def compute_NA(self):
         '''
@@ -148,6 +166,7 @@ class GCNDataset(object):
             graph.compute_EA()
             graph.compute_NA()
             #graph.normalize()
+            graph.compute_NodeEdgeMat()
         return gcn_list
 
     @staticmethod
