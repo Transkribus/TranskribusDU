@@ -473,11 +473,19 @@ class GCNModelGraphList(object):
                 #Em0 =(tf.matmul(Wel0,self.EA_input))
                 #Z0=tf.reshape(Em0,tf.stack([self.nb_node,self.nb_node]))
                 #P= tf.matmul(Z0,H0)
-                P=self.convolve(self.Wel0,self.EA_input,H0,self.nb_node,self.nconv_edge)
+                if self.fast_convolve:
+                    P = self.fastconvolve(self.Wel0, self.F, self.Ssparse, self.Tsparse, H0, self.nconv_edge,
+                                          self.Sshape, self.nb_edge, stack=True)
+                else:
+                    P=self.convolve(self.Wel0,self.EA_input,H0,self.nb_node,self.nconv_edge)
                 Hp= tf.concat([H0,P],1)
                 self.hidden_layers=[Hp]
             else:
-                P = self.convolve(self.Wel0, self.EA_input, H0, self.nb_node, self.nconv_edge,stack=False)
+                if self.fast_convolve:
+                    P = self.fastconvolve(self.Wel0, self.F, self.Ssparse, self.Tsparse, H0, self.nconv_edge,
+                                          self.Sshape, self.nb_edge, stack=False)
+                else:
+                    P = self.convolve(self.Wel0, self.EA_input, H0, self.nb_node, self.nconv_edge,stack=False)
                 Hp = tf.concat([H0, P], 1)
                 self.hidden_layers=[Hp]
 
@@ -504,9 +512,10 @@ class GCNModelGraphList(object):
 
                 print('Hi_shape',Hi_.get_shape())
                 print('Hi prevous shape',self.hidden_layers[-1].get_shape())
-                #Emi = (tf.matmul(self.Wed_layers[i],self.EA_input))
-                if self.shared_We:
-                    P = self.convolve(self.Wel0, self.EA_input, Hi_, self.nb_node, self.nconv_edge,stack=self.stack_instead_add)
+
+                if self.fast_convolve:
+                    P = self.fastconvolve(self.Wed_layers[i], self.F, self.Ssparse, self.Tsparse, Hi_, self.nconv_edge,
+                                          self.Sshape, self.nb_edge, stack=self.stack_instead_add)
                 else:
                     P =self.convolve(self.Wed_layers[i],self.EA_input,Hi_,self.nb_node,self.nconv_edge,stack=self.stack_instead_add)
 
@@ -516,19 +525,12 @@ class GCNModelGraphList(object):
 
                 #Z=tf.reshape(Emi,tf.stack([self.nb_node,self.nb_node]))
                 print('P_shape',P.get_shape())
-                if self.stack_instead_add:
-                    #P= tf.matmul(Z,Hi_)
-                    Hp= tf.concat([Hi_,P],1)
-                    Hi=self.activation(Hp)
-                    Hi_shape= Hi.get_shape()
-                    print(Hi_shape)
-                    #Check this ! double
-                    #self.hidden_layers.append([Hi])
-                else:
-                    #Hp= tf.matmul(Z+I,Hi_)
-                    #Hp= P+Hi_ #Looks like it is going to break with multiple convolution here
-                    Hp = tf.concat([Hi_, P], 1)
-                    Hi=self.activation(Hp)
+
+
+                #Both stacking or Not  I stack the embedding
+                Hp = tf.concat([Hi_, P], 1)
+                Hi = self.activation(Hp)
+
 
                 #if self.residual_connection:
                 #    Hir = tf.add(self.hidden_layers[-1], Hi)
@@ -563,14 +565,12 @@ class GCNModelGraphList(object):
         #cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.A, labels=self.y_input)
 
         # Global L2 Regulization
-        if self.num_layers > 1:
-            in_layers_l2 = tf.add_n([tf.nn.l2_loss(v) for v in self.Wnode_layers]) * self.mu
-            self.loss = tf.reduce_mean(cross_entropy_source)  + self.mu * tf.nn.l2_loss(
-                self.W_classif) \
-                    + self.mu * tf.nn.l2_loss(Wnl0) + in_layers_l2
-        else:
-            self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(
-                self.W_classif) + self.mu * tf.nn.l2_loss(Wnl0)
+        #if self.num_layers > 1:
+            #in_layers_l2 = tf.add_n([tf.nn.l2_loss(v) for v in self.Wnode_layers]) * self.mu
+        self.loss = tf.reduce_mean(cross_entropy_source)  + self.mu * tf.nn.l2_loss(self.W_classif)
+            #        + self.mu * tf.nn.l2_loss(Wnl0) + in_layers_l2
+        #else:
+        #    self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(self.W_classif)
 
         #self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wedge)
 
@@ -583,12 +583,11 @@ class GCNModelGraphList(object):
             self.grads_and_vars = self.optalg.compute_gradients(self.loss)
 
             self.gv_Gn=[]
-            if self.stack_instead_add:
-                for grad, var in self.grads_and_vars:
-                    print(grad,var)
-                    if grad is not None:
-                        self.gv_Gn.append( ( tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)),var)    )
-
+            #if self.stack_instead_add:
+            #    for grad, var in self.grads_and_vars:
+            #        print(grad,var)
+            #        if grad is not None:
+            #            self.gv_Gn.append( ( tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)),var)    )
 
             #self.gv_Gn = [(tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)), val) for grad, val in self.grads_and_vars if  is not None]
 
@@ -633,35 +632,75 @@ class GCNModelGraphList(object):
         else:
             raise NotImplementedError
 
-    def train(self,session,n_node,X,EA,Y,NA,n_iter=1,verbose=False):
+    def train(self,session,graph,verbose=False,n_iter=1):
         #TrainEvalSet Here
         for i in range(n_iter):
             #print('Train',X.shape,EA.shape)
-            feed_batch={
-                        self.nb_node:n_node,
-                        self.node_input:X,
-                        self.EA_input:EA,
-                        self.y_input:Y,
-                        self.NA_input:NA,
-                        self.dropout_p: self.dropout_rate
-            }
+            if self.fast_convolve:
+                feed_batch = {
+
+                    self.nb_node: graph.X.shape[0],
+                    self.nb_edge: graph.F.shape[0],
+                    self.node_input: graph.X,
+                    #fast_gcn.S: np.asarray(graph.S.todense()).squeeze(),
+                    # fast_gcn.Ssparse: np.vstack([graph.S.row,graph.S.col]),
+                    self.Ssparse: np.array(graph.Sind, dtype='int64'),
+                    self.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
+                    self.Tsparse: np.array(graph.Tind, dtype='int64'),
+                    #fast_gcn.T: np.asarray(graph.T.todense()).squeeze(),
+                    self.F: graph.F,
+                    # fast_model.EA_input: graph.EA,
+                    self.y_input: graph.Y,
+                    # fast_model.NA_input: graph.NA,
+                    self.dropout_p: self.dropout_rate
+                }
+            else:
+
+                feed_batch={
+                            self.nb_node:graph.X.shape[0],
+                            self.node_input:graph.X,
+                            self.EA_input:graph.EA,
+                            self.y_input:graph.Y,
+                            self.NA_input:graph.NA,
+                            self.dropout_p: self.dropout_rate
+                }
             Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
             if verbose:
                 print('Training Loss',Ops[1])
 
 
 
-    def test(self,session,n_node,X,EA,Y,NA,verbose=True):
+    def test(self,session,graph,verbose=True):
         #TrainEvalSet Here
         #print('Test', X.shape, EA.shape)
-        feed_batch={
-                        self.nb_node:n_node,
-                        self.node_input:X,
-                        self.EA_input:EA,
-                        self.y_input:Y,
-                        self.NA_input:NA,
-                        self.dropout_p: 0.0
-        }
+        if self.fast_convolve:
+            feed_batch = {
+
+                self.nb_node: graph.X.shape[0],
+                self.nb_edge: graph.F.shape[0],
+                self.node_input: graph.X,
+                # fast_gcn.S: np.asarray(graph.S.todense()).squeeze(),
+                # fast_gcn.Ssparse: np.vstack([graph.S.row,graph.S.col]),
+                self.Ssparse: np.array(graph.Sind, dtype='int64'),
+                self.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
+                self.Tsparse: np.array(graph.Tind, dtype='int64'),
+                # fast_gcn.T: np.asarray(graph.T.todense()).squeeze(),
+                self.F: graph.F,
+                # fast_model.EA_input: graph.EA,
+                self.y_input: graph.Y,
+                # fast_model.NA_input: graph.NA,
+                self.dropout_p: self.dropout_rate
+            }
+        else:
+
+            feed_batch={
+                            self.nb_node:graph.X.shape[0],
+                            self.node_input:graph.X,
+                            self.EA_input:graph.EA,
+                            self.y_input:graph.Y,
+                            self.NA_input:graph.NA,
+                            self.dropout_p: 0.0
+            }
         Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
         if verbose:
             print('Test Loss',Ops[0],' Test Accuracy:',Ops[1])
@@ -670,44 +709,7 @@ class GCNModelGraphList(object):
 
     def train_lG(self,session,gcn_graph_train):
         for g in gcn_graph_train:
-            self.train(session, g.X.shape[0], g.X, g.EA, g.Y, g.NA, n_iter=1)
-
-
-    def train_batch_lG(self,session,gcn_graph_train,n_graph_batch=3):
-
-        ''' This does not seem to work
-        session.run(self.zero_ops)
-        for g in gcn_graph_train:
-
-            feed_batch = {
-                self.nb_node: g.X.shape[0],
-                self.node_input: g.X,
-                self.EA_input: g.EA,
-                self.y_input: g.Y,
-                self.NA_input: g.NA,
-                self.dropout_p: self.dropout_rate
-            }
-
-            Ops = session.run(self.accum_ops, feed_dict=feed_batch)
-            session.run(self.train_step_acc) #this shoudl be equivalent as previous method
-
-        #Here full batch
-        #session.run(self.train_step_acc)
-        '''
-        n_graph=len(gcn_graph_train)
-
-        index=range(n_graph)
-
-        for i in index:
-            g=gcn_graph_train[i]
-
-            j = random.randint(0,n_graph-1)
-            #if j==i:
-            #    j = i+1 if i<n_graph-1 else i-1
-            g_j =gcn_graph_train[j]
-            gc = gcn_datasets.GCNDataset.merge_graph(g, g_j)
-            #Could no multiple update here ...
-            self.train(session, gc.X.shape[0], gc.X, gc.EA, gc.Y, g.NA, n_iter=1)
+            self.train(session, g, n_iter=1)
 
 
 
@@ -723,7 +725,7 @@ class GCNModelGraphList(object):
         mean_acc_test = []
 
         for g in gcn_graph_test:
-            acc = self.test(session, g.X.shape[0], g.X, g.EA, g.Y, g.NA, verbose=False)
+            acc = self.test(session, g, verbose=False)
             mean_acc_test.append(acc)
             nb_node_total += g.X.shape[0]
             acc_tp += acc * g.X.shape[0]
@@ -783,7 +785,7 @@ class GCNModelGraphList(object):
             else:
                 random.shuffle(graph_train)
                 for g in graph_train:
-                    self.train(session, g.X.shape[0], g.X, g.EA, g.Y, g.NA, n_iter=1)
+                    self.train(session, g, n_iter=1)
 
         mean_acc = []
         print('Stopped Model Training after',stopped_iter)
