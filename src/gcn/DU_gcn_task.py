@@ -51,7 +51,8 @@ def _make_grid_qsub(grid_qsub=0):
         C={}
         for fold_id in [1,2,3,4]:
             #for config in [4,5]:
-            for config in [27,28,29]:
+            #for config in [27,28,29]:
+            for config in [31]:
             #for config in [3, 4]:
             #for config in [5]:
                 C[tid]=(fold_id,config)
@@ -413,6 +414,28 @@ def get_config(config_id=0):
         config['node_indim'] = -1  # INDIM =2 not working here
         config['nconv_edge'] = 20
 
+    elif config_id == 30:
+        # Same as 28 but with fast convolve
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.0
+        config['num_layers'] = 8
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 10
+        config['fast_convolve']=True
+
+    elif config_id == 31:
+        # Same as 28 but with fast convolve
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.001
+        config['num_layers'] = 8
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 10
+        config['fast_convolve']=True
+
 
     else:
         raise NotImplementedError
@@ -469,6 +492,9 @@ def run_model(gcn_graph, config_params, gcn_graph_test,eval_iter=10):
         if 'opti' in config_params:
             gcn_model.optalg=config_params['opti']
 
+        if 'fast_convolve' in config_params:
+            gcn_model.fast_convolve = config_params['fast_convolve']
+
         #print('################"')
         #print('## Decaying the learning Rate"')
         #print('################"')
@@ -500,7 +526,7 @@ def run_model(gcn_graph, config_params, gcn_graph_test,eval_iter=10):
 
 
                 for g in gcn_graph:
-                    gcn_model.train(session, g.X.shape[0], g.X, g.EA, g.Y, g.NA, n_iter=1)
+                    gcn_model.train(session, g, n_iter=1)
 
                 #print("Bigraph Train",'Adjacency Not set')
                 #gcn_model.train_batch_lG(session,gcn_graph)
@@ -554,6 +580,9 @@ def run_model_train_val_test(gcn_graph,
 
         gcn_model.stack_instead_add = config_params['stack_instead_add']
 
+        if 'fast_convolve' in config_params:
+            gcn_model.fast_convolve = config_params['fast_convolve']
+
         gcn_model.create_model()
 
 
@@ -579,9 +608,9 @@ def run_model_train_val_test(gcn_graph,
 
 
 def main_fold(foldid,configid,outdir):
-    pickle_train = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
+    pickle_train = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
         foldid) + '_tlXlY_trn.pkl'
-    pickle_test = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(foldid) + '_tlXlY_tst.pkl'
+    pickle_test = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(foldid) + '_tlXlY_tst.pkl'
 
     train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
     test_graph = GCNDataset.load_transkribus_pickle(pickle_test)
@@ -639,9 +668,9 @@ def main(_):
             print('Invalid Grid Parameters',FLAGS.qsub_taskid,GRID)
             return -1
         print('Experiement with FOLD',fold_id,' CONFIG',configid)
-        pickle_train = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
+        pickle_train = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
             fold_id) + '_tlXlY_trn.pkl'
-        pickle_test = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
+        pickle_test = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
             fold_id) + '_tlXlY_tst.pkl'
 
         train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
@@ -675,9 +704,9 @@ def main(_):
         else:
 
 
-            pickle_train = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
+            pickle_train = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
                 FLAGS.fold) + '_tlXlY_trn.pkl'
-            pickle_test = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(FLAGS.fold) + '_tlXlY_tst.pkl'
+            pickle_test = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(FLAGS.fold) + '_tlXlY_tst.pkl'
 
 
             train_graph = GCNDataset.load_transkribus_pickle(pickle_train)

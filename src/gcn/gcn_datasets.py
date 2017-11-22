@@ -64,8 +64,12 @@ class GCNDataset(object):
         S = sp.coo_matrix( (np.ones(nb_edge),([ int(i) for i in self.E[:,0]],edge_list)), shape=(nb_node, nb_edge))
         T = sp.coo_matrix( (np.ones(nb_edge),([ int(i) for i in self.E[:,1]],edge_list)), shape=(nb_node, nb_edge))
 
+        Sindices = np.array([[i, j] for i, j in zip(self.E[:,0],edge_list)], dtype='int64')
+        Tindices = np.array([[j, i] for i, j in zip(self.E[:,1], edge_list)],dtype='int64')
         self.S=S
+        self.Sind=Sindices
         self.T=T
+        self.Tind=Tindices
         self.F=self.E[:,2:]
         return S,T
 
