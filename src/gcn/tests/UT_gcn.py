@@ -32,7 +32,7 @@ from sklearn.preprocessing import LabelBinarizer,Normalizer
 from sklearn.linear_model import LogisticRegression
 from gcn.gcn_datasets import GCNDataset
 
-from gcn.gcn_models import GCNModel,GCNModelGraphList
+from gcn.gcn_models import DummyGCNModel,GCNModelGraphList
 
 def make_fake_gcn_dataset():
     '''
@@ -125,7 +125,7 @@ class UT_gcn(unittest.TestCase):
         dataset.load_pickle('iris_graph.pickle')
         dataset.print_stats()
 
-        gcn_model = GCNModel(dataset,num_layers=1,learning_rate=0.1)
+        gcn_model = DummyGCNModel(dataset, num_layers=1, learning_rate=0.1)
         #gcn_model.activation=tf.nn.softmax
         gcn_model.activation=tf.nn.relu
         #gcn_model.activation=tf.nn.sigmoid
@@ -133,7 +133,7 @@ class UT_gcn(unittest.TestCase):
 
         print(dataset.X)
         print(dataset.Y)
-        logit_model = GCNModel(dataset,num_layers=0,learning_rate=0.5,mu=0.0)
+        logit_model = DummyGCNModel(dataset, num_layers=0, learning_rate=0.5, mu=0.0)
         logit_model.activation=tf.nn.sigmoid
         logit_model.create_model()
 
@@ -213,14 +213,14 @@ class UT_gcn(unittest.TestCase):
         dataset.load_pickle('iris_graph.pickle')
         dataset.print_stats()
 
-        gcn_model = GCNModel(dataset,num_layers=1,learning_rate=0.1)
+        gcn_model = DummyGCNModel(dataset, num_layers=1, learning_rate=0.1)
         #gcn_model.activation=tf.nn.softmax
         gcn_model.activation=tf.nn.relu
         #gcn_model.activation=tf.nn.sigmoid
         gcn_model.create_model()
 
 
-        edge_model =GCNModel(dataset,num_layers=1,learning_rate=0.1)
+        edge_model =DummyGCNModel(dataset, num_layers=1, learning_rate=0.1)
         #gcn_model.activation=tf.nn.softmax
         edge_model.activation=tf.nn.relu
         edge_model.learn_edge=True
