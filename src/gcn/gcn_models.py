@@ -26,7 +26,11 @@ def init_normal(shape,stddev,name=None):
     return tf.Variable(initial, name=name)
 
 
-class GCNModel(object):
+class DummyGCNModel(object):
+    '''
+    First Implementation of GCN. Working only on a single graph.
+    This class was developped to perform the unit test on the iris dataset
+    '''
 
     def __init__(self,gcn_dataset,num_layers=1,learning_rate=0.1,mu=0.1):
 
@@ -35,7 +39,7 @@ class GCNModel(object):
         self.learning_rate=learning_rate
         self.activation=tf.nn.relu
         self.mu=mu
-        self.learn_edge=False
+        self.learn_edge=False #if false standard GCN, else it learning 1 convolutions for edges
 
     def create_model(self):
         self.node_dim= self.dataset.X.shape[1]
@@ -61,9 +65,11 @@ class GCNModel(object):
 
 
         nb_node = self.dataset.A.shape[0]
+
         if self.learn_edge:
 
             edge_dim= self.edge_dim
+            #Build the Edge-Adjacency Matrix. Very naive and stupid implemenation ...
             EA =np.zeros((edge_dim,(nb_node*nb_node)),dtype=np.float32)
 
             #Build a adjecency sparse matrix for the i_dim of the edge
@@ -81,12 +87,6 @@ class GCNModel(object):
             self.tf_EA=tf.constant(EA)
 
 
-        #print('X:',self.X.shape)
-        #print('Y:',self.Y.shape,' class distrib:',np.bincount(self.Y))
-        #print('A:',self.A.shape)
-        #print('E:',self.E.shape)
-
-        #TODO Do we project the firt layer or not ?
         # Initialize the weights and biases for a simple one full connected network
         self.W_classif = tf.Variable(tf.random_uniform((self.node_dim, self.n_classes),
                                                        -1.0 / math.sqrt(self.node_dim),
@@ -96,16 +96,13 @@ class GCNModel(object):
 
 
         self.H = self.activation(tf.add(tf.matmul(self.node_input,self.Wnode),self.Bnode))
-        #self.H = self.activation(tf.nn.dropout(tf.add(tf.matmul(self.node_input,self.Wnode),self.Bnode),keep_prob=0.8))
         self.hidden_layers=[self.H]
 
-        #Fixe
-        Dinv_ = np.diag(np.power(self.dataset.A.sum(axis=1),-0.5))
-        #Dinv  =tf.constant(Dinv_)
-        #A     =tf.constant(self.dataset.A)
 
+        #Computing here some constant matrix for the convolution of GCN Model
+        Dinv_ = np.diag(np.power(self.dataset.A.sum(axis=1),-0.5))
         N=tf.constant(np.dot(Dinv_,self.dataset.A+np.identity(self.dataset.A.shape[0]).dot(Dinv_)),dtype=np.float32)
-        print(N)
+
 
 
         if self.learn_edge:
@@ -121,15 +118,12 @@ class GCNModel(object):
                 Hi = self.activation(tf.matmul(N,Hi_)+Hi_)
                 self.hidden_layers.append(Hi)
 
-        #Wrong Here ....
-        #self.logits = self.activation(tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif))
-        self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
-        #Le code rajoute du Dropout aussi
 
-        #cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(self.logits, self.y_input)
+        self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
+
+
         cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
-        #cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
-        #TODO Add L2 Regularization  for Wedge and Node ...
+
         self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wedge)
 
 
@@ -137,9 +131,9 @@ class GCNModel(object):
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
 
-        self.optalg = tf.train.AdagradOptimizer(self.learning_rate)
-        #self.optalg = tf.train.AdamOptimizer(self.learning_rate)
-        #self.optalg = tf.train.GradientDescentOptimizer(self.learning_rate)
+        #self.optalg = tf.train.AdagradOptimizer(self.learning_rate)
+        self.optalg = tf.train.AdamOptimizer(self.learning_rate)
+
         self.grads_and_vars = self.optalg.compute_gradients(self.loss)
         self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
 
@@ -147,8 +141,7 @@ class GCNModel(object):
         # Add ops to save and restore all the variables.
         self.init = tf.global_variables_initializer()
 
-    #We do not use the edge features here
-    #todo add a distance on the edge
+
     def train(self,session,n_iter=10):
         #TrainEvalSet Here
         for i in range(n_iter):
@@ -157,13 +150,16 @@ class GCNModel(object):
             }
             Ops =session.run([self.train_step,self.loss,self.accuracy], feed_dict=feed_batch)
             print('Training Loss',Ops[1],'Accuracy:',Ops[2])
-    #TODO Predict
 
 
 
 
 
 class GCNModelGraphList(object):
+    '''
+    Edge-GCN Model for a graph list
+    '''
+
     def __init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1,node_indim=-1,nconv_edge=1,
                  residual_connection=False,shared_We=False,dropout_rate=0.0,dropout_mode=0):
         self.node_dim=node_dim
@@ -181,7 +177,7 @@ class GCNModelGraphList(object):
         self.shared_We = shared_We
         self.dropout_rate=dropout_rate
         self.dropout_mode=0
-        self.optim_mode=0
+        self.optim_mode=0 #deprecated
         self.fast_convolve=False
         self.init_fixed=False
 
@@ -192,91 +188,61 @@ class GCNModelGraphList(object):
 
 
     def fastconvolve(self,Wedge,F,S,T,H,nconv,Sshape,nb_edge,stack=True):
-        print('Fast Convolve')
+        '''
+
+        :param Wedge: Parameter matrix for edge convolution, with hape (n_conv_edge,edge_dim)
+        :param F: The Edge Feature Matrix
+        :param S: the Source (Node,Edge) matrix in sparse format
+        :param T: the Target (Node,Edge) matrix in sparse format
+        :param H: The current node layer
+        :param nconv: The numbder of edge convolutions.
+        :param Sshape: The shapeof matrix S, and T
+        :param nb_edge: The number of edges
+        :param stack: whether to concat all the convolutions or add them
+        :return: a tensor P of shape ( nconv, node_dim) if stack else P is [node_dim]
+        '''
 
         #F is n_edge time nconv
-        #What is faster here on GPU or cpu
         FW= tf.matmul(F,Wedge,transpose_b=True)
         self.conv =tf.unstack(FW,axis=1)
         Cops=[]
 
-        #conv=[]
-        #for i in range(nconv):
-        #    #Fwi=tf.matmul(F,tf.expand_dims(Wedge[i],0))
-        #    Fwi = tf.matmul(tf.expand_dims(Wedge[i],0),F,transpose_b=True)
-        #    conv.append(tf.squeeze(Fwi))
-
-        # FW= tf.matmul(F,Wedge,transpose_b=True)
-        # conv= tf.split(FW, nconv, 1)
-        # conv =tf.unstack(FW,axis=1)
-
-
-        '''
-        #Compute TPi ones.
-        #T is nb_node * edge, H is nb_node time
-        TP=tf.matmul(T,H,a_is_sparse=False,transpose_a=True) #check for  matmul operations
-        #it should have shape nb_edge*node_dim
-        print('TP',TP.get_shape())
-        for i,cw in enumerate(conv):
-            Hic_left = tf.matmul(S,tf.diag(cw),name='matmulS')
-            print(Hic_left)
-            Hi = tf.matmul(Hic_left,TP,name='TP')
-            Cops.append(Hi)
-        '''
-
-
-        '''
-        TP = tf.matmul(T, H, a_is_sparse=False, transpose_a=True)  # check for  matmul operations
-        #D =tf.matrix_diag(conv)
-        #for i in range(nconv):
-        for i, cw in enumerate(self.conv):
-            Hic_left = tf.multiply(S, cw, name='matmulS') #This does the broadcasting
-            self.Z = tf.matmul(Hic_left,T,transpose_b=True)
-            Hi = tf.matmul(Hic_left, TP, name='TP')
-
-            Cops.append(Hi)
-        '''
-
-
-
-
-        #of course if we add we coudl do that simpler
-        #Already transpose here
-        #Tr = tf.SparseTensor(indices=T, values=tf.ones([nb_edge],dtype=tf.float32), dense_shape=Sshape)
-        #TP = tf.sparse_tensor_dense_matmul(tf.sparse_transpose(Tr), H)
+        #Here we transospose the target tensor direclty
         Tr = tf.SparseTensor(indices=T, values=tf.ones([nb_edge], dtype=tf.float32), dense_shape=[Sshape[1],Sshape[0]])
         Tr = tf.sparse_reorder(Tr)
         TP = tf.sparse_tensor_dense_matmul(Tr,H)
-        #TP = tf.matmul(T, H, a_is_sparse=False, transpose_a=True,name='TP')  # check for  matmul operations
+
         for i, cw in enumerate(self.conv):
             #SD= tf.SparseTensor(indices=S,values=cw,dense_shape=[nb_node,nb_edge])
-            # SOME BUG Here, this is more efficient  but I have to pay attentiion
-            # to the ordering of edges and
-
+            #Warning, pay attention to the ordering of edges
             SD = tf.SparseTensor(indices=S, values=cw, dense_shape=Sshape)
             SD =tf.sparse_reorder(SD)
-            self.Z =tf.sparse_tensor_to_dense(SD,validate_indices=False)
-            #self.Z = tf.matmul(tf.sparse_tensor_to_dense(SD), tf.sparse_tensor_to_dense(Tr), transpose_b=False)
-            #sdr=tf.sparse_reorder(self.SD)
             Hi =tf.sparse_tensor_dense_matmul(SD,TP)
-            #Hi = tf.matmul(SD, TP, name='TP',a_is_sparse=True)
             Cops.append(Hi)
 
-
         if stack is True:
+            #If stack we concatenate all the different convolutions
             P=tf.concat(Cops,1)
         else:
-            #Add
-            #TODO Maybe use the mean here
-            #Take the mean and concat instead of adding
-            #Less Parameters
+            #Else we take the mean
             P=1.0/(tf.cast(nconv,tf.float32))*tf.add_n(Cops)
-            print('p_add_n',P.get_shape())
+            #print('p_add_n',P.get_shape())
         return P
 
 
 
     def convolve(self,Wedge,EA,H,nb_node,nconv,stack=True):
+        '''
+        Old and Inefficient way to compute the convolution.
+        :param Wedge: Parameter matrix for edge convolution, with hape (n_conv_edge,edge_dim)
+        :param EA: the dense edge adjancency matrix
+        :param H: The current layer
+        :param nb_node:
+        :param nconv:
+        :param stack:
+        :return:
+        '''
+
         print('Convolve')
         Em =(tf.matmul(Wedge,EA))
         print('EM',Em.get_shape())
@@ -322,20 +288,6 @@ class GCNModelGraphList(object):
 
 
         std_dev_in=float(1.0/ float(self.node_dim))
-        #self.Wnode  = tf.Variable(np.identity(self.node_dim, dtype=np.float32), name='Wnode')
-        #self.Wnode= tf.Variable(tf.random_normal([self.node_dim,self.node_dim],mean=0.0,stddev=std_dev_in, dtype=np.float32), name='Wnode')
-        #self.Bnode = tf.Variable(tf.zeros([self.node_dim]), name='Bnode',dtype=np.float32)
-
-        #Try changing init_normal by init_glorot ...
-        #self.Wedge  = tf.Variable(tf.random_normal( [int(self.nconv_edge),int(self.edge_dim)],mean=0.0,stddev=1.0), dtype=tf.float32, name='Wedge')
-        #self.Wedge  = tf.Variable(tf.ones([self.nconv_edge,self.edge_dim], dtype=np.float32, name='Wedge'))
-
-        #self.Wedge_logit = init_glorot([int(self.n_classes), int(self.edge_dim)], name='Wedge_logit')
-        #self.Wedge_logit = init_glorot([1, int(self.edge_dim)], name='Wedge_logit')
-        #self.Yt          = init_glorot([int(self.n_classes), int(self.n_classes)], name='Yt')
-
-        #self.Bedge = tf.Variable(tf.zeros([self.edge_dim]), name='Bedge',dtype=np.float32)
-
 
         self.Wnode_layers=[]
         self.Bnode_layers=[]
@@ -381,7 +333,6 @@ class GCNModelGraphList(object):
             Weli= init_glorot([int(self.nconv_edge), int(self.edge_dim)], name='Wel_')
             #Weli = tf.Variable(tf.random_normal([int(self.nconv_edge), int(self.edge_dim)], mean=0.0, stddev=1.0),
             #                   dtype=np.float32, name='Wel_')
-
             #Beli = tf.Variable(tf.zeros([self.edge_dim]), name='Bel'+str(i),dtype=tf.float32)
 
             self.Wnode_layers.append(Wnli)
@@ -565,54 +516,37 @@ class GCNModelGraphList(object):
         #cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.A, labels=self.y_input)
 
         # Global L2 Regulization
-        #if self.num_layers > 1:
-            #in_layers_l2 = tf.add_n([tf.nn.l2_loss(v) for v in self.Wnode_layers]) * self.mu
         self.loss = tf.reduce_mean(cross_entropy_source)  + self.mu * tf.nn.l2_loss(self.W_classif)
-            #        + self.mu * tf.nn.l2_loss(Wnl0) + in_layers_l2
-        #else:
-        #    self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(self.W_classif)
-
-        #self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wedge)
 
 
         self.correct_prediction = tf.equal(tf.argmax(tf.nn.softmax(self.logits), 1), tf.argmax(self.y_input, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
-        if self.optim_mode==0:
 
-            self.grads_and_vars = self.optalg.compute_gradients(self.loss)
+        self.grads_and_vars = self.optalg.compute_gradients(self.loss)
 
-            self.gv_Gn=[]
-            #if self.stack_instead_add:
-            #    for grad, var in self.grads_and_vars:
-            #        print(grad,var)
-            #        if grad is not None:
-            #            self.gv_Gn.append( ( tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)),var)    )
+        self.gv_Gn=[]
+        #Do gradient noise later
+        #if self.stack_instead_add:
+        #    for grad, var in self.grads_and_vars:
+        #        print(grad,var)
+        #        if grad is not None:
+        #            self.gv_Gn.append( ( tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)),var)    )
 
-            #self.gv_Gn = [(tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)), val) for grad, val in self.grads_and_vars if  is not None]
+        #self.gv_Gn = [(tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)), val) for grad, val in self.grads_and_vars if  is not None]
 
 
-            self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
-            #self.train_step = self.optalg.apply_gradients(self.gv_Gn)
+        self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
+        #self.train_step = self.optalg.apply_gradients(self.gv_Gn)
 
-            #self.tvs = tf.traina
-            #Does it change the dynamics of addgrad here ?
-            #if self.stack_instead_add:
-                #self.accum_vars = [tf.Variable(tf.zeros_like(tv.initialized_value()), trainable=False) for g,tv in self.grads_and_vars]
-                #self.zero_ops = [tv.assign(tf.zeros_like(tv)) for tv in self.accum_vars]
-                #self.accum_ops = [self.accum_vars[i].assign_add(gv[0]) for i, gv in enumerate(self.grads_and_vars)]
+        #self.tvs = tf.traina
+        #Does it change the dynamics of addgrad here ?
+        #if self.stack_instead_add:
+            #self.accum_vars = [tf.Variable(tf.zeros_like(tv.initialized_value()), trainable=False) for g,tv in self.grads_and_vars]
+            #self.zero_ops = [tv.assign(tf.zeros_like(tv)) for tv in self.accum_vars]
+            #self.accum_ops = [self.accum_vars[i].assign_add(gv[0]) for i, gv in enumerate(self.grads_and_vars)]
 
-                #self.train_step_acc = self.optalg.apply_gradients([(self.accum_vars[i], gv[1]) for i, gv in enumerate(self.grads_and_vars)])
-
-        elif self.optim_mode==1:
-            step = tf.Variable(0, trainable=False)
-            #rate = tf.train.exponential_decay(self.learning_rate, step, 1, 0.9999)
-            rate = tf.train.exponential_decay(self.learning_rate, step, 1000, 0.9)
-            self.train_step = tf.train.AdamOptimizer(rate).minimize(self.loss, global_step=step)
-
-        else:
-            raise ValueError('Invalide Optim Options')
-
+            #self.train_step_acc = self.optalg.apply_gradients([(self.accum_vars[i], gv[1]) for i, gv in enumerate(self.grads_and_vars)])
 
         # Add ops to save and restore all the variables.
         self.init = tf.global_variables_initializer()
@@ -708,6 +642,12 @@ class GCNModelGraphList(object):
 
 
     def train_lG(self,session,gcn_graph_train):
+        '''
+        Train an a list of graph
+        :param session:
+        :param gcn_graph_train:
+        :return:
+        '''
         for g in gcn_graph_train:
             self.train(session, g, n_iter=1)
 
@@ -1108,7 +1048,7 @@ class EdgeSnake(GCNModelGraphList):
 
 class GCNBaselineGraphList(object):
     '''
-    Class for A Deep Standard GCN model for a graph list
+    A Deep Standard GCN model for a graph list
     '''
     def __init__(self,node_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1,node_indim=-1,
                  dropout_rate=0.0,dropout_mode=0):

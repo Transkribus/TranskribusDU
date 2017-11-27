@@ -498,7 +498,7 @@ def run_model(gcn_graph, config_params, gcn_graph_test,eval_iter=10):
         #print('################"')
         #print('## Decaying the learning Rate"')
         #print('################"')
-        gcn_model.optim_mode=0
+        gcn_model.optim_mode=0 #Deprecated TODO REMOVE
         gcn_model.create_model()
 
 
