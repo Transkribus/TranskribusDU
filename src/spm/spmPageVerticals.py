@@ -1082,9 +1082,11 @@ class pageVerticalMiner(Component.Component):
         lSortedFeatures = seqGen.featureGeneration(lPages,2)
         for cf in lSortedFeatures:
             # weights must not be too large ecause theyv are used in np.obs  (max=64000)
-            cf.setWeight(sum(x.getHeight() * x.getWidth() for x in cf.getNodes())/64000)
+#             cf.setWeight(sum(x.getHeight() * x.getWidth() for x in cf.getNodes())/64000)
+            cf.setWeight(sum(x.getHeight() for x in cf.getNodes())/64000)
+#             cf.setWeight(1)
 #             cf.setWeight(len(cf.getNodes()))
-#             print cf, cf.getWeight(),len(cf.getNodes()) # map(lambda x:x.getX(),cf.getNodes())
+            #print cf, cf.getWeight(),len(cf.getNodes()) # map(lambda x:x.getX(),cf.getNodes())
 #         print lSortedFeatures                      
         for _,p in enumerate(lPages):
             p.lFeatureForParsing = p.getCanonicalFeatures() 
