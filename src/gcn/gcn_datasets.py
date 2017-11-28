@@ -10,12 +10,15 @@ import gzip
 import scipy.sparse as sp
 
 class GCNDataset(object):
+    '''
+    The graph object needed for Edge GCN
+    '''
 
     def __init__(self,dataname):
         self.name=dataname
-        self.X=None  #Correspond F_n^0 ; node features
-        self.E=None  #Correspond F_e^0 Edge Feature Matrix E[:,0] input_node, E[:,1] output_node, the remaining columns are edge features
-        self.A=None  #Correspond to N in JL notation, Adjacency Matrix
+        self.X=None  #Node Features Matrix shape (n_node,nb_feat)
+        self.E=None  #Edge Matrix E[:,0] input_node, E[:,1] output_node, the remaining columns are edge features
+        self.A=None  #Adjanceny Matrix
         self.Y=None  #Labels for the node in 1 sall format ie is a matrix n_node time n_label
 
     def load_pickle(self,pickle_fname):
@@ -37,7 +40,12 @@ class GCNDataset(object):
         print('A:',self.A.shape)
         print('E:',self.E.shape)
 
+    #TODO Remove
     def compute_EA(self):
+        '''
+        Compute the Edge Adjanceny Matrix
+        :return:
+        '''
         edge_dim= self.E.shape[1]-2
         nb_node=self.X.shape[0]
         EA =np.zeros((edge_dim,(nb_node*nb_node)),dtype=np.float32)
@@ -56,6 +64,10 @@ class GCNDataset(object):
 
 
     def compute_NodeEdgeMat(self):
+        '''
+        initialize matrix S and T where S indicates the source node for edges and T indicates the target node for edges
+        :return:
+        '''
         nb_edge = self.E.shape[0]
         nb_node = self.X.shape[0]
 
@@ -80,25 +92,22 @@ class GCNDataset(object):
         Compute a normalized adjacency matrix as in the original GCN Model
         :return:
         '''
-        # Should Compute that once for each graph
         # Here we add 1.0 and the identity matrix to account for the self-loop
         degree_vect=np.asarray(self.A.sum(axis=1)).squeeze()
         #print(degree_vect)
         Dinv_ = np.diag(np.power(1.0+degree_vect,-0.5))
         self.Dinv=Dinv_
-        #print(Dinv_.shape)
-        #print(self.A.shape)
-        #Check how this dot deals with the matrix multiplication with sparse matrix
-        #TODO
+
+        #TODO Check how this dot deals with the matrix multiplication with sparse matrix
         N = np.dot(Dinv_, self.A + np.identity(self.A.shape[0]).dot(Dinv_))
         self.NA=N
 
     def normalize(self):
+        '''
+        Normalize the node feature matrix
+        :return:
+        '''
         l2_normalizer =Normalizer()
-        self.X=l2_normalizer.fit_transform(self.X)
-
-        edge_normalizer=Normalizer()
-        #Normalize EA
         self.X=l2_normalizer.fit_transform(self.X)
 
 
@@ -106,6 +115,13 @@ class GCNDataset(object):
 
     @staticmethod
     def load_transkribus_pickle(pickle_fname,is_zipped=True,sym_edge=True):
+        '''
+        Loas existing pickle file used with CRF in the Transkribus project
+        :param pickle_fname:
+        :param is_zipped:
+        :param sym_edge:
+        :return:
+        '''
         gcn_list=[]
 
         if is_zipped:
@@ -175,7 +191,11 @@ class GCNDataset(object):
 
     @staticmethod
     def load_snake_pickle(pickle_fname):
-
+        '''
+        Load the snake pickle
+        :param pickle_fname:
+        :return:
+        '''
         #return GCNDataset.load_transkribus_pickle(pickle_fname,is_zipped=False)
         #return GCNDataset.load_transkribus_pickle(pickle_fname, is_zipped=False,sym_edge=False)
 
@@ -267,7 +287,12 @@ class GCNDataset(object):
 
     @staticmethod
     def merge_graph(graph_a,graph_b):
-
+        '''
+        Merge two graph
+        :param graph_a:
+        :param graph_b:
+        :return:
+        '''
         graph = GCNDataset('Union_'+graph_a.name+':'+graph_b.name)
 
         graph.X = np.vstack((graph_a.X,graph_b.X))
