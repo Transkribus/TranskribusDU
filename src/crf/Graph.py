@@ -31,6 +31,7 @@ import numpy as np
 import libxml2
 
 from common.trace import traceln
+from xml_formats.PageXml import PageXmlException
 
 import Edge
 from crf.Edge import SamePageEdge
@@ -122,7 +123,10 @@ class Graph:
         for nd in self.lNode:
             nodeType = nd.type 
             #a LabelSet object knows how to parse a DOM node of a Graph object!!
-            sLabel = nodeType.parseDomNodeLabel(nd.node)
+            try:
+                sLabel = nodeType.parseDomNodeLabel(nd.node)
+            except PageXmlException:
+                sLabel='TR_OTHER'
             try:
                 cls = self._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
             except KeyError:

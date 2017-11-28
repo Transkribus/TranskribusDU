@@ -65,7 +65,19 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
             self.setBaseline(b)
         
         ctxt = domNode.doc.xpathNewContext()
-        ctxt.setContextNode(domNode)        
+        ctxt.setContextNode(domNode)   
+        
+        # if directly text
+        child = domNode.children
+        ## if no text: add a category: text, graphic, image, whitespace??
+        while child:
+            if child.type == 'text':
+                if self.getContent() is not None:
+                    self.addContent(child.getContent().decode("UTF-8"))
+                else:
+                    self.setContent(child.getContent().decode("UTF-8"))
+            child=child.next 
+             
         ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sTOKEN))
         for elt in ldomElts:
             try:

@@ -167,7 +167,7 @@ class DeepTagger():
         ])     
         
          
-    def load_data_Mutlitype(self,lFName):
+    def load_data_Multitype(self,lFName):
         """
             load data as training data (x,y)
             nbClasses must be known!
@@ -729,7 +729,7 @@ class DeepTagger():
             
             
         if self.bMultiType and self.bTraining:
-            lX, lY = self.load_data_Mutlitype(self.lTrain)
+            lX, lY = self.load_data_Multitype(self.lTrain)
             model, other = self.training_multitype((lX,lY))
             # store
             self.storeModel(model,other)

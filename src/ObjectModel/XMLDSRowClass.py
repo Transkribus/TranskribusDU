@@ -31,6 +31,7 @@ class  XMLDSTABLEROWClass(XMLDSObjectClass):
     def __str__(self):
         return "%s %s"%(self.getName(),self.getIndex())          
         
+    def getID(self): return self.getIndex()
     def getIndex(self): return self._index
     def setIndex(self,i): self._index = i
     

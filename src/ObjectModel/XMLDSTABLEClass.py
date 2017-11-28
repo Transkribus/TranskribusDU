@@ -146,7 +146,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         return col
     
     
-    def createRowsWithCuts(self,lYCuts):
+    def createRowsWithCuts(self,lYCuts,bTakeAll=False):
         """
             input: a table and cells
             output: list of rows populated with appropriate cells  (main overlap)
@@ -158,38 +158,49 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         self._lrows = []
         lCells =self.getCells()
         prevCut = self.getY()
-        lYCuts.sort(key = lambda x:x.getValue())
-        irowIndex=0
+        # 
+        try:lYCuts = map(lambda x:x.getValue(),lYCuts)
+        except:pass
+            
+        irowIndex = 0
         for irow,cut in enumerate(lYCuts):
             row= XMLDSTABLEROWClass(irowIndex)
             row.setParent(self)
             row.addAttribute('y',prevCut)
             # row too narow from table border
-            if cut.getValue()-prevCut > 0:
-                row.addAttribute('height',cut.getValue()-prevCut)
+#             if cut.getValue()-prevCut > 0:
+            if bTakeAll or cut - prevCut > 0:
+#                 row.addAttribute('height',cut.getValue()-prevCut)
+                row.addAttribute('height',cut - prevCut)
                 row.addAttribute('x',self.getX())
                 row.addAttribute('width',self.getWidth())
                 row.tagMe()
                 for c in lCells:
                     if c.overlap(row):
                         row.addObject(c)      
-                        c.setIndex(irow,c.getIndex()[1])
+                        c.setIndex(irowIndex,c.getIndex()[1])
+#                         print irow,c.getIndex()
                         row.addCell(c)
                 self.addRow(row)
                 irowIndex+=1                
             else:
                 del(row)
-            prevCut= cut.getValue()
+#             prevCut= cut.getValue()
+            prevCut= cut
+            
         #last row
 #         if lYCuts != []:
 
-        row= XMLDSTABLEROWClass(irow)
+        row= XMLDSTABLEROWClass(irowIndex)
         row.setParent(self)
         row.addAttribute('y',prevCut)
         row.addAttribute('height',self.getY2()-prevCut)
         row.addAttribute('x',self.getX())
         row.addAttribute('width',self.getWidth())
+        row.addAttribute('index',row.getIndex())
+
         row.tagMe()
+        
         for c in lCells:
             if c.overlap(row):
                 row.addObject(c)      
@@ -226,7 +237,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
             [ lTexts.extend(colcell.getObjects()) for colcell in col.getObjects()]
             # texts tagged OTHER as well? 
             for irow, row in enumerate(self.getRows()):
-#                 print row, row.getObjects()
+#                 print icol,irow,row, row.getObjects()
 #                 print 'cell:', col.getX(),row.getY(),col.getX2(),row.getY2()
                 cell=XMLDSTABLECELLClass()
                 lCells.append(cell)
@@ -237,13 +248,6 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 cell.setIndex(irow, icol)
                 cell.setPage(self.getPage())
                 cell.setParent(self)
-#                 for colcell in col.getObjects():
-# #                     print colcell,colcell.signedRatioOverlap(cell), colcell.overlap(cell)
-#                     if colcell.signedRatioOverlap(cell):
-#                         cell.setObjectsList(colcell.getObjects()[:])
-#                         for o in cell.getObjects():
-#                             o.setParent(cell)
-
             # find the best assignment of each text
             for text in lTexts:
                 cell = text.bestRegionsAssignment(lCells)
@@ -264,7 +268,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         for cell in self.getCells():
             cell.tagMe2()
             for o in cell.getObjects():
-#                 print o, o.getParent(), o.getParent().getNode()
+#                 print o, o.getContent(),o.getParent(), o.getParent().getNode()
                 try:o.tagMe()
                 except AttributeError:pass
         

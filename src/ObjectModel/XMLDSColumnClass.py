@@ -33,7 +33,7 @@ from config import ds_xml_def as ds_xml
 
 class  XMLDSTABLECOLUMNClass(XMLDSObjectClass):
     """
-        LINE class
+        Column class
     """
     name = ds_xml.sCOL_Elt
     def __init__(self,index=None,domNode = None):
