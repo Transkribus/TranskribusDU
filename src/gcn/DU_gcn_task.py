@@ -444,7 +444,7 @@ def get_config(config_id=0):
 
     return config
 
-
+#TODO Remove, Deprecated
 def run_model(gcn_graph, config_params, gcn_graph_test,eval_iter=10):
     g_1 = tf.Graph()
     with g_1.as_default():
@@ -611,6 +611,13 @@ def run_model_train_val_test(gcn_graph,
 
 
 def main_fold(foldid,configid,outdir):
+    '''
+    Simple Fold experiment, loading one fold, train and test
+    :param foldid:
+    :param configid:
+    :param outdir:
+    :return:
+    '''
     pickle_train = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
         foldid) + '_tlXlY_trn.pkl'
     pickle_test = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(foldid) + '_tlXlY_tst.pkl'
@@ -628,11 +635,6 @@ def main_fold(foldid,configid,outdir):
                              test_graph,
                              outpicklefname)
 
-
-    #To be improved ....the file result
-    #mean_acc=np.mean(acc_test)
-    #fresult_fname=os.path.join(outdir,'fold_'+str(foldid)+'_configid_'+str(configid)+'_acc_'+str(mean_acc))
-    #os.system( 'touch '+fresult_fname)
 
 
 def main(_):

@@ -2,8 +2,6 @@
 """
 @author: Stéphane Clinchant
 
-Code for Original GCN is in /opt/MLS_db/usr/sclincha/GraphConvolutionNets/gcn
-
 """
 
 import tensorflow as tf
@@ -11,7 +9,6 @@ import math
 import numpy as np
 import scipy.sparse as sp
 import random
-#import gcn_datasets
 
 
 def init_glorot(shape, name=None):
@@ -230,7 +227,7 @@ class GCNModelGraphList(object):
         return P
 
 
-
+    #TODO Remove from the code and keep the faster way to convolve
     def convolve(self,Wedge,EA,H,nb_node,nconv,stack=True):
         '''
         Old and Inefficient way to compute the convolution.
@@ -499,6 +496,7 @@ class GCNModelGraphList(object):
 
 
         #print('Logits ...')
+        #TODO Convolve Logits and learn a transition matrix
         #print(self.logits_.get_shape())
         #Convolve the Logits as well
         #works only with 1 convolve
@@ -527,7 +525,7 @@ class GCNModelGraphList(object):
         self.grads_and_vars = self.optalg.compute_gradients(self.loss)
 
         self.gv_Gn=[]
-        #Do gradient noise later
+        #TODO Experiment with gradient noise
         #if self.stack_instead_add:
         #    for grad, var in self.grads_and_vars:
         #        print(grad,var)
@@ -536,18 +534,8 @@ class GCNModelGraphList(object):
 
         #self.gv_Gn = [(tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)), val) for grad, val in self.grads_and_vars if  is not None]
 
-
         self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
-        #self.train_step = self.optalg.apply_gradients(self.gv_Gn)
 
-        #self.tvs = tf.traina
-        #Does it change the dynamics of addgrad here ?
-        #if self.stack_instead_add:
-            #self.accum_vars = [tf.Variable(tf.zeros_like(tv.initialized_value()), trainable=False) for g,tv in self.grads_and_vars]
-            #self.zero_ops = [tv.assign(tf.zeros_like(tv)) for tv in self.accum_vars]
-            #self.accum_ops = [self.accum_vars[i].assign_add(gv[0]) for i, gv in enumerate(self.grads_and_vars)]
-
-            #self.train_step_acc = self.optalg.apply_gradients([(self.accum_vars[i], gv[1]) for i, gv in enumerate(self.grads_and_vars)])
 
         # Add ops to save and restore all the variables.
         self.init = tf.global_variables_initializer()
@@ -563,6 +551,11 @@ class GCNModelGraphList(object):
 
 
     def get_Wedge(self,session):
+        '''
+        Return the parameters for the Edge Convolutions
+        :param session:
+        :return:
+        '''
         if self.num_layers>1:
             L0=session.run([self.Wel0,self.Wed_layers])
             We0=L0[0]
@@ -574,6 +567,14 @@ class GCNModelGraphList(object):
             raise NotImplementedError
 
     def train(self,session,graph,verbose=False,n_iter=1):
+        '''
+        Apply a train operation, ie sgd step for a single graph
+        :param session:
+        :param graph: a graph from GCN_Dataset
+        :param verbose:
+        :param n_iter: (default 1) number of steps to perform sgd for this graph
+        :return:
+        '''
         #TrainEvalSet Here
         for i in range(n_iter):
             #print('Train',X.shape,EA.shape)
@@ -612,8 +613,13 @@ class GCNModelGraphList(object):
 
 
     def test(self,session,graph,verbose=True):
-        #TrainEvalSet Here
-        #print('Test', X.shape, EA.shape)
+        '''
+        Test return the loss and accuracy for the graph passed as argument
+        :param session:
+        :param graph:
+        :param verbose:
+        :return:
+        '''
         if self.fast_convolve:
             feed_batch = {
 
@@ -649,6 +655,13 @@ class GCNModelGraphList(object):
 
 
     def predict(self,session,graph,verbose=True):
+        '''
+        Does the prediction
+        :param session:
+        :param graph:
+        :param verbose:
+        :return:
+        '''
         if self.fast_convolve:
             feed_batch = {
                 self.nb_node: graph.X.shape[0],
@@ -734,6 +747,21 @@ class GCNModelGraphList(object):
 
 
     def train_with_validation_set(self,session,graph_train,graph_val,max_iter,eval_iter=10,patience=7,graph_test=None,save_model_path=None):
+        '''
+        Implements training with a validation set
+        The model is trained and accuracy is measure on a validation sets
+        In addition, the model can be save and one can perform early stopping thanks to the patience argument
+
+        :param session:
+        :param graph_train: the list of graph to train on
+        :param graph_val:   the list of graph used for validation
+        :param max_iter:  maximum number of epochs
+        :param eval_iter: evaluate every eval_iter
+        :param patience: stopped training if accuracy is not improved on the validation set after patience_value
+        :param graph_test: Optional. If a test set is provided, then accuracy on the test set is reported
+        :param save_model_path: checkpoints filename to save the model.
+        :return: A Dictionary with training accuracies, validations accuracies and test accuracies if any, and the Wedge parameters
+        '''
         best_val_acc=0.0
         wait=0
         stop_training=False
@@ -816,6 +844,9 @@ class GCNModelGraphList(object):
 
 #TODO UnitTest on EdgeSnake
 class EdgeSnake(GCNModelGraphList):
+    '''
+    A subclass of Edge GCN models for the Snake Problem
+    '''
     def __init__(self, node_dim, edge_dim, nb_classes, num_layers=1, learning_rate=0.1, mu=0.1, node_indim=-1,
                  nconv_edge=1,
                  residual_connection=False, shared_We=False, dropout_rate=0.0, dropout_mode=0):
