@@ -35,8 +35,7 @@ from sklearn.utils.class_weight import compute_class_weight
 from common.trace import  traceln
 from common.chrono import chronoOn, chronoOff
 
-from TestReport import TestReport,RankingReport,TestReportConfusion
-from sklearn.metrics import average_precision_score
+from TestReport import TestReport, TestReportConfusion
 
 import scipy.sparse as sp
 class ModelException(Exception):
@@ -63,6 +62,7 @@ class Model:
         self._edge_transformer   = None
         
         self._lMdlBaseline       = []  #contains possibly empty list of models
+        self.bTrainEdgeBaseline  = False
         
         self._nbClass = None
             
@@ -81,7 +81,9 @@ class Model:
         return os.path.join(self.sDir, self.sName+"_config.json")
     def getBaselineFilename(self):
         return os.path.join(self.sDir, self.sName+"_baselines.pkl")
-    
+    def getTrainDataFilename(self, name):
+        return os.path.join(self.sDir, self.sName+"_tlXlY_%s.pkl"%name)
+        
     @classmethod
     def _getParamsFilename(cls, sDir, sName):
         return os.path.join(sDir, sName+"_params.json")
@@ -110,7 +112,6 @@ class Model:
         sBaselineFile = self.getBaselineFilename()
         try:
             self._lMdlBaseline =  self._loadIfFresh(sBaselineFile, expiration_timestamp, self.gzip_cPickle_load)
-            self.loadTransformers(expiration_timestamp) #Fix this
         except ModelException:
             traceln('no baseline model found : %s' %(sBaselineFile)) 
         self.loadTransformers(expiration_timestamp)
@@ -294,14 +295,20 @@ class Model:
         if self._lMdlBaseline:
             X_flat =self._get_X_flat(lX)
             Y_flat = np.hstack(lY)
+            with open("XY_flat.pkl", "wb") as fd: cPickle.dump((X_flat, Y_flat), fd)
             for mdlBaseline in self._lMdlBaseline:
                 chronoOn()
                 traceln("\t - training baseline model: %s"%str(mdlBaseline))
                 mdlBaseline.fit(X_flat, Y_flat)
                 traceln("\t [%.1fs] done\n"%chronoOff())
             del X_flat, Y_flat
+        
+        if self.bTrainEdgeBaseline:
+            traceln(' - training edge baseline')
+            self._trainEdgeBaseline(lX, lY) #we always train a predefined model on edges
+        
         return True
-                  
+
     def _testBaselines(self, lX, lY, lLabelName=None, lsDocName=None):
         """
         test the baseline models, 
@@ -311,26 +318,15 @@ class Model:
         
         lTstRpt = []
         if self._lMdlBaseline:
-            #X_flat = np.vstack( [node_features for (node_features, _, _) in lX] )
             X_flat =self._get_X_flat(lX)
             Y_flat = np.hstack(lY)
             for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
                 chronoOn("_testBaselines")
                 Y_pred_flat = mdl.predict(X_flat)
-                if hasattr(mdl,'predict_proba'):
-                    report = RankingReport(str(mdl), Y_pred_flat, Y_flat, lLabelName)
-                    Y_score_flat = mdl.predict_proba(X_flat)
-                    for i in range(Y_flat.max()+1):
-                        avgp_i =average_precision_score(Y_flat==i,Y_score_flat[:,i])
-                        report.average_precision.append((i,avgp_i))
-                    lTstRpt.append(report)
-
-                else:
-                    traceln("\t\t [%.1fs] done\n"%chronoOff("_testBaselines"))
-                    lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat, lLabelName, lsDocName=lsDocName) )
-                del Y_pred_flat
-
-            del X_flat, Y_flat
+                traceln("\t\t [%.1fs] done\n"%chronoOff("_testBaselines"))
+                lTstRpt.append( TestReport(str(mdl), Y_pred_flat, Y_flat, lLabelName, lsDocName=lsDocName) )
+                
+            del X_flat, Y_flat, Y_pred_flat
         return lTstRpt                                                                              
     
     def _testBaselinesEco(self, lX, lY, lLabelName=None, lsDocName=None):
@@ -345,18 +341,18 @@ class Model:
             #using a COnfusionMatrix-based test report object, we can accumulate results
             oTestReportConfu = TestReportConfusion(str(mdl), list(), lLabelName, lsDocName=lsDocName)
             for X,Y in zip(lX, lY):
-                Y_pred = mdl.predict(X)
+                Y_pred = mdl.predict(X) #I suspect a bug here. (JLM June 2017) Because X_flat is probably required.
                 oTestReportConfu.accumulate( TestReport(str(mdl), Y_pred, Y, lLabelName, lsDocName=lsDocName) )
             traceln("\t\t [%.1fs] done\n"%chronoOff())
             lTstRpt.append( oTestReportConfu )
         return lTstRpt                                                                              
     
-    def predictBaselines(self, X):
-        """
-        predict with the baseline models, 
-        return a list of 1-dim numpy arrays
-        """
-        return [mdl.predict(X) for mdl in self._lMdlBaseline]
+#     def predictBaselines(self, X):
+#         """
+#         predict with the baseline models, 
+#         return a list of 1-dim numpy arrays
+#         """
+#         return [mdl.predict(X) for mdl in self._lMdlBaseline]
 
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
     def train(self, lGraph, bWarmStart=True, expiration_timestamp=None):

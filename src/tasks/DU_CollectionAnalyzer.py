@@ -30,8 +30,16 @@
     
 """
 import sys, os, collections, pickle, glob, libxml2
+import re
 from optparse import OptionParser
 
+try: #to ease the use without proper Python installation
+    import TranskribusDU_version
+except ImportError:
+    sys.path.append( os.path.dirname(os.path.dirname( os.path.abspath(sys.argv[0]) )) )
+    import TranskribusDU_version
+
+from xml_formats.PageXml import PageXml
 
 # ===============================================================================================================
 #DEFINING THE CLASS OF GRAPH WE USE
@@ -207,19 +215,26 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
     """
     Annalyse a collection of PageXmlDocuments
     """
-    def __init__(self, sDocPattern, sPagePattern, ltTagAttr):
+    def __init__(self, sDocPattern, sPagePattern, lTag, sCustom=None):
         """
         sRootDir is the root directory of the collection
         sDocPattern is the pattern followed by folders, assuming one folder contains one document
         sPagePattern is the pattern followed by each PageXml file , assuming one file contains one PageXml XML
         ltTagAttr is the list of pair of tag of interest and label attribute
         """
-        lTag, _ = zip(*ltTagAttr)
         CollectionAnalyzer.__init__(self, lTag)
         self.sDocPattern    = sDocPattern
         self.sPagePattern   = sPagePattern
-        self.ltTagAttr      = ltTagAttr
-
+        self.lTag           = lTag
+        self.sCustom        = sCustom
+        self.ltCRES          = [] #list of tuple (cre, replacement-string)
+        
+    def setLabelPattern(self, sRE, sRepl):
+        """
+        replace any occurence of the pattern by the replacement string in a label
+        """
+        self.ltCRES.append( (re.compile(sRE), sRepl) )
+        
     def runPageXml(self, sRootDir):
         lFolder = [os.path.basename(folder) for folder in glob.iglob(os.path.join(sRootDir, self.sDocPattern)) 
                                 if os.path.isdir(folder)]
@@ -269,12 +284,24 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
             sys.stdout.flush()
 
     def parsePage(self, doc, ctxt, name):
-        for tag, attr in self.ltTagAttr:
+        for tag in self.lTag:
             lNdTag = ctxt.xpathEval(".//pg:%s"%tag)
             for nd in lNdTag:
                 self.seenDocTag(name, tag)
-                lbl = nd.prop(attr)
-                if lbl: self.seenTagLabel(tag, lbl)
+                if self.sCustom != None:
+                    if self.sCustom == "":
+                        try:
+                            lbl = PageXml.getCustomAttr(nd, "structure", "type")
+                        except:
+                            lbl = ''
+                    else:
+                        lbl = nd.prop(self.sCustom)
+                else:
+                    lbl = nd.prop("type")
+                    
+                if lbl:
+                    for cre, sRepl in self.ltCRES: lbl = cre.sub(sRepl, lbl)    #pattern processing 
+                    self.seenTagLabel(tag, lbl)
         
         
 if __name__ == "__main__":
@@ -290,8 +317,10 @@ if __name__ == "__main__":
 #                       , help="Run a model on the given non-annotated collection.")    
 #     parser.add_option("-w", "--warm", dest='warm',  action="store_true"
 #                       , help="Attempt to warm-start the training")   
-#     parser.add_option("--rm", dest='rm',  action="store_true"
-#                       , help="Remove all model files")   
+    parser.add_option("-c", "--custom", dest='custom',  action="store", type="string"
+                      , help="With --custom= , it reads @custom Xml attribute instead of @type, or if you specify --custom=toto, it will read the @toto attribute.")   
+    parser.add_option("--pattern", dest='pattern',  action="store"
+                      , help="Replace the given pattern in the label by # (specific for BAR so far...)")  
 
     # --- 
     print sys.argv
@@ -309,10 +338,6 @@ if __name__ == "__main__":
             sRootDir, sDocPattern  = args[0:2]
             bMultiPageXml = True 
             sPagePattern = None
-
-        #all tag supporting the attribute type in PageXml 2003
-        ltTagAttr = [ (name, "type") for name in ["Page", "TextRegion", "GraphicRegion", "CharRegion", "RelationType"]]
-        print sRootDir, sDocPattern, sPagePattern, ltTagAttr
     except:
         print """Usage: %s sRootDir sDocPattern [sPagePattern]
 For Multi-PageXml, only root directory and document name pattern
@@ -320,7 +345,15 @@ For PageXml, give also the Xml filename pattern
 """%sys.argv[0]
         exit(1)
         
-            
+    #all tag supporting the attribute type in PageXml 2003
+    lTag = ["Page", "TextRegion", "GraphicRegion", "CharRegion", "RelationType"]
+    #Pragmatism: don't think we will have annotatetd page
+    lTag = ["TextRegion", "GraphicRegion", "CharRegion", "RelationType"]
+    #Pragmatism: we may also have tagged TextLine ...
+    lTag.append("TextLine")
+    
+    print sRootDir, sDocPattern, sPagePattern, lTag
+
 #         if bMODEUN:
 #             #all tag supporting the attribute type in PageXml 2003
 #             ltTagAttr = [ (name, "type") for name in ["Page", "TextRegion", "GraphicRegion", "CharRegion", "RelationType"]]
@@ -335,7 +368,10 @@ For PageXml, give also the Xml filename pattern
 # #             print "Usage: %s sRootDir sDocPattern [sPagePattern] [Tag Attr]+"%(sys.argv[0] )
 #         exit(1)
 
-    doer = PageXmlCollectionAnalyzer(sDocPattern, sPagePattern, ltTagAttr)
+    doer = PageXmlCollectionAnalyzer(sDocPattern, sPagePattern, lTag, sCustom=options.custom)
+    if options.pattern != None:
+        doer.setLabelPattern(options.pattern, "#")
+        
     doer.start()
     if bMultiPageXml:
         print "--- MultiPageXml ---"

@@ -208,13 +208,23 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 for each text: compute overlap
                     store best for text
             3- assign text to best cell
+            
+            
+               ## populate regions
+        for subObject in self.getAllNamedObjects(tagLevel):
+            region= subObject.bestRegionsAssignment(self.getVerticalObjects(Template))
+            if region:
+                region.addObject(subObject)
+            
         """
         
 #         for cell in self.getCellsbyColumns():
 #         print self.getNbRows(), self.getNbColumns()
-        lCells=[]
+        lCells = []
         for icol,col in enumerate(self.getColumns()):
-#             print col, col.getX(),col.getX2(), col.getObjects()
+            lTexts = []
+            [ lTexts.extend(colcell.getObjects()) for colcell in col.getObjects()]
+            # texts tagged OTHER as well? 
             for irow, row in enumerate(self.getRows()):
 #                 print row, row.getObjects()
 #                 print 'cell:', col.getX(),row.getY(),col.getX2(),row.getY2()
@@ -227,19 +237,32 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 cell.setIndex(irow, icol)
                 cell.setPage(self.getPage())
                 cell.setParent(self)
-                for colcell in col.getObjects():
-#                     print colcell,colcell.signedRatioOverlap(cell), colcell.overlap(cell)
-                    if colcell.signedRatioOverlap(cell):
-                        cell.setObjectsList(colcell.getObjects()[:])
-                        for o in cell.getObjects():
-                            o.setParent(cell)
+#                 for colcell in col.getObjects():
+# #                     print colcell,colcell.signedRatioOverlap(cell), colcell.overlap(cell)
+#                     if colcell.signedRatioOverlap(cell):
+#                         cell.setObjectsList(colcell.getObjects()[:])
+#                         for o in cell.getObjects():
+#                             o.setParent(cell)
+
+            # find the best assignment of each text
+            for text in lTexts:
+                cell = text.bestRegionsAssignment(lCells)
+                if cell:
+                    cell.addObject(text,bDom=True)     
+#                 else:
+#                     print text,text.getX(),text.getY(),cell
         
+        #delete fake cells
         for cell in self.getCells():
             cell.getNode().unlinkNode()
             del cell
+        
+        #update with real cells
         self._lcells = lCells
+    
+        # DOM tagging
         for cell in self.getCells():
-            cell.tagMe()
+            cell.tagMe2()
             for o in cell.getObjects():
 #                 print o, o.getParent(), o.getParent().getNode()
                 try:o.tagMe()

@@ -20,7 +20,7 @@
     
     
     Developed  for the EU project READ. The READ project has received funding 
-    from the European Union's Horizon 2020 research and innovation programme 
+    from the European Union�s Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
     
 """
@@ -50,9 +50,6 @@ from crf.Model_SSVM_AD3_Multitype import Model_SSVM_AD3_Multitype
 from xml_formats.PageXml import MultiPageXml
 import crf.FeatureDefinition
 from crf.FeatureDefinition_PageXml_std import FeatureDefinition_PageXml_StandardOnes
-from crf.FeatureDefinition_PageXml_FeatSelect import FeatureDefinition_PageXml_FeatSelect
-import numpy as np
-
 
 from crf.TestReport import TestReportConfusion
 
@@ -166,10 +163,6 @@ See DU_StAZH_b.py
     def setLearnerConfiguration(self, dParams):
         self.config_learner_kwargs = dParams
         
-
-    def setFeatureDefinition(self, cFeatureDefinition): 
-        self.cFeatureDefinition = cFeatureDefinition
-        assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
     """
     When some class is not represented on some graph, you must specify the number of class (per type if multiple types)
     Otherwise pystruct will complain about the number of states differeing from the number of weights
@@ -188,6 +181,7 @@ See DU_StAZH_b.py
     def getBasicTrnTstRunOptionParser(cls, sys_argv0=None, version=""):
         usage = """"%s <model-folder> <model-name> [--rm] [--trn <col-dir> [--warm]]+ [--tst <col-dir>]+ [--run <col-dir>]+
 or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish] [--fold <col-dir>]+
+[--pkl]
 CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--crf-njobs <int>] [crf-inference_cache <int>] [best-params=<model-name>]
 
         For the named MODEL using the given FOLDER for storage:
@@ -201,6 +195,8 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         --fold-init   : generate the content of the N folds 
         --fold-run    : run the given fold, if --warm/-w, then warm-start if applicable 
         --fold-finish : collect and aggregate the results of all folds that were run.
+
+        --pkl         : store the data as a pickle file containing PyStruct data structure (lX, lY) and exit
         
         --crf-njobs    : number of parallel training jobs
         
@@ -210,7 +206,8 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         --best-params    : uses the parameters obtained by the previously done grid-search. 
                             If it was done on a model fold, the name takes the form: <model-name>_fold_<fold-number>, e.g. foo_fold_2
         
-        """
+        """%sys_argv0
+
         #prepare for the parsing of the command line
         parser = OptionParser(usage=usage, version=version)
         
@@ -230,8 +227,10 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                           , help="Evaluate by cross-validation a model on the given annotated collection.")    
         parser.add_option("-w", "--warm", dest='warm',  action="store_true"
                           , help="To make warm-startable model and warm-start if a model exist already.")   
+        parser.add_option("--pkl", dest='pkl', action="store_true"
+                          , help="GZip and pickle PyStruct data as (lX, lY), and exit.")    
         parser.add_option("--rm", dest='rm',  action="store_true"
-                          , help="Remove all model files")
+                          , help="Remove all model files")   
         parser.add_option("--crf-njobs", dest='crf_njobs',  action="store", type="int"
                           , help="CRF training parameter njobs")
         parser.add_option("--crf-max_iter"          , dest='crf_max_iter'       ,  action="append", type="int"        #"append" to have a list and possibly do a gridsearch
@@ -243,12 +242,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         parser.add_option("--crf-inference_cache"   , dest='crf_inference_cache',  action="append", type="int"
                           , help="CRF training parameter inference_cache")    
         parser.add_option("--best-params", dest='best_params',  action="store", type="string"
-                          , help="Use the best  parameters from the grid search previously done on the given model or model fold")
-        parser.add_option("--lTrainFiles", dest='l_train_files',  action="store", type="string"
-                          , help="file containing the list of training files")
-        parser.add_option("--lTestFiles", dest='l_test_files',  action="store", type="string"
-                          , help="file containing the list of test files")
-
+                          , help="Use the best  parameters from the grid search previously done on the given model or model fold") 
         return usage, None, parser
     getBasicTrnTstRunOptionParser = classmethod(getBasicTrnTstRunOptionParser)
            
@@ -276,6 +270,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                               , self.dGridSearch_LR_conf, n_jobs=self.dGridSearch_LR_n_jobs) for _ in range(self.iNbCRFType) ]  
             
         if self.isTypedCRF():
+            traceln(" - typed CRF")
             tMdl = tuple(lMdl)
             self._lBaselineModel.append( tMdl )
             return tMdl
@@ -328,7 +323,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             os.rmdir(self.sModelDir)
         return 
     
-    def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False,filterFilesRegexp=True):
+    def train_save_test(self, lsTrnColDir, lsTstColDir, bWarm=False, bPickleOnly=False):
         """
         - Train a model on the tTRN collections, if not empty.
         - Test the trained model using the lTST collections, if not empty.
@@ -347,79 +342,15 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         
         #list the train and test files
         #NOTE: we check the presence of a digit before the '.' to eclude the *_du.xml files
-        #ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
-        #_     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
-
-
-        #list the train and test files
-        #NOTE: we check the presence of a digit before the '.' to eclude the *_du.xml files
-        if filterFilesRegexp:
-            #ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, "*[0-9]"+MultiPageXml.sEXT)
-            #_     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, "*[0-9]"+MultiPageXml.sEXT)
-            ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
-            _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
-
-        else:
-            #Assume the file list are correct
-            lFilename_trn=lsTrnColDir
-            lFilename_tst=lsTstColDir
-            ts_trn = max([os.path.getmtime(sFilename) for sFilename in lFilename_trn])
-
-
-
-        print('Training Filenames')
-        print(lFilename_trn)
-        DU_GraphClass = self.cGraphClass
+        ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
+        _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
         
         self.traceln("- creating a %s model"%self.cModelClass)
-        mdl = self.cModelClass(self.sModelName, self.sModelDir)
-        
-        if not bWarm:
-            if os.path.exists(mdl.getModelFilename()): raise crf.Model.ModelException("Model exists on disk already, either remove it first or warm-start the training.")
-            
-        mdl.configureLearner(**self.config_learner_kwargs)
-        mdl.setBaselineModelList(self._lBaselineModel)
-        mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
-        self.traceln("\t - configuration: ", self.config_learner_kwargs )
-
-        self.traceln("- loading training graphs")
-        lGraph_trn = DU_GraphClass.loadGraphs(lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
-        self.traceln(" %d graphs loaded"%len(lGraph_trn))
-
-        self.traceln("- retrieving or creating feature extractors...")
-        try:
-            mdl.loadTransformers(ts_trn)
-        except crf.Model.ModelException:
-            fe = self.cFeatureDefinition(**self.config_extractor_kwargs)
-
-            lY = [g.buildLabelMatrix() for g in lGraph_trn]
-            lY_flat = np.hstack(lY)
-            fe.fitTranformers(lGraph_trn,lY_flat)
-            #fe.fitTranformers(lGraph_trn)
-            fe.cleanTransformers()
-            mdl.setTranformers(fe.getTransformers())
-            mdl.saveTransformers()
-        self.traceln(" done")
-        
-        self.traceln("- training model...")
-        mdl.train(lGraph_trn, True, ts_trn)
-        mdl.save()
-        self.traceln(" done")
-        # OK!!
-        self._mdl = mdl
-        
-        if lFilename_tst:
-            self.traceln("- loading test graphs")
-            lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-            self.traceln(" %d graphs loaded"%len(lGraph_tst))
-    
-            oReport = mdl.test(lGraph_tst)
-        else:
-            oReport = None, None
+        oReport = self._train_save_test(self.sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst, bPickleOnly)
 
         return oReport
 
-    def test(self, lsTstColDir,test_sequential=True,filterFilesRegexp=True):
+    def test(self, lsTstColDir):
         """
         test the model
         return a TestReport object
@@ -430,48 +361,47 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         self.traceln("-"*50)
         
         if not self._mdl: raise Exception("The model must be loaded beforehand!")
-
-        if filterFilesRegexp:
-            #list the train and test files
-            _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
-        else:
-            #Assume the file list are correct
-            lFilename_tst=lsTstColDir
-
+        
+        #list the train and test files
+        _     , lFilename_tst = self.listMaxTimestampFile(lsTstColDir, self.sXmlFilenamePattern)
+        
         DU_GraphClass = self.cGraphClass
         
         lPageConstraint = DU_GraphClass.getPageConstraint()
         if lPageConstraint: 
             for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
-
-        if test_sequential is False:
-            #Load All
+        
+        try:
+            #should work fine
+            oReport = self._mdl.testFiles(lFilename_tst, lambda fn: DU_GraphClass.loadGraphs([fn], bDetach=True, bLabelled=True, iVerbose=1))
+        except:
             self.traceln("- loading test graphs")
             lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
             self.traceln(" %d graphs loaded"%len(lGraph_tst))
             oReport = self._mdl.test(lGraph_tst)
 
-        else:
-            #lower memory footprint
-            self.traceln("- Testing...")
-            self.traceln(" %d graphs to load, one by one"%len(lFilename_tst))
-            oReport = self._mdl.testFiles(lFilename_tst, lambda s: DU_GraphClass.loadGraphs([s], bDetach=True, bLabelled=True, iVerbose=1))
-
         return oReport
 
-    def predict(self, lsColDir,sDocId=None):
+
+    def predict(self, lsColDir,docid=None):
         """
         Return the list of produced files
         """
         self.traceln("-"*50)
-        self.traceln("Trained model '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
         self.traceln("Predicting for collection(s):", lsColDir)
         self.traceln("-"*50)
 
         if not self._mdl: raise Exception("The model must be loaded beforehand!")
         
-        #list the train and test files
-        _     , lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
+        #list files
+        if docid is None:
+            _     , lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
+        # predict for this file only
+        else:
+            try: 
+                lFilename = [os.path.abspath(os.path.join(lsColDir[0], 'col',docid+MultiPageXml.sEXT  ))]
+            except IndexError:raise Exception("a collection directory must be provided!")
+            
         
         DU_GraphClass = self.getGraphClass()
 
@@ -524,7 +454,9 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         traceln("   Labels      : ", self.getGraphClass().getLabelNameList())
         if np.min(aLabelCount) == 0:
             sMsg = "*** ERROR *** Label(s) not observed in data."
-            traceln( sMsg+" Label(s): %s"% np.where(aLabelCount[:] == 0)[0] )
+            #traceln( sMsg+" Label(s): %s"% np.where(aLabelCount[:] == 0)[0] )
+            lMissingLabels = [self.getGraphClass().getLabelNameList()[i] for i in np.where(aLabelCount[:] == 0)[0]]
+            traceln( sMsg+" Label(s): %s"% lMissingLabels )
             raise ValueError(sMsg)
         return True
 
@@ -545,7 +477,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
 
         fnCrossValidDetails = os.path.join(self.sModelDir, self.sModelName+"_fold_def.pkl")
         if os.path.exists(fnCrossValidDetails):
-            self.traceln("ERROR: I refuse to overwritte an existing CV setup. Remove manually the CV data! (files %s/%s_fold* )"%(self.sModelDir, self.sModelName))
+            self.traceln("ERROR: I refuse to overwrite an existing CV setup. Remove manually the CV data! (files %s%s%s_fold* )"%(self.sModelDir, os.sep, self.sModelName))
             exit(1)
         
         #list the train files
@@ -579,7 +511,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                 
         return splitter, ts_trn, lFilename_trn
 
-    def _nfold_RunFoldFromDisk(self, iFold, bWarm=False):
+    def _nfold_RunFoldFromDisk(self, iFold, bWarm=False, bPickleOnly=False):
         """
         Run the fold iFold
         Store results on disk
@@ -591,10 +523,10 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         assert iFold_stored == abs(iFold), "Internal error. Inconsistent fold details on disk."
         
         if iFold > 0: #normal case
-            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm)
+            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm, bPickleOnly=bPickleOnly)
         else:
             traceln("Switching train and test data for fold %d"%abs(iFold))
-            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, test_index, train_index, bWarm=bWarm)
+            oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, test_index, train_index, bWarm=bWarm, bPickleOnly=bPickleOnly)
         
         fnFoldResults = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_TestReport.pkl"%iFold)
         crf.Model.Model.gzip_cPickle_dump(fnFoldResults, oReport)
@@ -638,7 +570,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             
         return oNFoldReport
 
-    def _nfold_RunFold(self, iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=False):
+    def _nfold_RunFold(self, iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=False, bPickleOnly=False):
         """
         Run this fold
         Return a TestReport object
@@ -652,7 +584,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         self.traceln("- creating a %s model"%self.cModelClass)
         sFoldModelName = self.sModelName+"_fold_%d"%iFold
         
-        oReport = self._train_save_test(sFoldModelName, bWarm, lFoldFilename_trn, ts_trn, lFoldFilename_tst)
+        oReport = self._train_save_test(sFoldModelName, bWarm, lFoldFilename_trn, ts_trn, lFoldFilename_tst, bPickleOnly)
 
         fnFoldReport = os.path.join(self.sModelDir, self.sModelName+"_fold_%d_STATS.txt"%iFold)
         with open(fnFoldReport, "w") as fd:
@@ -660,7 +592,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         
         return oReport
     
-    def nfold_Eval(self, lsTrnColDir, n_splits=3, test_size=0.25, random_state=None):
+    def nfold_Eval(self, lsTrnColDir, n_splits=3, test_size=0.25, random_state=None, bPickleOnly=False):
         """
         n-fold evaluation on the training data
         
@@ -678,20 +610,28 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         loTstRpt = []
         
         for i, (train_index, test_index) in enumerate(splitter.split(lFilename_trn)):
-            oReport = self._nfold_RunFold(i+1, ts_trn, lFilename_trn, train_index, test_index)
+            oReport = self._nfold_RunFold(i+1, ts_trn, lFilename_trn, train_index, test_index, bPickleOnly=False)
             traceln(oReport)
             loTstRpt.append(oReport)
         
         return loTstRpt
 
     #----------------------------------------------------------------------------------------------------------    
-    def _train_save_test(self, sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst):
+    def _pickleData(self, mdl, lGraph, name):
+        self.traceln("- Computing data structure of all graphs and features...")
+        lX, lY = mdl.get_lX_lY(lGraph)
+        sFilename = mdl.getTrainDataFilename(name)
+        self.traceln("- storing (lX, lY) into %s"%sFilename)
+        mdl.gzip_cPickle_dump(sFilename, (lX, lY))
+        return
+                    
+    def _train_save_test(self, sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst, bPickleOnly):
         """
         used both by train_save_test and _nfold_runFold
         """
         mdl = self.cModelClass(sModelName, self.sModelDir)
         
-        if os.path.exists(mdl.getModelFilename()) and not bWarm: 
+        if os.path.exists(mdl.getModelFilename()) and not bWarm and not bPickleOnly: 
             raise crf.Model.ModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
             
         mdl.configureLearner(**self.config_learner_kwargs)
@@ -724,11 +664,14 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             mdl.saveTransformers()
         self.traceln(" done [%.1fs]"%chronoOff("FeatExtract"))
         
-        self.traceln("- training model...")
-        chronoOn("MdlTrn")
-        mdl.train(lGraph_trn, True, ts_trn, verbose=1 if self.bVerbose else 0)
-        mdl.save()
-        self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
+        if bPickleOnly:
+            self._pickleData(mdl, lGraph_trn, "trn")
+        else:
+            self.traceln("- training model...")
+            chronoOn("MdlTrn")
+            mdl.train(lGraph_trn, True, ts_trn, verbose=1 if self.bVerbose else 0)
+            mdl.save()
+            self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
         
         # OK!!
         self._mdl = mdl
@@ -737,9 +680,16 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             self.traceln("- loading test graphs")
             lGraph_tst = self.cGraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
             self.traceln(" %d graphs loaded"%len(lGraph_tst))
-            oReport = mdl.test(lGraph_tst)
+            if bPickleOnly:
+                self._pickleData(mdl, lGraph_tst, "tst")
+            else:
+                oReport = mdl.test(lGraph_tst)
         else:
             oReport = None
+
+        if bPickleOnly:
+            self.traceln("- pickle done, exiting")
+            exit(0)
         
         return oReport
     
@@ -758,18 +708,51 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         return ts, lFn
     listMaxTimestampFile = classmethod(listMaxTimestampFile)
     
+# ------------------------------------------------------------------------------------------------------------------------------
+class DU_FactorialCRF_Task(DU_CRF_Task):
 
-class DU_CRF_FS_Task(DU_CRF_Task):
-    cModelClass          = Model_SSVM_AD3
-    cFeatureDefinition   = FeatureDefinition_PageXml_FeatSelect
+    def __init__(self, sModelName, sModelDir, cGraphClass, dLearnerConfig={}, sComment=None
+                 , cFeatureDefinition=None, dFeatureConfig={}
+                 ): 
+        """
+        Same as DU_CRF_Task except for the cFeatureConfig
+        """
+        self.sModelName     = sModelName
+        self.sModelDir      = sModelDir
+        self.cGraphClass    = cGraphClass
+        #Because of the way of dealing with the command line, we may get singleton instead of scalar. We fix this here
+        self.config_learner_kwargs      = {k:v[0] if type(v)==types.ListType and len(v)==1 else v for k,v in dLearnerConfig.items()}
+        if sComment: self.sMetadata_Comments    = sComment
+        
+        self._mdl = None
+        self._lBaselineModel = []
+        self.bVerbose = True
+        
+        self.iNbCRFType = None #is set below
+        
+        #--- Number of class per type
+        #We have either one number of class (single type) or a list of number of class per type
+        #in single-type CRF, if we know the number of class, we check that the training set covers all
+        self.nbClass  = None    #either the number or the sum of the numbers
+        self.lNbClass = None    #a list of length #type of number of class
 
-    sMetadata_Creator = "XRCE Document Understanding CRF-based - v0.3 with some Feature Selection"
-    sMetadata_Comments = ""
+        #--- feature definition and configuration per type
+        #Feature definition and their config
+        if cFeatureDefinition: self.cFeatureDefinition  = cFeatureDefinition
+        assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
+        
+        #for single- or multi-type CRF, the same applies!
+        self.lNbClass = [len(nt.getLabelNameList()) for nt in self.cGraphClass.getNodeTypeList()]
+        self.nbClass = sum(self.lNbClass)
+        self.iNbCRFType = len(self.cGraphClass.getNodeTypeList())
 
-    dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
+        self.config_extractor_kwargs = dFeatureConfig
 
-    sXmlFilenamePattern = "*[0-9]"+MultiPageXml.sEXT    #how to find the Xml files
-
+        self.cModelClass = Model_SSVM_AD3 if self.iNbCRFType == 1 else Model_SSVM_AD3_Multitype
+        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
+        
+        
+# ------------------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
 
     version = "v.01"

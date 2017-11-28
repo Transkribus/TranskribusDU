@@ -370,6 +370,24 @@ class primaAnalysis(Component.Component):
         return dstable
 
 
+    def createRegion(self,pnode):
+        """
+            create REGION
+        """
+        dsnode = libxml2.newNode("REGION")
+        if pnode.hasProp('type'):
+            dsnode.setProp('type',pnode.prop('type') )
+        if pnode.hasProp('custom'):
+            dsnode.setProp('custom',pnode.prop('custom') )
+#         dsnode.setProp('structure',pnode.prop('structure') )
+
+        try:
+            dsnode.setProp('id',pnode.prop('id'))
+        except:
+            dsnode.setProp('id',str(self.id))
+            self.id += 1
+        return dsnode
+            
     def convertPage(self,ipage,dspage):
         child = ipage.children
         while child:
@@ -386,8 +404,7 @@ class primaAnalysis(Component.Component):
                         xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w)) 
                         if child.name == "TextRegion":
                             #get type
-                            node = libxml2.newNode("REGION")
-                            node.setProp('type',child.prop('type') )
+                            node = self.createRegion(child)
                             if not self.bRef:
                                 if not self.bSkipRegion:
                                     self.getTextLineSubStructure(node,child)
@@ -483,7 +500,7 @@ class primaAnalysis(Component.Component):
         ipageNumber = 1
         for pathname in sorted(glob.iglob(self.sPttrn)):
                 #pathname = it.next()
-                print pathname
+                traceln(pathname)
                 primedoc = self.loadDom(pathname)
 #                 page = libxml2.newNode(ds_xml.sPAGE)
 #                 page.setProp(ds_xml.sPageNumber,str(ipageNumber))

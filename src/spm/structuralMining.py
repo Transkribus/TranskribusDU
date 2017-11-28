@@ -100,13 +100,13 @@ class sequenceMiner(Component.Component):
         
 
         """
+        
         lMIS = { i:mis for i in lfeatures }
         db=[]
         for seq in lseq:
             tmpseq = []
             for item in seq:
                 tmpitem = []
-#                 print item, item.getSetofFeatures()
                 if item.getCanonicalFeatures() is not None:
                     for fea in item.getCanonicalFeatures():
                         ## to avoid TH= 30 and 315 + 285 select! introduce issues with spm!
@@ -418,15 +418,16 @@ class sequenceMiner(Component.Component):
         lCovered = []
         lMergedFeatures = {}
         for i, (f, _) in enumerate(sortedItems):
-#             print f, lFeatures[f], f.getID()
+#             print f, lFeatures[f], f.getID(),  map(lambda x: x.getID(), lCovered)
             if f.getID() not in map(lambda x: x.getID(), lCovered):
                 lMergedFeatures[f] = lFeatures[f]
+#                 print f, lFeatures[f], f.getID()
                 lCovered.append(f)
                 # usefull? YES, 2D equality does not work with HASH !!! 
                 for ff, freq in sortedItems[i + 1:]:
                     # 2d equality
                     if f == ff and f.getID() != ff.getID():
-#                         print '=',f,ff
+#                         print '=',f,ff, f.getTH(),ff.getTH(),
                         for ff2 in lFeatures[ff]:
                             if ff2.getID() not in map(lambda x: x.getID(), lCovered):
                                 # test with IF if ff2 not in list 
@@ -440,7 +441,7 @@ class sequenceMiner(Component.Component):
         lCanonicalFeatures = list()
         # creation of the canonical features
         for f, s in sortedItems:
-#             print '\t',f,s, lMergedFeatures[f]
+#             print '--\t',f,s, lMergedFeatures[f]
             ## update the value if numerical feature: take the mean and not the most frequent!!
             cf  = featureType()  # featureObject
             cf.setName(f.getName())
@@ -448,6 +449,8 @@ class sequenceMiner(Component.Component):
             cf.setObjectName(None)
             cf.bCanonical = True
             cf.setTH(f.getTH())
+            myValue=f.getValue()
+            cf.setValue(myValue)
             if f.getType() == featureObject.NUMERICAL:
                 lvalues=map(lambda x:x.getValue(),lMergedFeatures[f])
                 ## now values can be tuples!!
@@ -457,6 +460,7 @@ class sequenceMiner(Component.Component):
                     lweights = map(lambda x:1.0*x/len(lMergedFeatures[f]),lvalues)
                 try:
                     myValue =  round(np.average(lvalues,weights=lweights),0)
+#                     print cf, lvalues, lweights, myValue
                 except ZeroDivisionError:
                     # Weights sum to zero, can't be normalized
                     myValue=f.getValue()
@@ -465,49 +469,40 @@ class sequenceMiner(Component.Component):
 #             print '\t\t', myValue, lMergedFeatures[f]
             cf.setValue(myValue)
             cf.setCanonical(cf)
-#             for ff in lMergedFeatures[f]:
-#                 ff.setCanonical(cf)
             ## testif not already a cf which is in delta!!! 
             ## take the most frequent one: whihc is alomost in he list (sorte)
             if cf not in lCanonicalFeatures:
-#                 indxf=lCanonicalFeatures.index(cf)
-#                 print 'DUPLICATION', cf, lCanonicalFeatures[indxf]
-#                 print 'new CF', cf
-#                 sys.stdout.flush()
                 lCanonicalFeatures.append(cf)
+#                 print 'added',cf, lCanonicalFeatures
                 for ff in lMergedFeatures[f]:
                     ff.setCanonical(cf)
-#             else:
-#                 indxf=lCanonicalFeatures.index(cf)
-#                 print 'DUPLICATION', cf, lCanonicalFeatures[indxf]                
-            
-            
-            # for normal features: need a'local' normalisation
-            #here features are those of the elements
-#             w=f.getWeight()
-#             for ff in lMergedFeatures[f]:
-#                 [f.addNode(ffn) for ffn in ff.getNodes()]
-#                 w += sum(x.getHeight() for x in ff.getNodes())
-#             ff.setWeight(w)
-        
+            else:
+#                 print cf, 'already'
+                cf.setCanonical(None)
+                for ff in lMergedFeatures[f]:
+                    ff.setCanonical(None)
         for elt in lList:
             ltbd=[]
             for f in elt.getSetofFeatures():
-#                 print elt, f, len(f.getNodes())
+#                 print elt, f, len(f.getNodes()),f.getCanonical()
                 if f.getCanonical() is None:
                     try:
                         indxf=lCanonicalFeatures.index(f)
                         f.setCanonical(lCanonicalFeatures[indxf])
-                    except:pass 
+                    except:
+                        pass 
                 if f.getCanonical() is not None:
                     elt.addCanonicalFeatures(f.getCanonical())
                     assert f.getCanonical() is not None
                     for n in f.getNodes():
                         f.getCanonical().addNode(n)
+#                 print elt,f, f.getCanonical() 
             elt._lBasicFeatures = filter(lambda x:x not in ltbd,  elt.getSetofFeatures())
             if self.bDebug: print elt, elt.getSetofFeatures(), elt.getCanonicalFeatures()
-        
-        lCanonicalFeatures = filter(lambda x:len(x.getNodes()) > TH, lCanonicalFeatures)
+#             print elt, elt.getSetofFeatures(), elt.getCanonicalFeatures()
+#         print lCanonicalFeatures
+        lCanonicalFeatures = filter(lambda x:len(x.getNodes()) >= TH, lCanonicalFeatures)
+
         
         # create weights: # elt per cf / total
         ftotalElts=0.0
@@ -521,7 +516,7 @@ class sequenceMiner(Component.Component):
         
         lCanonicalFeatures.sort(key=lambda x:x.getWeight(),reverse=True)
         lCanonicalFeatures = filter(lambda x:len(x.getNodes()) >= TH,lCanonicalFeatures)
-
+        
         return lCanonicalFeatures
     
     
@@ -543,6 +538,10 @@ class sequenceMiner(Component.Component):
         
         myGram = sequenceGrammar()
         lParsings = myGram.parseSequence(myFeatureType,myPattern, lSeqElements)
+        
+        if lParsings is None:
+            return None
+        
         lFullList=[]
         for x,_ in lParsings:
             lFullList.extend(x)
@@ -550,7 +549,7 @@ class sequenceMiner(Component.Component):
 
 
 
-    def testTreeKleeneageTemplates(self,dTemplatesCnd,lElts,iterMax=5):
+    def testTreeKleeneageTemplates(self,dTemplatesCnd,lElts,iterMax=15):
         """
             test a set of patterns
             select those which are kleene+ 
@@ -588,7 +587,7 @@ class sequenceMiner(Component.Component):
                         lFullPattern.append(mytemplate.getPattern())
                         iFound+= 1  
                         dScoreFullTemplate[mytemplate]=len(parseRes[1])                        
-                        print 'add kleenedPlus template', mytemplate,len(parseRes[1])
+                        print iCpt,'add kleenedPlus template', mytemplate,len(parseRes[1])
                         ## traverse the tree template to list the termnimal pattern
     #                     print mytemplate,'\t\t', mytemplate,len(parseRes[1])
                         lterm= mytemplate.getTerminalTemplates()
@@ -599,7 +598,8 @@ class sequenceMiner(Component.Component):
                 iCpt += 1
                 
         lFullTemplates.sort(key=lambda x:dScoreFullTemplate[x],reverse=True)
-#         return lFullTemplates
+
+
         #  transition matrix: look at  for template in page.getVerticalTemplates():
         N = len(lTemplates) + 1
         transProb = np.zeros((N,N), dtype = np.float16)
@@ -700,7 +700,7 @@ class sequenceMiner(Component.Component):
         mvPattern = self.treePatternToMV(mytemplate.getPattern(),dMtoSingleFeature, PARTIALMATCH_TH)
 #         print mvPattern
 #         print dMtoSingleFeature
-        
+#         self.bDebug =True
         #need to optimize this double call        
         for elt in lElts:
                 elt.setSequenceOfFeatures(elt.lFeatureForParsing)
@@ -725,7 +725,7 @@ class sequenceMiner(Component.Component):
         isKleenePlus = False
         nbSeq = 0.0
         nbKleeneInSeq= 0.0 
-        if parsingRes:
+        if parsingRes is not None:
             self.populateElementWithTreeParsing(mytemplate,parsingRes,dMtoSingleFeature)
             _,_, lParse  = parsingRes
             for  lElts, rootNode in lParse:
@@ -736,8 +736,10 @@ class sequenceMiner(Component.Component):
                 if bReplace:
                     lNewSequence = self.replaceEltsByParsing(lNewSequence,lElts,xx,mytemplate.getPattern())            
             isKleenePlus = nbSeq > 0 and nbKleeneInSeq / nbSeq >= self.getKleenePlusTH()
+            if isKleenePlus: print mytemplate, nbSeq, nbKleeneInSeq, nbKleeneInSeq / nbSeq
+
             ### retrun nbKleeneInSeq / nbSeq and let decide at smpcomponent level (if pattern is mirrored: keep it if nbKleeneInSeq / nbSeq near 1.66 )
-            print mytemplate, nbSeq, nbKleeneInSeq, nbKleeneInSeq / nbSeq
+            if self.bDebug:print mytemplate, nbSeq, nbKleeneInSeq, nbKleeneInSeq / nbSeq
         return isKleenePlus,parsingRes, lNewSequence
 
     def populateElementWithTreeParsing(self,mytemplate,parsings,dMtoSingleFeature):

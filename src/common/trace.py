@@ -27,7 +27,8 @@ def traceln(*msg):
     trace("\n")
     traceFD.flush()
 
-
+def flush():
+    traceFD.flush()
 
 
 #SELF-TEST

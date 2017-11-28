@@ -228,6 +228,14 @@ class Node1HotFeatures(Transformer):
             
         return a
 
+#------------------------------------------------------------------------------------------------------
+class Node1ConstantFeature(Transformer):
+    """
+    we generate one constant feature per node. (1.0)
+    """
+    def transform(self, lNode):
+        return np.ones( ( len(lNode), 1 ) , dtype=np.float64)
+
 # #------------------------------------------------------------------------------------------------------
 # class NodePNumFeatures(Transformer):
 #     """
@@ -287,16 +295,26 @@ class EdgeTransformerClassShifter(Transformer):
     
     nbFEAT = None   #must be specialized!!!
     
+    lDefaultEdgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge]
+    
     def __init__(self, bMirrorPage=True):
         Transformer.__init__(self)
         if bMirrorPage:
-            lEdgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge, CrossMirrorPageEdge]
+            lEdgeClass = self.lDefaultEdgeClass + [CrossMirrorPageEdge] #this makes a copy
         else:
-            lEdgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge]
+            lEdgeClass = list(self.lDefaultEdgeClass)                   #list(..) to make a copy
+
             
         self._nbEdgeFeat = self.nbFEAT * len(lEdgeClass)
         self._dEdgeClassIndexShift = { cls:i*self.nbFEAT for i,cls in enumerate(lEdgeClass) }
-            
+    
+    @classmethod
+    def setDefaultEdgeClass(cls, lEdgeClass):
+        """
+        to set the list of edge classes the feature extractor will see
+        """
+        cls.lDefaultEdgeClass = lEdgeClass
+        
     def fit(self, x, y=None):
         return self
 

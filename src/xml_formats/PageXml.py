@@ -13,6 +13,8 @@ import datetime
 
 import libxml2
 
+class PageXmlException(Exception): pass
+
 
 class PageXml:
     '''
@@ -156,11 +158,14 @@ class PageXml:
         ddic = cls.parseCustomAttr( nd.prop( cls.sCUSTOM_ATTR) )
         
         #First key
-        dic2 = ddic[sAttrName]
-        if sSubAttrName:
-            return dic2[sSubAttrName]
-        else:
-            return dic2
+        try:
+            dic2 = ddic[sAttrName]
+            if sSubAttrName:
+                return dic2[sSubAttrName]
+            else:
+                return dic2
+        except KeyError as e:
+            raise PageXmlException("node %s: %s and %s not found in %s"%(nd, sAttrName, sSubAttrName, ddic))
     getCustomAttr = classmethod(getCustomAttr)
 
     def setCustomAttr(cls, nd, sAttrName, sSubAttrName, sVal):
@@ -374,7 +379,7 @@ class PageXml:
         
     @classmethod
     # --- Creation -------------------------------------
-    def createPageXmlDocument(cls,creatorName='XRCE',filename=None,imgW=0, imgH=0):
+    def createPageXmlDocument(cls,creatorName='NLE',filename=None,imgW=0, imgH=0):
         """
             create a new PageXml document
         """
