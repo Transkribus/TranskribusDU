@@ -74,6 +74,9 @@ class  XMLObjectClass(objectClass):
         newNode.setProp('y',str(self.getY()))
         newNode.setProp('height',str(self.getHeight()))
         newNode.setProp('width',str(self.getWidth()))
+        if self.getID():
+            newNode.setProp('id',str(self.getID()))
+            
         if self.getParent():
             self.getParent().getNode().addChild(newNode)
         else:
@@ -83,6 +86,12 @@ class  XMLObjectClass(objectClass):
         # add attributres
         for att in self.getAttributes():
             newNode.setProp(att,str(self.getAttribute(att)))
+        
+        # add content:!
+        newNode.setContent(self.getContent().encode('utf-8'))
+        
+        # add children!!!!
+        
         
         self.setNode(newNode)
 #         for o in self.getObjects():

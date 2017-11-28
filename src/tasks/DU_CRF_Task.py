@@ -399,7 +399,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         # predict for this file only
         else:
             try: 
-                lFilename = [os.path.abspath(os.path.join(lsColDir[0], 'col',docid+MultiPageXml.sEXT  ))]
+                lFilename = [os.path.abspath(os.path.join(lsColDir[0], docid+MultiPageXml.sEXT  ))]
             except IndexError:raise Exception("a collection directory must be provided!")
             
         
@@ -418,7 +418,6 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             chronoOn("predict_1")
             lg = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
             #normally, we get one graph per file, but in case we load one graph per page, for instance, we have a list
-            
             if lg:
                 for g in lg:
                     doc = g.doc

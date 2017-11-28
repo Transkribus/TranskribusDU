@@ -47,6 +47,11 @@ class  XMLDSObjectClass(XMLObjectClass):
     def getWidth(self): return float(self.getAttribute('width'))    
     def setWidth(self,w): self.addAttribute('width',w)
     
+    def setDimensions(self,x,y,h,w):
+        self.addAttribute('x', x)
+        self.addAttribute('y', y)
+        self.addAttribute('height', h)
+        self.addAttribute('width', w)
     
     def addObject(self,o,bDom=False): 
         ## move dom node as well
@@ -58,6 +63,7 @@ class  XMLDSObjectClass(XMLObjectClass):
                 if o.getNode() is not None and self.getNode() is not None:
                     o.getNode().unlinkNode()
                     self.getNode().addChild(o.getNode())
+                    print self.getNode()
                
     
 

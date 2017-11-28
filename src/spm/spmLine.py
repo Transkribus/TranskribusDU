@@ -87,9 +87,9 @@ class lineMiner(Component.Component):
             for e in lElts:
                 e.lnext=[]
             ## filter elements!!!
-            lElts = filter(lambda x:min(x.getHeight(),x.getWidth()) > 10,lElts)
-            lElts = filter(lambda x:x.getHeight() > 10,lElts)
-            lElts = filter(lambda x:x.getX() < 500,lElts)
+#             lElts = filter(lambda x:min(x.getHeight(),x.getWidth()) > 10,lElts)
+#             lElts = filter(lambda x:x.getHeight() > 10,lElts)
+            lElts = filter(lambda x:x.getX() > 60,lElts)
 
             lElts.sort(key=lambda x:x.getY())
             lLElts[i]=lElts
@@ -101,7 +101,7 @@ class lineMiner(Component.Component):
             lElts= lLElts[i]
             for elt in lElts:
                 ### need of more abstract features: justified, center, left, right  + numerical 
-                elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['x','xx2','xxc','text'],myLevel=XMLDSTEXTClass)
+                elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['x','2','xc','text'],myLevel=XMLDSTEXTClass)
                 elt.computeSetofFeatures()
 #                 print elt.getSetofFeatures()
             seqGen = sequenceMiner()
