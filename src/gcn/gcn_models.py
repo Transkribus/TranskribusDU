@@ -519,7 +519,8 @@ class GCNModelGraphList(object):
         self.loss = tf.reduce_mean(cross_entropy_source)  + self.mu * tf.nn.l2_loss(self.W_classif)
 
 
-        self.correct_prediction = tf.equal(tf.argmax(tf.nn.softmax(self.logits), 1), tf.argmax(self.y_input, 1))
+        self.pred = tf.argmax(tf.nn.softmax(self.logits), 1)
+        self.correct_prediction = tf.equal(self.pred, tf.argmax(self.y_input, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
 
@@ -550,9 +551,15 @@ class GCNModelGraphList(object):
 
         # Add ops to save and restore all the variables.
         self.init = tf.global_variables_initializer()
+        self.saver= tf.train.Saver(max_to_keep=0)
 
+    def save_model(self, session, model_filename):
+        print("Saving Model")
+        save_path = self.saver.save(session, model_filename)
 
-
+    def restore_model(self, session, model_filename):
+        self.saver.restore(session, model_filename)
+        print("Model restored.")
 
 
     def get_Wedge(self,session):
@@ -641,6 +648,36 @@ class GCNModelGraphList(object):
         return Ops[1]
 
 
+    def predict(self,session,graph,verbose=True):
+        if self.fast_convolve:
+            feed_batch = {
+                self.nb_node: graph.X.shape[0],
+                self.nb_edge: graph.F.shape[0],
+                self.node_input: graph.X,
+                # fast_gcn.S: np.asarray(graph.S.todense()).squeeze(),
+                # fast_gcn.Ssparse: np.vstack([graph.S.row,graph.S.col]),
+                self.Ssparse: np.array(graph.Sind, dtype='int64'),
+                self.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
+                self.Tsparse: np.array(graph.Tind, dtype='int64'),
+                # fast_gcn.T: np.asarray(graph.T.todense()).squeeze(),
+                self.F: graph.F,
+                self.dropout_p: self.dropout_rate
+            }
+        else:
+
+            feed_batch = {
+                self.nb_node: graph.X.shape[0],
+                self.node_input: graph.X,
+                self.EA_input: graph.EA,
+                self.y_input: graph.Y,
+                self.NA_input: graph.NA,
+                self.dropout_p: 0.0
+            }
+        Ops = session.run([self.pred], feed_dict=feed_batch)
+        if verbose:
+            print('Got Prediction for:',Ops[0].shape)
+        return Ops[0]
+
     def train_lG(self,session,gcn_graph_train):
         '''
         Train an a list of graph
@@ -679,8 +716,24 @@ class GCNModelGraphList(object):
 
         return g_acc,node_acc
 
+    def predict_lG(self,session,gcn_graph_predict,verbose=True):
+        '''
+        Predict for a list of graph
+        :param session:
+        :param gcn_graph_test:
+        :return:
+        '''
+        lY_pred=[]
 
-    def train_with_validation_set(self,session,graph_train,graph_val,max_iter,eval_iter=10,patience=7,graph_test=None):
+        for g in gcn_graph_predict:
+            gY_pred = self.predict(session, g, verbose=verbose)
+            lY_pred.append(gY_pred)
+
+
+        return lY_pred
+
+
+    def train_with_validation_set(self,session,graph_train,graph_val,max_iter,eval_iter=10,patience=7,graph_test=None,save_model_path=None):
         best_val_acc=0.0
         wait=0
         stop_training=False
@@ -705,6 +758,9 @@ class GCNModelGraphList(object):
                 print(' Valid Acc', '%.4f' % node_acc)
                 validation_accuracies.append(node_acc)
 
+                if save_model_path:
+                    save_path = self.saver.save(session, save_model_path,global_step=i)
+
                 if graph_test:
                     _,test_acc=self.test_lG(session,graph_test,verbose=False)
                     print('  Test Acc', '%.4f' % test_acc)
@@ -726,7 +782,10 @@ class GCNModelGraphList(object):
                 random.shuffle(graph_train)
                 for g in graph_train:
                     self.train(session, g, n_iter=1)
-
+        #Final Save
+        #if save_model_path:
+        #save_path = self.saver.save(session, save_model_path, global_step=i)
+        #TODO Add the final step
         mean_acc = []
         print('Stopped Model Training after',stopped_iter)
         print('Val Accuracies',validation_accuracies)
@@ -1174,6 +1233,8 @@ class GCNBaselineGraphList(object):
 
         # Add ops to save and restore all the variables.
         self.init = tf.global_variables_initializer()
+
+        self.saver = tf.train.Saver()
 
     def train(self,session,n_node,X,Y,NA,n_iter=1,verbose=False):
         #TrainEvalSet Here
