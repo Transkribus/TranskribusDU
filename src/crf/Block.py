@@ -70,6 +70,9 @@ class Block:
             return self.text[:min(len(self.text), iTruncate)]
         else:
             return self.text
+        
+    def getPage(self): return self.page
+    
     ##Bounding box methods: getter/setter + geometrical stuff
     def getBB(self):
         return self.x1, self.y1, self.x2, self.y2
@@ -91,6 +94,21 @@ class Block:
         self.x2 = self.x2 + f
         self.y1 = self.y1 - f
         self.y2 = self.y2 + f
+    
+    def translate(self, deltaX, deltaY):
+        """
+        Translate this block
+        """
+        self.x1 = self.x1 + deltaX
+        self.x2 = self.x2 + deltaX
+        self.y1 = self.y1 + deltaY
+        self.y2 = self.y2 + deltaY
+
+    def mirrorHorizontally(self, fPageWidth):
+        """
+        Mirror horizontally with respect to the page
+        """                
+        self.x1, self.x2 = fPageWidth - self.x2, fPageWidth - self.x1
         
     def equalGeo(self, tb):
         """ Return True if both objects are geometrically identical
@@ -434,5 +452,33 @@ class Block:
     
     
     
+class BlockShallowCopy(Block):
+    """
+    A shallow copy of a block
+    """    
     
+    def __init__(self, blk):
+        self.page       = blk.page
+        self.pnum       = blk.pnum
+        self.setBB(blk.getBB())
+        self.text       = blk.text
+        self.orientation = blk.orientation
+        self.node       = blk.node
+        self.domid      = blk.domid
+        self.cls        = blk.cls #the class of the block, in [0, N]
+        #Node type
+        self.type       = blk.type
+        self.fontsize   = blk.fontsize
+        self.sconf      = blk.sconf
+        
+        #neighbouring relationship
+        self.lHNeighbor     = blk.lHNeighbor
+        self.lVNeighbor     = blk.lVNeighbor
+        self.lCPNeighbor    = blk.lCPNeighbor
+        self.lCMPNeighbor   = blk.lCMPNeighbor      
+        
+        #finally
+        self._blk        = blk
+        
+    def getOrigBlock(self): return self._blk
     

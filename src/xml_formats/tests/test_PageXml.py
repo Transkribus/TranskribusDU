@@ -7,7 +7,7 @@ Created on 23 Nov 2016
 '''
 import pytest
 
-from xml_formats.PageXml import PageXml
+from xml_formats.PageXml import PageXml, PageXmlException
 
 
 def test_custom():
@@ -71,8 +71,8 @@ def test_getsetCustomAttr():
     assert PageXml.setCustomAttr(nd, "readingOrder", "toto", "zou") == "zou"
     assert PageXml.getCustomAttr(nd, "readingOrder", "toto") == 'zou'
 
-    with pytest.raises(KeyError): PageXml.getCustomAttr(nd, "readingOrder", "axiste_pas")
-    with pytest.raises(KeyError): PageXml.getCustomAttr(nd, "axiste_pas_non_plus", "axiste_pas")
+    with pytest.raises(PageXmlException): PageXml.getCustomAttr(nd, "readingOrder", "axiste_pas")
+    with pytest.raises(PageXmlException): PageXml.getCustomAttr(nd, "axiste_pas_non_plus", "axiste_pas")
     
 def getMetadataTestDOM():
     import libxml2

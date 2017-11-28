@@ -2,11 +2,13 @@
 """ 
     H. Déjean
 
-    cpy Xerox 2017
+    cpy Naver Labs 2017
 
     simply replace cells by TextRegion
     this is a need for ABP transcribers
     
+    
+    ex: 
 """
 
 
@@ -18,7 +20,7 @@ import  libxml2
 import common.Component as Component
 import config.ds_xml_def as ds_xml
 from common.trace import traceln
-from xml_formats.PageXml import PageXml
+from xml_formats.PageXml import PageXml, MultiPageXml
 from util.Polygon import Polygon
 
 class table2TextRegion(Component.Component):
@@ -31,6 +33,7 @@ class table2TextRegion(Component.Component):
         
     name="primaAnalysis"
     kDPI = "dpi"
+    
     def __init__(self):
 
         Component.Component.__init__(self, "pageXMLconverter", self.usage, self.version, self.description) 
@@ -39,6 +42,8 @@ class table2TextRegion(Component.Component):
          
         self.xmlns='http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
         self.id=1
+        
+        self.HeightTH=0.5
     def setParams(self, dParams):
         """
         Always call first the Component setParams
@@ -46,6 +51,9 @@ class table2TextRegion(Component.Component):
         """
         Component.Component.setParams(self, dParams)
         if dParams.has_key(self.kDPI)    : self.dpi          = int(dParams[self.kDPI])
+#         if dParams.has_key("HTR")    : self.HeightTH         = int(dParams["HTR"])
+        if dParams.has_key("vpadding")    : self.vpadding     = dParams["vpadding"]
+        if dParams.has_key("hpadding")    : self.hpadding     = dParams["hpadding"]
 
     
     def resizeCell(self,cell,ns):
@@ -67,12 +75,15 @@ class table2TextRegion(Component.Component):
         x1,y1,x2,y2 = plg.getBoundingBox()
         cellX1=x1
         cellX2=x2
-        
-        print x1,x2
+        cellY1= y1
+        cellY2=y2
+
+
+        ## get all the textlines of the cell         
         minx,miny,maxx,maxy = 9e9,9e9,0,0
         for line in lTextLines:
             lXY = PageXml.getPointList(line)  #the polygon
-            print lXY
+            # in case empty cell
             if lXY == []:
                 continue
             plg = Polygon(lXY)  
@@ -86,13 +97,32 @@ class table2TextRegion(Component.Component):
             maxx = max(maxx,x2)            
             maxy = max(maxy,y2)
         
-        miny -= 50        
-        maxy += 50
-
-        minx -= 20 
-        maxx += 20       
-        minx = min(cellX1,minx)
-        maxx = max(cellX2, maxx)
+        
+        """
+            finally: simply use the BB of the textlines + padding
+        """
+        
+#         # new request: height= max(cell,text)
+#         ## new new request: (12/10/2017): min (cell, text)!
+#         HCell = cellY2 - cellY1
+#         HBBText = maxy - miny
+#   
+        miny -= self.vpadding # vertical padding (top)       
+        maxy += self.vpadding # vertical padding (bottom)
+#         
+#         # Height computation
+#         ## if HBBText <= self.HeightTH * HCell: take HBBText as height for TextREgion
+#         if HBBText > self.HeightTH * HCell:
+#             miny = max(miny,cellY1)
+#             maxy = min(maxy,cellY2)            
+#         # else : don't touch miny, maxy  : use only Text for computing Height        
+#         
+#         # Width computation
+        minx -= self.hpadding  # horizontal padding 
+        maxx += self.hpadding  # horizontal padding 
+        
+#         minx = min(cellX1,minx)
+#         maxx = max(cellX2, maxx)
 #         print cellX2, maxx
         
         corner = cell.children
@@ -146,12 +176,15 @@ class table2TextRegion(Component.Component):
             lCells.sort(key=lambda x:int(x.prop('row')))
             for i,cell in enumerate(lCells):
                 cell.unlinkNode()
+#                 print cell
                 table.parent.addChild(cell)
                 cell.setName('TextRegion')
                 cell.setProp('custom',"readingOrder {index:%d;}"%i)
                 # delete cell props
                 for propname in ['row','col','rowSpan','colSpan']:
                     cell.unsetProp(propname)
+                # del leftBorderVisible, topBorderVisible,rightBorderVisible,bottomBorderVisible
+                # to do
                 #del CornerPts
                 xpath  = "./a:%s" % ("CornerPts")
                 ctxt.setContextNode(cell)
@@ -176,7 +209,9 @@ class table2TextRegion(Component.Component):
         
         docdom=self.loadDom()
         self.convertTableCells(docdom)
-        PageXml.setMetadata( docdom, None, 'XRCE', Comments='TableCell 2 TextRegion')
+        try:PageXml.setMetadata( docdom, None, 'NLE', Comments='TableCell 2 TextRegion')
+        except ValueError:
+            MultiPageXml.setMetadata(docdom, None, 'NLE', Comments='TableCell 2 TextRegion')
         return docdom
                 
 if __name__ == "__main__":
@@ -189,7 +224,9 @@ if __name__ == "__main__":
     #prepare for the parsing of the command line
     cmp.createCommandLineParser()
 #     cmp.add_option("", "--"+cmp.kPTTRN, dest=cmp.kPTTRN, action="store", type="string", help="REQUIRED **: File name pattern, e.g. /tmp/*/to?o*.xml"   , metavar="<pattern>")
-#     cmp.add_option("--"+cmp.kDOCID, dest=cmp.kDOCID, action="store", type='string', help="docId in col")
+#     cmp.add_option("--HeightCR", dest="HTH", action="store", type='string', help="Threshold for adapting TextRegion Height")
+    cmp.add_option("--vpadding", dest="vpadding", action="store", type='int', default=20,help="vertical padding (default 20 pixels)")
+    cmp.add_option("--hpadding", dest="hpadding", action="store", type='int', default=30,help="horizontal padding (default 30 pixels)")
     
  
     #parse the command line

@@ -65,9 +65,9 @@ def test_RectangleFitting():
             print fmt%(edge.__class__.__name__[0], edge.A.pnum, sa, edge.B.pnum, sb)
         lPrevPageNode = lPageNode
     
-    sOut = "TEST_getPageXmlBlock.mpxml"
-    
-    assert os.path.exists(sOut)
+#     sOut = "TEST_getPageXmlBlock.mpxml"
+#     
+#     assert os.path.exists(sOut)
     
     
 if __name__ == "__main__":

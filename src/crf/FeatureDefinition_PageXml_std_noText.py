@@ -35,7 +35,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 from crf.Transformer import TransformerListByType
 from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures
-from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
+from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures_v2, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
 from FeatureDefinition import FeatureDefinition
@@ -75,7 +75,7 @@ class FeatureDefinition_PageXml_StandardOnes_noText(FeatureDefinition):
                                                          ])
                                         )
                                     , ("boolean", Pipeline([
-                                                         ('boolean', EdgeBooleanFeatures())
+                                                         ('boolean', EdgeBooleanFeatures_v2())
                                                          ])
                                         )
                                     , ("numerical", Pipeline([
@@ -143,7 +143,7 @@ class FeatureDefinition_T_PageXml_StandardOnes_noText(FeatureDefinition):
                                                          ])
                                         )
                                     , ("boolean", Pipeline([
-                                                         ('boolean', EdgeBooleanFeatures())
+                                                         ('boolean', EdgeBooleanFeatures_v2())
                                                          ])
                                         )
                                     , ("numerical", Pipeline([
