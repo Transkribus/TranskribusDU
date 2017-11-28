@@ -26,6 +26,8 @@ tf.app.flags.DEFINE_integer('fold', '1', "FilePath for the pickle")
 tf.app.flags.DEFINE_string('out_dir', 'out_res', "outdirectory for saving the results")
 tf.app.flags.DEFINE_integer('configid', 0, 'gridid')
 tf.app.flags.DEFINE_bool('snake',False, 'whether to work on the snake dataset')
+tf.app.flags.DEFINE_bool('das_train',False, ' Training the Model for the DAS paper')
+tf.app.flags.DEFINE_bool('das_predict',False, 'Prediction Experiment for the DAS paper')
 
 # Details of the training configuration.
 tf.app.flags.DEFINE_float('learning_rate', 0.1, """How large a learning rate to use when training, default 0.1 .""")
@@ -555,9 +557,10 @@ def run_model(gcn_graph, config_params, gcn_graph_test,eval_iter=10):
 
 def run_model_train_val_test(gcn_graph,
                              config_params,
-                             gcn_graph_test,
                              outpicklefname,
-                             ratio_train_val=0.1
+                             ratio_train_val=0.1,
+                             gcn_graph_test=None,
+                             save_model_path=None
                              ):
     g_1 = tf.Graph()
 
@@ -599,7 +602,7 @@ def run_model_train_val_test(gcn_graph,
         with tf.Session() as session:
             session.run([gcn_model.init])
 
-            R=gcn_model.train_with_validation_set(session,gcn_graph_train,gcn_graph_val,config_params['nb_iter'],eval_iter=10,patience=1000,graph_test=gcn_graph_test)
+            R=gcn_model.train_with_validation_set(session,gcn_graph_train,gcn_graph_val,config_params['nb_iter'],eval_iter=10,patience=1000,graph_test=gcn_graph_test,save_model_path=save_model_path)
 
             f=open(outpicklefname,'wb')
             pickle.dump(R,f)
@@ -657,6 +660,116 @@ def main(_):
         acc_test = run_model(train_graph, config, test_graph)
         print('Accuracy Test', acc_test)
 
+    elif FLAGS.das_train is True:
+        #Load all the files of table
+        # Train the model
+        graph_train=[]
+        for i in range(1,5):
+            pickle_train = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(i) + '_tlXlY_trn.pkl'
+            print('loading ',pickle_train)
+            train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
+            graph_train.extend(train_graph)
+
+        #Load the other dataset for predictions
+        configid = 31
+        config = get_config(configid)
+        #config['nb_iter'] = 100
+
+        save_model_dir='models/das_exp1_C31.ckpt'
+        #I should  save the pickle
+        outpicklefname='models/das_exp1_C31.validation_scores.pickle'
+        run_model_train_val_test(train_graph, config, outpicklefname, ratio_train_val=0.1,save_model_path=save_model_dir)
+        #for test add gcn_graph_test=train_graph
+
+
+    elif FLAGS.das_predict:
+
+        do_test=False #some internal flags to do some testing
+
+        node_dim = 29
+        edge_dim = 140
+        nb_class = 5
+
+        configid = 31
+        config = get_config(configid)
+
+
+        #Get the best file
+        #TODO Get the best file
+        #node_dim = gcn_graph[0].X.shape[1]
+        #edge_dim = gcn_graph[0].E.shape[1] - 2.0
+        #nb_class = gcn_graph[0].Y.shape[1]
+
+        f = open('models/das_exp1_C31.validation_scores.pickle', 'rb')
+        R = pickle.load(f)
+
+        val = R['val_acc']
+        print('Validation scores',val)
+
+        epoch_index = np.argmax(val)
+        print('Best performance on val set: Epoch',epoch_index)
+
+        gcn_model = gcn_models.GCNModelGraphList(node_dim, edge_dim, nb_class,
+                                                 num_layers=config['num_layers'],
+                                                 learning_rate=config['lr'],
+                                                 mu=config['mu'],
+                                                 node_indim=config['node_indim'],
+                                                 nconv_edge=config['nconv_edge'],
+                                                 )
+
+        gcn_model.stack_instead_add = config['stack_instead_add']
+
+        if 'fast_convolve' in config:
+            gcn_model.fast_convolve = config['fast_convolve']
+
+        gcn_model.create_model()
+
+
+        if do_test:
+            graph_train = []
+            for i in range(1, 5):
+                pickle_train = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(i) + '_tlXlY_trn.pkl'
+                print('loading ', pickle_train)
+                train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
+                graph_train.extend(train_graph)
+
+        #TODO load the data for test
+        pickle_predict ='/nfs/project/read/testJL/DAS/predict.pkl'
+        pickle_predict = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(4) + '_tlXlY_trn.pkl'
+        print('loading ', pickle_predict)
+        predict_graph = GCNDataset.load_transkribus_pickle(pickle_predict)
+
+        with tf.Session() as session:
+            # Restore variables from disk.
+            session.run(gcn_model.init)
+
+            if do_test:
+                gcn_model.restore_model(session, "models/das_exp1_C31.ckpt-99")
+                print('Loaded models')
+
+                graphAcc,node_acc=gcn_model.test_lG(session,graph_train)
+                print(graphAcc,node_acc)
+
+            gcn_model.restore_model(session, "models/das_exp1_C31.ckpt-"+str(10*epoch_index))
+            print('Loaded models')
+
+            lY_pred = gcn_model.predict_lG(session, predict_graph, verbose=False)
+            #Convert to list as Python pickle does not  seem like the array while the list can be pickled
+            lY_list=[]
+            for x in lY_pred:
+                lY_list.append(list(x))
+
+            print(lY_list)
+            outpicklefname = 'das_predict_C31.pickle'
+            g=open(outpicklefname,'wb')
+            #print(lY_pred)
+            pickle.dump(lY_list, g, protocol=2)
+            g.close()
+
+
+
+
+
 
     elif FLAGS.qsub_taskid >-1:
 
@@ -683,7 +796,7 @@ def main(_):
             os.mkdir(FLAGS.out_dir)
 
         outpicklefname = os.path.join(FLAGS.out_dir, 'table_F' + str(fold_id) + '_C' + str(configid) + '.pickle')
-        run_model_train_val_test(train_graph, config, test_graph, outpicklefname,ratio_train_val=0.1)
+        run_model_train_val_test(train_graph, config, outpicklefname,ratio_train_val=0.1,gcn_graph_test= test_graph)
 
 
     else:
@@ -720,7 +833,7 @@ def main(_):
             #print('Accuracy Test', acc_test)
 
             outpicklefname=os.path.join(FLAGS.out_dir,'table_F'+str(FLAGS.fold)+'_C'+str(FLAGS.configid)+'.pickle')
-            run_model_train_val_test(train_graph,config,test_graph,outpicklefname)
+            run_model_train_val_test(train_graph,config,outpicklefname,gcn_graph_test= test_graph)
 
 
 

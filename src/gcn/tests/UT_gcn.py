@@ -239,12 +239,12 @@ class UT_gcn(unittest.TestCase):
 
     def test_05_load_jl_pickle(self):
 
-        pickle_fname='/opt/project/read/testJL/TABLE/abp_models/abp_CV10_fold_10_tlXlY_trn.pkl'
+        pickle_fname='/nfs/project/read/testJL/TABLE/abp_models/abp_CV10_fold_10_tlXlY_trn.pkl'
         gcn_graph= GCNDataset.load_transkribus_pickle(pickle_fname)
         print(len(gcn_graph),'loaded graph')
 
     def test_06_create_graphlist_model(self):
-        pickle_fname='/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
+        pickle_fname='/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
         gcn_graph= GCNDataset.load_transkribus_pickle(pickle_fname)
 
 
@@ -295,7 +295,7 @@ class UT_gcn(unittest.TestCase):
             print('Mean Accuracy',np.mean(mean_acc))
 
     def test_07_deep_model(self):
-        pickle_fname='/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
+        pickle_fname='/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
         gcn_graph= GCNDataset.load_transkribus_pickle(pickle_fname)
 
 
@@ -340,7 +340,7 @@ class UT_gcn(unittest.TestCase):
             print('Mean Accuracy',np.mean(mean_acc))
 
     def test_08_deep_stack(self):
-        pickle_fname='/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
+        pickle_fname='/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
         gcn_graph= GCNDataset.load_transkribus_pickle(pickle_fname)
 
 
@@ -513,7 +513,7 @@ class UT_gcn(unittest.TestCase):
             print('Mean Accuracy',np.mean(mean_acc))
 
     def test_11_2layers(self):
-            pickle_fname = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
+            pickle_fname = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
             gcn_graph = GCNDataset.load_transkribus_pickle(pickle_fname)
 
             gcn_graph_test = [gcn_graph[8], gcn_graph[18], gcn_graph[29]]
@@ -595,7 +595,7 @@ class UT_gcn(unittest.TestCase):
         #Check that S times T ==A
         #Do the Unittest Here finally to debug ..
         #Do the convolutions
-        pickle_fname = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
+        pickle_fname = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
         gcn_graph = GCNDataset.load_transkribus_pickle(pickle_fname)
 
         Xa = np.array([[1.0, 2.0], [6.3, 1.0], [4.3, -2.0]])
@@ -766,6 +766,55 @@ class UT_gcn(unittest.TestCase):
 
             #pdb.set_trace()
             diff_test = self.assertAlmostEqual(0, (diff<1e-3).sum())
+
+    def test_predict(self):
+        pickle_fname = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
+        gcn_graph = GCNDataset.load_transkribus_pickle(pickle_fname)
+
+        gcn_graph_train = [gcn_graph[8], gcn_graph[18], gcn_graph[29]]
+        node_dim = gcn_graph[0].X.shape[1]
+        edge_dim = gcn_graph[0].E.shape[1] - 2.0
+        nb_class = gcn_graph[0].Y.shape[1]
+
+        gcn_model = GCNModelGraphList(node_dim, edge_dim, nb_class, num_layers=2, learning_rate=0.01, mu=0.0,
+                                      node_indim=-1, nconv_edge=5)
+        # gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
+        gcn_model.stack_instead_add = True
+        gcn_model.fast_convolve=True
+
+        gcn_model.create_model()
+
+        # pdb.set_trace()
+
+        nb_iter = 50
+        with tf.Session() as session:
+            session.run([gcn_model.init])
+            # Sample each graph
+            # random
+            for i in range(nb_iter):
+                gcn_model.train_lG(session,gcn_graph_train)
+
+            #Get the Test Prediction
+            g_acc, node_acc = gcn_model.test_lG(session,gcn_graph_train)
+            print('Mean Accuracy', g_acc,node_acc)
+            # Get the Test Prediction
+
+            lY_pred = gcn_model.predict_lG(session,gcn_graph_train,verbose=False)
+
+        tp=0
+        nb_node=0
+
+        for lY,graph in zip(lY_pred,gcn_graph_train):
+            Ytrue = np.argmax(graph.Y,axis=1)
+            tp += sum (Ytrue==lY)
+            #pdb.set_trace()
+            nb_node += Ytrue.shape[0]
+
+        print('Final Accuracy',tp/nb_node)
+
+        self.assertAlmostEqual(tp/nb_node,node_acc)
+
+
 
 
 if __name__ == '__main__':
