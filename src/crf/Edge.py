@@ -14,7 +14,7 @@ Copyright Xerox 2016
 import Block
 
 DEBUG=0
-DEBUG=1
+#DEBUG=1
 
 # --- Edge CLASSE -----------------------------------------
 class Edge:
