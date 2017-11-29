@@ -243,6 +243,10 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                           , help="CRF training parameter inference_cache")    
         parser.add_option("--best-params", dest='best_params',  action="store", type="string"
                           , help="Use the best  parameters from the grid search previously done on the given model or model fold") 
+
+        parser.add_option("--storeX" , dest='storeX' ,  action="store", type="string", help="Dev: to be use with --run: load the data and store [X] under given filename, and exit")
+        parser.add_option("--applyY" , dest='applyY' ,  action="store", type="string", help="Dev: to be use with --run: load the data, label it using [Y] from given file name, and store the annotated data, and exit")
+                
         return usage, None, parser
     getBasicTrnTstRunOptionParser = classmethod(getBasicTrnTstRunOptionParser)
            
@@ -442,6 +446,78 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             self.traceln("\t done [%.2fs]"%chronoOff("predict_1"))
         self.traceln(" done [%.2fs]"%chronoOff("predict"))
 
+        return lsOutputFilename
+
+    def runForExternalMLMethod(self, lsColDir, storeX, applyY):
+        """
+        HACK: to test new ML methods, not yet integrated in our SW: storeX=None, storeXY=None, applyY=None
+        Return the list of produced files
+        """
+
+        self.traceln("-"*50)
+        if storeX: traceln("Loading data and storing [X] (1 X per graph)")
+        if applyY: traceln("Loading data, loading Y, labelling data, storing annotated data")
+        self.traceln("-"*50)
+
+        if storeX and applyY:
+            raise ValueError("Either store X or applyY, not both")
+
+        if not self._mdl: raise Exception("The model must be loaded beforehand!")
+        
+        #list files
+        _     , lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
+        
+        DU_GraphClass = self.getGraphClass()
+
+        lPageConstraint = DU_GraphClass.getPageConstraint()
+        if lPageConstraint: 
+            for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
+        
+        if applyY: 
+            self.traceln("LOADING [Y] from %s"%applyY)
+            lY = self._mdl.gzip_cPickle_load(applyY)
+        if storeX: lX = []
+        
+        chronoOn("predict")
+        self.traceln("- loading collection as graphs, and processing each in turn. (%d files)"%len(lFilename))
+        du_postfix = "_du"+MultiPageXml.sEXT
+        lsOutputFilename = []
+        for sFilename in lFilename:
+            if sFilename.endswith(du_postfix): continue #:)
+            chronoOn("predict_1")
+            lg = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
+            #normally, we get one graph per file, but in case we load one graph per page, for instance, we have a list
+            if lg:
+                for g in lg:
+                    doc = g.doc
+                    if lPageConstraint:
+                        self.traceln("\t- prediction with logical constraints: %s"%sFilename)
+                    else:
+                        self.traceln("\t- prediction : %s"%sFilename)
+                    if storeX:
+                        [X] = self._mdl.get_lX([g])
+                        lX.append(X)
+                    else:
+                        Y = lY.pop(0)
+                        g.setDomLabels(Y)
+                del lg
+                
+                if applyY:
+                    MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
+                    sDUFilename = sFilename[:-len(MultiPageXml.sEXT)]+du_postfix
+                    doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
+                    doc.freeDoc()
+                    lsOutputFilename.append(sDUFilename)
+            else:
+                self.traceln("\t- no prediction to do for: %s"%sFilename)
+                
+            self.traceln("\t done [%.2fs]"%chronoOff("predict_1"))
+        self.traceln(" done [%.2fs]"%chronoOff("predict"))
+
+        if storeX:
+            self.traceln("STORING [X] in %s"%storeX)
+            self._mdl.gzip_cPickle_dump(storeX, lX)
+            
         return lsOutputFilename
 
     def checkLabelCoverage(self, lY):
