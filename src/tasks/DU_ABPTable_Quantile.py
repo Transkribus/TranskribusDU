@@ -142,6 +142,12 @@ class DU_ABPTable(DU_CRF_Task):
         self.sXmlFilenamePattern = "*.mpxml"
         return DU_CRF_Task.predict(self, lsColDir)
         
+    def runForExternalMLMethod(self, lsColDir, storeX, applyY):
+        """
+        Return the list of produced files
+        """
+        self.sXmlFilenamePattern = "*.mpxml"
+        return DU_CRF_Task.runForExternalMLMethod(self, lsColDir, storeX, applyY)
               
     
 if __name__ == "__main__":
@@ -225,7 +231,13 @@ if __name__ == "__main__":
         traceln(tstReport)
     
     if lRun:
-        doer.load()
-        lsOutputFilename = doer.predict(lRun)
+        if options.storeX or options.applyY:
+            try: doer.load() 
+            except: pass    #we only need the transformer
+            lsOutputFilename = doer.runForExternalMLMethod(lRun, options.storeX, options.applyY)
+        else:
+            doer.load()
+            lsOutputFilename = doer.predict(lRun)
+            
         traceln("Done, see in:\n  %s"%lsOutputFilename)
     
