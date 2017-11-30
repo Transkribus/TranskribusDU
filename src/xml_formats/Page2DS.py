@@ -200,8 +200,6 @@ class primaAnalysis(Component.Component):
             lPoints = ctxt.xpathEval(xpath)
             ctxt.xpathFreeContext()
             if lPoints!= []:
-                ## 
-#                 sp = self.getPoints(curNode)
                 sp = lPoints[0].getContent().replace(' ',',')
                 try:
                     scaledP =  map(lambda x: 72.0* float(x) / self.dpi,sp.split(','))
@@ -210,7 +208,15 @@ class primaAnalysis(Component.Component):
                     dsNode.addChild(node)
                 except IndexError: 
                     pass            
-            
+            # text
+            ctxt = line.doc.xpathNewContext()
+            ctxt.xpathRegisterNs("a", self.xmlns)
+            xpath  = "./a:TextEquiv/a:Unicode"
+            ctxt.setContextNode(line)
+            ltxt = ctxt.xpathEval(xpath)
+            ctxt.xpathFreeContext()
+            if ltxt != []:
+                node.setContent(ltxt[0].getContent())
             
             
             # BB
@@ -231,82 +237,64 @@ class primaAnalysis(Component.Component):
                 node.setProp(ds_xml.sWidth,str(wp))            
             node.setProp('font-size','20')
 
-#             ## baseline
-#             ## add @baselintpoints 
-#             ##<Baseline points="373,814 700,805 1027,785 1354,804 1681,783 2339,780"/>
-# #             blnode = libxml2.newNode('BASELINE')
+            
+#             # if word
+#             
 #             ctxt = line.doc.xpathNewContext()
 #             ctxt.xpathRegisterNs("a", self.xmlns)
+#             xpath  = "./a:%s" % ("Word")
 #             ctxt.setContextNode(line)
-#             xpath  = "./a:Baseline/@%s" % ("points")
-#             lPoints = ctxt.xpathEval(xpath)
+#             lWords= ctxt.xpathEval(xpath)
 #             ctxt.xpathFreeContext()
-#             if lPoints!= []:
-#                 ## 
-# #                 sp = self.getPoints(curNode)
-#                 sp = lPoints[0].getContent().replace(' ',',')
-#                 try:
-#                     scaledP=  map(lambda x: 72.0* float(x) / self.dpi,sp.split(','))
-#                     scaledP = str(scaledP)[1:-1].replace(' ','')
-#                     node.setProp('blpoints',scaledP)
-#                     dsNode.addChild(node)
-#                 except IndexError: 
-#                     pass
-                
-            
-            ctxt = line.doc.xpathNewContext()
-            ctxt.xpathRegisterNs("a", self.xmlns)
-            xpath  = "./a:%s" % ("Word")
-            ctxt.setContextNode(line)
-            lWords= ctxt.xpathEval(xpath)
-            ctxt.xpathFreeContext()
-            if lWords == []:
-                # get TextEquiv
-                ctxt = line.doc.xpathNewContext()
-                ctxt.xpathRegisterNs("a", self.xmlns)
-                xpath  = "./a:TextEquiv/a:Unicode"
-                ctxt.setContextNode(line)
-                ltxt = ctxt.xpathEval(xpath)
-                ctxt.xpathFreeContext()
-                if ltxt != []:
-                    #node.setContent(ltxt[0].getContent())
-                    lCWords= ltxt[0].getContent().split(' ')
-                    for word in lCWords:
-                        wnode= libxml2.newNode('TOKEN')
-                        wnode.setProp('font-color','BLACK')
-                        wnode.setProp('font-size','8')
-                        wnode.setContent(word)     
-                        node.addChild(wnode)
-               
-                    
-            for word in lWords:
-                wnode= libxml2.newNode('TOKEN')
-                wnode.setProp('font-color','BLACK')
-                wnode.setProp('font-size','8')
-                node.addChild(wnode)
-                ctxt = curNode.doc.xpathNewContext()
-                ctxt.xpathRegisterNs("a", self.xmlns)
-                xpath  = ".//a:%s" % ("Points")
-                ctxt.setContextNode(word)
-                lPoints = ctxt.xpathEval(xpath)
-                ctxt.xpathFreeContext()
-                if lPoints != []:
-                    [x,y,h,w] = self.regionBoundingBox(lPoints[0])
-                    xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w)) 
-                    wnode.setProp(ds_xml.sX,str(xp))
-                    wnode.setProp(ds_xml.sY,str(yp))
-                    wnode.setProp(ds_xml.sHeight,str(hp))
-                    wnode.setProp(ds_xml.sWidth,str(wp))                            
-                    ctxt = word.doc.xpathNewContext()
-                    ctxt.xpathRegisterNs("a", self.xmlns)
-                    xpath  = './a:TextEquiv/a:PlainText/text()'
-                    ctxt.setContextNode(word)
-                    ltexts= ctxt.xpathEval(xpath)
-                    ctxt.xpathFreeContext()
-                    if ltexts:
-                        wnode.setContent(document.encodeEntitiesReentrant(ltexts[0].getContent()))
-                 
-             
+#             print lWords
+#             if lWords == []:
+#                 # get TextEquiv
+#                 ctxt = line.doc.xpathNewContext()
+#                 ctxt.xpathRegisterNs("a", self.xmlns)
+#                 xpath  = "./a:TextEquiv/a:Unicode"
+#                 ctxt.setContextNode(line)
+#                 ltxt = ctxt.xpathEval(xpath)
+#                 ctxt.xpathFreeContext()
+#                 if ltxt != []:
+#                     node.setContent(ltxt[0].getContent())
+#                     print "??",node
+#                     lCWords= ltxt[0].getContent().split(' ')
+#                     for word in lCWords:
+#                         wnode= libxml2.newNode('TOKEN')
+#                         wnode.setProp('font-color','BLACK')
+#                         wnode.setProp('font-size','8')
+#                         wnode.setContent(word)     
+#                         node.addChild(wnode)
+#                
+#                     
+#             for word in lWords:
+#                 wnode= libxml2.newNode('TOKEN')
+#                 wnode.setProp('font-color','BLACK')
+#                 wnode.setProp('font-size','8')
+#                 node.addChild(wnode)
+#                 ctxt = curNode.doc.xpathNewContext()
+#                 ctxt.xpathRegisterNs("a", self.xmlns)
+#                 xpath  = ".//a:%s" % ("Points")
+#                 ctxt.setContextNode(word)
+#                 lPoints = ctxt.xpathEval(xpath)
+#                 ctxt.xpathFreeContext()
+#                 if lPoints != []:
+#                     [x,y,h,w] = self.regionBoundingBox(lPoints[0])
+#                     xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w)) 
+#                     wnode.setProp(ds_xml.sX,str(xp))
+#                     wnode.setProp(ds_xml.sY,str(yp))
+#                     wnode.setProp(ds_xml.sHeight,str(hp))
+#                     wnode.setProp(ds_xml.sWidth,str(wp))                            
+#                     ctxt = word.doc.xpathNewContext()
+#                     ctxt.xpathRegisterNs("a", self.xmlns)
+#                     xpath  = './a:TextEquiv/a:PlainText/text()'
+#                     ctxt.setContextNode(word)
+#                     ltexts= ctxt.xpathEval(xpath)
+#                     ctxt.xpathFreeContext()
+#                     if ltexts:
+#                         wnode.setContent(document.encodeEntitiesReentrant(ltexts[0].getContent()))
+#                  
+#             print "final:",node
              
     def mergeTextRegionandCell(self,table):
         """

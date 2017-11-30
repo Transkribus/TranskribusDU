@@ -3,7 +3,7 @@
 
     object class 
     
-    Herv� D�jean
+    Hervé Déjean
     cpy Xerox 2009
     
     a class for object
@@ -162,6 +162,10 @@ class  objectClass(sequenceAPI):
             return lName[0]
         
     def getFields(self): return self._lFields
+    def getAllFields(self):
+        lF=self._lFields
+        [lF.extend(x.getFields()) for x in self.getObjects()]
+        return lF    
     
     def extractFields(self):
         """

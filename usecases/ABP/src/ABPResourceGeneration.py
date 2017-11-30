@@ -34,7 +34,7 @@ import os
 from optparse import OptionParser
 
 import csv
-
+import codecs
 import cPickle, gzip
 
 
@@ -52,7 +52,9 @@ class ResourceGen(object):
         self.lOutNames = []   
         self.lDelimitor=[] 
         self.bFreqOne = False
+        self.bFreqNorm = False
         self.bHeader = True
+        self.bTok =False
     ## Add a parameter to the component
     ## Syntax is similar to optparse.OptionParser.add_option (the Python module optparse, class OptionParser, method add_option)
     #@param *args    (passing by position)
@@ -65,10 +67,13 @@ class ResourceGen(object):
         self.parser = OptionParser(usage=self.usage, version=self.version)
         self.parser.description = self.description
         self.add_option("--freqone", dest="freqone",  action="store_true",  help="assume freq=1 for all entries")
+        self.add_option("--freqnorm", dest="freqnorm",  action="store_true",  help="normalse (<1) for all entries")
+
         self.add_option("--outdir", dest="outputDir", default="-", action="store", type="string", help="output folder", metavar="<dir>")
         self.add_option("--res", dest="lres",  action="append", type="string", help="resources for tagger/genrator/HTR")
         self.add_option("--name", dest="lnames",  action="append", type="string", help="output file names")
         self.add_option("--delimitor", dest="ldelimits",  action="append", type="string", help="CSV delimitors")
+        self.add_option("--tokenize", dest="bTok",  action="store_true",default=False, help="perform tokenization")
 
     def parseCommandLine(self):
         (options, args) = self.parser.parse_args()
@@ -89,17 +94,19 @@ class ResourceGen(object):
         if  dParams.has_key("lnames"): self.lOutNames=dParams['lnames']
         if  dParams.has_key("ldelimits"): self.lDelimitor=dParams['ldelimits']
         if  dParams.has_key("freqone"): self.bFreqOne=True
-    
+        if  dParams.has_key("bTok"): self.bTok=True
+        if  dParams.has_key("freqnorm"): self.bFreqNorm=True
 
     def createResource(self,destDir,dbfilename,outname,sDelimiter=' ', nbEntries=-1):
         """
-            create resource files (picke)
+            create resource files (pickel)
         """
         import operator
         
         if sDelimiter == 'tab':sDelimiter=str('\t')
         
         db={}
+        fSum = 0.0
         with open(dbfilename,'rb') as dbfilename:
             dbreader= csv.reader(dbfilename,delimiter=sDelimiter )
             for lFields in dbreader:
@@ -108,23 +115,39 @@ class ResourceGen(object):
                 try: 
                     int(lFields[1])
                     if self.bFreqOne:lFields[1] = 1
-
+                    
                     if  len(lFields[0].strip()) > 0:
-                        try:
-                            db[lFields[0].decode('utf-8').strip()] += int(lFields[1])
-                        except KeyError: db[lFields[0].decode('utf-8').strip()] = int(lFields[1])
+                        if self.bTok:
+                            lTok = lFields[0].strip().split(' ')
+                        else:lTok=[lFields[0]]
+                        for tok in lTok:    
+                            try:
+                                db[tok.decode('utf-8').strip()] += int(lFields[1])
+                            except KeyError: db[tok.decode('utf-8').strip()] = int(lFields[1])
+                            fSum += int(lFields[1])
                 except IndexError:
                     #just one column with the string; no frequency
                     if  len(lFields[0].strip()) > 0:
                         db[lFields[0].decode('utf-8').strip()] = 1
                 except ValueError:
                     continue
+        if self.bFreqNorm:
+            for item in db:
+                db[item] = db[item]/fSum
+                
         sorted_db = sorted(db.items(), key=operator.itemgetter(1),reverse=True)
         # where to store them
         outFile=gzip.open(os.path.join(destDir,outname+'.pkl'),'w')
         print os.path.join(destDir,outname+".pkl")
         cPickle.dump(sorted_db, outFile)
         outFile.close()        
+        
+        #readable version !
+        outFile=codecs.open(os.path.join(destDir,outname+'.txt'),encoding='utf-8',mode='w')
+        print os.path.join(destDir,outname+".txt")
+        for x,y in sorted_db:
+            outFile.write("%s\t%s\n"%(x,y))
+        outFile.close()                 
         
         return dict(sorted_db[:nbEntries])
         

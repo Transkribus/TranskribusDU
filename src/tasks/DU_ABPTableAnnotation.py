@@ -92,14 +92,13 @@ ntA.setXpathExpr( (".//pc:TextLine | .//pc:TextRegion | .//pc:SeparatorRegion"  
  
 class DU_ABPTableAnnotator(DU_CRF_Task):
     """
-    We will do a CRF model for a DU task
-    , with the below labels 
+        
     """
     sXmlFilenamePattern = "*.mpxml"
     
     sLabeledXmlFilenamePattern = "*.mpxml"
 
-    sLabeledXmlFilenameEXT = ".mpxml"
+    sLabeledXmlFilenameEXT = ".a_mpxml"
 
 
     #=== CONFIGURATION ====================================================================
@@ -127,20 +126,6 @@ class DU_ABPTableAnnotator(DU_CRF_Task):
     #=== END OF CONFIGURATION =============================================================
 
   
-    
-    def annotateCollection(self,lsTrnColDir):
-        """
-            KapelMeister
-            
-            input full table:
-            
-            what we need: table with columns only
-            
-            if table:
-                
-        """
-        ## load
-    
     def unLinkBadBaselines(self,ltextLines):
         """
             assume horizontal lines only
@@ -170,7 +155,7 @@ class DU_ABPTableAnnotator(DU_CRF_Task):
 
         # get cells
         for i,graph in enumerate(lGraph_trn):
-            
+
             lCells = filter(lambda x:x.node.name=='TextRegion',graph.lNode)
             lTextLine = filter(lambda x:x.node.name=='TextLine',graph.lNode)
             lTextLine = self.unLinkBadBaselines(lTextLine)
@@ -188,19 +173,27 @@ class DU_ABPTableAnnotator(DU_CRF_Task):
                     except KeyError : lPSep[sep.page]=[sep]
                 
             # need to test if elements on the same page!!
+            # same test  with cell bottom!
             delta=50
+#             doc= lTextLine.node.doc
+#             import libxml2
             for cell in lCells:
                 ## SEP
                 try :
                     lPSep[cell.page]
                     for sep in lPSep[cell.page]:
                         # extend height 
+                        bcky2 =sep.y2
                         sep.y2=sep.y2+delta
                         dh,dv=  sep.getXYOverlap(cell)
+#                             print dh,dv
                         # at least  
                         # sep situated in the horizontal borders
                         if  (dh > 0 and (abs(cell.y1 - sep.y1) < delta or abs(cell.y1 - sep.y2) < delta  or abs(cell.y2 - sep.y2) < delta)):                        
                             sep.node.setProp(sep.type.sLabelAttr,lLabels[5])
+#                             print sep.y1,  sep.y2, dh,dv, cell.x1, cell.y2
+                        #restaure y2!!
+                        sep.y2 = bcky2
                 except KeyError :pass
                 
                 #SEP  
