@@ -156,7 +156,7 @@ TypeError: can't pickle PyCapsule objects
         #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
         self._node_transformer = node_transformer
         self._edge_transformer = edge_transformer
-        
+
 #         #dirty trick to enable testing the logit models
 #         self._node_transformer._testable_extractor_ = self._node_transf_logit
         

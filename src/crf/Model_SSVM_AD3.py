@@ -238,7 +238,7 @@ class Model_SSVM_AD3(Model):
                                 , max_iter=self.max_iter                                        
                                 , show_loss_every=10, verbose=verbose)
             bWarmStart = False
-
+        
         chronoOn()
         traceln("\t- training graph-based model")
         traceln("\t\t solver parameters:"

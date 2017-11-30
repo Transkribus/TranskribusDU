@@ -19,7 +19,7 @@ if __name__ == "__main__":
     
     import sys, glob, optparse
     usage = """
-%s dirname+
+%s dir docid
 Utility to create a set of pageXml XML files from a mpxml file.
 """ % sys.argv[0]
 

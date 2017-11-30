@@ -151,8 +151,8 @@ PluginBatch\pluginList=Forms Analysis | Apply Template (Single)
 PluginBatch\FormAnalysis\FormFeatures\\formTemplate="%s"
 PluginBatch\FormAnalysis\FormFeatures\distThreshold=200
 PluginBatch\FormAnalysis\FormFeatures\colinearityThreshold=20
-PluginBatch\FormAnalysis\FormFeatures\variationThresholdLower=0.2
-PluginBatch\FormAnalysis\FormFeatures\variationThresholdUpper=0.3
+PluginBatch\FormAnalysis\FormFeatures\variationThresholdLower=0.5
+PluginBatch\FormAnalysis\FormFeatures\variationThresholdUpper=0.55
 PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
      """
      
@@ -168,6 +168,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         self.coldir = None
         self.docid= None
         self.bKeepRegion = False
+        self.bKeepTL=False
         self.bTemplate = False
         self.bBaseLine = False
         self.bSeparator = False
@@ -187,8 +188,10 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             self.coldir = dParams["coldir"].strip()
         if dParams.has_key("docid"):         
             self.docid = dParams["docid"].strip()
-        if dParams.has_key("bRegion"):         
-            self.bKeepRegion = dParams["bRegion"]
+#         if dParams.has_key("bRegion"):         
+#             self.bKeepRegion = dParams["bRegion"]
+        if dParams.has_key("bTL"):         
+            self.bKeepTL = dParams["bTL"]            
         if dParams.has_key("bBaseline"):         
             self.bBaseLine = dParams["bBaseline"]
         if dParams.has_key("bSeparator"):         
@@ -202,9 +205,156 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             self.sTemplateFile = dParams["templatefile"]
             self.bTemplate=True                  
     
+    
+    
+    
+    def reintegrateTextIntoCells(self,doc,lLTextLines=[]):
+        """
+        from XMLDSTABLE
+        """
+        def overlapX(zone1,zone2):
+            [a1,a2] = zone1 #self.getX(),self.getX()+ self.getWidth()
+            [b1,b2] = zone2 #zone.getX(),zone.getX()+ zone.getWidth()
+            return min(a2, b2) >=   max(a1, b1) 
+        
+        def overlapY(zone1,zone2):
+            [a1,a2] = zone1 #self.getY(),self.getY() + self.getHeight()
+            [b1,b2] = zone2 #zone.getY(),zone.getY() + zone.getHeight()
+            return min(a2, b2) >=  max(a1, b1)           
+        
+        def signedRatioOverlap(zone1,zone2):
+            """
+             overlap self and zone
+             return surface of self in zone 
+            """
+            
+            [x1,y1,x12,y12] = zone1 #self.getX(),self.getY(),self.getHeight(),self.getWidth()
+            [x2,y2,x22,y22] = zone2 #zone.getX(),zone.getY(),zone.getHeight(),zone.getWidth()
+            
+            w1,h1 = x12-x1,y12-y1 
+            w2,h2 = x22-x2,y22-y2 
+            fOverlap = 0.0
+            
+#             print (x1,x12),(x2,x22)
+#             print overlapX((x1,x12),(x2,x22)) 
+#             print (y1,y12),(y2,y22)
+#             print overlapY((y1,y12),(y2,y22))
+#             if overlapX((x1,w1),(x2,w2)) and overlapY((y1,h1),(y2,h2)):
+            if overlapX((x1,x12),(x2,x22)) and overlapY((y1,y12),(y2,y22)):
+                [x11,y11,x12,y12] = [x1,y1,x1+w1,y1+h1]
+                [x21,y21,x22,y22] = [x2,y2,x2+w2,y2+h2]
+                
+                s1 = w1 * h1
+                
+                # possible ?
+                if s1 == 0: s1 = 1.0
+                
+                #intersection
+                nx1 = max(x11,x21)
+                nx2 = min(x12,x22)
+                ny1 = max(y11,y21)
+                ny2 = min(y12,y22)
+                h = abs(nx2 - nx1)
+                w = abs(ny2 - ny1)
+                
+                inter = h * w
+                if inter > 0 :
+                    fOverlap = inter/s1
+                else:
+                    # if overX and Y this is not possible !
+                    fOverlap = 0.0
+            
+            return fOverlap
+            
+        def bestRegionsAssignment(plgtl,lRegions):
+            """
+                find the best (max overlap for self) region  for self
+            """
+    
+            lOverlap=[]        
+            for _,plg in lRegions:
+#                 print cell.prop('id'),plgtl.getBoundingBox(), plg.getBoundingBox()
+                lOverlap.append(signedRatioOverlap(plgtl.getBoundingBox(),plg.getBoundingBox()))
+#             print plgtl.getBoundingBox(), lOverlap
+            if max(lOverlap) == 0: return None
+            return lRegions[lOverlap.index(max(lOverlap))]
+        
+        
+        lPages = PageXml.getChildByName(doc.getRootElement(),'Page')
+        lRegionsToBeDeleted = []
+        for i, page in enumerate(lPages):
+            if lLTextLines == []:
+                lTextLines = PageXml.getChildByName(page,'TextLine')
+            else: lTextLines =lLTextLines[i]
+                
+            lCells = PageXml.getChildByName(page,'TableCell')
+    
+            print len(lCells),len(lTextLines)
+            lOCells=[]  
+            for cell in lCells:
+                #get Coords
+                ctxt = cell.doc.xpathNewContext()
+                ctxt.xpathRegisterNs("a", self.xmlns)
+                xpath  = "./a:%s" % ("Coords")
+                ctxt.setContextNode(cell)
+                lCoords = ctxt.xpathEval(xpath)            
+                coord= lCoords[0]
+                sPoints=coord.prop('points')
+                lsPair = sPoints.split(' ')
+                lXY = list()
+                for sPair in lsPair:
+                    (sx,sy) = sPair.split(',')
+                    lXY.append( (int(sx), int(sy)) )
+                plg = Polygon(lXY)
+                lOCells.append((cell,plg))
+    
+            # find the best assignment of each text
+            for tl in lTextLines:
+                #get Coords
+                ctxt = tl.doc.xpathNewContext()
+                ctxt.xpathRegisterNs("a", self.xmlns)
+                xpath  = "./a:%s" % ("Coords")
+                ctxt.setContextNode(tl)
+                lCoords = ctxt.xpathEval(xpath)            
+                coord= lCoords[0]
+                sPoints=coord.prop('points')
+                lsPair = sPoints.split(' ')
+                lXY = list()
+                for sPair in lsPair:
+                    (sx,sy) = sPair.split(',')
+                    lXY.append( (int(sx), int(sy)) )
+                plg = Polygon(lXY)
+                cell = bestRegionsAssignment(plg,lOCells)
+                if cell:
+                    c,_=cell
+                    lRegionsToBeDeleted.append(c.parent)
+                    ## what about parent  TextRegion  delete at least TextRegion/TextEquiv
+#                     tl.unlinkNode()
+                    tlcp = tl.docCopyNode(c.doc,True)
+#                     tlcp.unlinkNode()
+                    c.addChild(tlcp)
+                    print c
+            
+            ctxt.xpathFreeContext()
+        for region in lRegionsToBeDeleted:
+            region.unlinkNode()
+            region.freeNode()
+            
+            
+            
+    def reinitPage(self,doc):
+        """
+         empty page 
+        """
+        lNodes = PageXml.getChildByName(doc.getRootElement(),'Page')
+
+        for node in lNodes:
+            node.unlinkNode()
+            
     def findTemplate(self,doc):
         """
             find the page where the first TableRegion occurs and extract it
+            
         """
         
         lT = PageXml.getChildByName(doc.getRootElement(),'TableRegion')
@@ -214,7 +364,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         # lazy guy!
         page = firstTable.parent
         newDoc,_ = PageXml.createPageXmlDocument('NLE', '', 0,0)
-        ## why unlink he page???  30/08/2017
+        ## why unlink he page???  30/08/2017: because we recreate a new analysis (no old table!)21/11/2017
         page.unlinkNode()
         newDoc.setRootElement(page)
         ### need to add the ns!!
@@ -318,6 +468,17 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         return map(lambda x:"%s%s%s.xml"%(xmlpath,os.sep,x.prop('imageFilename')[:-4]), lNd)
     
     
+#     # ---  Xml stuff -------------------------------------
+#     def getChildByName(self, elt, sChildName):
+#         """
+#         """
+#         ctxt = elt.doc.xpathNewContext()
+#         ctxt.xpathRegisterNs("pc", PageXml.NS_PAGE_XML)  
+#         ctxt.setContextNode(elt)
+#         lNd = ctxt.xpathEval(".//pc:%s"%sChildName)
+#         ctxt.xpathFreeContext()
+#         return lNd    
+    
     def performLA(self,doc):
         """
             # for document doc 
@@ -329,6 +490,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             ## (execution)    
         """
         
+        lNumPages = []
         if self.bTemplate or self.bBaseLine or self.bSeparator:
             # extract list of files sorted as in MPXML
             lFullPathXMLNames = self.extractFileNamesFromMPXML(doc)
@@ -355,10 +517,18 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
                     newname = "%s%s%s" % (xmlpath,os.sep,name)
                     newname = newname[:-5]+'.xml' 
                     tmpdoc =  libxml2.parseFile(oldname)
+                    ##add 21/11/2017
+#                     self.reinitPage(doc)
     #                 self.unLinkTable(doc)
                     tmpdoc.saveFileEnc(newname,"UTF-8")                         
         
         
+        if self.bKeepTL:
+            # keep ltextLione
+            lTextLines=[]
+            lPages = PageXml.getChildByName(doc.getRootElement(),'Page')
+            for page in lPages:
+                lTextLines.append(PageXml.getChildByName(page,'TextLine'))
         ## Table registration 
         if self.bTemplate:
             if self.sTemplateFile is None:
@@ -404,6 +574,10 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         if self.bTemplate or self.bBaseLine or self.bSeparator:
             doc, sMPXML= self.storeMPXML(lFullPathXMLNames)     
         
+        # Does not work with URO LA! 
+        if self.bKeepTL:
+            self.reintegrateTextIntoCells(doc,lTextLines)
+        
         ## text rectangles as textline region 
         if self.bRegularTextLine:
             self.regularTextLines(doc)
@@ -431,7 +605,9 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             coord= lCoords[0]
             xpath  = "./a:%s" % ("Baseline")
             ctxt.setContextNode(tl)
-            lBL = ctxt.xpathEval(xpath)            
+            lBL = ctxt.xpathEval(xpath)
+            ctxt.xpathFreeContext()
+            
             baseline = lBL[0]
             sPoints=baseline.prop('points')
             lsPair = sPoints.split(' ')
@@ -483,7 +659,8 @@ if __name__ == "__main__":
     tp.add_option("--coldir", dest="coldir", action="store", type="string", help="collection folder")
     tp.add_option("--docid", dest="docid", action="store", type="string", help="document id")
     tp.add_option("--bl", dest="bBaseline", action="store_true", default=False, help="detect baselines")
-    tp.add_option("--region", dest="bRegion", action="store_true", default=False, help="keep Region")
+#     tp.add_option("--region", dest="bRegion", action="store_true", default=False, help="keep Region")
+    tp.add_option("--tl", dest="bTL", action="store_true", default=False, help="keep textlines")
     tp.add_option("--sep", dest="bSeparator", action="store_true", default=False, help="detect separator (graphical lines)")
     tp.add_option("--regTL", dest="regTL", action="store_true", default=False, help="generate regular TextLines")
     tp.add_option("--form", dest="template", action="store_true", default=False, help="perform template registration")

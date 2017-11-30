@@ -129,8 +129,10 @@ class deathRecord(recordClass):
             domp=libxml2.newNode('PAGE')
             domp.setProp('number',str(page.getNumber()))
             domp.setProp('years','NA')
-            root.addChild(domp)            
-            for cand in lPages[page]:
+            root.addChild(domp)         
+            sortedRows = lPages[page]
+            sortedRows.sort(key=lambda x:int(x.getIndex()))   
+            for cand in sortedRows:
                 #record
                 record = libxml2.newNode('RECORD')
                 # record fields

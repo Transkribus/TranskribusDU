@@ -29,6 +29,8 @@
 import numpy as np
 
 from Transformer import Transformer
+
+import string
 from Edge import HorizontalEdge, VerticalEdge, SamePageEdge, CrossPageEdge, CrossMirrorPageEdge
 
 fEPSILON = 10
@@ -54,12 +56,12 @@ class NodeTransformerTextEnclosed(Transformer):
         return map(lambda x: "{%s}"%x.text, lNode) #start/end characters
 
 #------------------------------------------------------------------------------------------------------
-# class NodeTransformerNeighborText(Transformer):
-#     """
-#     for each node, returning the space-separated text of all its neighbor on the page
-#     """
-#     def transform(self, lNode):
-#         return [" ".join([nd2.text for nd2 in nd1.lNeighbor]) for nd1 in lNode]  
+class NodeTransformerNeighborText(Transformer):
+    """
+    for each node, returning the space-separated text of all its neighbor on the page
+    """
+    def transform(self, lNode):
+        return [" ".join([nd2.text for nd2 in nd1.lNeighbor]) for nd1 in lNode]
 
 #------------------------------------------------------------------------------------------------------
 # class NodeTransformerCrossPageNeighborText(Transformer):
@@ -155,6 +157,48 @@ class NodeTransformerNeighbors(Transformer):
         
         #_debug(lNode, a)
         return a
+#-------------------------------------------------------------------------------------------------------
+class NodeTransformerNeighborsAllText(Transformer):
+    """
+    Collects all the text from the neighbors
+    On going ...
+    """
+    def transform(self, lNode):
+        txt_list=[]
+        #print('Node Text',lNode.text)
+        for i,blk in enumerate(lNode):
+            txt_block=[]
+            #print [" ".join([nd2.text for nd2 in blk.lHNeighbor])]
+
+            for blk_neighbor in blk.lHNeighbor:
+                txt_block.append(blk_neighbor.text)
+            for blk_neighbor in blk.lVNeighbor:
+                txt_block.append(blk_neighbor.text)
+            for blk_neighbor in blk.lVNeighbor:
+                txt_block.append(blk_neighbor.text)
+
+            #txt_block +=" ".join([nd2.text for nd2 in blk.lHNeighbor])
+            #txt_block +=" ".join([nd2.text for nd2 in blk.lVNeighbor])
+            #txt_block +=" ".join([nd2.text for nd2 in blk.lCPNeighbor])
+
+            #print(txt_block)
+            '''
+            for b in blk.lHNeighbor:
+                #why doing a if if _b.x1 > ax1)
+                txt_list.append(b.text)
+            for b in blk.lVNeighbor:
+                txt_list.append(b.text)
+            for b in blk.lCPNeighbor:
+                txt_list.append(b.text)
+            '''
+            txt_list.append(string.join(txt_block,' '))
+        #print('TEXT List',txt_list)
+        print('LEN TEXT LIST',len(txt_list))
+
+        return txt_list
+
+
+
 
 #------------------------------------------------------------------------------------------------------
 class Node1HotFeatures(Transformer):
@@ -479,4 +523,29 @@ def lcs_length(a,na, b,nb):
                 curRowj = max(prevRow[j], curRowj)
             curRow[j] = curRowj
     return curRowj
+
+
+class NodeEdgeTransformer(Transformer):
+    """
+    we will get a list of list of edges ...
+    """
+    def __init__(self,edge_list_transformer,agg_func='sum'):
+        self.agg_func=agg_func
+        self.edge_list_transformer=edge_list_transformer
+
+    def transform(self,lNode):
+        x_all=[]
+        for i, blk in enumerate(lNode):
+            x_edge_node = self.edge_list_transformer.transform(blk.edgeList)
+            if self.agg_func=='sum':
+                x_node=x_edge_node.sum(axis=0)
+            elif self.agg_func=='mean':
+                x_node=x_edge_node.mean(axis=0)
+            else:
+                raise ValueError('Invalid Argument',self.agg_func)
+            x_all.append(x_node)
+        return np.vstack(x_all)
+
+
+
 

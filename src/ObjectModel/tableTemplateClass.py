@@ -97,9 +97,9 @@ class tableTemplateClass(templateClass):
         ## reformalute the pattern with complete values: start:stop:step for each  dimension (2D)
         ## split with ','  : then by :   if just ':' NoneNoneNone,   
 
-        for index,lFields in p:
-            print index, lFields
-            self._lLabellingInstruction.append((index,lFields))
+        for index,lDicts,lFields in p:
+#             print index, lFields
+            self._lLabellingInstruction.append((index,lDicts,lFields))
             
     def labelTable(self,table):
         """
@@ -112,7 +112,7 @@ class tableTemplateClass(templateClass):
             
         """
         
-        for sslice, lFields in self._lLabellingInstruction:
+        for sslice,_, lFields in self._lLabellingInstruction:
             for field in lFields:
                 if field is not None:
                     for cell in np.nditer(table.getNPArray()[sslice],['refs_ok'],op_dtypes=np.dtype(object)):

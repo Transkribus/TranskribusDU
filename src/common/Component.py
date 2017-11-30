@@ -21,7 +21,7 @@ import types
 import math
 import inspect
 from collections import defaultdict
-
+import codecs
 
 import libxml2
 
@@ -575,7 +575,7 @@ class Component:
 			if bReusePreviousRun:
 				#do not re-compute it
 #				try:
-					f = open(fnRun, "r"); rundata = f.read(); f.close()
+					f = codecs.open(fnRun, "r",'utf-8'); rundata = f.read(); f.close()
 #				except IOError, e:
 #					traceln("WARNING: SKIPPING FILE %s: %s"%(fn, e))
 #					lMissingRunFile.append(fn)
@@ -590,12 +590,13 @@ class Component:
 				else:
 					rundata = self.testRun( fnXML ) #RUN on THIS ONE!
 				#store this new result in a run file
-				f = open(fnRun, "w"); f.write(rundata); f.close()
+# 				if type(rundata) == str:
+				f = codecs.open(fnRun, "w",'utf-8'); f.write(rundata); f.close()
 				nbRun += 1
 			
 			#read the ref data
 			if os.path.exists(fnRef):
-				f = open(fnRef, "r"); refdata = f.read(); f.close()
+				f = codecs.open(fnRef, "r",'utf-8'); refdata = f.read(); f.close()
 				if bDiff: traceln("--- Diffing for: %s"%fn)
 				#Compare both results
 				cmpData = self.testCompare(refdata, rundata, bDiff)

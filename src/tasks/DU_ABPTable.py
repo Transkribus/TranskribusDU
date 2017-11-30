@@ -223,6 +223,6 @@ if __name__ == "__main__":
     
     if lRun:
         doer.load()
-        lsOutputFilename = doer.predict(lRun, options.pkl)
+        lsOutputFilename = doer.predict(lRun)
         traceln("Done, see in:\n  %s"%lsOutputFilename)
     

@@ -33,6 +33,15 @@
 import random
 from generator import Generator
 
+"""
+     see http://www.southampton.ac.uk/~fangohr/blog/physical-quantities-numerical-value-with-units-in-python.html
+     for physical meqsures 
+     Ek = 0.5 * m * v **2
+     Out[41]: 96450.617 m^2*kg/s^2
+     
+     wget https://bitbucket.org/birkenfeld/ipython-physics/raw/default/physics.py
+     
+"""
 class numericalGenerator(Generator):
     """
         generic numerical Generator
@@ -43,17 +52,46 @@ class numericalGenerator(Generator):
         self._mean = mean
         self._std= sd
         
+        self._generation = None
         self._value = None
                              
         self.realization= ['D', # digits : 101
                             'N' # text (hundred one)
                             ]
     
-    def generate(self):
-        self._value = random.uniform(self._mean,self._std)
-        return (self,self._value)
+    def getUple(self): return (self._mean,self._std)
+    def setUple(self,ms):
+        m,s = ms 
+        self._mean = m
+        self._std = s
+
+    def exportAnnotatedData(self,lLabels):
+        lLabels.append(self.getLabel())
+        self._GT = [(self._generation,lLabels[:])]    
+        return self._GT     
     
+    def generate(self):
+        self._generation = random.gauss(self._mean,self._std)
+        return self
+    
+    def serialize(self):
+        return self._generation
+
+class positiveNumericalGenerator(numericalGenerator):
+    def generate(self):
+        raise self._mean > 0
+        self._generation = random.gauss(self._mean,self._std)
+        while self._generation < 0:  
+            self._generation = random.gauss(self._mean,self._std)            
+        return self
+    
+class integerGenerator(numericalGenerator):
+    def generate(self):
+        self._generation = int(round(random.gauss(self._mean,self._std)))
     
 if __name__ == "__main__":
-    numGen= numericalGenerator(10,1)
-    print numGen.generate()
+    for  i in range(10):
+        numGen= integerGenerator(1000,1000)
+        numGen.generate()
+        print numGen.exportAnnotatedData([])
+    

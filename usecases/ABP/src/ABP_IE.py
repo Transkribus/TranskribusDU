@@ -59,7 +59,7 @@ class IETest(Component.Component):
     """
     usage = "" 
     version = "v.01"
-    description = "description: test"
+    description = "description: Information Extraction Tool for the ABP collection (READ project)"
 
     #--- INIT -------------------------------------------------------------------------------------------------------------    
     def __init__(self):
@@ -67,7 +67,7 @@ class IETest(Component.Component):
         Always call first the Component constructor.
         """
         Component.Component.__init__(self, "IETest", self.usage, self.version, self.description) 
-        
+        self.usage=self.usage = "python %prog" + self.usageComponent
         self.colname = None
         self.docid= None
         
@@ -163,6 +163,7 @@ class IETest(Component.Component):
         ## 'backpropagation:  select the rows, and collection subobjects with fields  (cells)
         
         for row in table.getRows():
+            #if not row.isHeaders():
             myRecord.addCandidate(row)
         
 #         #for each cell: take the record and
@@ -180,7 +181,7 @@ class IETest(Component.Component):
         
     def mergeLineAndCells(self,lPages):
         """
-            assing lines(TEXT) to cells
+            assign lines(TEXT) to cells
         """
         
         for page in lPages:
@@ -219,41 +220,87 @@ class IETest(Component.Component):
                 print res
             except: print 'SENT WITH ISSUES : [%s]' % (region.getContent().encode('utf-8'))
 
+
+
+    def learnTemplate(self):
+        """
+            for handwritten template: categorize a set of columns
+            using lstm? -> which GT?  introduce variation, which noise??
+            always some differences to be expected!
+            htr a large scale of pages from different docs
+            assuming some templates: assign columns correctly?
+        """
+    def loadTemplates(self):
+        """
+            in ABPIEOntology
+        """
+
+    def htrWithTemplate(self,table,template,htrModelId):
+        """
+            perform an HTR with dictionaries specific to each column
+        """
+        
+        # for the current column: need to get tablecells ids
+        # more efficient(?why more efficient?) to have it at column level: not cell ; so just after table template tool
+        
+        
+    def selectTemplat(self,lTemplates):
+        """
+         if a list of templates is available: 
+             take a couple pages and perform IE: simply sum up the score of the tagger
+        """
     def processWithTemplate(self,table,dr):
         """
             according to the # of columns, apply the corresponding template 
         """
-
         # selection of the dictionaries per columns
-        lTemplateHTR = [  
-             ((slice(1,None),slice(0,1))  ,[ 'firstlastname'])
-            , ((slice(1,None),slice(1,2)) ,[ 'occupation','religion' ])
-            , ((slice(1,None),slice(2,3)) ,[ 'location' ]) 
-            , ((slice(1,None),slice(3,4)) ,[ 'situation' ])
-             ,((slice(1,None),slice(4,5)) ,[ 'deathreason'])  # Artz?
-            , ((slice(1,None),slice(5,6)) ,[ 'date' ])
-            , ((slice(1,None),slice(6,7)) ,[ 'date','location' ])
-            , ((slice(1,None),slice(7,8)) ,[ 'age'])
-#            , ((slice(1,None),slice(8,9)) ,[ dr.getFieldByName('priester')])
-#            , ((slice(1,None),slice(9,10)),[ dr.getFieldByName('notes')])
-           ]
+        # template 5,10: first col = numbering
+#         lTemplateHTR = [  
+#              ((slice(1,None),slice(0,1))  ,[ 'abp_names', 'names_aux','numbering'])
+#             , ((slice(1,None),slice(1,2)) ,[ 'abp_profession','religion' ])
+#             , ((slice(1,None),slice(2,3)) ,[ 'abp_location' ]) 
+#             , ((slice(1,None),slice(3,4)) ,[ 'abp_family' ])
+#              ,((slice(1,None),slice(4,5)) ,[ 'deathreason','artz'])  
+#             , ((slice(1,None),slice(5,6)) ,[ 'abp_dates' ])
+#             , ((slice(1,None),slice(6,7)) ,[ 'abp_dates','abp_location' ])
+#             , ((slice(1,None),slice(7,8)) ,[ 'abp_age'])
+# #            , ((slice(1,None),slice(8,9)) ,[ dr.getFieldByName('priester')])
+# #            , ((slice(1,None),slice(9,10)),[ dr.getFieldByName('notes')])
+#            ]
+        
+        lTemplateIE2 = [
+             ((slice(1,None),slice(0,1))  ,[ 'numbering'],[ dr.getFieldByName('numbering') ])
+            , ((slice(1,None),slice(1,2))  ,[ 'abp_names', 'names_aux','numbering'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ])
+            , ((slice(1,None),slice(2,3)) ,[ 'abp_profession','religion' ]        ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
+            , ((slice(1,None),slice(3,4))  ,[ 'abp_location' ]                    ,[ dr.getFieldByName('location') ]) 
+            , ((slice(1,None),slice(4,5)) ,[ 'abp_family' ]                       ,[ dr.getFieldByName('situation') ])
+             ,((slice(1,None),slice(5,6)) ,[ 'deathreason','artz']                ,[ dr.getFieldByName('deathreason')])
+            , ((slice(1,None),slice(6,7)) ,[]                                     , [ ])  #binding
+            , ((slice(1,None),slice(7,8)) ,[ 'abp_dates' ]                        ,[ dr.getFieldByName('deathDate') ])
+            , ((slice(1,None),slice(8,9)) ,[ 'abp_dates','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('burialLocation') ])
+            , ((slice(1,None),slice(9,10)) ,[ 'abp_age']                           ,[ dr.getFieldByName('age')])
+#            , ((slice(1,None),slice(9,10)) ,[ dr.getFieldByName('priester')])
+#            , ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
+           ]        
         
         lTemplateIE = [  
-             ((slice(1,None),slice(0,1)) ,[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ])
-            , ((slice(1,None),slice(1,2)) ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
-            , ((slice(1,None),slice(2,3)) ,[ dr.getFieldByName('location') ]) 
-            , ((slice(1,None),slice(3,4)) ,[ dr.getFieldByName('situation') ])
-             ,((slice(1,None),slice(4,5)) ,[ dr.getFieldByName('deathreason')])
+             ((slice(1,None),slice(0,1))  ,[ 'abp_names', 'names_aux','numbering'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ])
+            , ((slice(1,None),slice(1,2)) ,[ 'abp_profession','religion' ]        ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
+            , ((slice(1,None),slice(2,3))  ,[ 'abp_location' ]                    ,[ dr.getFieldByName('location') ]) 
+            , ((slice(1,None),slice(3,4)) ,[ 'abp_family' ]                       ,[ dr.getFieldByName('situation') ])
+             ,((slice(1,None),slice(4,5)) ,[ 'deathreason','artz']                ,[ dr.getFieldByName('deathreason')])
 #             ,((slice(1,None),slice(4,5)) ,[ dr.getFieldByName('deathCause'), dr.getFieldByName('doctor') ])
-            , ((slice(1,None),slice(5,6)) ,[ dr.getFieldByName('deathDate') ])
-            , ((slice(1,None),slice(6,7)) ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('burialLocation') ])
-            , ((slice(1,None),slice(7,8)) ,[ dr.getFieldByName('age')])
-#            , ((slice(1,None),slice(8,9)) ,[ dr.getFieldByName('priester')])
-#            , ((slice(1,None),slice(9,10)),[ dr.getFieldByName('notes')])
+            , ((slice(1,None),slice(5,6)) ,[]                                     , [ ])  #binding
+            , ((slice(1,None),slice(6,7)) ,[ 'abp_dates' ]                        ,[ dr.getFieldByName('deathDate') ])
+            , ((slice(1,None),slice(7,8)) ,[ 'abp_dates','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('burialLocation') ])
+            , ((slice(1,None),slice(8,9)) ,[ 'abp_age']                           ,[ dr.getFieldByName('age')])
+#            , ((slice(1,None),slice(9,10)) ,[ dr.getFieldByName('priester')])
+#            , ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
            ]
         
         
-        lTemplate = lTemplateIE
+#         lTemplate = lTemplateIE
+        lTemplate = lTemplateIE2
         
         
         self.extractData(table,dr,lTemplate)
@@ -263,7 +310,9 @@ class IETest(Component.Component):
     
     def run(self,doc):
         """
-            
+        main issue: how to select the template: to be done by CVL
+            assuming IE and htr info are stored in the template
+        
         """
         self.doc= doc
         self.ODoc = XMLDSDocument()
@@ -274,6 +323,8 @@ class IETest(Component.Component):
         dr = deathRecord(self.sModelName,self.sModelDir)     
         
         
+        ## selection of the templates first with X tables
+        
         for page in self.lPages:
             print("page: "), page.getNumber()
 #             self.testGTText(page)
@@ -281,18 +332,7 @@ class IETest(Component.Component):
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
             for table in lTables:
                     if self.BuseStoredTemplate:
-#                         rowscuts = map(lambda r:r.getY(),table.getRows())
-#                         self.tagCells(table)
-#                         self.processRows(table,rowscuts)                        
                         self.processWithTemplate(table, dr)
-#                     else:
-#                         self.extractData(table,dr,lTemplate)
-#                 else:
-#                     rowscuts = map(lambda r:r.getY(),table.getRows())
-#                     self.tagCells(table)
-#                     self.processRows(table,rowscuts)
-                ## field tagging
-                
         
         self.evalData = dr.generateOutput(self.evalData)
         print self.evalData.serialize('utf-8',True)
@@ -433,7 +473,7 @@ class IETest(Component.Component):
         lRun = []
         if RunData:
             ctxt = RunData.xpathNewContext()
-            lpages = ctxt.xpathEval('//%s' % ('PAGE'))
+            lpages = ctxt.xpathEval('//%s' % ('PAGE[@number <152]'))
             for page in lpages:
                 pnum=page.prop('number')
                 #record level!
@@ -452,12 +492,14 @@ class IETest(Component.Component):
                         ctxt.setContextNode(record)
                         ln= ctxt.xpathEval(xpath)
                         if len(lf) > 0: # and lf[0].getContent() != ln[0].getContent():
-                            lRun.append((pnum,lf[0].getContent().decode('utf-8').encode('utf-8'),ln[0].getContent().decode('utf-8').encode('utf-8')))
+#                             lRun.append((pnum,lf[0].getContent().decode('utf-8').encode('utf-8'),ln[0].getContent().decode('utf-8').encode('utf-8')))
+                            lRun.append((pnum,lf[0].getContent().decode('utf-8'),ln[0].getContent().decode('utf-8')))
+
             ctxt.xpathFreeContext()
 
         lRef = []
         ctxt = RefData.xpathNewContext()
-        lPages = ctxt.xpathEval('//%s' % ('PAGE[@pagenum <31]'))
+        lPages = ctxt.xpathEval('//%s' % ('PAGE[@pagenum <152]'))
         for page in lPages:
             pnum=page.prop('pagenum')
             xpath = "./%s" % ("RECORD")
@@ -474,9 +516,10 @@ class IETest(Component.Component):
                     ctxt.setContextNode(record)
                     ln= ctxt.xpathEval(xpath)
                     if len(lf) > 0:
-                        lRef.append((pnum,lf[0].getContent().decode('utf-8').encode('utf-8'),ln[0].getContent().decode('utf-8').encode('utf-8')))
-        ctxt.xpathFreeContext()          
+#                         lRef.append((pnum,lf[0].getContent().decode('utf-8').encode('utf-8'),ln[0].getContent().decode('utf-8').encode('utf-8')))
+                        lRef.append((pnum,lf[0].getContent().decode('utf-8'),ln[0].getContent().decode('utf-8')))
 
+        ctxt.xpathFreeContext()          
 
         runLen = len(lRun)
         refLen = len(lRef)
@@ -491,7 +534,7 @@ class IETest(Component.Component):
 #             print '\t\t===',runElt
             while not bFound and iRef <= refLen - 1:  
                 curRef = lRef[iRef]
-                if runElt and curRef not in lRefCovered and self.testCompareRecordFirstNameLastName(runElt, curRef):
+                if runElt and curRef not in lRefCovered and self.testCompareRecordFirstNameLastName(curRef,runElt):
                     bFound = True
                     lRefCovered.append(curRef)
                 iRef+=1
@@ -526,8 +569,11 @@ class IETest(Component.Component):
         refall= refdata[1].lower()+refdata[2].lower()
         reflen= len(refdata[1])+len(refdata[2])
         runall= rundata[1].lower()+rundata[2].lower()
-        runlen= len(rundata[1])+len(rundata[2])        
-#         res2, val = matchLCS(TH,(refdata[2].lower(),len(refdata[2])), (rundata[2].lower(),len(rundata[2])) )
+        runlen= len(rundata[1])+len(rundata[2])    
+        runall.replace('n̄','nn') 
+        runall.replace('m̄','mm')
+         
+        res2, val = matchLCS(TH,(refdata[2].lower(),len(refdata[2])), (rundata[2].lower(),len(rundata[2])) )
         res1, val = matchLCS(TH,(refall,reflen), (runall,runlen) )
 #         print refdata,rundata, res2 ,res2
 
@@ -631,6 +677,9 @@ if __name__ == "__main__":
     iec.setParams(dParams)
     doc = iec.loadDom()
     iec.run(doc)
-    if iec.getOutputFileName() != '-':
-        iec.writeDom(doc, bIndent=True) 
+    if iec.evalData is not None:
+        iec.writeEval(iec.evalData.serialize('utf-8',True), os.path.join(iec.colname,'run',iec.docid+'.run'), True)
+        
+#     if iec.getOutputFileName() != '-':
+#         iec.writeDom(doc, bIndent=True) 
     

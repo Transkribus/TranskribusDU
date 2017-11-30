@@ -378,9 +378,7 @@ class KerasTagger(taggerClass):
         if self.myTagger.bMultiType:
             res = self.myTagger.predict_multiptype([documentObject.getContent()])
         else:
-            res = self.myTagger.predict([documentObject.getContent()])
-
-        print res
+            res = self.myTagger.predict([documentObject.getContent().replace('.','')])
         return res
     
 class CRFTagger(taggerClass):
