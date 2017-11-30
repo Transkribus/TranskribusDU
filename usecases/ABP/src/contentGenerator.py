@@ -34,6 +34,8 @@ from __future__ import unicode_literals
 import sys, os.path
 import random
 import datetime
+from dateutil.relativedelta import *
+
 import platform
 import cPickle
 
@@ -42,15 +44,19 @@ sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname
 from dataGenerator.generator import Generator
 from dataGenerator.textGenerator import textGenerator 
 from dataGenerator.numericalGenerator import integerGenerator
+from dataGenerator.textRandomGenerator import textRandomGenerator
 
 
 
+class numberingGenerator(textGenerator):
+    def __init__(self,mean, sd):
+        integerGenerator.__init__(self,mean, sd)
+            
 class AgeUnitGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
-        self.loadResourcesFromList( [[('Jahre',50),('Wochen',30),('Tag',10),('Stunde',10)]])        
-
-
+        self.loadResourcesFromList( [[('Jahre',60),('Monate',20),('Wochen',10),('Tag',10),('Stunde',10)]])        
+        
 class ageValueGenerator(integerGenerator):
     """ 
        similar to  integerGenerator bit class name different
@@ -59,7 +65,23 @@ class ageValueGenerator(integerGenerator):
         integerGenerator.__init__(self,mean, sd)
         
 class AgeGenerator(textGenerator):
+    """
+        need to cover 1 Jahr 6 Monate 3 tage  or any subsequence
+    """
     def __init__(self):
+
+#         startDate =  datetime.datetime(1900, 01, 01)
+#         randdays = random.uniform(1,364*100)
+#         randhours = random.uniform(1,24)
+#         step = datetime.timedelta(days=randdays,hours=randhours)
+#     
+#         d = startDate + step
+#         delta=  relativedelta(d+step,d)
+#         self.years  = delta.months
+#         self.months = delta.months        
+#         self.weeks  = delta.days // 7 
+#         self.days   = delta.days % 7
+        
         textGenerator.__init__(self,lang=None)
         self.measure = ageValueGenerator(50,10)
         self.unit = AgeUnitGenerator()
@@ -67,7 +89,6 @@ class AgeGenerator(textGenerator):
         self._structure = [
                 ( (self.measure,1,100), (self.unit,1,100),100)
              ]
-    
     def generate(self):
         return Generator.generate(self)    
     
@@ -79,18 +100,18 @@ class legitimGenerator(textGenerator):
 class religionGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
-        self._value = ['kath','katholic','katho','k. R.']
+        self._value = ['k','kath','katholic','katho','k. R.','evangelist','evang.']
     
 class familyStatus(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
-        self._value = ['kind','Säugling','ledig', 'erehelicht','witwe','Verheirathet','verhei']
+        self._value = ['kind','Säugling','ledig', 'erehelicht','witwe','witwer','verheirathet','verhei']
                      
 class deathreasonGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
         self._name  = 'deathreason'
-        self._lpath=[os.path.abspath('./resources/deathreason.pkl')]
+        self._lpath=[os.path.abspath('../resources/deathreason.pkl')]
         self._value = map(lambda x:x[0],self.loadResources(self._lpath))
         
         self._lenRes= len(self._lresources)
@@ -100,7 +121,7 @@ class locationGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
         self._name  = 'location'
-        self._lpath=[os.path.abspath('./resources/location.pkl')]
+        self._lpath=[os.path.abspath('../resources/location.pkl')]
         self._value = map(lambda x:x[0],self.loadResources(self._lpath))
         self._lenRes= len(self._lresources)
     
@@ -109,7 +130,7 @@ class professionGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
         self._name  = 'profession'
-        self._lpath=[os.path.abspath('./resources/profession.pkl')]
+        self._lpath=[os.path.abspath('../resources/profession.pkl')]
         self._value = map(lambda x:x[0],self.loadResources(self._lpath))
         self._lenRes= len(self._lresources)
     
@@ -118,7 +139,7 @@ class firstNameGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
         self._name  = 'firstName'
-        self._lpath=[os.path.abspath('./resources/firstname.pkl')]
+        self._lpath=[os.path.abspath('../resources/firstname.pkl')]
 #         self._value = map(lambda x:x[0],self.loadResources(self._lpath))
 #         self._value = self.loadResources(self._lpath)
         self._value = map(lambda x:x[0],self.loadResources(self._lpath))
@@ -129,7 +150,7 @@ class lastNameGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
         self._name  = 'firstName'
-        self._lpath=[os.path.abspath('./resources/lastname.pkl')]
+        self._lpath=[os.path.abspath('../resources/lastname.pkl')]
         self._value = map(lambda x:x[0],self.loadResources(self._lpath))
         
         self._lenRes= len(self._lresources)
@@ -143,6 +164,9 @@ class CUMSACRGenerator(textGenerator):
           
         
 class PersonName(textGenerator):
+    """
+        TODO: add the profile for the noisegenerator: merge 10%, split ? 
+    """
     def __init__(self,lang):
         textGenerator.__init__(self,lang=None)
         
@@ -203,12 +227,15 @@ class MonthDayDateGenerator(textGenerator):
 
 class weekDayDateGenerator(textGenerator):
     def __init__(self,lang,value=None):
+        self._fulldate = None
         textGenerator.__init__(self,lang)
         self._value = [value]     
         self.realization=['a','A','w']
          
     def __repr__(self): 
-        return self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization))
+        try:
+            return self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization))
+        except AttributeError:return "tobeInst"
 
     def setValue(self,d): 
         self._fulldate= d
@@ -229,25 +256,23 @@ class HourDateGenerator(textGenerator):
 class DayPartsGenerator(textGenerator):
     def __init__(self,lang,value=None):
         textGenerator.__init__(self,lang)
-        self._value=['abends','morgens','nachmittags','mittags']
+        self._value=['abends','morgens','nachmittags','mittags','nacht','fruh']
         
          
 class FullHourDateGenerator(textGenerator):
     def __init__(self,lang):
         textGenerator.__init__(self,lang)
         self.hour=HourDateGenerator(lang)
-        self._structure =  ((UMGenerator(lang),1,50),(self.hour,1,100),(DayPartsGenerator(lang),1,25)) 
+        self._structure =  [
+                ( (UMGenerator(lang),1,50),(self.hour,1,100),(UHRGenerator(lang),1,25),(DayPartsGenerator(lang),1,25),100 )
+                ] 
     
     def setValue(self,d): 
         self.hour._fulldate= d
         self.hour.setValue(d)
                      
     def generate(self):
-        lList= []
-        for subgen, number,proba in self._structure:
-            lList.append(subgen.generate())
-        self._generation = lList
-        return self
+        Generator.generate(self)
     
 class DateGenerator(textGenerator):
     def __init__(self,lang):
@@ -256,19 +281,9 @@ class DateGenerator(textGenerator):
         self.monthGen = MonthDateGenerator(lang)
         self.monthdayGen = MonthDayDateGenerator(lang)
         self.weekdayGen= weekDayDateGenerator(lang)
-        self.hourGen = FullHourDateGenerator(lang) #HourDateGenerator(lang)
+        self.hourGen = FullHourDateGenerator(lang) 
 #         self.hourGen = HourDateGenerator(lang) #HourDateGenerator(lang)
 
-#         self.year= ['y','Y']
-#         self.month= ['b','B','m']
-#         self.weekday = ['a','A','w']
-#         self.monthday= ['d']
-#         self.hour = ['H', 'I']
-        
-#         self._structure = [ 
-#                            ((self.weekday,90),(self.month,90),(self.hour,10) ,0.75),
-#                            ((self.month,90),(self.weekday,90),(self.hour,10),0.5)
-#                            ]
         self._structure = [ 
                            ((self.weekdayGen,1,90),(self.monthdayGen,1,90),(self.monthGen,1,90),(self.hourGen,1,100), 75)
                            ]
@@ -295,15 +310,18 @@ class DENGenerator(textGenerator):
     def __init__(self,lang):
         textGenerator.__init__(self,lang)
 #         self._structure = ['DEN']
-        self._value = ['den', 'Den']      
+        self._value = ['am','den', 'Den','der']      
           
     
 class UMGenerator(textGenerator):
     def __init__(self,lang):
         textGenerator.__init__(self,lang)
-#         self._structure = ['']
         self._value = ['um']      
           
+class UHRGenerator(textGenerator):
+    def __init__(self,lang):
+        textGenerator.__init__(self,lang)
+        self._value = ['uhr']             
 
 class ABPGermanDateGenerator(DateGenerator):
     def __init__(self):
@@ -316,17 +334,10 @@ class ABPGermanDateGenerator(DateGenerator):
 
 
         self._structure = [ 
-                           ( (self.weekdayGen,1,90),(self.monthdayGen,1,90),(self.monthGen,1,90),(self.hourGen,1,100), 100)
+                             ( (self.weekdayGen,1,90),(self.monthdayGen,1,90),(self.monthGen,1,90),(self.hourGen,1,100), 100)
                             ,( (DENGenerator(self.lang),1,100),(self.monthdayGen,1,100),(self.monthGen,1,90), (self.hourGen,1,10) ,100)
                            
                            ]
-#         self._structure = [ 
-#                              ( (self.monthdayGen,1,90),(self.monthGen,1,90),(self.hourGen,1,10) ,75)
-#                             ,( (self.weekdayGen,1,90),(self.monthdayGen,1,90),(self.monthGen,1,90), 75)
-#                             ,( (self.weekdayGen,1,100),(DENGenerator(self.lang),1,100),(self.monthdayGen,1,100),(self.monthGen,1,90), (self.hourGen,1,10) ,75)
-#                             ,( (DENGenerator(self.lang),1,100),(self.monthdayGen,1,100),(self.monthGen,1,90), (self.hourGen,1,10) ,75)
-# 
-#                            ]
         
     def generate(self):
         lStringForDate = []
@@ -337,16 +348,23 @@ class ABPGermanDateGenerator(DateGenerator):
         objvalue = self.getdtTime()
         self.setValue(objvalue)
         
-        # then build serialisation
-        ## getAnnotation
-        structproba = self.getRandomElt(self._structure)
-#         print structproba
-        struct, proba = structproba[:-1], structproba[-1]
-        for obj, number,proba in struct: #self._structure:
-                generateProb = random.randint(1,100)
-                if generateProb < proba:
-                    if isinstance(obj,Generator):
-                        self._generation.append(obj.generate())
+#         # then build serialisation
+#         ## getAnnotation
+#         structproba = self.getRandomElt(self._structure)
+# #         print structproba
+#         struct, proba = structproba[:-1], structproba[-1]
+#         for obj, number,proba in struct: #self._structure:
+#                 generateProb = random.randint(1,100)
+#                 if generateProb < proba:
+#                     if isinstance(obj,Generator):
+#                         self._generation.append(obj.generate())
+
+        self._generation  = []
+        for obj in self._instance:
+            obj.generate()
+            self._generation.append(obj)
+        return self    
+
         return self
      
     def getDayParts():
@@ -365,6 +383,7 @@ class ABPRecordGenerator(textGenerator):
         
     # method level otherwise loadresources for each sample!!
     person= PersonName(lang)
+    person2= PersonName(lang)
     date= ABPGermanDateGenerator()
     date.defineRange(1900, 2000)
     deathreasons = deathreasonGenerator()
@@ -372,9 +391,10 @@ class ABPRecordGenerator(textGenerator):
     location= locationGenerator()
     profession= professionGenerator()
     status = familyStatus()
-    age = AgeGenerator()      
-    misc = integerGenerator(25, 0.1)
     
+    age = AgeGenerator()      
+    misc = integerGenerator(1000, 1000)
+    noise = textRandomGenerator(10,8)
     
     def __init__(self):
 #         if platform.system() == 'Windows':
@@ -384,13 +404,16 @@ class ABPRecordGenerator(textGenerator):
         textGenerator.__init__(self,self.lang)
 
 
-        myList = [firstNameGenerator(), lastNameGenerator(),self.person, self.date,self.deathreasons,self.location,self.profession,self.status, self.age, self.misc]
-#         myList = [self.person, self.date,self.deathreasons,self.location,self.profession,self.status, self.age, self.misc]
+#         myList = [self.person,self.person2]
+        myList = [self.noise,firstNameGenerator(), lastNameGenerator(),self.person, self.date,self.deathreasons,self.location,self.profession,self.status, self.age, self.misc]
+#         myList = [self.age,self.date]
 
 #         myList = [firstNameGenerator(), lastNameGenerator()]
         
         self._structure = []
         
+        
+        ## need to collect histogram of the generated structure 
         
         for nbfields in range(1,len(myList)+1):
             # x structures per length
@@ -408,28 +431,6 @@ class ABPRecordGenerator(textGenerator):
 #                 print "seq:", lseq
                 self._structure.append(tuple(lseq))
         
-#         print self._structure
-#         ss
-#         self._structure = [
-# #                 (  (self.person,1,100), (self.date,1,100),(self.deathreasons,1,100),100 )
-# #                 ,( (self.person,1,100), (self.person,1,100),100 )
-# #                 ,( (self.person,1,100), (self.location,1,100),100 )
-# #                 ,( (self.person,1,100), (self.deathreasons,1,100),100 )
-# #                 ,( (self.misc,1,50), (self.person,1,100),(self.misc,1,50),100 )
-# #                 ,( (self.deathreasons,1,100), (self.doktor,1,25),100 )
-#                 ( (self.deathreasons,1,100),100 )
-#                 ,( (self.person,1,100),100 )                
-#                 ,( (self.date,1,100),100 )
-#                 ,( (self.doktor,1,100),100 )
-#                 ,( (self.location,1,100),100 )
-#                 ,( (self.age,1,100),100)
-#                 ,( (self.profession,1,100),100 )
-#                 ,( (self.status,1,100),100 )
-#                 ,( (self.misc,1,100),100 )
-# #                 ,( (self.person,1,100), (self.location,1,100),(self.deathreasons,1,100),100 )
-# #                 ,( (self.person,1,50), (self.date,1,50),(self.location,1,50),(self.deathreasons,1,50),100 )
-#  
-#                 ]
 
     def generate(self):
         return Generator.generate(self)
@@ -447,15 +448,21 @@ class ABPRecordGenerator(textGenerator):
                 
 if __name__ == "__main__":
 
+  
     try:
         nbX = int(sys.argv[1])
-    except:nbX=3
+    except:nbX = 10
     #recordGen = ABPRecordGenerator()
     g = ABPRecordGenerator()
     for i in range(nbX):
+        g.instantiate()
         g.generate()
-        uString= g.formatAnnotatedData(g.exportAnnotatedData())
-        if uString is not None:
-            print uString
+        g.generateNoise()
+#         print g._generation
+        print g.exportAnnotatedData([])
+        
+#         uString= g.formatAnnotatedData(g.exportAnnotatedData([]),mode=2)
+#         if uString is not None:
+#             print uString
 
         
