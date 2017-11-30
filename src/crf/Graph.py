@@ -31,6 +31,7 @@ import numpy as np
 import libxml2
 
 from common.trace import traceln
+from xml_formats.PageXml import PageXmlException
 
 import Edge
 from crf.Edge import SamePageEdge
@@ -122,7 +123,10 @@ class Graph:
         for nd in self.lNode:
             nodeType = nd.type 
             #a LabelSet object knows how to parse a DOM node of a Graph object!!
-            sLabel = nodeType.parseDomNodeLabel(nd.node)
+            try:
+                sLabel = nodeType.parseDomNodeLabel(nd.node)
+            except PageXmlException:
+                sLabel='TR_OTHER'
             try:
                 cls = self._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
             except KeyError:
@@ -181,9 +185,9 @@ class Graph:
         nbNode = sum(len(g.lNode) for g in lGraph)
         nbEdge = sum(len(g.lEdge) for g in lGraph)
         return nbNode, nbEdge
-            
+
     @classmethod
-    def loadGraphs(cls, lsFilename, bNeighbourhood=True, bDetach=False, bLabelled=False, iVerbose=0):
+    def loadGraphs(cls, lsFilename, bNeighbourhood=True, bDetach=False, bLabelled=False, iVerbose=0,attachEdge=False):
         """
         Load one graph per file, and detach its DOM
         return the list of loaded graphs
@@ -194,10 +198,10 @@ class Graph:
             g = cls()
             g.parseXmlFile(sFilename, iVerbose)
             if not g.isEmpty():
-                if bNeighbourhood: g.collectNeighbors()            
+                if attachEdge and bNeighbourhood: g.collectNeighbors(attachEdge=attachEdge)
+                if bNeighbourhood: g.collectNeighbors()
                 if bLabelled: g.parseDomLabels()
                 if bDetach: g.detachFromDOM()
-                g.setName(sFilename)
                 lGraph.append(g)
         return lGraph
 
@@ -248,13 +252,21 @@ class Graph:
         
         """
         raise Exception("Must be specialized")
-    
+
     def isEmpty(self): return self.lNode == []
-        
-    def collectNeighbors(self):
+
+
+    def collectNeighbors(self,attachEdge=False):
         """
         record the lists of hotizontal-, vertical- and cross-page neighbours for each node
         """
+        for blk in self.lNode:
+            blk.lHNeighbor = list()
+            blk.lVNeighbor = list()
+            blk.lCPNeighbor = list()
+            if attachEdge:
+                blk.edgeList=list()
+
         for edge in self.lEdge:
             a, b = edge.A, edge.B
             if isinstance(edge, Edge.SamePageEdge):
@@ -271,7 +283,14 @@ class Graph:
                 else:
                     a.lCMPNeighbor.append(b)
                     b.lCMPNeighbor.append(a)
-    
+        if attachEdge:
+            for edge in self.lEdge:
+                a, b = edge.A, edge.B
+                #Can I get all the correct function from a.lCPNeighbor etc ...
+                a.edgeList.append(edge)
+                b.edgeList.append(edge)
+
+
     def getNeighborClassMask(self):
         """
         record for each node a boolean for each label, indicating if the node is neighbor with a node having that label

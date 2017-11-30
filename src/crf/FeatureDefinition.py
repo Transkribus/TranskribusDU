@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
     Feature Definition
     
@@ -22,7 +21,7 @@
     
     
     Developed  for the EU project READ. The READ project has received funding 
-    from the European Union�s Horizon 2020 research and innovation programme 
+    from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
     
 """
@@ -32,8 +31,10 @@ class FeatureDefinition:
     """
     A class to sub-class to define which features from a Tranformer class, you want for node and edges
     """
-    def __init__(self): 
+    def __init__(self, nbClass=None):
+        self.nbClass = nbClass  #number of node classes (also called 'labels', and 'states' in pystruct)
         self._node_transformer, self._edge_transformer = None, None
+
 
     def getTransformers(self):
         """
@@ -41,17 +42,17 @@ class FeatureDefinition:
         """
         return self._node_transformer, self._edge_transformer
             
-    def fitTranformers(self, lGraph):
+    def fitTranformers(self, lGraph,lY=None):
         """
         Fit the transformers using the graphs
-        return True 
+        return True
         """
         lAllNode = [nd for g in lGraph for nd in g.lNode]
-        self._node_transformer.fit(lAllNode)
+        self._node_transformer.fit(lAllNode,lY)
         del lAllNode #trying to free the memory!
         
         lAllEdge = [edge for g in lGraph for edge in g.lEdge]
-        self._edge_transformer.fit(lAllEdge)
+        self._edge_transformer.fit(lAllEdge,lY)
         del lAllEdge
         
         return True

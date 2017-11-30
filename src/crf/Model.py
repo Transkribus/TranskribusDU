@@ -37,6 +37,7 @@ from common.chrono import chronoOn, chronoOff
 
 from TestReport import TestReport, TestReportConfusion
 
+import scipy.sparse as sp
 class ModelException(Exception):
     """
     Exception specific to this class
@@ -115,7 +116,7 @@ class Model:
             traceln('no baseline model found : %s' %(sBaselineFile)) 
         self.loadTransformers(expiration_timestamp)
             
-        return self    
+        return self
             
     def storeBestParams(self, dBestModelParameters):
         """
@@ -263,13 +264,36 @@ class Model:
         return the list of baseline models
         """
         return self._lMdlBaseline
-    
+
+    def _get_X_flat(self,lX):
+        '''
+        Return a matrix view X from a list of graph
+        Handle sparse matrix as well
+        :param lX: 
+        :return: 
+        '''
+
+        is_sparse=False
+        node_feat_mat_list=[]
+        for (node_feature,_,_) in lX:
+            if sp.issparse(node_feature):
+                is_sparse=True
+            node_feat_mat_list.append(node_feature)
+
+        if is_sparse:
+            X_flat = sp.vstack(node_feat_mat_list)
+        else:
+            X_flat = np.vstack(node_feat_mat_list)
+
+        return X_flat
+
+
     def _trainBaselines(self, lX, lY):
         """
         Train the baseline models, if any
         """
         if self._lMdlBaseline:
-            X_flat = np.vstack( node_features for (node_features, _, _) in lX )
+            X_flat =self._get_X_flat(lX)
             Y_flat = np.hstack(lY)
             with open("XY_flat.pkl", "wb") as fd: cPickle.dump((X_flat, Y_flat), fd)
             for mdlBaseline in self._lMdlBaseline:
@@ -294,7 +318,7 @@ class Model:
         
         lTstRpt = []
         if self._lMdlBaseline:
-            X_flat = np.vstack( node_features for (node_features, _, _) in lX )
+            X_flat =self._get_X_flat(lX)
             Y_flat = np.hstack(lY)
             for mdl in self._lMdlBaseline:   #code in extenso, to call del on the Y_pred_flat array...
                 chronoOn("_testBaselines")
@@ -358,7 +382,7 @@ class Model:
         """
         #by default, save the baseline models
         sBaselineFile = self.getBaselineFilename()
-        self.gzip_cPickle_dump(sBaselineFile                    , self.getBaselineModelList())
+        self.gzip_cPickle_dump(sBaselineFile, self.getBaselineModelList())
         return sBaselineFile
     
     def test(self, lGraph):
@@ -423,4 +447,4 @@ def test_test_report():
     f, _ = Model.test_report(Y, np.array([0,  2, 3, 2, 2], dtype=np.int32), lsClassName)
     assert f == 0.8
     f, _ = Model.test_report(Y, np.array([0,  2, 3, 2, 4], dtype=np.int32), lsClassName)
-    assert f == 0.8    
+    assert f == 0.8

@@ -42,30 +42,9 @@ from crf.FeatureDefinition_PageXml_logit import FeatureDefinition_PageXml_LogitE
 
 # ===============================================================================================================
 #DEFINING THE CLASS OF GRAPH WE USE
-DU_GRAPH = Graph_DSXml
-nt = NodeType_DS("Ddg"                   #some short prefix because labels below are prefixed with it
-                      , ['title', 'pnum']   #EXACTLY as in GT data!!!!
-                      , []      #no ignored label/ One of those above or nothing, otherwise Exception!!
-                      , True    #no label means OTHER
-                      )
-nt.setXpathExpr( ".//BLOCK"        #how to find the nodes
-               )
-DU_GRAPH.addNodeType(nt)
 
-"""
-The constraints must be a list of tuples like ( <operator>, <NodeType>, <states>, <negated> )
-where:
-- operator is one of 'XOR' 'XOROUT' 'ATMOSTONE' 'OR' 'OROUT' 'ANDOUT' 'IMPLY'
-- states is a list of unary state names, 1 per involved unary. If the states are all the same, you can pass it directly as a single string.
-- negated is a list of boolean indicated if the unary must be negated. Again, if all values are the same, pass a single boolean value instead of a list 
-"""
-if False:
-    DU_GRAPH.setPageConstraint( [    ('ATMOSTONE', nt, 'pnum' , False)    #0 or 1 catch_word per page
-                                   , ('ATMOSTONE', nt, 'title'    , False)    #0 or 1 heading pare page
-                                 ] )
 
-# ===============================================================================================================
-
+import dodge_graph
  
 class DU_Dodge_c(DU_CRF_Task):
     """
@@ -80,7 +59,7 @@ class DU_Dodge_c(DU_CRF_Task):
         
         DU_CRF_Task.__init__(self
                              , sModelName, sModelDir
-                             , DU_GRAPH
+                             , dodge_graph.DU_GRAPH
                              , dFeatureConfig = {
                                     'nbClass'    : 3
                                   , 'n_feat_node'    : 500
@@ -89,16 +68,16 @@ class DU_Dodge_c(DU_CRF_Task):
                                   , 'n_feat_edge'    : 250
                                   , 't_ngrams_edge'   : (2,4)
                                   , 'b_edge_lc' : False    
-                                  , 'n_jobs'      : 1         #n_jobs when fitting the internal Logit feat extractor model by grid search
+                                  , 'n_jobs'      : 8         #n_jobs when fitting the internal Logit feat extractor model by grid search
                               }
                              , dLearnerConfig = {
                                    'C'                : .1 
-                                 , 'njobs'            : 4
+                                 , 'njobs'            : 8
                                  , 'inference_cache'  : 50
                                  #, 'tol'              : .1
                                  , 'tol'              : .05
                                  , 'save_every'       : 50     #save every 50 iterations,for warm start
-                                 , 'max_iter'         : 250
+                                 , 'max_iter'         : 1000
                                  }
                              , sComment=sComment
                              , cFeatureDefinition=FeatureDefinition_PageXml_LogitExtractor
@@ -106,6 +85,45 @@ class DU_Dodge_c(DU_CRF_Task):
         
         self.addBaseline_LogisticRegression()    #use a LR model as baseline
     #=== END OF CONFIGURATION =============================================================
+
+#Uniform Weight for the CRF
+class DU_Dodge_c_UW(DU_CRF_Task):
+    sXmlFilenamePattern = "*_ds.xml"
+
+    #=== CONFIGURATION ====================================================================
+    def __init__(self, sModelName, sModelDir, sComment=None):
+
+        DU_CRF_Task.__init__(self
+                             , sModelName, sModelDir
+                             , dodge_graph.DU_GRAPH
+                             , dFeatureConfig = {
+                                    'nbClass'    : 3
+                                  , 'n_feat_node'    : 500
+                                  , 't_ngrams_node'   : (2,4)
+                                  , 'b_node_lc' : False
+                                  , 'n_feat_edge'    : 250
+                                  , 't_ngrams_edge'   : (2,4)
+                                  , 'b_edge_lc' : False
+                                  , 'n_jobs'      : 8         #n_jobs when fitting the internal Logit feat extractor model by grid search
+                              }
+                             , dLearnerConfig = {
+                                   'C'                : .1
+                                 , 'njobs'            : 8
+                                 , 'inference_cache'  : 50
+                                 #, 'tol'              : .1
+                                 , 'tol'              : .05
+                                 , 'save_every'       : 50     #save every 50 iterations,for warm start
+                                 , 'max_iter'         : 1000
+                                 ,'uniform_classweight':True
+                             }
+                             , sComment=sComment
+                             , cFeatureDefinition=FeatureDefinition_PageXml_LogitExtractor
+                             )
+
+        self.addBaseline_LogisticRegression()    #use a LR model as baseline
+
+
+
 
 
 if __name__ == "__main__":
@@ -128,7 +146,7 @@ if __name__ == "__main__":
         doer.rm()
         sys.exit(0)
     
-    traceln("- classes: ", DU_GRAPH.getLabelNameList())
+    traceln("- classes: ", dodge_graph.DU_GRAPH.getLabelNameList())
     
     
     #Add the "out" subdir if needed
@@ -145,4 +163,3 @@ if __name__ == "__main__":
         doer.load()
         lsOutputFilename = doer.predict(lRun)
         traceln("Done, see in:\n  %s"%lsOutputFilename)
-    

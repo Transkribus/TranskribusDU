@@ -12,6 +12,7 @@
 
 import sys, os.path
 
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 import libxml2
@@ -24,6 +25,7 @@ from feature import featureObject
 
 
 from ObjectModel.xmlDSDocumentClass import XMLDSDocument
+from ObjectModel.XMLDSObjectClass import XMLDSObjectClass
 from ObjectModel.XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
 from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
 from ObjectModel.XMLDSTOKENClass import XMLDSTOKENClass
@@ -61,7 +63,7 @@ class pageVerticalMiner(Component.Component):
         self.THCOMP = 10
         self.evalData= None
         
-        self.bDomTag=False
+        self.bDomTag=True
         
         # TH for sequentiality detection (see structuralMining)
         self.fKleenPlusTH =1.5
@@ -72,8 +74,13 @@ class pageVerticalMiner(Component.Component):
         # evaluation using the baseline
         self.baselineMode = 0
         
+        # ignore existing regions
+        self.bIgnoreRegions=True
         # do not use graphical lines
         self.bNOGline = False
+        
+        # only use GL
+        self.bGLOnly= False
         
         # does the scanning introduce vertical shift? 
         self.bScanShift = False
@@ -97,9 +104,16 @@ class pageVerticalMiner(Component.Component):
 
         if dParams.has_key('baseline'):
             self.baselineMode = dParams['baseline']     
-        
+
+        if dParams.has_key('bIgnoreRegions'):
+            self.bIgnoreRegions = dParams['bIgnoreRegions']
+            
         if dParams.has_key('nogline'):
-            self.bNOGline = dParams['nogline']
+            self.bGLOnly = dParams['nogline']
+        
+        if dParams.has_key('glonly'):
+            self.bNOGline = dParams['glonly']
+            
         if dParams.has_key('tag'):
             self.sTag = dParams['tag']                              
             
@@ -213,7 +227,7 @@ class pageVerticalMiner(Component.Component):
             # test type of  patterns
             bSkip = bSkip or (step > 0 and len(pattern) == 1)
             bSkip = bSkip or (len(pattern) == 2 and pattern[0] == pattern[1])  
-            print pattern, bSkip          
+#             print pattern, bSkip          
             if not bSkip: 
                 print '========',pattern, support, self.isMirroredPattern(pattern)
                 ## test is pattern is mirrored         
@@ -366,11 +380,6 @@ class pageVerticalMiner(Component.Component):
 
             for e in lElts:
                 e.next=[]
-            ## filter elements for lines only!!!
-#             lElts = filter(lambda x:min(x.getHeight(),x.getWidth()) > 10,lElts)
-#             lElts = filter(lambda x:x.getHeight() > 10,lElts)
-#             lElts = filter(lambda x:x.getX() > 1,lElts)
-#             lElts = filter(lambda x:x.getHeight() < x.getWidth(),lElts)
 
             lElts.sort(key=lambda x:x.getY())
             lLElts[i]=lElts
@@ -379,20 +388,23 @@ class pageVerticalMiner(Component.Component):
                 a.next.append( b )
 
         ### VerticalZones START
+        print self.bGLOnly, self.bNOGline
         for i,page, in enumerate(lPages):
             page._VX1Info=[]
-            lElts= lLElts[i]
-            for elt in lElts:
-                elt.resetFeatures()
-                elt._canonicalFeatures = None
-                elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=lFeatureList,myLevel=level)
-#                 elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=lFeatureList,myLevel=XMLDSTOKENClass)
- 
-                elt.computeSetofFeatures()
-                ## rename all as 'x'
-                [x.setName('x') for x in elt.getSetofFeatures()]
+            lElts=[]
+            if not self.bGLOnly:
+                lElts= lLElts[i]
+                for elt in lElts:
+                    elt.resetFeatures()
+                    elt._canonicalFeatures = None
+                    elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=lFeatureList,myLevel=level)
+    #                 elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=lFeatureList,myLevel=XMLDSTOKENClass)
+     
+                    elt.computeSetofFeatures()
+                    ## rename all as 'x'
+                    [x.setName('x') for x in elt.getSetofFeatures()]
             
-            # GRAPICAL LINES 
+            # GRAPHICAL LINES 
             gl = []
             if not self.bNOGline:
                 for graphline in page.getAllNamedObjects(XMLDSGRAPHLINEClass):
@@ -412,43 +424,42 @@ class pageVerticalMiner(Component.Component):
                         graphline.addFeature(f)
                         page.setVGLFeatures(f)
 
-
-            if lElts != []:
-                # artificial first line (0 line)
-                graphline = XMLDSGRAPHLINEClass()
-                graphline.addAttribute('x',0)
-                graphline.addAttribute('width',1)
-                graphline.addAttribute('height',page.getHeight())
-                gl.append(graphline)
-                # create a feature
-                f = featureObject()
-                f.setType(featureObject.NUMERICAL)
-                f.setTH(self.THNUMERICAL)
-                f.setWeight(graphline.getHeight()/64000)
-                f.setName("x")
-                f.setObjectName(graphline)
-                f.addNode(graphline)
-                f.setValue(round(graphline.getX()))
-                graphline.addFeature(f)
-                page.setVGLFeatures(f)                    
-
-                graphline = XMLDSGRAPHLINEClass()
-                graphline = XMLDSGRAPHLINEClass()
-                graphline.addAttribute('x',page.getWidth())
-                graphline.addAttribute('width',1)
-                graphline.addAttribute('height',page.getHeight())                
-                gl.append(graphline)
-                # create a feature
-                f = featureObject()
-                f.setType(featureObject.NUMERICAL)
-                f.setTH(self.THNUMERICAL)
-                f.setWeight(graphline.getHeight()/64000)
-                f.setName("x")
-                f.setObjectName(graphline)
-                f.addNode(graphline)
-                f.setValue(round(graphline.getX()))
-                graphline.addFeature(f)
-                page.setVGLFeatures(f)     
+#             if lElts +gl != []:
+#                 # artificial first line (0 line)
+#                 graphline = XMLDSGRAPHLINEClass()
+#                 graphline.addAttribute('x',0)
+#                 graphline.addAttribute('width',1)
+#                 graphline.addAttribute('height',page.getHeight())
+#                 gl.append(graphline)
+#                 # create a feature
+#                 f = featureObject()
+#                 f.setType(featureObject.NUMERICAL)
+#                 f.setTH(self.THNUMERICAL)
+#                 f.setWeight(graphline.getHeight()/64000)
+#                 f.setName("x")
+#                 f.setObjectName(graphline)
+#                 f.addNode(graphline)
+#                 f.setValue(round(graphline.getX()))
+#                 graphline.addFeature(f)
+#                 page.setVGLFeatures(f)                    
+# 
+#                 graphline = XMLDSGRAPHLINEClass()
+#                 graphline = XMLDSGRAPHLINEClass()
+#                 graphline.addAttribute('x',page.getWidth())
+#                 graphline.addAttribute('width',1)
+#                 graphline.addAttribute('height',page.getHeight())                
+#                 gl.append(graphline)
+#                 # create a feature
+#                 f = featureObject()
+#                 f.setType(featureObject.NUMERICAL)
+#                 f.setTH(self.THNUMERICAL)
+#                 f.setWeight(graphline.getHeight()/64000)
+#                 f.setName("x")
+#                 f.setObjectName(graphline)
+#                 f.addNode(graphline)
+#                 f.setValue(round(graphline.getX()))
+#                 graphline.addFeature(f)
+#                 page.setVGLFeatures(f)     
 
 
             ## select regular x                                 
@@ -659,7 +670,7 @@ class pageVerticalMiner(Component.Component):
             # if score1 == score 2 !!
             if score > 0 : # and score1 >= score2:
                 lfinalCuts= map(lambda (x,y):y,filter(lambda (x,y): x!= 'EMPTY',registeredPoints))
-                print p,'final1:',lfinalCuts, lMissing, score, '\t\t',registeredPoints
+#                 print p,'final1:',lfinalCuts, lMissing, score, '\t\t',registeredPoints
                 lScores.append(score)
                 p.addVerticalTemplate(mytemplate)
                 p.addVSeparator(mytemplate,lfinalCuts)
@@ -771,7 +782,7 @@ class pageVerticalMiner(Component.Component):
         flattened_sequences = [ list(set(itertools.chain(*sequence))) for sequence in sequences ]
         support_counts = dict(Counter(item for flattened_sequence in flattened_sequences for item in flattened_sequence))
         actual_supports = {item:support_counts.get(item)/float(sequence_count) for item in support_counts.keys()}        
-        lOneSupport= [k for k,v in actual_supports.iteritems() if v > 0.8 ]
+        lOneSupport= [k for k,v in actual_supports.iteritems() if v >= 0.8 ]
         return lOneSupport
 
 #         lOneSupport=[]
@@ -888,7 +899,6 @@ class pageVerticalMiner(Component.Component):
                     f.setTH(0)
                     if f not in lAllF:
                         lAllF.append(f)
-                print p, p._lBasicFeatures
             seqGen = sequenceMiner()
             seqGen.bDebug = False
             seqGen.setObjectLevel(XMLDSPageClass)
@@ -916,7 +926,6 @@ class pageVerticalMiner(Component.Component):
 #                 page.lFeatureForParsing = page.getCanonicalFeatures() 
                 page.lFeatureForParsing = page.getSetofFeatures() 
 
-                print page, page.lFeatureForParsing
                 page.nparray = np.zeros((len(lAllF),1),dtype='float64')
                 print page, map(lambda x: (x.getValue(), x.getWeight(), len(x.getNodes()),x.getKleenePlus()), page.getSetofFeatures())
                 for f in page.getSetofFeatures():
@@ -1069,7 +1078,7 @@ class pageVerticalMiner(Component.Component):
             p._lBasicFeatures=p.lf_XCut[:]
 #             print p, map(lambda x:(x,x.getTH()),p.getSetofFeatures())
 #             print p, map(lambda x:(x,x.getTH()),p.lf_XCut)
-
+        
         seqGen = sequenceMiner()
         seqGen.bDebug = False
         seqGen.setMinSequenceLength(iMinLen)
@@ -1185,7 +1194,6 @@ class pageVerticalMiner(Component.Component):
 
         for p in lPages:
             p.lFeatureForParsing = p.lf_XCut
-            
         ## for eac n-cut categories:
             # template with 2 , 3 ,4, 5 .. cuts
         chronoOn()
@@ -1411,15 +1419,13 @@ class pageVerticalMiner(Component.Component):
             prevcuts= page.lf_XCut 
             self.minePageVerticalFeature([page], ['x','x2'], level=XMLDSTOKENClass)
             page.lFeatureForParsing  = page.lf_XCut
-            print page, prevcuts 
-            print map(lambda x:(x,x.getWeight()),page.lFeatureForParsing)
             if lTokens != []:
                 for template in page.getVerticalTemplates():
                     sys.stdout.flush()
                     registeredPoints, lMissing, score = template.registration(page)
                     if registeredPoints is not None:
                         lfinalCuts= map(lambda (x,y):y,filter(lambda (x,y): x!= 'EMPTY',registeredPoints))
-                        print page,registeredPoints, lMissing, score
+#                         print page,registeredPoints, lMissing, score
                         page.resetVSeparator(template)
                         page.addVSeparator(template,lfinalCuts)
     
@@ -1479,19 +1485,19 @@ class pageVerticalMiner(Component.Component):
         ### now patterns with indentation
         for tem in lTemplateRO:
             print "###################################", tem
+            lColumnElts=[ [] for i in range(len(lTemplateRO[tem]))]
             for i,lreg in enumerate(lTemplateRO[tem]):
-                print "%d\t\t%s"%(i,"")
+#                 print "%d\t\t%s"%(i,"")
                 for reg in lreg:
                     lElts= reg.getObjects()
-                    for elt in lElts:
+                    lColumnElts[i].extend(lElts)
+#                     for elt in lElts:
                         ## compute justification
-                        try:  print elt.getPage(), elt.getContent().encode('utf-8'), elt.computeJustification(TH=20)
-                        except:pass
-                        
-#                     self.processLines()
+#                         try:  print elt.getPage(), elt.getContent().encode('utf-8')[:30]
+#                         except:pass
+                
+        return lColumnElts
                     
-        ## call spmLine  with indepatterns , recursive  
-        
     
     ############################# DOM TAGGING ###################
     def tagDomWithBestTemplate(self,lPages):
@@ -1541,16 +1547,40 @@ class pageVerticalMiner(Component.Component):
                         
 
     
+    def deleteRegions(self,page):
+        """
+            delete regions of the page
+        """
+        for region in page.getAllNamedObjects('REGION'):
+            region.getNode().unlinkNode()
+    
+    def storeLineInRegions(self,page,lRegions):
+        """
+            assign lines to region
+        """
+        for line in page.getAllNamedObjects(XMLDSTEXTClass):
+#             print line, lRegions
+            myReg= line.bestRegionsAssignment(lRegions)
+            if myReg:
+                myReg.addObject(line)
+                line.getNode().unlinkNode()
+                myReg.getNode().addChild(line.getNode())
+        
     def tagAsRegion(self,lPages):
         """
             create regions
+            
+            if bIgnoreRegions: delte previous regions
+                and assign new regions to textlines
             
             if border page regions are missing :add them?
                 or don't put them for tagging
         """
         for page in lPages:
             if page.getNode():
-                # if several template ???
+                if self.bIgnoreRegions:
+                    self.deleteRegions(page)
+                # if several template ??
                 for template in page.getVerticalTemplates():
 #                     print page, template, template.getParent()
                     page.getdVSeparator(template).sort(key=lambda x:x.getValue())
@@ -1570,20 +1600,27 @@ class pageVerticalMiner(Component.Component):
                         page.getNode().setProp('reftemplate',str((0,(map(lambda x:x.getValue(),template.getPattern())))))
 
                     XMinus = 1
-                    prevcut = 10
+                    prevcut = 1
                     lCuts=[prevcut]
+                    lRegions=[]
 #                     print page, page.getdVSeparator(template)
                     for cut in page.getdVSeparator(template):
-                        cellNode  = libxml2.newNode('REGION')
-                        cellNode.setProp("x",str(prevcut))
+                        newReg= XMLDSObjectClass()
+                        domNode  = libxml2.newNode('REGION')
+                        domNode.setProp("x",str(prevcut))
                         ## it is better to avoid
-                        YMinus= 10
-                        cellNode.setProp("y",str(YMinus))
-                        cellNode.setProp("height",str(page.getHeight()-2 * YMinus))
-                        cellNode.setProp("width", str(cut.getValue() - prevcut))
+                        YMinus= 1
+                        domNode.setProp("y",str(YMinus))
+                        domNode.setProp("height",str(page.getHeight()-2 * YMinus))
+                        domNode.setProp("width", str(cut.getValue() - prevcut))
                         lCuts.append(cut.getValue() )
-                        page.getNode().addChild(cellNode)
-                        prevcut  = cut.getValue()          
+                        newReg.setNode(domNode)
+                        page.getNode().addChild(domNode)
+                        newReg.setDimensions(prevcut,YMinus, page.getHeight()-2 * YMinus,cut.getValue() - prevcut)
+#                         print newReg.getX(),newReg.getY(),newReg.getHeight(),newReg.getWidth(),cut.getValue() - prevcut
+                        lRegions.append(newReg)
+                        prevcut  = cut.getValue()
+                self.storeLineInRegions(page,lRegions)
     
     def tagDomAsTable(self,lPages):
         """
@@ -2182,7 +2219,9 @@ if __name__ == "__main__":
     docM.add_option("--TH", dest="THNUM", action="store", type="int", help="TH as eq delta", metavar="NN")
     docM.add_option("--KTH", dest="KLEENETH", action="store", type="float", help="TH for sequentiality", metavar="NN")
     docM.add_option("--baseline", dest="baseline", type='int', default=0, action="store", help="baseline method",metavar="N")
+    docM.add_option("--ignoreRegion", dest="bIgnoreRegions", default=True, action="store_true", help="Ignore existing TextRegions")
     docM.add_option("--nogl", dest="nogline",  action="store_true",default=False ,help="no graphical line used")
+    docM.add_option("--glonly", dest="glineonly",  action="store_true",default=False ,help="graphical line only (no text)")
         
     #parse the command line
     dParams, args = docM.parseCommandLine()
@@ -2192,7 +2231,7 @@ if __name__ == "__main__":
     
     doc = docM.loadDom()
     docM.loadDSDoc(doc)
-    docM.run(doc)
+    docM.run()
     if doc and docM.getOutputFileName() != "-":
         docM.writeDom(doc, True)
 

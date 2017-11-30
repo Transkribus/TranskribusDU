@@ -28,8 +28,11 @@ import types, time
 
 import numpy as np
 
-from sklearn.metrics import confusion_matrix
+
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix,accuracy_score
 from util.metrics import confusion_classification_report, confusion_list_classification_report, confusion_accuracy_score, confusion_PRFAS
+
 
 class TestReport:
     """
@@ -197,6 +200,29 @@ class TestReport:
         return self.toString()
 
 
+
+class RankingReport(TestReport):
+    """
+    A ranking Report which include Mean Average Precision and possibly other ranking measures
+    """
+
+    def __init__(self, name, l_Y_pred, l_Y, lsClassName=None):
+        TestReport.__init__(self,name,l_Y_pred,l_Y,lsClassName)
+        self.average_precision=[]
+
+    def toString(self, bShowBaseline=True, bBaseline=False):
+        #report=super(RankingReport,self).toString(bShowBaseline,bBaseline)
+        report=TestReport.toString(self,bShowBaseline,bBaseline)
+        report+="-" * 30+'\n'
+        report+='     RANKING MEASURES  \n'
+        report+="-" * 30+'\n'
+        report+="Mean Average Precision\n"
+        for i,avgpi in self.average_precision:
+            report+='\t'+str(i)+':'+str(avgpi)+'\n'
+        report+="-" * 30+'\n'
+        return report
+
+
 class TestReportConfusion(TestReport):
     """
     A class that encapsulates the result of a classification test, by using the confusion matrices
@@ -306,7 +332,6 @@ class TestReportConfusion(TestReport):
         if self.lsDocName:
             assert oTestRpt.lsDocName, "Internal Error: one object has no list of document name. Cannot aggregate with doc name."
             self.lsDocName.extend(oTestRpt.getDocNameList())
-            
             
             
             

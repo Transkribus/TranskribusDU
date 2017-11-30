@@ -31,7 +31,6 @@ from ObjectModel.xmlDSDocumentClass import XMLDSDocument
 # from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
 from ObjectModel.treeTemplateClass import treeTemplateClass
 from ObjectModel.XMLDSCELLClass import XMLDSTABLECELLClass
-from ObjectModel.XMLDSColumnClass import XMLDSTABLECOLUMNClass
 from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
     
 class tableRowMiner(Component.Component):
@@ -146,7 +145,7 @@ class tableRowMiner(Component.Component):
         lmaxSequence = seqGen.generateItemsets(lElts)
 #         for elt in lElts:
 #             print elt, elt.getCanonicalFeatures()
-        lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.25)
+        lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.5)
         lOneSupport =self.testHighSupport(lSeq)
         lOneSupport.sort(key = lambda x:x.getValue())
         return lOneSupport
