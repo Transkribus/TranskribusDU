@@ -438,6 +438,19 @@ def get_config(config_id=0):
         config['nconv_edge'] = 10
         config['fast_convolve']=True
 
+    elif config_id == 32:
+        # Same as 31 but with dropout
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.000
+        config['num_layers'] = 8
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 10
+        config['fast_convolve']=True
+        config['dropout_rate'] = 0.2
+        config['dropout_mode'] = 2
+        # config['shared_We'] = True
 
     else:
         raise NotImplementedError
