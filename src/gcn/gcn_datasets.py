@@ -8,6 +8,7 @@ import numpy as np
 PY3 = sys.version_info[0] == 3
 import gzip
 import scipy.sparse as sp
+import pdb
 
 class GCNDataset(object):
     '''
@@ -149,7 +150,6 @@ class GCNDataset(object):
             nf=lx[0]
             edge=lx[1]
             ef =lx[2]
-
             graph = GCNDataset(str(graph_id))
             graph.X=nf
             graph.Y=lb.transform(ly)
@@ -219,7 +219,6 @@ class GCNDataset(object):
             lys.extend(list(ly))
 
         lb.fit(lys)
-
         for lx, ly in zip(lX, lY):
             nf = lx[0]
             edge = lx[1]
@@ -324,3 +323,74 @@ class GCNDataset(object):
 
 
 
+
+    @staticmethod
+    def load_test_pickle(pickle_fname,nb_classes, is_zipped=True, sym_edge=True):
+        '''
+        Load a test pickle file, a list of X
+        :param pickle_fname:
+        :param is_zipped:
+        :param sym_edge:
+        :return:
+        '''
+        gcn_list = []
+
+        if is_zipped:
+            f = gzip.open(pickle_fname, 'rb')
+        else:
+            f = open(pickle_fname, 'rb')
+        if PY3:
+            Z = pickle.load(f, encoding='latin1')
+        else:
+            Z = pickle.load(f)
+
+        lX = Z
+
+        graph_id = 0
+
+        #Aie
+        #I have not storred the LabelBinarizer
+        for lx in lX:
+            nf = lx[0]
+            edge = lx[1]
+            ef = lx[2]
+
+            graph = GCNDataset(str(graph_id))
+            nb_node = nf.shape[0]
+            graph.X = nf
+            graph.Y = -np.ones((nb_node,nb_classes),dtype='i')
+            # We are making the adacency matrix here
+
+            # Correct this edge should be swap ..
+            # This is not correct for edges, we should add edge swap
+            # A=sp.coo_matrix((np.ones(edge.shape[0]),(edge[:,0],edge[:,1])), shape=(nb_node, nb_node))
+            # TODO Check this then
+            if sym_edge:
+                A1 = sp.coo_matrix((np.ones(edge.shape[0]), (edge[:, 0], edge[:, 1])), shape=(nb_node, nb_node))
+                A2 = sp.coo_matrix((np.ones(edge.shape[0]), (edge[:, 1], edge[:, 0])), shape=(nb_node, nb_node))
+                graph.A = A1 + A2
+            else:
+                A1 = sp.coo_matrix((np.ones(edge.shape[0]), (edge[:, 0], edge[:, 1])), shape=(nb_node, nb_node))
+                graph.A = A1
+
+            edge_normalizer = Normalizer()
+            # Normalize EA
+            efn = edge_normalizer.fit_transform(ef)
+            # Duplicate Edge
+            edge_swap = np.array(edge)
+            edge_swap[:, 0] = edge[:, 1]
+            edge_swap[:, 1] = edge[:, 0]
+
+            E0 = np.hstack([edge, ef])  # check order
+            E1 = np.hstack([edge_swap, ef])  # check order
+
+            if sym_edge:
+                graph.E = np.vstack([E0, E1])  # check order
+            else:
+                graph.E = E0
+            gcn_list.append(graph)
+            graph.compute_EA()
+            graph.compute_NA()
+            # graph.normalize()
+            graph.compute_NodeEdgeMat()
+        return gcn_list

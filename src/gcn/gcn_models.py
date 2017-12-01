@@ -630,7 +630,7 @@ class GCNModelGraphList(object):
                 self.Tsparse: np.array(graph.Tind, dtype='int64'),
                 # fast_gcn.T: np.asarray(graph.T.todense()).squeeze(),
                 self.F: graph.F,
-                self.dropout_p: 0.0
+                self.dropout_p: 0
             }
         else:
 
@@ -640,7 +640,7 @@ class GCNModelGraphList(object):
                 self.EA_input: graph.EA,
                 self.y_input: graph.Y,
                 self.NA_input: graph.NA,
-                self.dropout_p: 0.0
+                self.dropout_p: 0
             }
         Ops = session.run([self.pred], feed_dict=feed_batch)
         if verbose:
@@ -1143,14 +1143,14 @@ class GCNBaselineGraphList(object):
 
 
         for i in range(self.num_layers-1):
-            Wnli =init_glorot((self.node_indim, self.node_indim),name='Wnl'+str(i))
+            Wnli =init_glorot((2*self.node_indim, self.node_indim),name='Wnl'+str(i))
             #Wnli = init_normal((self.node_indim, self.node_indim),std_dev_indim, name='Wnl' + str(i))
             self.Wnode_layers.append(Wnli)
             #The GCN do not seem to use a bias term
             #Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
             #self.Bnode_layers.append(Bnli)
 
-        self.W_classif = init_glorot((self.node_indim, self.n_classes),name="W_classif")
+        self.W_classif = init_glorot((2*self.node_indim, self.n_classes),name="W_classif")
         self.B_classif = tf.Variable(tf.zeros([self.n_classes]), name='B_classif',dtype=np.float32)
 
 
@@ -1173,11 +1173,18 @@ class GCNBaselineGraphList(object):
 
 
         if self.dropout_mode==1:
-            self.H = self.activation(tf.matmul(self.ND,tf.add(tf.matmul(self.node_input, self.Wnode), self.Bnode)))
+            #self.H = self.activation(tf.matmul(self.ND,tf.add(tf.matmul(self.node_input, self.Wnode), self.Bnode)))
+            P0 = self.activation(tf.matmul(self.ND, tf.add(tf.matmul(self.node_input, self.Wnode), self.Bnode)))
             self.hidden_layers = [self.H]
         else:
-            self.H = self.activation(tf.add(tf.matmul(self.node_input, self.Wnode), self.Bnode))
-            self.hidden_layers = [self.H]
+            H0 =tf.add(tf.matmul(self.node_input, self.Wnode), self.Bnode)
+            P0 =tf.matmul(self.NA_input, H0)  # we should forget the self loop
+            H0_ = self.activation(tf.concat([H0, P0], 1))
+            self.hidden_layers=[H0_]
+            #self.H = self.activation(tf.add(tf.matmul(self.node_input, self.Wnode), self.Bnode))
+            #self.hidden_layers = [self.H]
+
+
 
         for i in range(self.num_layers-1):
             if self.dropout_mode==2:
@@ -1185,7 +1192,9 @@ class GCNBaselineGraphList(object):
                 Hi_ = tf.matmul(Hp, self.Wnode_layers[i])
             else:
                 Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i])
-            Hi = self.activation(tf.matmul(self.NA_input, Hi_))
+            P =tf.matmul(self.NA_input, Hi_) #we should forget the self loop
+            #Hp = tf.concat([H0, P], 1)
+            Hi = self.activation(tf.concat([Hi_,P],1))
             self.hidden_layers.append(Hi)
 
 
@@ -1204,11 +1213,11 @@ class GCNBaselineGraphList(object):
 
         #Global L2 Regulization
         #TODO Add L2 on the Edges as well ?
-        if self.num_layers>1:
-            in_layers_l2=tf.add_n([ tf.nn.l2_loss(v) for v in self.Wnode_layers ]) * self.mu
-            self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wnode)+in_layers_l2
-        else:
-            self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(self.W_classif) + self.mu * tf.nn.l2_loss(self.Wnode)
+        #if self.num_layers>1:
+        #    in_layers_l2=tf.add_n([ tf.nn.l2_loss(v) for v in self.Wnode_layers ]) * self.mu
+        #    self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wnode)+in_layers_l2
+        #else:
+        self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(self.W_classif)
 
 
         self.correct_prediction = tf.equal(tf.argmax(tf.nn.softmax(self.logits), 1), tf.argmax(self.y_input, 1))

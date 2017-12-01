@@ -107,6 +107,15 @@ def get_config(config_id=0):
         config['dropout_p'] = 0.0
         config['dropout_mode'] = 0
 
+    elif config_id==8:
+        config['nb_iter'] = 1000
+        config['lr'] = 0.001
+        config['mu'] = 0.001
+        config['num_layers'] = 18
+        config['node_indim'] = -1
+        config['dropout_p'] = 0.0
+        config['dropout_mode'] = 0
+
     #Find the best config for BGCN on 1 fold and vary regu and dropout after
     #
 
@@ -173,9 +182,9 @@ def run_model(gcn_graph, config_params, gcn_graph_test):
 
 
 def main_fold(foldid,configid,outdir):
-    pickle_train = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
+    pickle_train = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
         foldid) + '_tlXlY_trn.pkl'
-    pickle_test = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(foldid) + '_tlXlY_tst.pkl'
+    pickle_test = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(foldid) + '_tlXlY_tst.pkl'
 
     train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
     test_graph = GCNDataset.load_transkribus_pickle(pickle_test)
@@ -208,9 +217,9 @@ def main(_):
 
     else:
 
-        pickle_train = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
+        pickle_train = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(
             FLAGS.fold) + '_tlXlY_trn.pkl'
-        pickle_test = '/opt/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(FLAGS.fold) + '_tlXlY_tst.pkl'
+        pickle_test = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(FLAGS.fold) + '_tlXlY_tst.pkl'
 
         train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
         test_graph = GCNDataset.load_transkribus_pickle(pickle_test)
