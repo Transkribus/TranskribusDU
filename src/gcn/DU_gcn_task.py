@@ -43,7 +43,39 @@ tf.app.flags.DEFINE_integer('qsub_taskid', -1, 'qsub_taskid')
 
 #For Snake  python DU_gcn_task.py --snake=True --configid=22
 
+import errno
+import os
 
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
+
+
+'''
+calculate model size 
+>>> 29 + 7*(29*2*29)+8*140 +29
+12952
+>>> 29*29 +29 + 7*(29*2*29) + 29*2*5+5 +8*140
+14059
+>>> 29*29 +29 + 7*(29*11*29) + 29*11*5+5 +10*140
+68627
+>>> 29*29 +29 + 7*(29*2*29) + 29*1*5+5 +70*140
+22594
+>>> 29*29 +29 + 7*(29*2*29) + 29*2*5+5 +70*140
+22739
+>>> 
+>>> 29*29 +29 + 7*(29*5*29) + 29*5*5+5 +5*140
+31735
+>>> 29*29 +29 + 3*(29*5*29) + 29*5*5+5 +3*140
+14635
+>>> 29*29 +29 + 7*(29*5*29) + 29*5*5+5 +5*140
+'''
 
 
 def _make_grid_qsub(grid_qsub=0):
@@ -136,6 +168,7 @@ def get_config(config_id=0):
         config['num_layers'] = 3
         config['node_indim'] = -1 #INDIM =2 not working here
         config['nconv_edge'] = 10
+        config['fast_convolve']=True
 
     #Projection
     elif config_id == 6:
@@ -452,6 +485,88 @@ def get_config(config_id=0):
         config['dropout_mode'] = 2
         # config['shared_We'] = True
 
+    elif config_id == 33:
+        # Same as 28 but with fast convolve
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.001
+        config['num_layers'] = 8
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 1
+        config['fast_convolve']=True
+
+
+    elif config_id == 34:
+        # Same as 28 but with fast convolve
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.001
+        config['num_layers'] = 3
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 1
+        config['fast_convolve'] = True
+
+    elif config_id==35:
+        #This is 5 with small regularization as 31
+        #config['nb_iter'] = 2000
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.001
+        config['num_layers'] = 3
+        config['node_indim'] = -1 #INDIM =2 not working here
+        config['nconv_edge'] = 10
+        config['fast_convolve']=True
+
+
+    elif config_id == 36:
+        # Same as 28 but with fast convolve
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.001
+        config['num_layers'] = 10
+        config['node_indim'] = 10  # INDIM =2 not working here
+        config['nconv_edge'] = 10
+        config['fast_convolve']=True
+
+    elif config_id == 37:
+        # Same as 28 but with fast convolve
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.000
+        config['num_layers'] = 3
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 1
+        config['fast_convolve'] = True
+
+    elif config_id == 38:
+        # Same as 28 but with fast convolve
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.000
+        config['num_layers'] = 5
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 3
+        config['fast_convolve'] = True
+
+    elif config_id == 39:
+        # Same as 28 but with fast convolve
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.000
+        config['num_layers'] = 3
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 4
+        config['fast_convolve'] = True
+
+
+
     else:
         raise NotImplementedError
 
@@ -679,20 +794,26 @@ def main(_):
         #Load all the files of table
         # Train the model
         graph_train=[]
-        for i in range(1,5):
-            pickle_train = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(i) + '_tlXlY_trn.pkl'
-            print('loading ',pickle_train)
-            train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
-            graph_train.extend(train_graph)
+
+        pickle_train='/nfs/project/read/testJL/TABLE/das_abp_models/abp_full_tlXlY_trn.pkl'
+        train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
+
+        #for i in range(1,5):
+        #    pickle_train = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(i) + '_tlXlY_trn.pkl'
+        #    print('loading ',pickle_train)
+        #    train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
+        #    graph_train.extend(train_graph)
 
         #Load the other dataset for predictions
-        configid = 31
+        configid = FLAGS.configid
         config = get_config(configid)
         #config['nb_iter'] = 100
 
-        save_model_dir='models/das_exp1_C31.ckpt'
+        dirp =os.path.join('models','C'+str(configid))
+        mkdir_p(dirp)
+        save_model_dir=os.path.join(dirp,'alldas_exp1_C'+str(configid)+'.ckpt')
         #I should  save the pickle
-        outpicklefname='models/das_exp1_C31.validation_scores.pickle'
+        outpicklefname=os.path.join(dirp,'alldas_exp1_C'+str(configid)+'.validation_scores.pickle')
         run_model_train_val_test(train_graph, config, outpicklefname, ratio_train_val=0.1,save_model_path=save_model_dir)
         #for test add gcn_graph_test=train_graph
 
@@ -705,7 +826,7 @@ def main(_):
         edge_dim = 140
         nb_class = 5
 
-        configid = 31
+        configid = FLAGS.configid
         config = get_config(configid)
 
 
@@ -715,7 +836,12 @@ def main(_):
         #edge_dim = gcn_graph[0].E.shape[1] - 2.0
         #nb_class = gcn_graph[0].Y.shape[1]
 
-        f = open('models/das_exp1_C31.validation_scores.pickle', 'rb')
+        #f = open('archive_models/das_exp1_C31.validation_scores.pickle', 'rb')
+
+
+
+        val_pickle =os.path.join('models','C'+str(configid),"alldas_exp1_C"+str(configid)+'.validation_scores.pickle')
+        f = open(val_pickle, 'rb')
         R = pickle.load(f)
 
         val = R['val_acc']
@@ -749,10 +875,12 @@ def main(_):
                 graph_train.extend(train_graph)
 
         #TODO load the data for test
-        pickle_predict ='/nfs/project/read/testJL/DAS/predict.pkl'
-        pickle_predict = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(4) + '_tlXlY_trn.pkl'
+
+        pickle_predict='/nfs/project/read/testJL/TABLE/abp_DAS_col9142_CRF_X.pkl'
+        #pickle_predict ='/nfs/project/read/testJL/DAS/predict.pkl'
+        #pickle_predict = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(4) + '_tlXlY_trn.pkl'
         print('loading ', pickle_predict)
-        predict_graph = GCNDataset.load_transkribus_pickle(pickle_predict)
+        predict_graph = GCNDataset.load_test_pickle(pickle_predict,nb_class)
 
         with tf.Session() as session:
             # Restore variables from disk.
@@ -765,7 +893,8 @@ def main(_):
                 graphAcc,node_acc=gcn_model.test_lG(session,graph_train)
                 print(graphAcc,node_acc)
 
-            gcn_model.restore_model(session, "models/das_exp1_C31.ckpt-"+str(10*epoch_index))
+            model_path =os.path.join('models','C'+str(configid),"alldas_exp1_C"+str(configid)+".ckpt-"+str(10*epoch_index))
+            gcn_model.restore_model(session, model_path)
             print('Loaded models')
 
             lY_pred = gcn_model.predict_lG(session, predict_graph, verbose=False)
@@ -775,10 +904,10 @@ def main(_):
                 lY_list.append(list(x))
 
             print(lY_list)
-            outpicklefname = 'das_predict_C31.pickle'
+            outpicklefname = 'allmodel_das_predict_C'+str(configid)+'.pickle'
             g=open(outpicklefname,'wb')
             #print(lY_pred)
-            pickle.dump(lY_list, g, protocol=2)
+            pickle.dump(lY_pred, g, protocol=2,fix_imports=True)
             g.close()
 
 
