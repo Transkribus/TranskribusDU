@@ -323,8 +323,6 @@ if __name__ == "__main__":
                       , help="Replace the given pattern in the label by # (specific for BAR so far...)")  
 
     # --- 
-    print sys.argv
-    
 #     bMODEUN = True
     
     #parse the command line
