@@ -142,12 +142,12 @@ class DU_ABPTable(DU_CRF_Task):
         self.sXmlFilenamePattern = "*.mpxml"
         return DU_CRF_Task.predict(self, lsColDir)
         
-    def runForExternalMLMethod(self, lsColDir, storeX, applyY):
+    def runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges=False):
         """
         Return the list of produced files
         """
         self.sXmlFilenamePattern = "*.mpxml"
-        return DU_CRF_Task.runForExternalMLMethod(self, lsColDir, storeX, applyY)
+        return DU_CRF_Task.runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges)
               
     
 if __name__ == "__main__":
@@ -155,6 +155,10 @@ if __name__ == "__main__":
     version = "v.01"
     usage, description, parser = DU_CRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
 #     parser.add_option("--annotate", dest='bAnnotate',  action="store_true",default=False,  help="Annotate the textlines with BIES labels")    
+
+    #FOR GCN
+    parser.add_option("--revertEdges", dest='bRevertEdges',  action="store_true", help="Revert the direction of the edges") 
+            
     # --- 
     #parse the command line
     (options, args) = parser.parse_args()
@@ -234,7 +238,7 @@ if __name__ == "__main__":
         if options.storeX or options.applyY:
             try: doer.load() 
             except: pass    #we only need the transformer
-            lsOutputFilename = doer.runForExternalMLMethod(lRun, options.storeX, options.applyY)
+            lsOutputFilename = doer.runForExternalMLMethod(lRun, options.storeX, options.applyY, options.bRevertEdges)
         else:
             doer.load()
             lsOutputFilename = doer.predict(lRun)
