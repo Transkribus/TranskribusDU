@@ -695,6 +695,8 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
     #----------------------------------------------------------------------------------------------------------    
     def _pickleData(self, mdl, lGraph, name):
         self.traceln("- Computing data structure of all graphs and features...")
+        #for GCN
+        #for g in lGraph: g.revertEdges()
         lX, lY = mdl.get_lX_lY(lGraph)
         sFilename = mdl.getTrainDataFilename(name)
         self.traceln("- storing (lX, lY) into %s"%sFilename)
