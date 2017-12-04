@@ -448,7 +448,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
 
         return lsOutputFilename
 
-    def runForExternalMLMethod(self, lsColDir, storeX, applyY):
+    def runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges=False):
         """
         HACK: to test new ML methods, not yet integrated in our SW: storeX=None, storeXY=None, applyY=None
         Return the list of produced files
@@ -490,6 +490,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             if lg:
                 for g in lg:
                     doc = g.doc
+                    if bRevertEdges: g.revertEdges()    #revert the directions of the edges
                     if lPageConstraint:
                         self.traceln("\t- prediction with logical constraints: %s"%sFilename)
                     else:

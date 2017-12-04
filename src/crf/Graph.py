@@ -319,7 +319,12 @@ class Graph:
             self.doc.freeDoc()
             self.doc = None
 
-
+    def revertEdges(self):
+        """
+        revert the direction of each edge of the graph
+        """
+        for e in self.lEdge: e.revertDirection()
+        
     # --- Numpy matrices --------------------------------------------------------
     def getXY(self, node_transformer, edge_transformer):
         """
