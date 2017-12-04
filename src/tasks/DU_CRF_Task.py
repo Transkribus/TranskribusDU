@@ -696,7 +696,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
     def _pickleData(self, mdl, lGraph, name):
         self.traceln("- Computing data structure of all graphs and features...")
         #for GCN
-        bGCN_revert = True
+        bGCN_revert = False
         if bGCN_revert:
             for g in lGraph: g.revertEdges()
         lX, lY = mdl.get_lX_lY(lGraph)
