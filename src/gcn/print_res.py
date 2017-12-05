@@ -3,8 +3,8 @@ import pickle
 import os
 import sys
 import numpy as np
-#import matplotlib.pyplot as plt
-#from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import pickle
 
 
@@ -15,6 +15,8 @@ def read_res(fname):
     val = R['val_acc']
     test = R['test_acc']
     best_idx=np.argmax(val)
+    #print("val",val)
+    #print('best epoch',best_idx*10)
     ftest = test[best_idx]
 
     return ftest
@@ -71,13 +73,12 @@ def plot_progress(folder_resname,configid=5):
     for fold_id,ax in zip([1,2,3,4],[ax1,ax2,ax3,ax4]):
         ax.set_ylim([0.6, 1.05])
         fname=os.path.join(folder_resname,'table_F'+str(fold_id)+'_C'+str(configid)+'.pickle')
-
         try:
             f = open(fname, 'rb')
             R = pickle.load(f)
         except IOError:
             print('File not found',fname)
-            pass
+            continue
 
         train=np.array(R['train_acc'])
         val = np.array(R['val_acc'])
@@ -99,7 +100,23 @@ def plot_progress(folder_resname,configid=5):
     plt.show()
 
 
+def print_conf_mat(folder_resname,configid=31):
 
+    for foldid in [1,2,3,4]:
+
+        fname = os.path.join(folder_resname, 'table_F' + str(foldid) + '_C' + str(configid) + '.pickle')
+        try:
+            f=open(fname,'rb')
+        except IOError:
+            print('FOLD',foldid,' results not found')
+            continue
+        R = pickle.load(f)
+        val = R['val_acc']
+        test = R['test_acc']
+        best_idx = np.argmax(val)
+        print('Test Acc', test[best_idx])
+        print('Conf Mat')
+        print(R['confusion_matrix'][best_idx])
 
 
 
@@ -111,21 +128,22 @@ def get_res(folder_resname):
     P={}
     M={}
     for fname in L:
-        s=fname.replace('.pickle','')
-        tok=s.split('_')
-        foldid=int(tok[1][1:])
-        configid=int(tok[2][1:])
-        F.append(foldid)
-        C.append(configid)
+        if fname.endswith('.pickle'):
+            s=fname.replace('.pickle','')
+            tok=s.split('_')
+            foldid=int(tok[1][1:])
+            configid=int(tok[2][1:])
+            F.append(foldid)
+            C.append(configid)
 
-        fn=os.path.join(folder_resname,fname)
-        perf = read_res(fn)
-        max_perf =read_max_res(fn)
+            fn=os.path.join(folder_resname,fname)
+            perf = read_res(fn)
+            max_perf =read_max_res(fn)
 
-        print(foldid, configid,perf)
+            print(foldid, configid,perf)
 
-        P[str(foldid)+':'+str(configid)]=perf
-        M[str(foldid)+':'+str(configid)]=max_perf
+            P[str(foldid)+':'+str(configid)]=perf
+            M[str(foldid)+':'+str(configid)]=max_perf
 
     Fs = sorted(np.unique(F))
     Cs = sorted(np.unique(C))
@@ -170,5 +188,6 @@ if __name__ == '__main__':
     folder_resname=sys.argv[1]
 
     get_res(folder_resname)
+    print_conf_mat(folder_resname,configid=31)
 
 

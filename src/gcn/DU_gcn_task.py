@@ -18,6 +18,9 @@ import random
 import gcn_models
 from gcn_datasets import GCNDataset
 
+import sklearn.metrics
+import time
+
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('train', '', "FilePath Train pickle file")
@@ -57,25 +60,6 @@ def mkdir_p(path):
             raise
 
 
-'''
-calculate model size 
->>> 29 + 7*(29*2*29)+8*140 +29
-12952
->>> 29*29 +29 + 7*(29*2*29) + 29*2*5+5 +8*140
-14059
->>> 29*29 +29 + 7*(29*11*29) + 29*11*5+5 +10*140
-68627
->>> 29*29 +29 + 7*(29*2*29) + 29*1*5+5 +70*140
-22594
->>> 29*29 +29 + 7*(29*2*29) + 29*2*5+5 +70*140
-22739
->>> 
->>> 29*29 +29 + 7*(29*5*29) + 29*5*5+5 +5*140
-31735
->>> 29*29 +29 + 3*(29*5*29) + 29*5*5+5 +3*140
-14635
->>> 29*29 +29 + 7*(29*5*29) + 29*5*5+5 +5*140
-'''
 
 
 def _make_grid_qsub(grid_qsub=0):
@@ -565,7 +549,17 @@ def get_config(config_id=0):
         config['nconv_edge'] = 4
         config['fast_convolve'] = True
 
-
+    elif config_id == 40:
+        # Same as 28 but with fast convolve
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.000
+        config['num_layers'] = 3
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 4
+        config['fast_convolve'] = True
+        config['logit_convolve'] = True
 
     else:
         raise NotImplementedError
@@ -714,6 +708,9 @@ def run_model_train_val_test(gcn_graph,
         if 'fast_convolve' in config_params:
             gcn_model.fast_convolve = config_params['fast_convolve']
 
+        if 'logit_convolve' in config_params:
+            gcn_model.logit_convolve=config_params['logit_convolve']
+
         gcn_model.create_model()
 
 
@@ -736,6 +733,32 @@ def run_model_train_val_test(gcn_graph,
             pickle.dump(R,f)
             f.close()
 
+
+            Ypred = gcn_model.predict_lG(session,gcn_graph_test)
+
+
+        '''
+        Y_true_flat=[]
+        Ypred_flat=[]
+
+        for graph,ypred in zip(gcn_graph_test,Ypred):
+            ytrue = np.argmax(graph.Y,axis=1)
+            Y_true_flat.extend(ytrue)
+            Ypred_flat.extend(ypred)
+
+        cm=sklearn.metrics.confusion_matrix(Y_true_flat,Ypred_flat)
+        print(cm)
+        out_conf_mat = outpicklefname+'.conf_mat.pkl'
+        g=open(out_conf_mat,'wb')
+        pickle.dump([Y_true_flat,Ypred_flat,cm],g)
+        g.close()
+        out_conf_mat_txt=outpicklefname+'.conf_mat.txt'
+        f=open(out_conf_mat_txt,'w')
+        f.write('Confusion Matrix \n')
+        f.write(str(cm)+'\n')
+        f.write(sklearn.metrics.classification_report(Y_true_flat,Ypred_flat))
+        f.close()
+        '''
 
 
 def main_fold(foldid,configid,outdir):
@@ -796,7 +819,11 @@ def main(_):
         graph_train=[]
 
         pickle_train='/nfs/project/read/testJL/TABLE/das_abp_models/abp_full_tlXlY_trn.pkl'
-        train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
+        pickle_train_ra ='/nfs/project/read/testJL/TABLE/abp_DAS_CRF_Xr.pkl'
+
+
+        #train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
+        train_graph =GCNDataset.load_transkribus_reverse_arcs_pickle(pickle_train,pickle_train_ra)
 
         #for i in range(1,5):
         #    pickle_train = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(i) + '_tlXlY_trn.pkl'
@@ -877,6 +904,8 @@ def main(_):
         #TODO load the data for test
 
         pickle_predict='/nfs/project/read/testJL/TABLE/abp_DAS_col9142_CRF_X.pkl'
+        pickle_predict_ra = '/nfs/project/read/testJL/TABLE/abp_DAS_col9142_CRF_Xr.pkl'
+
         #pickle_predict ='/nfs/project/read/testJL/DAS/predict.pkl'
         #pickle_predict = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(4) + '_tlXlY_trn.pkl'
         print('loading ', pickle_predict)
@@ -897,13 +926,19 @@ def main(_):
             gcn_model.restore_model(session, model_path)
             print('Loaded models')
 
+
+            start_time = time.time()
             lY_pred = gcn_model.predict_lG(session, predict_graph, verbose=False)
+            end_time = time.time()
+            print("--- %s seconds ---" % (end_time - start_time))
+            print('Number of graphs:',len(lY_pred))
+
             #Convert to list as Python pickle does not  seem like the array while the list can be pickled
             lY_list=[]
             for x in lY_pred:
                 lY_list.append(list(x))
 
-            print(lY_list)
+            #print(lY_list)
             outpicklefname = 'allmodel_das_predict_C'+str(configid)+'.pickle'
             g=open(outpicklefname,'wb')
             #print(lY_pred)
@@ -965,10 +1000,16 @@ def main(_):
                 FLAGS.fold) + '_tlXlY_trn.pkl'
             pickle_test = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_' + str(FLAGS.fold) + '_tlXlY_tst.pkl'
 
+            #reversed edged
+            pickle_train_ra = '/nfs/project/read/testJL/TABLE/das_abp_models/abp_CV_fold_' + str(
+                FLAGS.fold) + '_tlXrlY_trn.pkl'
+            pickle_test_ra = '/nfs/project/read/testJL/TABLE/das_abp_models/abp_CV_fold_' + str(FLAGS.fold) + '_tlXrlY_tst.pkl'
 
-            train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
+            #train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
+            train_graph = GCNDataset.load_transkribus_reverse_arcs_pickle(pickle_train,pickle_train_ra)
             print('Loaded Trained Graphs:',len(train_graph))
-            test_graph = GCNDataset.load_transkribus_pickle(pickle_test)
+            test_graph = GCNDataset.load_transkribus_reverse_arcs_pickle(pickle_test,pickle_test_ra)
+            #test_graph = GCNDataset.load_transkribus_pickle(pickle_test, pickle_test_ra)
             print('Loaded Test Graphs:', len(test_graph))
 
             config = get_config(FLAGS.configid)
