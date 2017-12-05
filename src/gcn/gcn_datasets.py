@@ -394,3 +394,93 @@ class GCNDataset(object):
             # graph.normalize()
             graph.compute_NodeEdgeMat()
         return gcn_list
+
+    def load_transkribus_reverse_arcs_pickle(pickle_fname,pickle_ra_fname, is_zipped=True):
+        '''
+        Loas existing pickle file used with CRF in the Transkribus project
+        :param pickle_fname:
+        :param is_zipped:
+        :param sym_edge:
+        :return:
+        '''
+        gcn_list = []
+
+        if is_zipped:
+            f = gzip.open(pickle_fname, 'rb')
+            g = gzip.open(pickle_ra_fname, 'rb')
+        else:
+            f = open(pickle_fname, 'rb')
+            g = open(pickle_ra_fname, 'rb')
+
+        if PY3:
+            Z = pickle.load(f, encoding='latin1')
+            Zr = pickle.load(g, encoding='latin1')
+        else:
+            Z = pickle.load(f)
+            Zr = pickle.load(g)
+
+        lX = Z[0]
+        lY = Z[1]
+
+        lX_reversed = Zr[0]
+        lY_reversed = Zr[1]
+
+        graph_id = 0
+
+        lb = LabelBinarizer()
+        lys = []
+
+        for _, ly in zip(lX, lY):
+            lys.extend(list(ly))
+
+        lb.fit(lys)
+
+        for lx, ly ,lxr,lyr in zip(lX, lY,lX_reversed,lY_reversed):
+            nf = lx[0]
+            edge = lx[1]
+            ef = lx[2]
+
+            nfr   = lxr[0]
+            edger = lxr[1]
+            efr    = lxr[2]
+
+            diff_node_features = (nf-nfr).sum()
+            assert(diff_node_features<1e-5)
+
+            #assert edge swap on node source -target
+            edge_test1 = np.sum(edge[:,1] ==edger[:,0]) == ef.shape[0]
+            edge_test2 = np.sum( edge[:, 0] == edger[:, 1]) == ef.shape[0]
+
+            assert(edge_test1)
+            assert(edge_test2)
+
+            graph = GCNDataset(str(graph_id))
+            graph.X = nf
+            graph.Y = lb.transform(ly)
+            # We are making the adacency matrix here
+            nb_node = nf.shape[0]
+
+            A1 = sp.coo_matrix((np.ones(edge.shape[0]), (edge[:, 0], edge[:, 1])), shape=(nb_node, nb_node))
+            A2 = sp.coo_matrix((np.ones(edger.shape[0]), (edger[:, 0], edger[:, 1])), shape=(nb_node, nb_node))
+            graph.A = A1 + A2
+
+
+            edge_normalizer = Normalizer()
+            # Normalize EA
+            efn = edge_normalizer.fit_transform(ef)
+
+            E0 = np.hstack([edge, ef])  # check order
+            E1 = np.hstack([edger, efr])  # check order
+
+
+            graph.E = np.vstack([E0, E1])  # check order
+
+            gcn_list.append(graph)
+            graph.compute_EA()
+            graph.compute_NA()
+            # graph.normalize()
+            graph.compute_NodeEdgeMat()
+
+        f.close()
+        g.close()
+        return gcn_list

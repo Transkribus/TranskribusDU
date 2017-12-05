@@ -9,7 +9,8 @@ import math
 import numpy as np
 import scipy.sparse as sp
 import random
-
+import sklearn
+import sklearn.metrics
 
 def init_glorot(shape, name=None):
     """Glorot & Bengio (AISTATS 2010) init."""
@@ -177,6 +178,7 @@ class GCNModelGraphList(object):
         self.optim_mode=0 #deprecated
         self.fast_convolve=False
         self.init_fixed=False
+        self.logit_convolve=False
 
         if node_indim==-1:
             self.node_indim=self.node_dim
@@ -324,8 +326,9 @@ class GCNModelGraphList(object):
         train_var.append(self.Wel0)
 
         #Parameter for convolving the logits
-        #self.Wel_logits = init_glorot([int(self.nconv_edge),int(self.edge_dim)],name='Wel_logit')
-        #self.logits_Transition = tf.Variable(tf.ones([int(self.n_classes), int(self.n_classes)]), name='logit_Transition')
+        if self.logit_convolve:
+            self.Wel_logits = init_glorot([int(self.nconv_edge),int(self.edge_dim)],name='Wel_logit')
+            self.logits_Transition = tf.Variable(tf.ones([int(self.n_classes), int(self.n_classes)]), name='logit_Transition')
 
         #self.Wed_layers.append(Wel0)
         for i in range(self.num_layers-1):
@@ -455,19 +458,21 @@ class GCNModelGraphList(object):
         #    Hp = tf.nn.dropout(self.hidden_layers[-1], 1 - self.dropout_p)
         #    self.hidden_layers.append(Hp)
 
-        self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
-        cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
-
+        if self.logit_convolve is False:
+            self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
+            cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
+        else:
         # TODO Convolve Logits and learn a transition matrix   #Reduce_sum, reduce_max ? use Dropout ?
-        #Ideally I should convolve the predition and not the logits
-        #I would need to have my own cross entropy function , smooth it
-        #add entropy regulaztion
-        #this is the current logit multiply by  Transition matrix
-        #check that we are not summing indeed in a correct direction
-        #self.logits_T = tf.matmul(self.logits,self.logits_Transition)
-        #self.logits_convolve= self.fastconvolve(self.Wel_logits,self.F,self.Ssparse,self.Tsparse,self.logits_T,10,self.Sshape, self.nb_edge, stack=False)
-        #does not work. investigate ...
-        #cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits+0.1*self.logits_convolve, labels=self.y_input)
+            #Ideally I should convolve the predition and not the logits
+            #I would need to have my own cross entropy function , smooth it
+            #add entropy regulaztion
+            #this is the current logit multiply by  Transition matrix
+            #check that we are not summing indeed in a correct direction
+            self.logits = tf.add(tf.matmul(self.hidden_layers[-1], self.W_classif), self.B_classif)
+            self.logits_T = tf.matmul(self.logits,self.logits_Transition)
+            self.logits_convolve= tf.nn.dropout(self.fastconvolve(self.Wel_logits,self.F,self.Ssparse,self.Tsparse,self.logits_T,10,self.Sshape, self.nb_edge, stack=False),keep_prob=0.5)
+            #does not work. investigate ...
+            cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits+self.logits_convolve, labels=self.y_input)
 
         # Global L2 Regulization
         self.loss = tf.reduce_mean(cross_entropy_source)  + self.mu * tf.nn.l2_loss(self.W_classif)
@@ -496,6 +501,24 @@ class GCNModelGraphList(object):
         # Add ops to save and restore all the variables.
         self.init = tf.global_variables_initializer()
         self.saver= tf.train.Saver(max_to_keep=0)
+
+        print('Number of Params:')
+        self.get_nb_params()
+
+    def get_nb_params(self):
+        total_parameters = 0
+        for variable in tf.trainable_variables():
+            # shape is an array of tf.Dimension
+            shape = variable.get_shape()
+            #print(shape)
+            #print(len(shape))
+            variable_parameters = 1
+            for dim in shape:
+                #print(dim)
+                variable_parameters *= dim.value
+            #print(variable_parameters)
+            total_parameters += variable_parameters
+        print(total_parameters)
 
     def save_model(self, session, model_filename):
         print("Saving Model")
@@ -725,6 +748,7 @@ class GCNModelGraphList(object):
         train_accuracies=[]
         validation_accuracies=[]
         test_accuracies=[]
+        conf_mat=[]
 
         start_monitoring_val_acc=False
 
@@ -749,6 +773,21 @@ class GCNModelGraphList(object):
                     _,test_acc=self.test_lG(session,graph_test,verbose=False)
                     print('  Test Acc', '%.4f' % test_acc)
                     test_accuracies.append(test_acc)
+
+                    '''
+                    Ypred = self.predict_lG(session, graph_test,verbose=False)
+
+                    Y_true_flat = []
+                    Ypred_flat = []
+
+                    for graph, ypred in zip(graph_test, Ypred):
+                        ytrue = np.argmax(graph.Y, axis=1)
+                        Y_true_flat.extend(ytrue)
+                        Ypred_flat.extend(ypred)
+
+                    cm = sklearn.metrics.confusion_matrix(Y_true_flat, Ypred_flat)
+                    conf_mat.append(cm)
+                    '''
 
                 #TODO min_delta
                 #if tr_acc>0.99:
@@ -786,7 +825,7 @@ class GCNModelGraphList(object):
         R['val_acc'] = validation_accuracies
         R['test_acc'] = test_accuracies
         R['stopped_iter'] = stopped_iter
-
+        R['confusion_matrix'] = conf_mat
         R['W_edge'] =self.get_Wedge(session)
         if graph_test:
 
