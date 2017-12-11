@@ -33,6 +33,7 @@ from crf.Transformer import EmptySafe_QuantileTransformer as QuantileTransformer
 
 from crf.Transformer import TransformerListByType
 from crf.Transformer_PageXml import Node1ConstantFeature
+from crf.Transformer_PageXml import NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures
 from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures_v2, EdgeNumericalSelector
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
@@ -78,36 +79,22 @@ class FeatureDefinition_PageXml_NoNodeFeat_v3(FeatureDefinition):
         self._edge_transformer = edge_transformer
         self.tfidfNodeTextVectorizer = None #tdifNodeTextVectorizer
         
+
+class FeatureDefinition_PageXml_StandardOnes_noText_noEdgeFeat_v3(FeatureDefinition):
     
-#     def cleanTransformers(self):
-#         """
-#         the TFIDF transformers are keeping the stop words => huge pickled file!!!
-#         
-#         Here the fix is a bit rough. There are better ways....
-#         JL
-#         """
-#         self._node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
-#         for i in [2, 3, 4, 5, 6, 7]:
-#             self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
-#         return self._node_transformer, self._edge_transformer        
-
-
-class FeatureDefinition_T_PageXml_StandardOnes_noText_v2(FeatureDefinition):
-    """
-    Multitype version:
-    so the node_transformer actually is a list of node_transformer of length n_class
-       the edge_transformer actually is a list of node_transformer of length n_class^2
-       
-    We also inherit from FeatureDefinition_T !!!
-    """ 
     n_QUANTILES = 16
-       
-    def __init__(self, **kwargs):
+    
+    def __init__(self): 
         FeatureDefinition.__init__(self)
-
-        nbTypes = self._getTypeNumber(kwargs)
         
-        node_transformer = TransformerListByType([ FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
+#         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
+#         self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc = n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc
+
+#         tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=self.n_tfidf_node
+#                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
+#                                                                                   , dtype=np.float64)
+        
+        node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                     ("xywh", Pipeline([
                                                          ('selector', NodeTransformerXYWH_v2()),
                                                          #v1 ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
@@ -124,26 +111,11 @@ class FeatureDefinition_T_PageXml_StandardOnes_noText_v2(FeatureDefinition):
                                                          ('1hot', Node1HotFeatures())  #does the 1-hot encoding directly
                                                          ])
                                        )
-                                      ]) for i in range(nbTypes) ])
+                                      ])
     
-        edge_transformer = TransformerListByType([ FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
-                                      ("1hot", Pipeline([
-                                                         ('1hot', Edge1HotFeatures(PageNumberSimpleSequenciality()))
-                                                         ])
-                                        )
-                                    , ("boolean", Pipeline([
-                                                         ('boolean', EdgeBooleanFeatures_v2())
-                                                         ])
-                                        )
-                                    , ("numerical", Pipeline([
-                                                         ('selector', EdgeNumericalSelector()),
-                                                         #v1 ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
-                                                         ('numerical', QuantileTransformer(n_quantiles=self.n_QUANTILES, copy=False))  #use in-place scaling
-                                                         ])
-                                        )
-                                          ] ) for i in range(nbTypes*nbTypes) ])
+        edge_transformer = Node1ConstantFeature()  # feature vector per node = [1.0]
           
         #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
         self._node_transformer = node_transformer
         self._edge_transformer = edge_transformer
-        
+        self.tfidfNodeTextVectorizer = None #tdifNodeTextVectorizer

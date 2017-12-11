@@ -35,17 +35,13 @@ except ImportError:
 from common.trace import traceln
 from tasks import _checkFindColDir, _exit
 
-from xml_formats.PageXml import MultiPageXml 
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from DU_CRF_Task import DU_CRF_Task
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
-from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
+from crf.FeatureDefinition_PageXml_NoNodeFeat_v3 import FeatureDefinition_PageXml_StandardOnes_noText_noEdgeFeat_v3
 
 
-from xml_formats.Page2DS import primaAnalysis
-
- 
 class DU_ABPTable(DU_CRF_Task):
     """
     We will do a CRF model for a DU task
@@ -53,7 +49,6 @@ class DU_ABPTable(DU_CRF_Task):
     """
     sXmlFilenamePattern = "*.mpxml"
     
-    #sLabeledXmlFilenamePattern = "*.a_mpxml"
     sLabeledXmlFilenamePattern = "*.mpxml"
 
     sLabeledXmlFilenameEXT = ".mpxml"
@@ -126,7 +121,7 @@ class DU_ABPTable(DU_CRF_Task):
                          }
                      , sComment=sComment
                      #,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
-                     ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
+                     ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_noEdgeFeat_v3
                      )
         
         #self.setNbClass(3)     #so that we check if all classes are represented in the training set
@@ -142,12 +137,6 @@ class DU_ABPTable(DU_CRF_Task):
         self.sXmlFilenamePattern = "*.mpxml"
         return DU_CRF_Task.predict(self, lsColDir)
         
-    def runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges=False):
-        """
-        Return the list of produced files
-        """
-        self.sXmlFilenamePattern = "*.mpxml"
-        return DU_CRF_Task.runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges)
               
     
 if __name__ == "__main__":
@@ -155,10 +144,6 @@ if __name__ == "__main__":
     version = "v.01"
     usage, description, parser = DU_CRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
 #     parser.add_option("--annotate", dest='bAnnotate',  action="store_true",default=False,  help="Annotate the textlines with BIES labels")    
-
-    #FOR GCN
-    parser.add_option("--revertEdges", dest='bRevertEdges',  action="store_true", help="Revert the direction of the edges") 
-            
     # --- 
     #parse the command line
     (options, args) = parser.parse_args()
@@ -235,13 +220,7 @@ if __name__ == "__main__":
         traceln(tstReport)
     
     if lRun:
-        if options.storeX or options.applyY:
-            try: doer.load() 
-            except: pass    #we only need the transformer
-            lsOutputFilename = doer.runForExternalMLMethod(lRun, options.storeX, options.applyY, options.bRevertEdges)
-        else:
-            doer.load()
-            lsOutputFilename = doer.predict(lRun)
-            
+        doer.load()
+        lsOutputFilename = doer.predict(lRun)
         traceln("Done, see in:\n  %s"%lsOutputFilename)
     
