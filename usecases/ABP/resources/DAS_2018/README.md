@@ -26,7 +26,9 @@ Here, we explain how to reproduce our experiments or do your own experiments on 
 
 # Data
 
-in resources/DAS_2018, you will find:
+in resources/DAS_2018, you will find files listed below. 
+
+The show_shape.py utility will help you understanding the content of each file. 
 
 ## Xml files
 - __abp_DAS_col9142.tar__ : test collection, in TranskribusDU XML format
@@ -35,7 +37,7 @@ in resources/DAS_2018, you will find:
 
 ##Training data as gzipped cPickle files
 
-Training data Xs
+Training data numpy (list of) matrices
 - __abp_DAS_CRF_X.pkl__   
 - __abp_DAS_CRF_Y.pkl__
 - __abp_DAS_CRF_Xr.pkl__ : edges have been reversed (features adapted accordingly)
@@ -53,4 +55,6 @@ Test data groundtruth labels:
 Test data, where the text lines were found by a program (rather than by human annotation):
 - __abp_DAS_col9142_workflow_X.pkl__   
 - __abp_DAS_col9142_workflow_Xr.pkl__    (reversed edges)
+
+# Reproducing our Experiments
 
