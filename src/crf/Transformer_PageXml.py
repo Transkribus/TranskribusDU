@@ -490,6 +490,24 @@ class EdgeNumericalSelector(EdgeTransformerClassShifter):
 #             a[i, z+6] = (B.fontsize+1) / (A.fontsize+1)
             
         return a  
+    
+#------------------------------------------------------------------------------------------------------
+
+class EdgeTypeFeature_HV(Transformer):
+    """
+    Only tells the type of edge: Horizontal or Vertical
+    """
+    def transform(self, lEdge):
+        a = np.zeros( (len(lEdge), 2), dtype=np.float64)
+        for i, edge in enumerate(lEdge):
+            #-- vertical / horizontal
+            if edge.__class__ == HorizontalEdge:
+                a[i,0] = 1.0
+            else:
+                assert edge.__class__ == VerticalEdge
+                a[i,1] = 1.0
+        return a
+    
 
 # -----------------------------------------------------------------------------------------------------------------------------    
 def _debug(lO, a):
