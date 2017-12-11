@@ -152,9 +152,191 @@ class DummyGCNModel(object):
 
 
 
+class MultiGraphNN(object):
+    '''
+    Abstract Class for a Neural Net learned on a graph list
+
+    '''
+    def train_lG(self,session,gcn_graph_train):
+        '''
+        Train an a list of graph
+        :param session:
+        :param gcn_graph_train:
+        :return:
+        '''
+        for g in gcn_graph_train:
+            self.train(session, g, n_iter=1)
 
 
-class GCNModelGraphList(object):
+    def test_lG(self,session,gcn_graph_test,verbose=True):
+        '''
+        Test on a list of Graph
+        :param session:
+        :param gcn_graph_test:
+        :return:
+        '''
+        acc_tp = np.float64(0.0)
+        nb_node_total = np.float64(0.0)
+        mean_acc_test = []
+
+        for g in gcn_graph_test:
+            acc = self.test(session, g, verbose=False)
+            mean_acc_test.append(acc)
+            nb_node_total += g.X.shape[0]
+            acc_tp += acc * g.X.shape[0]
+
+        g_acc =np.mean(mean_acc_test)
+        node_acc =acc_tp / nb_node_total
+
+        if verbose:
+            print('Mean Graph Accuracy', '%.4f' %g_acc)
+            print('Mean Node  Accuracy', '%.4f' %node_acc)
+
+        return g_acc,node_acc
+
+    def predict_lG(self,session,gcn_graph_predict,verbose=True):
+        '''
+        Predict for a list of graph
+        :param session:
+        :param gcn_graph_test:
+        :return:
+        '''
+        lY_pred=[]
+
+        for g in gcn_graph_predict:
+            gY_pred = self.predict(session, g, verbose=verbose)
+            lY_pred.append(gY_pred)
+
+
+        return lY_pred
+
+
+    def get_nb_params(self):
+        total_parameters = 0
+        for variable in tf.trainable_variables():
+            # shape is an array of tf.Dimension
+            shape = variable.get_shape()
+            #print(shape)
+            #print(len(shape))
+            variable_parameters = 1
+            for dim in shape:
+                #print(dim)
+                variable_parameters *= dim.value
+            #print(variable_parameters)
+            total_parameters += variable_parameters
+        print(total_parameters)
+
+    def train_with_validation_set(self,session,graph_train,graph_val,max_iter,eval_iter=10,patience=7,graph_test=None,save_model_path=None):
+        '''
+        Implements training with a validation set
+        The model is trained and accuracy is measure on a validation sets
+        In addition, the model can be save and one can perform early stopping thanks to the patience argument
+
+        :param session:
+        :param graph_train: the list of graph to train on
+        :param graph_val:   the list of graph used for validation
+        :param max_iter:  maximum number of epochs
+        :param eval_iter: evaluate every eval_iter
+        :param patience: stopped training if accuracy is not improved on the validation set after patience_value
+        :param graph_test: Optional. If a test set is provided, then accuracy on the test set is reported
+        :param save_model_path: checkpoints filename to save the model.
+        :return: A Dictionary with training accuracies, validations accuracies and test accuracies if any, and the Wedge parameters
+        '''
+        best_val_acc=0.0
+        wait=0
+        stop_training=False
+        stopped_iter=max_iter
+        train_accuracies=[]
+        validation_accuracies=[]
+        test_accuracies=[]
+        conf_mat=[]
+
+        start_monitoring_val_acc=False
+
+        for i in range(max_iter):
+            if stop_training:
+                break
+
+            if i % eval_iter == 0:
+                print('\nEpoch', i)
+                _, tr_acc = self.test_lG(session, graph_train,verbose=False)
+                print(' Train Acc', '%.4f' % tr_acc)
+                train_accuracies.append(tr_acc)
+
+                _,node_acc=self.test_lG(session,graph_val,verbose=False)
+                print(' Valid Acc', '%.4f' % node_acc)
+                validation_accuracies.append(node_acc)
+
+                if save_model_path:
+                    save_path = self.saver.save(session, save_model_path,global_step=i)
+
+                if graph_test:
+                    _,test_acc=self.test_lG(session,graph_test,verbose=False)
+                    print('  Test Acc', '%.4f' % test_acc)
+                    test_accuracies.append(test_acc)
+
+
+                    #Ypred = self.predict_lG(session, graph_test,verbose=False)
+                    #Y_true_flat = []
+                    #Ypred_flat = []
+                    #for graph, ypred in zip(graph_test, Ypred):
+                    #    ytrue = np.argmax(graph.Y, axis=1)
+                    #    Y_true_flat.extend(ytrue)
+                    #    Ypred_flat.extend(ypred)
+                    #cm = sklearn.metrics.confusion_matrix(Y_true_flat, Ypred_flat)
+                    #conf_mat.append(cm)
+
+
+                #TODO min_delta
+                #if tr_acc>0.99:
+                #    start_monitoring_val_acc=True
+
+                if node_acc > best_val_acc:
+                    best_val_acc=node_acc
+                    wait = 0
+                else:
+                    if wait >= patience:
+                        stopped_iter = i
+                        stop_training = True
+                    wait += 1
+            else:
+                random.shuffle(graph_train)
+                for g in graph_train:
+                    self.train(session, g, n_iter=1)
+        #Final Save
+        #if save_model_path:
+        #save_path = self.saver.save(session, save_model_path, global_step=i)
+        #TODO Add the final step
+        mean_acc = []
+        print('Stopped Model Training after',stopped_iter)
+        print('Val Accuracies',validation_accuracies)
+
+        print('Final Training Accuracy')
+        _,node_train_acc=self.test_lG(session,graph_train)
+        print('Train Mean Accuracy','%.4f' % node_train_acc)
+
+        print('Final Valid Acc')
+        self.test_lG(session,graph_val)
+
+        R = {}
+        R['train_acc'] = train_accuracies
+        R['val_acc'] = validation_accuracies
+        R['test_acc'] = test_accuracies
+        R['stopped_iter'] = stopped_iter
+        R['confusion_matrix'] = conf_mat
+        #R['W_edge'] =self.get_Wedge(session)
+        if graph_test:
+
+            _, final_test_acc = self.test_lG(session, graph_test)
+            print('Final Test Acc','%.4f' % final_test_acc)
+            R['final_test_acc'] = final_test_acc
+
+        return R
+
+
+
+
+class GCNModelGraphList(MultiGraphNN):
     '''
     Edge-GCN Model for a graph list
     '''
@@ -507,20 +689,6 @@ class GCNModelGraphList(object):
         print('Number of Params:')
         self.get_nb_params()
 
-    def get_nb_params(self):
-        total_parameters = 0
-        for variable in tf.trainable_variables():
-            # shape is an array of tf.Dimension
-            shape = variable.get_shape()
-            #print(shape)
-            #print(len(shape))
-            variable_parameters = 1
-            for dim in shape:
-                #print(dim)
-                variable_parameters *= dim.value
-            #print(variable_parameters)
-            total_parameters += variable_parameters
-        print(total_parameters)
 
     def save_model(self, session, model_filename):
         print("Saving Model")
@@ -674,178 +842,6 @@ class GCNModelGraphList(object):
         if verbose:
             print('Got Prediction for:',Ops[0].shape)
         return Ops[0]
-
-    def train_lG(self,session,gcn_graph_train):
-        '''
-        Train an a list of graph
-        :param session:
-        :param gcn_graph_train:
-        :return:
-        '''
-        for g in gcn_graph_train:
-            self.train(session, g, n_iter=1)
-
-
-
-    def test_lG(self,session,gcn_graph_test,verbose=True):
-        '''
-        Test on a list of Graph
-        :param session:
-        :param gcn_graph_test:
-        :return:
-        '''
-        acc_tp = 0.0
-        nb_node_total = 0.0
-        mean_acc_test = []
-
-        for g in gcn_graph_test:
-            acc = self.test(session, g, verbose=False)
-            mean_acc_test.append(acc)
-            nb_node_total += g.X.shape[0]
-            acc_tp += acc * g.X.shape[0]
-
-        g_acc =np.mean(mean_acc_test)
-        node_acc =acc_tp / nb_node_total
-
-        if verbose:
-            print('Mean Graph Accuracy', '%.4f' %g_acc)
-            print('Mean Node  Accuracy', '%.4f' %node_acc)
-
-        return g_acc,node_acc
-
-    def predict_lG(self,session,gcn_graph_predict,verbose=True):
-        '''
-        Predict for a list of graph
-        :param session:
-        :param gcn_graph_test:
-        :return:
-        '''
-        lY_pred=[]
-
-        for g in gcn_graph_predict:
-            gY_pred = self.predict(session, g, verbose=verbose)
-            lY_pred.append(gY_pred)
-
-
-        return lY_pred
-
-
-    def train_with_validation_set(self,session,graph_train,graph_val,max_iter,eval_iter=10,patience=7,graph_test=None,save_model_path=None):
-        '''
-        Implements training with a validation set
-        The model is trained and accuracy is measure on a validation sets
-        In addition, the model can be save and one can perform early stopping thanks to the patience argument
-
-        :param session:
-        :param graph_train: the list of graph to train on
-        :param graph_val:   the list of graph used for validation
-        :param max_iter:  maximum number of epochs
-        :param eval_iter: evaluate every eval_iter
-        :param patience: stopped training if accuracy is not improved on the validation set after patience_value
-        :param graph_test: Optional. If a test set is provided, then accuracy on the test set is reported
-        :param save_model_path: checkpoints filename to save the model.
-        :return: A Dictionary with training accuracies, validations accuracies and test accuracies if any, and the Wedge parameters
-        '''
-        best_val_acc=0.0
-        wait=0
-        stop_training=False
-        stopped_iter=max_iter
-        train_accuracies=[]
-        validation_accuracies=[]
-        test_accuracies=[]
-        conf_mat=[]
-
-        start_monitoring_val_acc=False
-
-        for i in range(max_iter):
-            if stop_training:
-                break
-
-            if i % eval_iter == 0:
-                print('\nEpoch', i)
-                _, tr_acc = self.test_lG(session, graph_train,verbose=False)
-                print(' Train Acc', '%.4f' % tr_acc)
-                train_accuracies.append(tr_acc)
-
-                _,node_acc=self.test_lG(session,graph_val,verbose=False)
-                print(' Valid Acc', '%.4f' % node_acc)
-                validation_accuracies.append(node_acc)
-
-                if save_model_path:
-                    save_path = self.saver.save(session, save_model_path,global_step=i)
-
-                if graph_test:
-                    _,test_acc=self.test_lG(session,graph_test,verbose=False)
-                    print('  Test Acc', '%.4f' % test_acc)
-                    test_accuracies.append(test_acc)
-
-                    '''
-                    Ypred = self.predict_lG(session, graph_test,verbose=False)
-
-                    Y_true_flat = []
-                    Ypred_flat = []
-
-                    for graph, ypred in zip(graph_test, Ypred):
-                        ytrue = np.argmax(graph.Y, axis=1)
-                        Y_true_flat.extend(ytrue)
-                        Ypred_flat.extend(ypred)
-
-                    cm = sklearn.metrics.confusion_matrix(Y_true_flat, Ypred_flat)
-                    conf_mat.append(cm)
-                    '''
-
-                #TODO min_delta
-                #if tr_acc>0.99:
-                #    start_monitoring_val_acc=True
-
-                if node_acc > best_val_acc:
-                    best_val_acc=node_acc
-                    wait = 0
-                else:
-                    if wait >= patience:
-                        stopped_iter = i
-                        stop_training = True
-                    wait += 1
-            else:
-                random.shuffle(graph_train)
-                for g in graph_train:
-                    self.train(session, g, n_iter=1)
-        #Final Save
-        #if save_model_path:
-        #save_path = self.saver.save(session, save_model_path, global_step=i)
-        #TODO Add the final step
-        mean_acc = []
-        print('Stopped Model Training after',stopped_iter)
-        print('Val Accuracies',validation_accuracies)
-
-        print('Final Training Accuracy')
-        _,node_train_acc=self.test_lG(session,graph_train)
-        print('Train Mean Accuracy','%.4f' % node_train_acc)
-
-        print('Final Valid Acc')
-        self.test_lG(session,graph_val)
-
-        R = {}
-        R['train_acc'] = train_accuracies
-        R['val_acc'] = validation_accuracies
-        R['test_acc'] = test_accuracies
-        R['stopped_iter'] = stopped_iter
-        R['confusion_matrix'] = conf_mat
-        #R['W_edge'] =self.get_Wedge(session)
-        if graph_test:
-
-            #start_time = time.time()
-            '''
-            lY_pred = self.predict_lG(session, graph_test, verbose=False)
-            end_time = time.time()
-            print("--- %s seconds ---" % (end_time - start_time))
-            print('Number of graphs:', len(lY_pred))
-            '''
-            _, final_test_acc = self.test_lG(session, graph_test)
-            print('Final Test Acc','%.4f' % final_test_acc)
-            R['final_test_acc'] = final_test_acc
-
-        return R
 
 
 
@@ -1143,7 +1139,7 @@ class EdgeSnake(GCNModelGraphList):
 
 
 
-class GCNBaselineGraphList(object):
+class GCNBaselineGraphList(MultiGraphNN):
     '''
     A Deep Standard GCN model for a graph list
     '''
@@ -1263,13 +1259,7 @@ class GCNBaselineGraphList(object):
         cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
 
         #Global L2 Regulization
-        #TODO Add L2 on the Edges as well ?
-        #if self.num_layers>1:
-        #    in_layers_l2=tf.add_n([ tf.nn.l2_loss(v) for v in self.Wnode_layers ]) * self.mu
-        #    self.loss = tf.reduce_mean(cross_entropy_source)+self.mu*tf.nn.l2_loss(self.W_classif) +self.mu*tf.nn.l2_loss(self.Wnode)+in_layers_l2
-        #else:
         self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(self.W_classif)
-
 
         self.correct_prediction = tf.equal(tf.argmax(tf.nn.softmax(self.logits), 1), tf.argmax(self.y_input, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
@@ -1314,185 +1304,3 @@ class GCNBaselineGraphList(object):
         if verbose:
             print('Test Loss',Ops[0],' Test Accuracy:',Ops[1])
         return Ops[1]
-    
-    def train_lG(self,session,gcn_graph_train):
-        '''
-        Train an a list of graph
-        :param session:
-        :param gcn_graph_train:
-        :return:
-        '''
-        for g in gcn_graph_train:
-            self.train(session, g, n_iter=1)
-
-
-
-    def test_lG(self,session,gcn_graph_test,verbose=True):
-        '''
-        Test on a list of Graph
-        :param session:
-        :param gcn_graph_test:
-        :return:
-        '''
-        acc_tp = 0.0
-        nb_node_total = 0.0
-        mean_acc_test = []
-
-        for g in gcn_graph_test:
-            acc = self.test(session, g, verbose=False)
-            mean_acc_test.append(acc)
-            nb_node_total += g.X.shape[0]
-            acc_tp += acc * g.X.shape[0]
-
-        g_acc =np.mean(mean_acc_test)
-        node_acc =acc_tp / nb_node_total
-
-        if verbose:
-            print('Mean Graph Accuracy', '%.4f' %g_acc)
-            print('Mean Node  Accuracy', '%.4f' %node_acc)
-
-        return g_acc,node_acc
-
-    def predict_lG(self,session,gcn_graph_predict,verbose=True):
-        '''
-        Predict for a list of graph
-        :param session:
-        :param gcn_graph_test:
-        :return:
-        '''
-        lY_pred=[]
-
-        for g in gcn_graph_predict:
-            gY_pred = self.predict(session, g, verbose=verbose)
-            lY_pred.append(gY_pred)
-
-
-        return lY_pred
-
-
-    def get_nb_params(self):
-        total_parameters = 0
-        for variable in tf.trainable_variables():
-            # shape is an array of tf.Dimension
-            shape = variable.get_shape()
-            #print(shape)
-            #print(len(shape))
-            variable_parameters = 1
-            for dim in shape:
-                #print(dim)
-                variable_parameters *= dim.value
-            #print(variable_parameters)
-            total_parameters += variable_parameters
-        print(total_parameters)
-
-    def train_with_validation_set(self,session,graph_train,graph_val,max_iter,eval_iter=10,patience=7,graph_test=None,save_model_path=None):
-        '''
-        Implements training with a validation set
-        The model is trained and accuracy is measure on a validation sets
-        In addition, the model can be save and one can perform early stopping thanks to the patience argument
-
-        :param session:
-        :param graph_train: the list of graph to train on
-        :param graph_val:   the list of graph used for validation
-        :param max_iter:  maximum number of epochs
-        :param eval_iter: evaluate every eval_iter
-        :param patience: stopped training if accuracy is not improved on the validation set after patience_value
-        :param graph_test: Optional. If a test set is provided, then accuracy on the test set is reported
-        :param save_model_path: checkpoints filename to save the model.
-        :return: A Dictionary with training accuracies, validations accuracies and test accuracies if any, and the Wedge parameters
-        '''
-        best_val_acc=0.0
-        wait=0
-        stop_training=False
-        stopped_iter=max_iter
-        train_accuracies=[]
-        validation_accuracies=[]
-        test_accuracies=[]
-        conf_mat=[]
-
-        start_monitoring_val_acc=False
-
-        for i in range(max_iter):
-            if stop_training:
-                break
-
-            if i % eval_iter == 0:
-                print('\nEpoch', i)
-                _, tr_acc = self.test_lG(session, graph_train,verbose=False)
-                print(' Train Acc', '%.4f' % tr_acc)
-                train_accuracies.append(tr_acc)
-
-                _,node_acc=self.test_lG(session,graph_val,verbose=False)
-                print(' Valid Acc', '%.4f' % node_acc)
-                validation_accuracies.append(node_acc)
-
-                if save_model_path:
-                    save_path = self.saver.save(session, save_model_path,global_step=i)
-
-                if graph_test:
-                    _,test_acc=self.test_lG(session,graph_test,verbose=False)
-                    print('  Test Acc', '%.4f' % test_acc)
-                    test_accuracies.append(test_acc)
-
-                    '''
-                    Ypred = self.predict_lG(session, graph_test,verbose=False)
-
-                    Y_true_flat = []
-                    Ypred_flat = []
-
-                    for graph, ypred in zip(graph_test, Ypred):
-                        ytrue = np.argmax(graph.Y, axis=1)
-                        Y_true_flat.extend(ytrue)
-                        Ypred_flat.extend(ypred)
-
-                    cm = sklearn.metrics.confusion_matrix(Y_true_flat, Ypred_flat)
-                    conf_mat.append(cm)
-                    '''
-
-                #TODO min_delta
-                #if tr_acc>0.99:
-                #    start_monitoring_val_acc=True
-
-                if node_acc > best_val_acc:
-                    best_val_acc=node_acc
-                    wait = 0
-                else:
-                    if wait >= patience:
-                        stopped_iter = i
-                        stop_training = True
-                    wait += 1
-            else:
-                random.shuffle(graph_train)
-                for g in graph_train:
-                    self.train(session, g, n_iter=1)
-        #Final Save
-        #if save_model_path:
-        #save_path = self.saver.save(session, save_model_path, global_step=i)
-        #TODO Add the final step
-        mean_acc = []
-        print('Stopped Model Training after',stopped_iter)
-        print('Val Accuracies',validation_accuracies)
-
-        print('Final Training Accuracy')
-        _,node_train_acc=self.test_lG(session,graph_train)
-        print('Train Mean Accuracy','%.4f' % node_train_acc)
-
-        print('Final Valid Acc')
-        self.test_lG(session,graph_val)
-
-        R = {}
-        R['train_acc'] = train_accuracies
-        R['val_acc'] = validation_accuracies
-        R['test_acc'] = test_accuracies
-        R['stopped_iter'] = stopped_iter
-        R['confusion_matrix'] = conf_mat
-        #R['W_edge'] =self.get_Wedge(session)
-        if graph_test:
-
-            _, final_test_acc = self.test_lG(session, graph_test)
-            print('Final Test Acc','%.4f' % final_test_acc)
-            R['final_test_acc'] = final_test_acc
-
-        return R
-
-
