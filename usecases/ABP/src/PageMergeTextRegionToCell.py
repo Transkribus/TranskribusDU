@@ -148,7 +148,7 @@ class region2cell(Component.Component):
 if __name__ == "__main__":
     
     #command line
-    traceln( "=============================================================================")
+#     traceln( "=============================================================================")
     
     cmp = region2cell()
     
@@ -170,5 +170,6 @@ if __name__ == "__main__":
     doc = cmp.run()
     cmp.writeDom(doc, True)
     doc.free()
+    traceln("Merge done for %s and %s  in %s" % (options.input,options.tablefile,options.output))
 
 
