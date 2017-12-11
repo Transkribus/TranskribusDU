@@ -11,6 +11,7 @@ import scipy.sparse as sp
 import random
 import sklearn
 import sklearn.metrics
+import time
 
 def init_glorot(shape, name=None):
     """Glorot & Bengio (AISTATS 2010) init."""
@@ -179,6 +180,7 @@ class GCNModelGraphList(object):
         self.fast_convolve=False
         self.init_fixed=False
         self.logit_convolve=False
+        self.train_Wn0=True
 
         if node_indim==-1:
             self.node_indim=self.node_dim
@@ -312,7 +314,7 @@ class GCNModelGraphList(object):
                                                                    -1.0 / math.sqrt(self.node_dim),
                                                                    1.0 / math.sqrt(self.node_dim)),name='Wnl0',dtype=tf.float32)
         else:
-            Wnl0 = tf.Variable(tf.eye(self.node_dim),name='Wnl0',dtype=tf.float32)
+            Wnl0 = tf.Variable(tf.eye(self.node_dim),name='Wnl0',dtype=tf.float32,trainable=self.train_Wn0)
 
         Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0',dtype=tf.float32)
         #self.Wel0 =tf.Variable(tf.random_normal([int(self.nconv_edge),int(self.edge_dim)],mean=0.0,stddev=1.0), dtype=np.float32, name='Wel0')
@@ -543,7 +545,10 @@ class GCNModelGraphList(object):
                 list_we.append(we)
             return list_we
         else:
-            raise NotImplementedError
+            L0=session.run([self.Wel])
+            We0=L0[0]
+            list_we=[We0]
+            return list_we
 
     def train(self,session,graph,verbose=False,n_iter=1):
         '''
@@ -826,9 +831,16 @@ class GCNModelGraphList(object):
         R['test_acc'] = test_accuracies
         R['stopped_iter'] = stopped_iter
         R['confusion_matrix'] = conf_mat
-        R['W_edge'] =self.get_Wedge(session)
+        #R['W_edge'] =self.get_Wedge(session)
         if graph_test:
 
+            #start_time = time.time()
+            '''
+            lY_pred = self.predict_lG(session, graph_test, verbose=False)
+            end_time = time.time()
+            print("--- %s seconds ---" % (end_time - start_time))
+            print('Number of graphs:', len(lY_pred))
+            '''
             _, final_test_acc = self.test_lG(session, graph_test)
             print('Final Test Acc','%.4f' % final_test_acc)
             R['final_test_acc'] = final_test_acc
@@ -1266,19 +1278,21 @@ class GCNBaselineGraphList(object):
         self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
 
 
+        print('Number of Parameters')
+        self.get_nb_params()
         # Add ops to save and restore all the variables.
         self.init = tf.global_variables_initializer()
 
         self.saver = tf.train.Saver()
 
-    def train(self,session,n_node,X,Y,NA,n_iter=1,verbose=False):
+    def train(self,session,g,n_iter=1,verbose=False):
         #TrainEvalSet Here
         for i in range(n_iter):
             feed_batch={
-                        self.nb_node:n_node,
-                        self.node_input:X,
-                        self.y_input:Y,
-                        self.NA_input:NA,
+                        self.nb_node:g.X.shape[0],
+                        self.node_input:g.X,
+                        self.y_input:g.Y,
+                        self.NA_input:g.NA,
                         self.dropout_p:self.dropout_rate
             }
             Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
@@ -1287,17 +1301,198 @@ class GCNBaselineGraphList(object):
 
 
 
-    def test(self,session,n_node,X,Y,NA,verbose=True):
+    def test(self,session,g,verbose=True):
         #TrainEvalSet Here
         feed_batch={
-                        self.nb_node:n_node,
-                        self.node_input:X,
-                        self.y_input:Y,
-                        self.NA_input:NA,
+                        self.nb_node:g.X.shape[0],
+                        self.node_input:g.X,
+                        self.y_input:g.Y,
+                        self.NA_input:g.NA,
                         self.dropout_p: 0.0
         }
         Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
         if verbose:
             print('Test Loss',Ops[0],' Test Accuracy:',Ops[1])
         return Ops[1]
+    
+    def train_lG(self,session,gcn_graph_train):
+        '''
+        Train an a list of graph
+        :param session:
+        :param gcn_graph_train:
+        :return:
+        '''
+        for g in gcn_graph_train:
+            self.train(session, g, n_iter=1)
+
+
+
+    def test_lG(self,session,gcn_graph_test,verbose=True):
+        '''
+        Test on a list of Graph
+        :param session:
+        :param gcn_graph_test:
+        :return:
+        '''
+        acc_tp = 0.0
+        nb_node_total = 0.0
+        mean_acc_test = []
+
+        for g in gcn_graph_test:
+            acc = self.test(session, g, verbose=False)
+            mean_acc_test.append(acc)
+            nb_node_total += g.X.shape[0]
+            acc_tp += acc * g.X.shape[0]
+
+        g_acc =np.mean(mean_acc_test)
+        node_acc =acc_tp / nb_node_total
+
+        if verbose:
+            print('Mean Graph Accuracy', '%.4f' %g_acc)
+            print('Mean Node  Accuracy', '%.4f' %node_acc)
+
+        return g_acc,node_acc
+
+    def predict_lG(self,session,gcn_graph_predict,verbose=True):
+        '''
+        Predict for a list of graph
+        :param session:
+        :param gcn_graph_test:
+        :return:
+        '''
+        lY_pred=[]
+
+        for g in gcn_graph_predict:
+            gY_pred = self.predict(session, g, verbose=verbose)
+            lY_pred.append(gY_pred)
+
+
+        return lY_pred
+
+
+    def get_nb_params(self):
+        total_parameters = 0
+        for variable in tf.trainable_variables():
+            # shape is an array of tf.Dimension
+            shape = variable.get_shape()
+            #print(shape)
+            #print(len(shape))
+            variable_parameters = 1
+            for dim in shape:
+                #print(dim)
+                variable_parameters *= dim.value
+            #print(variable_parameters)
+            total_parameters += variable_parameters
+        print(total_parameters)
+
+    def train_with_validation_set(self,session,graph_train,graph_val,max_iter,eval_iter=10,patience=7,graph_test=None,save_model_path=None):
+        '''
+        Implements training with a validation set
+        The model is trained and accuracy is measure on a validation sets
+        In addition, the model can be save and one can perform early stopping thanks to the patience argument
+
+        :param session:
+        :param graph_train: the list of graph to train on
+        :param graph_val:   the list of graph used for validation
+        :param max_iter:  maximum number of epochs
+        :param eval_iter: evaluate every eval_iter
+        :param patience: stopped training if accuracy is not improved on the validation set after patience_value
+        :param graph_test: Optional. If a test set is provided, then accuracy on the test set is reported
+        :param save_model_path: checkpoints filename to save the model.
+        :return: A Dictionary with training accuracies, validations accuracies and test accuracies if any, and the Wedge parameters
+        '''
+        best_val_acc=0.0
+        wait=0
+        stop_training=False
+        stopped_iter=max_iter
+        train_accuracies=[]
+        validation_accuracies=[]
+        test_accuracies=[]
+        conf_mat=[]
+
+        start_monitoring_val_acc=False
+
+        for i in range(max_iter):
+            if stop_training:
+                break
+
+            if i % eval_iter == 0:
+                print('\nEpoch', i)
+                _, tr_acc = self.test_lG(session, graph_train,verbose=False)
+                print(' Train Acc', '%.4f' % tr_acc)
+                train_accuracies.append(tr_acc)
+
+                _,node_acc=self.test_lG(session,graph_val,verbose=False)
+                print(' Valid Acc', '%.4f' % node_acc)
+                validation_accuracies.append(node_acc)
+
+                if save_model_path:
+                    save_path = self.saver.save(session, save_model_path,global_step=i)
+
+                if graph_test:
+                    _,test_acc=self.test_lG(session,graph_test,verbose=False)
+                    print('  Test Acc', '%.4f' % test_acc)
+                    test_accuracies.append(test_acc)
+
+                    '''
+                    Ypred = self.predict_lG(session, graph_test,verbose=False)
+
+                    Y_true_flat = []
+                    Ypred_flat = []
+
+                    for graph, ypred in zip(graph_test, Ypred):
+                        ytrue = np.argmax(graph.Y, axis=1)
+                        Y_true_flat.extend(ytrue)
+                        Ypred_flat.extend(ypred)
+
+                    cm = sklearn.metrics.confusion_matrix(Y_true_flat, Ypred_flat)
+                    conf_mat.append(cm)
+                    '''
+
+                #TODO min_delta
+                #if tr_acc>0.99:
+                #    start_monitoring_val_acc=True
+
+                if node_acc > best_val_acc:
+                    best_val_acc=node_acc
+                    wait = 0
+                else:
+                    if wait >= patience:
+                        stopped_iter = i
+                        stop_training = True
+                    wait += 1
+            else:
+                random.shuffle(graph_train)
+                for g in graph_train:
+                    self.train(session, g, n_iter=1)
+        #Final Save
+        #if save_model_path:
+        #save_path = self.saver.save(session, save_model_path, global_step=i)
+        #TODO Add the final step
+        mean_acc = []
+        print('Stopped Model Training after',stopped_iter)
+        print('Val Accuracies',validation_accuracies)
+
+        print('Final Training Accuracy')
+        _,node_train_acc=self.test_lG(session,graph_train)
+        print('Train Mean Accuracy','%.4f' % node_train_acc)
+
+        print('Final Valid Acc')
+        self.test_lG(session,graph_val)
+
+        R = {}
+        R['train_acc'] = train_accuracies
+        R['val_acc'] = validation_accuracies
+        R['test_acc'] = test_accuracies
+        R['stopped_iter'] = stopped_iter
+        R['confusion_matrix'] = conf_mat
+        #R['W_edge'] =self.get_Wedge(session)
+        if graph_test:
+
+            _, final_test_acc = self.test_lG(session, graph_test)
+            print('Final Test Acc','%.4f' % final_test_acc)
+            R['final_test_acc'] = final_test_acc
+
+        return R
+
 

@@ -45,7 +45,7 @@ def print_res(Fs,Cs,P):
         for f in Fs:
             # print('F ',f)
             k = str(f) + ':' + str(c)
-            print('K', k)
+            #print('K', k)
             if k in P:
                 line_res += '%.4f' % P[k] + ' &'
                 avg += P[k]
@@ -54,12 +54,12 @@ def print_res(Fs,Cs,P):
                 line_res += '    &'
 
         if valid_fold > 0:
-            print('A', avg, valid_fold)
+            #print('A', avg, valid_fold)
             a = avg / float(valid_fold)
             line_res += '%.4f' % a + "\\\\ \n"
         else:
             line_res += "   \\\\\n"
-        print('C' + str(c), line_res)
+        print('C' + str(c)+'&', line_res)
 
 def plot_progress(folder_resname,configid=5):
 
