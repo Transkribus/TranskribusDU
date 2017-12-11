@@ -448,7 +448,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
 
         return lsOutputFilename
 
-    def runForExternalMLMethod(self, lsColDir, storeX, applyY):
+    def runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges=False):
         """
         HACK: to test new ML methods, not yet integrated in our SW: storeX=None, storeXY=None, applyY=None
         Return the list of produced files
@@ -490,6 +490,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             if lg:
                 for g in lg:
                     doc = g.doc
+                    if bRevertEdges: g.revertEdges()    #revert the directions of the edges
                     if lPageConstraint:
                         self.traceln("\t- prediction with logical constraints: %s"%sFilename)
                     else:
@@ -694,8 +695,14 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
     #----------------------------------------------------------------------------------------------------------    
     def _pickleData(self, mdl, lGraph, name):
         self.traceln("- Computing data structure of all graphs and features...")
+        #for GCN
+        bGCN_revert = False
+        if bGCN_revert:
+            for g in lGraph: g.revertEdges()
         lX, lY = mdl.get_lX_lY(lGraph)
         sFilename = mdl.getTrainDataFilename(name)
+        if bGCN_revert:
+            sFilename = sFilename.replace("_tlXlY_", "_tlXrlY_")
         self.traceln("- storing (lX, lY) into %s"%sFilename)
         mdl.gzip_cPickle_dump(sFilename, (lX, lY))
         return

@@ -73,6 +73,7 @@ class DU_BAR_sem_sgm(DU_FactorialCRF_Task):
     #lLabels2 = ['heigh', 'ho', 'other']
     #lLabels2 = ['heigh', 'ho']
     lLabels2 = ['B', 'I', 'E']  #we never see any S...  , 'S']
+    lLabels2 = ['B', 'I', 'E', 'S', 'O']  #we never see any S...  , 'S']
     
     nt2 = NodeType_PageXml_type_woText("sgm"                   #some short prefix because labels below are prefixed with it
                           , lLabels2
