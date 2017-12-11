@@ -156,9 +156,9 @@ if __name__ == "__main__":
 #     cmp.createCommandLineParser()
     parser = OptionParser(usage="", version=cmp.versionComponent)
     parser.description = cmp.description    
-    parser.add_option("-i", "--input", dest="input", default="-", action="store", type="string", help="input XML file", metavar="<file>")
-    parser.add_option("-t","--tab", dest="tablefile", action="store", type="string", help="pxml containing the TableRegion"   , metavar="<filename>")
-    parser.add_option("-o", "--output", dest="output", default="-", action="store", type="string", help="output XML file", metavar="<file>")
+    parser.add_option("-i", "--input", dest="input", default="-", action="store", type="string", help="TextRegion PageXML file", metavar="<file>")
+    parser.add_option("-t","--tab", dest="tablefile", action="store", type="string", help="TableRegion PageXML file"   , metavar="<filename>")
+    parser.add_option("-o", "--output", dest="output", default="-", action="store", type="string", help="output PageXML file", metavar="<file>")
 
     #parse the command line
     cmp.usage = "python %prog" + cmp.usageComponent
