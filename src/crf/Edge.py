@@ -33,6 +33,12 @@ class Edge:
         else:
             return "Edge %s p%d-p%d %s -->\n\t %s" %(self.__class__, self.A.pnum, self.B.pnum, self.A, self.B)
 
+    def revertDirection(self):
+        """
+        revert the direction of the edge
+        """
+        self.A, self.B = self.B, self.A
+        
     # ------------------------------------------------------------------------------------------------------------------------------------        
     #specific code for the CRF graph
     def computeEdges(cls, lPrevPageEdgeBlk, lPageBlk, bShortOnly=False):
