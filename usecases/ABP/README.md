@@ -1,5 +1,8 @@
 Archiv des Bistums Passau (ABP) usecase
 
+*** For DAS 2018 resources, see in resources/DAS_2018 ***
+
+
 see [this page](TranskribusDU_SPM) for an example using Sequential Pattern Mining
 
 Full workflow for Information Extraction:
