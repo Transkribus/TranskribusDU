@@ -130,6 +130,8 @@ class region2cell(Component.Component):
                     ctxt.setContextNode(texttr)
                     ltrunicode = ctxt.xpathEval(xpath)
                     ltbunicode[0].setContent(ltrunicode[0].getContent())
+                    if texttr.prop('custom') is not None:
+                        texttb.setProp('custom',texttr.prop('custom') )
                     
         ctxt.xpathFreeContext()
         ctxt2.xpathFreeContext()
