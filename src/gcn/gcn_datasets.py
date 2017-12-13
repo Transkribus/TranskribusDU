@@ -41,7 +41,7 @@ class GCNDataset(object):
         print('A:',self.A.shape)
         print('E:',self.E.shape)
 
-    #TODO Remove
+    #deprecated
     def compute_EA(self):
         '''
         Compute the Edge Adjanceny Matrix
@@ -184,7 +184,6 @@ class GCNDataset(object):
             else:
                 graph.E = E0
             gcn_list.append(graph)
-            graph.compute_EA()
             graph.compute_NA()
             #graph.normalize()
             graph.compute_NodeEdgeMat()
@@ -277,7 +276,6 @@ class GCNDataset(object):
             graph.E = np.array(EF,dtype='f')  # check order
             #print(graph.E)
             gcn_list.append(graph)
-            graph.compute_EA()
             graph.compute_NA()
             #print('Edge Features ,shape',graph.E.shape)
             # graph.normalize()
@@ -310,7 +308,6 @@ class GCNDataset(object):
 
         nb_node_total = graph.X.shape[0]
 
-        graph.compute_EA()
         graph.A=np.diag(np.ones(nb_node_total))
         graph.NA =np.diag(np.ones(nb_node_total))
         #print('Warning ....')
@@ -399,7 +396,6 @@ class GCNDataset(object):
                 #print('Reverse Arcs:',graph.E.shape)
                 gcn_list.append(graph)
 
-                graph.compute_EA()
                 graph.compute_NA()
                 # graph.normalize()
                 graph.compute_NodeEdgeMat()
@@ -445,7 +441,6 @@ class GCNDataset(object):
                 else:
                     graph.E = E0
                 gcn_list.append(graph)
-                graph.compute_EA()
                 graph.compute_NA()
                 # graph.normalize()
                 graph.compute_NodeEdgeMat()
@@ -539,7 +534,6 @@ class GCNDataset(object):
             graph.E = np.vstack([E0, E1])  # check order
 
             gcn_list.append(graph)
-            graph.compute_EA()
             graph.compute_NA()
             # graph.normalize()
             graph.compute_NodeEdgeMat()
