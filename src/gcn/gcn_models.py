@@ -15,7 +15,6 @@ import time
 
 def init_glorot(shape, name=None):
     """Glorot & Bengio (AISTATS 2010) init."""
-    #Taken from the GCN_code
     init_range = np.sqrt(6.0/(shape[0]+shape[1]))
     initial = tf.random_uniform(shape, minval=-init_range, maxval=init_range, dtype=tf.float32)
     return tf.Variable(initial, name=name)
@@ -336,7 +335,7 @@ class MultiGraphNN(object):
 
 
 
-class GCNModelGraphList(MultiGraphNN):
+class EdgeConvNet(MultiGraphNN):
     '''
     Edge-GCN Model for a graph list
     '''
@@ -595,10 +594,6 @@ class GCNModelGraphList(MultiGraphNN):
 
                 self.hidden_layers.append(Hi)
 
-        # This dropout the logits as in GCN
-        #if self.dropout_mode == 2:
-        #    Hp = tf.nn.dropout(self.hidden_layers[-1], 1 - self.dropout_p)
-        #    self.hidden_layers.append(Hp)
 
         if self.logit_convolve is False:
             self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
@@ -671,7 +666,7 @@ class GCNModelGraphList(MultiGraphNN):
                 list_we.append(we)
             return list_we
         else:
-            L0=session.run([self.Wel])
+            L0=session.run([self.Wel0])
             We0=L0[0]
             list_we=[We0]
             return list_we
@@ -766,7 +761,7 @@ class GCNModelGraphList(MultiGraphNN):
 
 
 
-class GCNBaselineGraphList(MultiGraphNN):
+class GraphConvNet(MultiGraphNN):
     '''
     A Deep Standard GCN model for a graph list
     '''
