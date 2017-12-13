@@ -678,7 +678,7 @@ def run_model(gcn_graph, config_params, gcn_graph_test,eval_iter=10):
 
 
 
-            gcn_model = gcn_models.GCNModelGraphList(node_dim, edge_dim, nb_class,
+            gcn_model = gcn_models.EdgeConvNet(node_dim, edge_dim, nb_class,
                                                      num_layers=config_params['num_layers'],
                                                      learning_rate=config_params['lr'],
                                                      mu=config_params['mu'],
@@ -777,7 +777,7 @@ def run_model_train_val_test(gcn_graph,
         
         
         if 'model' in config_params and config_params['model']=='baseline':
-            gcn_model = gcn_models.GCNBaselineGraphList(node_dim,nb_class,
+            gcn_model = gcn_models.GraphConvNet(node_dim,nb_class,
                                                  num_layers=config_params['num_layers'],
                                                  learning_rate=config_params['lr'],
                                                  mu=config_params['mu'],
@@ -786,7 +786,7 @@ def run_model_train_val_test(gcn_graph,
 
 
         else:
-            gcn_model = gcn_models.GCNModelGraphList(node_dim, edge_dim, nb_class,
+            gcn_model = gcn_models.EdgeConvNet(node_dim, edge_dim, nb_class,
                                                      num_layers=config_params['num_layers'],
                                                      learning_rate=config_params['lr'],
                                                      mu=config_params['mu'],
@@ -982,7 +982,7 @@ def main(_):
         epoch_index = np.argmax(val)
         print('Best performance on val set: Epoch',epoch_index)
 
-        gcn_model = gcn_models.GCNModelGraphList(node_dim, edge_dim, nb_class,
+        gcn_model = gcn_models.EdgeConvNet(node_dim, edge_dim, nb_class,
                                                  num_layers=config['num_layers'],
                                                  learning_rate=config['lr'],
                                                  mu=config['mu'],

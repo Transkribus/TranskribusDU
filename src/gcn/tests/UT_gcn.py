@@ -32,7 +32,9 @@ from sklearn.preprocessing import LabelBinarizer,Normalizer
 from sklearn.linear_model import LogisticRegression
 from gcn.gcn_datasets import GCNDataset
 
-from gcn.gcn_models import DummyGCNModel,GCNModelGraphList
+from gcn.gcn_models import DummyGCNModel, EdgeConvNet
+import sklearn
+import sklearn.metrics
 
 def make_fake_gcn_dataset():
     '''
@@ -306,7 +308,7 @@ class UT_gcn(unittest.TestCase):
 
         #__init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1):
         gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=2,learning_rate=0.001,mu=0.0,node_indim=5)
-        #gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
+        #gcn_model =EdgeConvNet(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
 
         gcn_model.create_model()
 
@@ -350,9 +352,9 @@ class UT_gcn(unittest.TestCase):
         nb_class=gcn_graph[0].Y.shape[1]
 
         #__init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1):
-        #gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=2,learning_rate=0.01,mu=0.0,node_indim=5)
+        #gcn_model =EdgeConvNet(node_dim,edge_dim,nb_class,num_layers=2,learning_rate=0.01,mu=0.0,node_indim=5)
         gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=3,learning_rate=0.01,mu=0.0,node_indim=-1)
-        #gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
+        #gcn_model =EdgeConvNet(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
         gcn_model.stack_instead_add=True
         gcn_model.create_model()
 
@@ -477,9 +479,9 @@ class UT_gcn(unittest.TestCase):
         nb_class=gcn_graph[0].Y.shape[1]
 
         #__init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1):
-        #gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=2,learning_rate=0.01,mu=0.0,node_indim=5)
+        #gcn_model =EdgeConvNet(node_dim,edge_dim,nb_class,num_layers=2,learning_rate=0.01,mu=0.0,node_indim=5)
         gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.01,mu=0.0,node_indim=-1,nconv_edge=10)
-        #gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
+        #gcn_model =EdgeConvNet(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
         gcn_model.stack_instead_add=True
         gcn_model.create_model()
 
@@ -527,7 +529,7 @@ class UT_gcn(unittest.TestCase):
 
             gcn_model = GCNModelGraphList(node_dim, edge_dim, nb_class, num_layers=2, learning_rate=0.01, mu=0.0,
                                           node_indim=-1, nconv_edge=5)
-            # gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
+            # gcn_model =EdgeConvNet(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
             gcn_model.stack_instead_add = True
             gcn_model.create_model()
 
@@ -776,9 +778,9 @@ class UT_gcn(unittest.TestCase):
         edge_dim = gcn_graph[0].E.shape[1] - 2.0
         nb_class = gcn_graph[0].Y.shape[1]
 
-        gcn_model = GCNModelGraphList(node_dim, edge_dim, nb_class, num_layers=2, learning_rate=0.01, mu=0.0,
+        gcn_model = EdgeConvNet(node_dim, edge_dim, nb_class, num_layers=2, learning_rate=0.01, mu=0.0,
                                       node_indim=-1, nconv_edge=5)
-        # gcn_model =GCNModelGraphList(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
+        # gcn_model =EdgeConvNet(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
         gcn_model.stack_instead_add = True
         gcn_model.fast_convolve=True
 
@@ -804,14 +806,19 @@ class UT_gcn(unittest.TestCase):
         tp=0
         nb_node=0
 
+        Ytrue_l=[]
+        lY_l=[]
         for lY,graph in zip(lY_pred,gcn_graph_train):
             Ytrue = np.argmax(graph.Y,axis=1)
+            Ytrue_l.extend(Ytrue)
+            lY_l.extend(lY)
             tp += sum (Ytrue==lY)
             #pdb.set_trace()
             nb_node += Ytrue.shape[0]
 
         print('Final Accuracy',tp/nb_node)
-
+        print('Accuracy_score',sklearn.metrics.accuracy_score(Ytrue_l,lY_l))
+        print(sklearn.metrics.classification_report(Ytrue_l,lY_l))
         self.assertAlmostEqual(tp/nb_node,node_acc)
 
 
