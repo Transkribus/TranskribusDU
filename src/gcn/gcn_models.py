@@ -333,6 +333,175 @@ class MultiGraphNN(object):
         return R
 
 
+class Logit(MultiGraphNN):
+    def __init__(self,node_dim,nb_classes,learning_rate=0.1,mu=0.1,node_indim=-1):
+        self.node_dim=node_dim
+        self.n_classes=nb_classes
+        self.learning_rate=learning_rate
+        self.activation=tf.nn.relu
+        self.mu=mu
+        self.optalg = tf.train.AdamOptimizer(self.learning_rate)
+        self.stack_instead_add=False
+        self.train_Wn0=True
+
+        if node_indim==-1:
+            self.node_indim=self.node_dim
+        else:
+            self.node_indim=node_indim
+
+    def create_model(self):
+        '''
+        Create the tensorflow graph for the model
+        :return:
+        '''
+        self.nb_node    = tf.placeholder(tf.int32,(), name='nb_node')
+        self.node_input = tf.placeholder(tf.float32, [None, self.node_dim], name='X_')
+        self.y_input    = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
+
+
+        self.Wnode_layers=[]
+        self.Bnode_layers=[]
+
+        #Should Project edge as well ...
+        train_var=[]
+
+        if self.node_indim!=self.node_dim:
+            Wnl0 = tf.Variable(tf.random_uniform((self.node_dim, self.node_indim),
+                                                                   -1.0 / math.sqrt(self.node_dim),
+                                                                   1.0 / math.sqrt(self.node_dim)),name='Wnl0',dtype=tf.float32)
+        else:
+            Wnl0 = tf.Variable(tf.eye(self.node_dim),name='Wnl0',dtype=tf.float32,trainable=self.train_Wn0)
+
+        Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0',dtype=tf.float32)
+        #self.Wel0 =tf.Variable(tf.random_normal([int(self.nconv_edge),int(self.edge_dim)],mean=0.0,stddev=1.0), dtype=np.float32, name='Wel0')
+
+        train_var.extend([Wnl0,Bnl0])
+        train_var.append(self.Wel0)
+
+        self.W_classif = tf.Variable(tf.random_uniform((self.node_indim, self.n_classes),
+                                                           -1.0 / math.sqrt(self.node_dim),
+                                                           1.0 / math.sqrt(self.node_dim)),
+                                        name="W_classif",dtype=np.float32)
+        self.B_classif = tf.Variable(tf.zeros([self.n_classes]), name='B_classif',dtype=np.float32)
+
+        self.Hnode_layers=[]
+
+
+
+        if self.num_layers==1:
+            self.H = self.activation(tf.add(tf.matmul(self.node_input, Wnl0), Bnl0))
+            self.hidden_layers = [self.H]
+            print("H shape",self.H.get_shape())
+
+            #Hp= P+self.H
+
+            Hi=self.activation(Hp)
+            #Hi_shape = Hi.get_shape()
+            #print(Hi_shape)
+            self.hidden_layers.append(Hi)
+
+        self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
+        cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
+
+        # Global L2 Regulization
+        self.loss = tf.reduce_mean(cross_entropy_source)  + self.mu * tf.nn.l2_loss(self.W_classif)
+
+
+        self.pred = tf.argmax(tf.nn.softmax(self.logits), 1)
+        self.correct_prediction = tf.equal(self.pred, tf.argmax(self.y_input, 1))
+        self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
+
+
+        self.grads_and_vars = self.optalg.compute_gradients(self.loss)
+
+        self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
+
+
+        # Add ops to save and restore all the variables.
+        self.init = tf.global_variables_initializer()
+        self.saver= tf.train.Saver(max_to_keep=5)
+
+        print('Number of Params:')
+        self.get_nb_params()
+
+
+    def save_model(self, session, model_filename):
+        print("Saving Model")
+        save_path = self.saver.save(session, model_filename)
+
+    def restore_model(self, session, model_filename):
+        self.saver.restore(session, model_filename)
+        print("Model restored.")
+
+
+    def train(self,session,graph,verbose=False,n_iter=1):
+        '''
+        Apply a train operation, ie sgd step for a single graph
+        :param session:
+        :param graph: a graph from GCN_Dataset
+        :param verbose:
+        :param n_iter: (default 1) number of steps to perform sgd for this graph
+        :return:
+        '''
+        #TrainEvalSet Here
+        for i in range(n_iter):
+            #print('Train',X.shape,EA.shape)
+
+            feed_batch = {
+
+                self.nb_node: graph.X.shape[0],
+                self.node_input: graph.X,
+                self.y_input: graph.Y,
+            }
+
+            Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
+            if verbose:
+                print('Training Loss',Ops[1])
+
+
+
+    def test(self,session,graph,verbose=True):
+        '''
+        Test return the loss and accuracy for the graph passed as argument
+        :param session:
+        :param graph:
+        :param verbose:
+        :return:
+        '''
+
+        feed_batch = {
+
+            self.nb_node: graph.X.shape[0],
+            self.node_input: graph.X,
+            self.y_input: graph.Y,
+        }
+
+        Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
+        if verbose:
+            print('Test Loss',Ops[0],' Test Accuracy:',Ops[1])
+        return Ops[1]
+
+
+    def predict(self,session,graph,verbose=True):
+        '''
+        Does the prediction
+        :param session:
+        :param graph:
+        :param verbose:
+        :return:
+        '''
+        feed_batch = {
+            self.nb_node: graph.X.shape[0],
+            self.node_input: graph.X,
+        }
+        Ops = session.run([self.pred], feed_dict=feed_batch)
+        if verbose:
+            print('Got Prediction for:',Ops[0].shape)
+        return Ops[0]
+
+
+
+
 
 
 class EdgeConvNet(MultiGraphNN):
