@@ -48,7 +48,7 @@ def get_config(config_id=0):
     config = {}
 
     if config_id == 0:
-        config['model'] ='Logit'
+        config['model'] ='logit'
         config['nb_iter'] = 1000
         config['lr'] = 0.001
         config['mu'] = 0.1
@@ -88,6 +88,16 @@ def get_config(config_id=0):
         config['nconv_edge'] = 1
         config['fast_convolve'] = True
 
+    elif config_id==44:
+        config['model'] ='gcn'
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['mu'] = 0.0
+        config['num_layers'] = 7
+        config['node_indim'] = -1
+        config['dropout_p'] = 0.0
+        config['dropout_mode'] = 0
+
 
     else:
         raise ValueError('Invalid Config ID')
@@ -110,7 +120,7 @@ def run_model_train_val_test(gcn_graph,
         edge_dim = gcn_graph[0].E.shape[1] - 2.0
         nb_class = gcn_graph[0].Y.shape[1]
 
-        if 'model' in config_params and config_params['model'] == 'baseline':
+        if 'model' in config_params and config_params['model'] == 'gcn':
             gcn_model = gcn_models.GraphConvNet(node_dim, nb_class,
                                                 num_layers=config_params['num_layers'],
                                                 learning_rate=config_params['lr'],
@@ -200,7 +210,6 @@ def main(_):
         outpicklefname = os.path.join(FLAGS.out_dir,
                                       'table_F' + str(FLAGS.fold) + '_C' + str(FLAGS.configid) + '.pickle')
         run_model_train_val_test(train_graph, config, outpicklefname, gcn_graph_test=test_graph)
-
 
 if __name__ == '__main__':
     tf.app.run()
