@@ -190,7 +190,7 @@ def main(_):
         pickle_train = os.path.join(FLAGS.dpath,'abp_CV_fold_' + str(FLAGS.fold) + '_tlXlY_trn.pkl')
         pickle_test = os.path.join(FLAGS.dpath,'abp_CV_fold_' + str(FLAGS.fold) + '_tlXlY_tst.pkl')
 
-        # Baseline Cases
+        # Baseline Models do not need reverse arc features
         if 'model' in config:
             train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
             test_graph = GCNDataset.load_transkribus_pickle(pickle_test)
