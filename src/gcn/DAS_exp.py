@@ -174,7 +174,7 @@ def main(_):
             print('Loaded Test Graphs:', len(test_graph))
 
             # print('Accuracy Test', acc_test)
-
+        mkdir_p(FLAGS.out_dir)
         outpicklefname = os.path.join(FLAGS.out_dir,
                                       'table_F' + str(FLAGS.fold) + '_C' + str(FLAGS.configid) + '.pickle')
         run_model_train_val_test(train_graph, config, outpicklefname, gcn_graph_test=test_graph)
