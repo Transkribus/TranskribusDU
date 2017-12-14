@@ -36,6 +36,8 @@ from gcn.gcn_models import DummyGCNModel, EdgeConvNet
 import sklearn
 import sklearn.metrics
 
+from crf.TestReport import TestReport
+
 def make_fake_gcn_dataset():
     '''
     Build a fake graph dataset from the iris dataset
@@ -335,6 +337,15 @@ class UT_gcn(unittest.TestCase):
         print('Accuracy_score',sklearn.metrics.accuracy_score(Ytrue_l,lY_l))
         print(sklearn.metrics.classification_report(Ytrue_l,lY_l))
         self.assertAlmostEqual(tp/nb_node,node_acc)
+
+        Z=[lY_pred,[np.argmax(graph.Y,axis=1) for graph in gcn_graph_train] ]
+        f=open('debug.pickle','wb')
+        pickle.dump(Z,f,protocol=1,fix_imports=True)
+        f.close()
+
+        #tstRep = TestReport('UT_test',lY_pred,[np.argmax(graph.Y,axis=1) for graph in gcn_graph_train],None)
+        #print(tstRep.getClassificationReport())
+
 
 
 
