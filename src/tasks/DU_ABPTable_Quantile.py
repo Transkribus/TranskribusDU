@@ -233,6 +233,12 @@ if __name__ == "__main__":
         doer.load()
         tstReport = doer.test(lTst)
         traceln(tstReport)
+#         if True:
+#             import crf.Model
+#             #In case we want to store the Ys
+#             for sfn, o in [("l_Y_GT.pkl", tstReport.l_Y), ("l_Y_pred.pkl", tstReport.l_Y_pred)]:
+#                 traceln("STORING in %s"%sfn)
+#                 crf.Model.Model.gzip_cPickle_dump(sfn, o)
     
     if lRun:
         if options.storeX or options.applyY:
