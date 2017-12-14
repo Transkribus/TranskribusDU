@@ -99,11 +99,46 @@ Python 2.7.14
 
 ### GCN, ECN and Logit-1conv
 
-TODO @Stéphane
+First of all, the code is located in src/gcn folder but it has developped under Python3 (wherease TranskribusDU is with 2.7).
+Then, our main dependencies are the following:
+    scikit-learn==0.19.1
+    scipy==1.0.0
+    tensorflow==1.4.0
+
 
 #### Training
- 
+
+    The main command is DAS_exp.py where we pass the data directory, a fold and a configid corresponding to a particular model
+    architecture.
+
+    #!/usr/bin/env bash
+
+    dpath='../../usecases/ABP/resources/DAS_2018/'
+    for fold in 1 2 3 4
+     do
+        #for configid in 0 1 5 33 44
+         do
+           python DAS_exp.py --dpath=$dpath --fold=$fold --configid=$configid --out_dir=out_das
+        done
+    done
+
 #### BIESO evaluation with the 4-folds cross-validation
+    In src/gcn
+    python print_res.py out_das/
+    This will print the results for the configurations/models found in the directory.
+    The first four columns correspond to the Fold and the last one is the average of the four folds.
+
+    C0 0.4576 0.4495 0.4319 0.4371 0.4440\\
+
+    C1 0.6409 0.6249 0.6342 0.3043 0.5511\\
+
+    ...
+
+    C5 0.9644 0.9463 0.9261 0.9117 0.9371\\
+
+    C33 0.9669 0.9184 0.9135 0.9138 0.9282\\
+
+    C0=Logit Model; C1=Logit-1Conv ; C5=3Layers-10Conv ; C33=8Layers-1Conv
 
 ### Table Row Evaluation
 
