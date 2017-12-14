@@ -334,6 +334,9 @@ class MultiGraphNN(object):
 
 
 class Logit(MultiGraphNN):
+    '''
+    Logistic Regression for MultiGraph
+    '''
     def __init__(self,node_dim,nb_classes,learning_rate=0.1,mu=0.1,node_indim=-1):
         self.node_dim=node_dim
         self.n_classes=nb_classes
@@ -362,21 +365,6 @@ class Logit(MultiGraphNN):
         self.Wnode_layers=[]
         self.Bnode_layers=[]
 
-        #Should Project edge as well ...
-        train_var=[]
-
-        if self.node_indim!=self.node_dim:
-            Wnl0 = tf.Variable(tf.random_uniform((self.node_dim, self.node_indim),
-                                                                   -1.0 / math.sqrt(self.node_dim),
-                                                                   1.0 / math.sqrt(self.node_dim)),name='Wnl0',dtype=tf.float32)
-        else:
-            Wnl0 = tf.Variable(tf.eye(self.node_dim),name='Wnl0',dtype=tf.float32,trainable=self.train_Wn0)
-
-        Bnl0 = tf.Variable(tf.zeros([self.node_indim]), name='Bnl0',dtype=tf.float32)
-        #self.Wel0 =tf.Variable(tf.random_normal([int(self.nconv_edge),int(self.edge_dim)],mean=0.0,stddev=1.0), dtype=np.float32, name='Wel0')
-
-        train_var.extend([Wnl0,Bnl0])
-        train_var.append(self.Wel0)
 
         self.W_classif = tf.Variable(tf.random_uniform((self.node_indim, self.n_classes),
                                                            -1.0 / math.sqrt(self.node_dim),
@@ -384,23 +372,8 @@ class Logit(MultiGraphNN):
                                         name="W_classif",dtype=np.float32)
         self.B_classif = tf.Variable(tf.zeros([self.n_classes]), name='B_classif',dtype=np.float32)
 
-        self.Hnode_layers=[]
 
-
-
-        if self.num_layers==1:
-            self.H = self.activation(tf.add(tf.matmul(self.node_input, Wnl0), Bnl0))
-            self.hidden_layers = [self.H]
-            print("H shape",self.H.get_shape())
-
-            #Hp= P+self.H
-
-            Hi=self.activation(Hp)
-            #Hi_shape = Hi.get_shape()
-            #print(Hi_shape)
-            self.hidden_layers.append(Hi)
-
-        self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
+        self.logits =tf.add(tf.matmul(self.node_input,self.W_classif),self.B_classif)
         cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
 
         # Global L2 Regulization

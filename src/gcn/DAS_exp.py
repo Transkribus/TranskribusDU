@@ -25,7 +25,7 @@ FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('dpath', 'data', "directory where data is supposed to be found")
 tf.app.flags.DEFINE_integer('fold', '1', "FilePath for the pickle")
-tf.app.flags.DEFINE_string('out_dir', 'out_res', "outdirectory for saving the results")
+tf.app.flags.DEFINE_string('out_dir', 'out_das', "outdirectory for saving the results")
 tf.app.flags.DEFINE_integer('configid', 0, 'Parameters')
 # Details of the training configuration.
 
@@ -48,24 +48,46 @@ def get_config(config_id=0):
     config = {}
 
     if config_id == 0:
-        config['model'] ='logit'
-        config['nb_iter'] = 500
+        config['model'] ='Logit'
+        config['nb_iter'] = 1000
         config['lr'] = 0.001
         config['mu'] = 0.1
         config['num_layers'] = 1
         config['node_indim'] = -1
 
     elif config_id ==1:
-        config['model'] = 'logit'
-        config['nb_iter'] = 500
+        config['name'] = 'Logit-1Conv'
+        config['nb_iter'] = 1000
         config['lr'] = 0.001
         config['stack_instead_add'] = False
         config['mu'] = 0.1
         config['num_layers'] = 1
         config['node_indim'] = -1
         config['nconv_edge'] = 1
-        config['fast_convolve'] = True
         config['train_Wn0']=False
+
+    elif config_id==5:
+        config['name'] = '3Layers-10conv-stack'
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.0
+        config['num_layers'] = 3
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 10
+        config['fast_convolve'] = True
+
+    elif config_id==33:
+        config['name'] = '8Layers-1conv'
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.001
+        config['num_layers'] = 8
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 1
+        config['fast_convolve'] = True
+
 
     else:
         raise ValueError('Invalid Config ID')
@@ -173,7 +195,7 @@ def main(_):
             test_graph = GCNDataset.load_transkribus_reverse_arcs_pickle(pickle_test, pickle_test_ra)
             print('Loaded Test Graphs:', len(test_graph))
 
-            # print('Accuracy Test', acc_test)
+
         mkdir_p(FLAGS.out_dir)
         outpicklefname = os.path.join(FLAGS.out_dir,
                                       'table_F' + str(FLAGS.fold) + '_C' + str(FLAGS.configid) + '.pickle')
