@@ -483,7 +483,7 @@ class EdgeConvNet(MultiGraphNN):
     '''
 
     def __init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1,node_indim=-1,nconv_edge=1,
-                 residual_connection=False,shared_We=False,dropout_rate=0.0,dropout_mode=0):
+                 residual_connection=False,shared_We=False):
         self.node_dim=node_dim
         self.edge_dim=edge_dim
         self.n_classes=nb_classes
@@ -497,13 +497,17 @@ class EdgeConvNet(MultiGraphNN):
         self.nconv_edge=nconv_edge
         self.residual_connection=residual_connection
         self.shared_We = shared_We
-        self.dropout_rate=dropout_rate
-        self.dropout_mode=0
         self.optim_mode=0 #deprecated
         self.fast_convolve=False
         self.init_fixed=False
         self.logit_convolve=False
         self.train_Wn0=True
+
+        self.dropout_rate_edge_feat= 0.0
+        self.dropout_rate_edge = 0.0
+        self.dropout_rate_node = 0.0
+        self.dropout_rate_H    = 0.0
+
 
         if node_indim==-1:
             self.node_indim=self.node_dim
@@ -511,7 +515,7 @@ class EdgeConvNet(MultiGraphNN):
             self.node_indim=node_indim
 
 
-    def fastconvolve(self,Wedge,F,S,T,H,nconv,Sshape,nb_edge,stack=True):
+    def fastconvolve(self,Wedge,F,S,T,H,nconv,Sshape,nb_edge,dropout_p_edge,dropout_p_edge_feat,stack=True, use_dropout=False):
         '''
 
         :param Wedge: Parameter matrix for edge convolution, with hape (n_conv_edge,edge_dim)
@@ -532,19 +536,36 @@ class EdgeConvNet(MultiGraphNN):
         #It woudl be faster
         #UnitTest for that
         FW= tf.matmul(F,Wedge,transpose_b=True)
+        #
+        #SHould I use dropout below too to dropout edges ?
+        if use_dropout:
+            FW= tf.nn.dropout(FW, 1.0 -dropout_p_edge_feat)
+
         self.conv =tf.unstack(FW,axis=1)
         Cops=[]
 
         #Here we transospose the target tensor direclty
         Tr = tf.SparseTensor(indices=T, values=tf.ones([nb_edge], dtype=tf.float32), dense_shape=[Sshape[1],Sshape[0]])
         Tr = tf.sparse_reorder(Tr)
+        #if use_dropout:
+        #    Tr =tf.nn.dropout(Tr, 1.0 -dropout_p_edge)
         TP = tf.sparse_tensor_dense_matmul(Tr,H)
+
+
 
         for i, cw in enumerate(self.conv):
             #SD= tf.SparseTensor(indices=S,values=cw,dense_shape=[nb_node,nb_edge])
             #Warning, pay attention to the ordering of edges
-            SD = tf.SparseTensor(indices=S, values=cw, dense_shape=Sshape)
+            if use_dropout:
+                cwd = tf.nn.dropout(cw, 1.0 -dropout_p_edge)
+                SD = tf.SparseTensor(indices=S, values=cwd, dense_shape=Sshape)
+            else:
+                SD = tf.SparseTensor(indices=S, values=cw, dense_shape=Sshape)
             SD =tf.sparse_reorder(SD)
+            #Does this dropout depends on the convolution ?
+            #if use_dropout:
+            #    SD = tf.nn.dropout(SD, 1.0 - dropout_p_edge)
+
             Hi =tf.sparse_tensor_dense_matmul(SD,TP)
             Cops.append(Hi)
 
@@ -569,7 +590,10 @@ class EdgeConvNet(MultiGraphNN):
         self.y_input    = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
         self.EA_input   = tf.placeholder(tf.float32, name='EA_input')
         self.NA_input   = tf.placeholder(tf.float32, name='NA_input')
-        self.dropout_p  = tf.placeholder(tf.float32,(), name='dropout_prob')
+        self.dropout_p_H    = tf.placeholder(tf.float32,(), name='dropout_prob_H')
+        self.dropout_p_node = tf.placeholder(tf.float32, (), name='dropout_prob_N')
+        self.dropout_p_edge = tf.placeholder(tf.float32, (), name='dropout_prob_edges')
+        self.dropout_p_edge_feat = tf.placeholder(tf.float32, (), name='dropout_prob_edgefeat')
         self.S          = tf.placeholder(tf.float32, name='S')
         self.Ssparse    = tf.placeholder(tf.int64, name='Ssparse') #indices
         self.Sshape     = tf.placeholder(tf.int64, name='Sshape') #indices
@@ -671,16 +695,19 @@ class EdgeConvNet(MultiGraphNN):
         #Use for true add
         #I = tf.eye(self.nb_node)
 
-        self.node_dropout_ind = tf.nn.dropout(tf.ones([self.nb_node], dtype=tf.float32), 1 - self.dropout_p)
+        self.node_dropout_ind = tf.nn.dropout(tf.ones([self.nb_node], dtype=tf.float32), 1 - self.dropout_p_node)
         self.ND = tf.diag(self.node_dropout_ind)
 
+        edge_dropout = self.dropout_rate_edge> 0.0 or self.dropout_rate_edge_feat > 0.0
+        print('Edge Dropout',edge_dropout, self.dropout_rate_edge,self.dropout_rate_edge_feat)
         if self.num_layers==1:
             self.H = self.activation(tf.add(tf.matmul(self.node_input, Wnl0), Bnl0))
             self.hidden_layers = [self.H]
             print("H shape",self.H.get_shape())
 
-            P = self.fastconvolve(self.Wel0,self.F,self.Ssparse,self.Tsparse,self.H,self.nconv_edge,self.Sshape,self.nb_edge,stack=self.stack_instead_add)
 
+            P = self.fastconvolve(self.Wel0,self.F,self.Ssparse,self.Tsparse,self.H,self.nconv_edge,self.Sshape,self.nb_edge,
+                                  self.dropout_p_edge,self.dropout_p_edge_feat,stack=self.stack_instead_add,use_dropout=edge_dropout)
 
             Hp = tf.concat([self.H, P], 1)
             #Hp= P+self.H
@@ -692,7 +719,7 @@ class EdgeConvNet(MultiGraphNN):
 
         elif self.num_layers>1:
 
-            if self.dropout_mode==1:
+            if self.dropout_rate_node>0.0:
                 H0 = self.activation(tf.matmul(self.ND,tf.add(tf.matmul(self.node_input, Wnl0), Bnl0)))
             else:
                 H0 = self.activation(tf.add(tf.matmul(self.node_input,Wnl0),Bnl0))
@@ -700,10 +727,8 @@ class EdgeConvNet(MultiGraphNN):
             self.Hnode_layers.append(H0)
 
             #TODO Default to fast convolve but we change update configs, train and test flags
-
-            P = self.fastconvolve(self.Wel0, self.F, self.Ssparse, self.Tsparse, H0, self.nconv_edge,
-                                      self.Sshape, self.nb_edge, stack=self.stack_instead_add)
-
+            P = self.fastconvolve(self.Wel0, self.F, self.Ssparse, self.Tsparse, H0, self.nconv_edge, self.Sshape,self.nb_edge,
+                                  self.dropout_p_edge,self.dropout_p_edge_feat, stack=self.stack_instead_add, use_dropout=edge_dropout)
 
             Hp = tf.concat([H0, P], 1)
             self.hidden_layers = [Hp]
@@ -711,8 +736,8 @@ class EdgeConvNet(MultiGraphNN):
 
             for i in range(self.num_layers-1):
 
-                if self.dropout_mode == 2:
-                    Hi_ = tf.nn.dropout(tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i]), 1-self.dropout_p)
+                if self.dropout_rate_H > 0.0:
+                    Hi_ = tf.nn.dropout(tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i]), 1-self.dropout_p_H)
                 else:
                     Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i])
 
@@ -724,12 +749,9 @@ class EdgeConvNet(MultiGraphNN):
                 print('Hi_shape',Hi_.get_shape())
                 print('Hi prevous shape',self.hidden_layers[-1].get_shape())
 
-                P = self.fastconvolve(self.Wed_layers[i], self.F, self.Ssparse, self.Tsparse, Hi_, self.nconv_edge,
-                                          self.Sshape, self.nb_edge, stack=self.stack_instead_add)
+                P = self.fastconvolve(self.Wed_layers[i], self.F, self.Ssparse, self.Tsparse, Hi_, self.nconv_edge,self.Sshape, self.nb_edge,
+                                      self.dropout_p_edge,self.dropout_p_edge_feat, stack=self.stack_instead_add, use_dropout=edge_dropout)
 
-                if self.dropout_mode== 4:
-                    #Dropout -Edge
-                    P = tf.nn.dropout(P, 1 - self.dropout_p)
 
                 Hp = tf.concat([Hi_, P], 1)
                 Hi = self.activation(Hp)
@@ -825,7 +847,7 @@ class EdgeConvNet(MultiGraphNN):
         #TrainEvalSet Here
         for i in range(n_iter):
             #print('Train',X.shape,EA.shape)
-
+            #print('DropoutEdges',self.dropout_rate_edge)
             feed_batch = {
 
                 self.nb_node: graph.X.shape[0],
@@ -836,7 +858,10 @@ class EdgeConvNet(MultiGraphNN):
                 self.Tsparse: np.array(graph.Tind, dtype='int64'),
                 self.F: graph.F,
                 self.y_input: graph.Y,
-                self.dropout_p: self.dropout_rate
+                self.dropout_p_H: self.dropout_rate_H,
+                self.dropout_p_node: self.dropout_rate_node,
+                self.dropout_p_edge: self.dropout_rate_edge,
+                self.dropout_p_edge_feat: self.dropout_rate_edge_feat
             }
 
             Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
@@ -866,7 +891,10 @@ class EdgeConvNet(MultiGraphNN):
 
             self.F: graph.F,
             self.y_input: graph.Y,
-            self.dropout_p: 0.0
+            self.dropout_p_H: 0.0,
+            self.dropout_p_node: 0.0,
+            self.dropout_p_edge: 0.0,
+            self.dropout_p_edge_feat: 0.0
         }
 
         Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
@@ -894,12 +922,34 @@ class EdgeConvNet(MultiGraphNN):
             self.Tsparse: np.array(graph.Tind, dtype='int64'),
             # fast_gcn.T: np.asarray(graph.T.todense()).squeeze(),
             self.F: graph.F,
-            self.dropout_p: 0
+            self.dropout_p_H: 0.0,
+            self.dropout_p_node: 0.0,
+            self.dropout_p_edge: 0.0,
+            self.dropout_p_edge_feat: 0.0
         }
         Ops = session.run([self.pred], feed_dict=feed_batch)
         if verbose:
             print('Got Prediction for:',Ops[0].shape)
         return Ops[0]
+
+
+    def train_All_lG(self,session,gcn_graph_train):
+        '''
+        Train an a list of graph
+        :param session:
+        :param gcn_graph_train:
+        :return:
+        '''
+
+        raise NotImplementedError
+        Xg=[g.X for g in gcn_graph_train]
+        Yg=[g.Y for g in gcn_graph_train]
+        Eg=[g.E for g in gcn_graph_train]
+
+        #Node Ids are not the same for edges
+
+        for g in gcn_graph_train:
+            self.train(session, g, n_iter=1)
 
 
 

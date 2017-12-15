@@ -5,7 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 import sys, os
-
+from pprint import pprint
 import numpy as np
 import tensorflow as tf
 
@@ -642,121 +642,28 @@ def get_config(config_id=0):
         config['dropout_p'] = 0.3
         config['dropout_mode'] = 2
 
+    elif config_id==48:
+        #same as 5 but with less iterations
+        #in order to measure predictions time
+        config['nb_iter'] = 500
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.0
+        config['num_layers'] = 3
+        config['node_indim'] = -1 #INDIM =2 not working here
+        config['nconv_edge'] = 10
+        config['fast_convolve']=True
+        #config['dropout_rate_edge']=0.2
+        #config['dropout_rate_edge_feat'] = 0.0
+        config['dropout_rate_node'] = 0.2
+
+
+
 
     else:
         raise NotImplementedError
 
     return config
-
-#TODO Remove, Deprecated
-def run_model(gcn_graph, config_params, gcn_graph_test,eval_iter=10):
-    g_1 = tf.Graph()
-    with g_1.as_default():
-
-        node_dim = gcn_graph[0].X.shape[1]
-        edge_dim = gcn_graph[0].E.shape[1] - 2.0
-        nb_class = gcn_graph[0].Y.shape[1]
-
-
-        if 'snake' in config_params:
-            gcn_model = gcn_models.EdgeSnake(node_dim, edge_dim, nb_class,
-                                                     num_layers=config_params['num_layers'],
-                                                     learning_rate=config_params['lr'],
-                                                     mu=config_params['mu'],
-                                                     node_indim=config_params['node_indim'],
-                                                     nconv_edge=config_params['nconv_edge'],
-                                                     residual_connection=config_params[
-                                                         'residual_connection'] if 'residual_connection' in config_params else False,
-                                                     shared_We=config_params[
-                                                         'shared_We'] if 'shared_We' in config_params else False,
-                                                     dropout_rate=config_params[
-                                                         'dropout_rate'] if 'dropout_rate' in config_params else 0.0,
-                                                     dropout_mode=config_params[
-                                                         'dropout_mode'] if 'dropout_mode' in config_params else 0,
-                                                     )
-        else:
-
-
-
-            gcn_model = gcn_models.EdgeConvNet(node_dim, edge_dim, nb_class,
-                                                     num_layers=config_params['num_layers'],
-                                                     learning_rate=config_params['lr'],
-                                                     mu=config_params['mu'],
-                                                     node_indim=config_params['node_indim'],
-                                                     nconv_edge=config_params['nconv_edge'],
-                                                     residual_connection=config_params[
-                                                         'residual_connection'] if 'residual_connection' in config_params else False,
-                                                     shared_We=config_params[
-                                                         'shared_We'] if 'shared_We'  in config_params else False,
-                                                     dropout_rate=config_params['dropout_rate'] if 'dropout_rate' in config_params else 0.0,
-                                                     dropout_mode=config_params['dropout_mode'] if 'dropout_mode' in config_params else 0,
-                                                     )
-        if 'activation' in config_params:
-            gcn_model.activation=config_params['activation']
-
-        gcn_model.stack_instead_add = config_params['stack_instead_add']
-        if 'opti' in config_params:
-            gcn_model.optalg=config_params['opti']
-
-        if 'fast_convolve' in config_params:
-            gcn_model.fast_convolve = config_params['fast_convolve']
-
-        #print('################"')
-        #print('## Decaying the learning Rate"')
-        #print('################"')
-        gcn_model.optim_mode=0 #Deprecated TODO REMOVE
-        gcn_model.create_model()
-
-
-        train_acc=[]
-        test_acc=[]
-
-
-        with tf.Session() as session:
-            session.run([gcn_model.init])
-            for i in range(config_params['nb_iter']):
-                random.shuffle(gcn_graph)
-                if i % eval_iter == 0:
-                    print('Epoch', i)
-                    mean_acc = []
-                    for g in gcn_graph:
-                        #                        print('G Stats #node,#edge',g.X.shape[0],g.E.shape[0])
-                        acc = gcn_model.test(session, g.X.shape[0], g.X, g.EA, g.Y, g.NA, verbose=False)
-                        mean_acc.append(acc)
-                    print('Mean Accuracy', np.mean(mean_acc))
-                    train_acc.append(np.mean(mean_acc))
-
-
-                    print('Test Error')
-                    gcn_model.test_lG(session,gcn_graph_test)
-
-
-                for g in gcn_graph:
-                    gcn_model.train(session, g, n_iter=1)
-
-                #print("Bigraph Train",'Adjacency Not set')
-                #gcn_model.train_batch_lG(session,gcn_graph)
-
-
-            mean_acc = []
-            print('Training Error')
-            for g in gcn_graph:
-                print('G Stats #node,#edge', g.X.shape[0], g.E.shape[0])
-                acc = gcn_model.test(session, g.X.shape[0], g.X, g.EA, g.Y, g.NA)
-                mean_acc.append(acc)
-            print('Mean Accuracy', np.mean(mean_acc))
-
-            print('Test Error')
-            mean_acc_test = []
-            for g in gcn_graph_test:
-                print('G Stats #node,#edge', g.X.shape[0], g.E.shape[0])
-                acc = gcn_model.test(session, g.X.shape[0], g.X, g.EA, g.Y, g.NA)
-                mean_acc_test.append(acc)
-            print('Mean Accuracy', np.mean(mean_acc_test))
-    return mean_acc_test
-
-
-
 
 
 def run_model_train_val_test(gcn_graph,
@@ -806,7 +713,22 @@ def run_model_train_val_test(gcn_graph,
             if 'train_Wn0' in config_params:
                 gcn_model.train_Wn0= config_params['train_Wn0']
 
+            if 'dropout_rate_edge' in config_params:
+                gcn_model.dropout_rate_edge=config_params['dropout_rate_edge']
+                print('Dropout Edge', gcn_model.dropout_rate_edge)
+
+            if 'dropout_rate_edge_feat' in config_params:
+                gcn_model.dropout_rate_edge_feat=config_params['dropout_rate_edge_feat']
+                print('Dropout Edge', gcn_model.dropout_rate_edge_feat)
+
+            if 'dropout_rate_node' in config_params:
+                gcn_model.dropout_rate_node=config_params['dropout_rate_node']
+                print('Dropout Node', gcn_model.dropout_rate_node)
+
+
+
         gcn_model.create_model()
+
 
 
         #Split Training to get some validation
