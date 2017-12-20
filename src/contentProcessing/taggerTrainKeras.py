@@ -838,7 +838,7 @@ class DeepTagger():
 if __name__ == '__main__':
     
     cmp = DeepTagger()
-    cmp.parser = OptionParser(usage="", version="0.1")
+    cmp.parser = OptionParser(usage="", version="1.0")
     cmp.parser.description = "BiLSTM approach for NER"
     cmp.parser.add_option("--name", dest="name",  action="store", type="string", help="model name")
     cmp.parser.add_option("--dir", dest="dirname",  action="store", type="string", help="directory to store model")
