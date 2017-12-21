@@ -36,7 +36,7 @@ from gcn.gcn_models import DummyGCNModel, EdgeConvNet
 import sklearn
 import sklearn.metrics
 
-from crf.TestReport import TestReport
+
 
 def make_fake_gcn_dataset():
     '''
@@ -345,6 +345,61 @@ class UT_gcn(unittest.TestCase):
 
         #tstRep = TestReport('UT_test',lY_pred,[np.argmax(graph.Y,axis=1) for graph in gcn_graph_train],None)
         #print(tstRep.getClassificationReport())
+
+    def test_logit_convolve(self):
+        # 3 nodes a;b,c  a<->b and c<->b   a->b<c>
+        X = np.array([[1.0, 2.0], [6.3, 1.0], [4.3, -2.0]])
+        Y = np.array([[1, 0], [0, 1.0], [1.0, 0.0]])
+        E = np.array([[0, 1, 1.0, 1, 0], #edge a->b
+                      [1, 0, 1.0, 0, 1], #edge b->a
+                      [2, 1, 1.0, 0.0, 1.0]
+                      ])
+
+        nb_node=3
+        gA = GCNDataset('GLogitConvolve')
+        gA.X = X
+        gA.Y = Y
+        gA.E = E
+        gA.A = sp.coo_matrix((np.ones(E.shape[0]), (E[:, 0], E[:, 1])), shape=(nb_node, nb_node))
+
+        gA.compute_NodeEdgeMat()
+        gA.compute_NA()
+
+        #Test in degree out_degree
+        print(gA.in_degree,gA.out_degree)
+        self.assertAlmostEqual(2,gA.in_degree[1])
+        print(gA.NA_indegree)
+
+        self.assertAlmostEqual(0.5,gA.NA_indegree[1,0])
+        #self.assertAlmostEqual(2, gA.indegree[1])
+        #now assuming P(Y|a)=[1,0] P(Y|c)=[1,0] and current P(Y|b)=[0.5,0.5]
+        pY = np.array([[1, 0], [0.5, 0.5], [0.8, 0.2]])
+        #Node b  has two edges
+        # Yt=[0 1;1 0]
+
+        Yt = np.array([[0.0,1.0],[1.0, 0.0]])
+
+
+        pY_Yt = tf.matmul(pY, Yt, transpose_b=True)
+
+        Yt_sum = EdgeConvNet.logitconvolve_fixed(pY,Yt,gA.NA_indegree)
+
+
+        init = tf.global_variables_initializer()
+        with tf.Session() as session:
+            session.run(init)
+            Ytt = session.run(pY_Yt)
+            print(Ytt)
+            Res = session.run(Yt_sum)
+            print(Res)
+
+        #Still buggy for nodes which no incoming edges ...
+        #this is not our case ?
+        #the formulation is false is this case adding zeros
+        # we shoudl add a uniform distribution
+        #we should mask it then ...
+        # Add a Yt_sum which is zero everywhere except for zero indegree node for which it is uniform
+
 
 
 
