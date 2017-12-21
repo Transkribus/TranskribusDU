@@ -38,8 +38,10 @@ class GCNDataset(object):
     def print_stats(self):
         print('X:',self.X.shape)
         print('Y:',self.Y.shape,' class distrib:',np.bincount(np.argmax(self.Y,axis=1)))
-        print('A:',self.A.shape)
-        print('E:',self.E.shape)
+        if self.A is not None:
+            print('A:',self.A.shape)
+        if self.E is not None:
+            print('E:',self.E.shape)
 
     #deprecated
     def compute_EA(self):
@@ -94,6 +96,11 @@ class GCNDataset(object):
         :return:
         '''
         # Here we add 1.0 and the identity matrix to account for the self-loop
+        #Is this correct with sparse matrix ?
+
+        self.out_degree =np.asarray(self.A.sum(axis=1)).squeeze()
+        self.in_degree  =np.asarray(self.A.sum(axis=0)).squeeze()
+
         degree_vect=np.asarray(self.A.sum(axis=1)).squeeze()
         #print(degree_vect)
         Dinv_ = np.diag(np.power(1.0+degree_vect,-0.5))
@@ -103,6 +110,17 @@ class GCNDataset(object):
         #TODO Check how this dot deals with the matrix multiplication with sparse matrix
         N = np.dot(Dinv_, (Adense + np.identity(self.A.shape[0]) ).dot(Dinv_))
         self.NA=N
+
+        #
+        inv_indegree = [1.0 / x if x > 0 else 0.0 for x in self.in_degree]
+        #This is now a dense matrix ... #should store as sparse
+        self.NA_indegree= np.dot( np.diag(inv_indegree) , Adense.T)
+
+        # I could add a self loop Here
+        #inv_indegree = [1.0 /(x+1.0) for x in self.in_degree]
+        # This is now a dense matrix ... #should store as sparse
+        #self.NA_indegree= np.dot( np.diag(inv_indegree) , Adense.T + np.identity(Adense.shape[0]))
+
 
     def normalize(self):
         '''
@@ -317,6 +335,33 @@ class GCNDataset(object):
 
         graph.Y=np.vstack((graph_a.Y,graph_b.Y))
 
+        return graph
+
+    @staticmethod
+    def merge_allgraph(graph_list,name='graph_list'):
+        graph = GCNDataset('Union_' + name)
+
+        Xg = [g.X for g in graph_list]
+        Yg = [g.Y for g in graph_list]
+        Eg = []
+
+        nb_nodes=[g.X.shape[0] for g in graph_list]
+
+        shiftid =  np.cumsum([0]+nb_nodes)
+        for delta,g in zip(shiftid,graph_list):
+            E=np.array(g.E)
+            E[:,0] += delta
+            E[:,1] += delta
+            Eg.append(E)
+
+        # Node Ids are not the same for edges
+        graph.X = np.vstack(Xg)
+        graph.Y = np.vstack(Yg)
+        graph.E = np.vstack(Eg)
+
+        graph.compute_NodeEdgeMat()
+
+        graph.print_stats()
         return graph
 
 

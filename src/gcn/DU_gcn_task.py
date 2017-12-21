@@ -562,7 +562,7 @@ def get_config(config_id=0):
         config['mu'] = 0.000
         config['num_layers'] = 3
         config['node_indim'] = -1  # INDIM =2 not working here
-        config['nconv_edge'] = 4
+        config['nconv_edge'] = 10
         config['fast_convolve'] = True
         config['logit_convolve'] = True
 
@@ -646,7 +646,7 @@ def get_config(config_id=0):
         #same as 5 but with less iterations
         #in order to measure predictions time
         config['nb_iter'] = 500
-        config['lr'] = 0.001
+        config['lr'] = 0.00001
         config['stack_instead_add'] = True
         config['mu'] = 0.0
         config['num_layers'] = 3
@@ -655,9 +655,43 @@ def get_config(config_id=0):
         config['fast_convolve']=True
         #config['dropout_rate_edge']=0.2
         #config['dropout_rate_edge_feat'] = 0.0
-        config['dropout_rate_node'] = 0.2
+        #config['dropout_rate_node'] = 0.2
 
+    elif config_id == 49:
+        # Same as 28 but with fast convolve
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.000
+        config['num_layers'] = 2
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 4
+        config['fast_convolve'] = True
+        config['logit_convolve'] = False
 
+    elif config_id == 50:
+        # Same as 28 but with fast convolve
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.000
+        config['num_layers'] = 8
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 1
+        config['fast_convolve'] = True
+        config['logit_convolve'] = False
+
+    elif config_id == 51:
+        # Same as 28 but with fast convolve
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.000
+        config['num_layers'] = 3
+        config['node_indim'] = 50  # INDIM =2 not working here
+        config['nconv_edge'] = 4
+        config['fast_convolve'] = False
+        config['logit_convolve'] = False
 
 
     else:
@@ -745,7 +779,7 @@ def run_model_train_val_test(gcn_graph,
             session.run([gcn_model.init])
 
             R=gcn_model.train_with_validation_set(session,gcn_graph_train,gcn_graph_val,config_params['nb_iter'],eval_iter=10,patience=1000,graph_test=gcn_graph_test,save_model_path=save_model_path)
-
+            #R=gcn_model.train_All_lG(session,gcn_graph_train,gcn_graph_val,config_params['nb_iter'],eval_iter=10,patience=1000,graph_test=gcn_graph_test,save_model_path=save_model_path)
             f=open(outpicklefname,'wb')
             pickle.dump(R,f)
             f.close()

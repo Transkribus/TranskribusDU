@@ -12,6 +12,8 @@ import random
 import sklearn
 import sklearn.metrics
 import time
+import gcn_datasets
+
 
 def init_glorot(shape, name=None):
     """Glorot & Bengio (AISTATS 2010) init."""
@@ -284,7 +286,8 @@ class MultiGraphNN(object):
                     #    Ypred_flat.extend(ypred)
                     #cm = sklearn.metrics.confusion_matrix(Y_true_flat, Ypred_flat)
                     #conf_mat.append(cm)
-
+                    #Yt = session.run(self.logits_Transition)
+                    #print('Yt',Yt)
 
                 #TODO min_delta
                 #if tr_acc>0.99:
@@ -515,7 +518,7 @@ class EdgeConvNet(MultiGraphNN):
             self.node_indim=node_indim
 
 
-    def fastconvolve(self,Wedge,F,S,T,H,nconv,Sshape,nb_edge,dropout_p_edge,dropout_p_edge_feat,stack=True, use_dropout=False):
+    def fastconvolve(self,Wedge,Bedge,F,S,T,H,nconv,Sshape,nb_edge,dropout_p_edge,dropout_p_edge_feat,stack=True, use_dropout=False):
         '''
 
         :param Wedge: Parameter matrix for edge convolution, with hape (n_conv_edge,edge_dim)
@@ -535,7 +538,7 @@ class EdgeConvNet(MultiGraphNN):
         #TODO if stack is False we could simply sum,the convolutions and do S diag(sum)T
         #It woudl be faster
         #UnitTest for that
-        FW= tf.matmul(F,Wedge,transpose_b=True)
+        FW= tf.matmul(F,Wedge,transpose_b=True) +Bedge
         #
         #SHould I use dropout below too to dropout edges ?
         if use_dropout:
@@ -578,6 +581,20 @@ class EdgeConvNet(MultiGraphNN):
             #print('p_add_n',P.get_shape())
         return P
 
+    @staticmethod
+    def logitconvolve_fixed(pY,Yt,A_indegree):
+        '''
+        Tentative Implement of a fixed logit convolve without taking into account edge features
+        '''
+
+        #warning we should test that Yt is column normalized
+        pY_Yt = tf.matmul(pY,Yt,transpose_b=True)
+
+        #TODO A is dense but shoudl be sparse ....
+        P =tf.matmul(A_indegree,pY_Yt)
+        return P
+
+
 
     def create_model(self):
         '''
@@ -604,6 +621,10 @@ class EdgeConvNet(MultiGraphNN):
         #self.S_indice = tf.placeholder(tf.in, [None, None], name='S')
 
         self.F          = tf.placeholder(tf.float32,[None,None], name='F')
+
+
+        self.NA_indegree = tf.placeholder(tf.float32, name='NA_indegree')
+
 
         #TODO Add Bias
         #TODO Dropout Options, node, layer node, convolution,mixture of this --> each variant -> options
@@ -633,14 +654,18 @@ class EdgeConvNet(MultiGraphNN):
         else:
             self.Wel0 = init_glorot([int(self.nconv_edge),int(self.edge_dim)],name='Wel0')
 
+        self.Bel0 = tf.Variable(0.01*tf.ones([self.nconv_edge]), name='Bel0' , dtype=tf.float32)
         print('Wel0',self.Wel0.get_shape())
         train_var.extend([Wnl0,Bnl0])
         train_var.append(self.Wel0)
 
         #Parameter for convolving the logits
         if self.logit_convolve:
-            self.Wel_logits = init_glorot([int(self.nconv_edge),int(self.edge_dim)],name='Wel_logit')
-            self.logits_Transition = tf.Variable(tf.ones([int(self.n_classes), int(self.n_classes)]), name='logit_Transition')
+            #self.Wel_logits = init_glorot([int(self.nconv_edge),int(self.edge_dim)],name='Wel_logit')
+            #self.Belg = tf.Variable(tf.zeros( [int(self.nconv_edge)]), name='Belogit' , dtype=tf.float32)
+            self.Wel_logits = tf.Variable(tf.zeros([int(1),int(self.edge_dim)]), name='Wlogit0',dtype=tf.float32,trainable=False)
+            self.Belg = tf.Variable(tf.ones( [int(1)]), name='Belogit' , dtype=tf.float32)
+            self.logits_Transition = 1.0*tf.Variable(tf.ones([int(self.n_classes) , int(self.n_classes)]), name='logit_Transition')
 
         #self.Wed_layers.append(Wel0)
         for i in range(self.num_layers-1):
@@ -654,18 +679,18 @@ class EdgeConvNet(MultiGraphNN):
                                                                    -1.0 / math.sqrt(self.node_indim),
                                                                    1.0 / math.sqrt(self.node_indim)),name='Wnl',dtype=tf.float32)
 
-            #Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
+            Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
 
             #Weli = tf.Variable(tf.ones([int(self.nconv_edge),int(self.edge_dim)],dtype=tf.float32))
             Weli= init_glorot([int(self.nconv_edge), int(self.edge_dim)], name='Wel_')
             #Weli = tf.Variable(tf.random_normal([int(self.nconv_edge), int(self.edge_dim)], mean=0.0, stddev=1.0),
             #                   dtype=np.float32, name='Wel_')
-            #Beli = tf.Variable(tf.zeros([self.edge_dim]), name='Bel'+str(i),dtype=tf.float32)
+            Beli = tf.Variable(0.01*tf.ones([self.nconv_edge]), name='Bel'+str(i),dtype=tf.float32)
 
             self.Wnode_layers.append(Wnli)
-            #self.Bnode_layers.append(Bnli)
+            self.Bnode_layers.append(Bnli)
             self.Wed_layers.append  (Weli)
-            #self.Bed_layers.append(Beli)
+            self.Bed_layers.append(Beli)
 
         train_var.extend((self.Wnode_layers))
         train_var.extend((self.Wed_layers))
@@ -706,7 +731,7 @@ class EdgeConvNet(MultiGraphNN):
             print("H shape",self.H.get_shape())
 
 
-            P = self.fastconvolve(self.Wel0,self.F,self.Ssparse,self.Tsparse,self.H,self.nconv_edge,self.Sshape,self.nb_edge,
+            P = self.fastconvolve(self.Wel0,self.Bel0,self.F,self.Ssparse,self.Tsparse,self.H,self.nconv_edge,self.Sshape,self.nb_edge,
                                   self.dropout_p_edge,self.dropout_p_edge_feat,stack=self.stack_instead_add,use_dropout=edge_dropout)
 
             Hp = tf.concat([self.H, P], 1)
@@ -727,7 +752,7 @@ class EdgeConvNet(MultiGraphNN):
             self.Hnode_layers.append(H0)
 
             #TODO Default to fast convolve but we change update configs, train and test flags
-            P = self.fastconvolve(self.Wel0, self.F, self.Ssparse, self.Tsparse, H0, self.nconv_edge, self.Sshape,self.nb_edge,
+            P = self.fastconvolve(self.Wel0,self.Bel0, self.F, self.Ssparse, self.Tsparse, H0, self.nconv_edge, self.Sshape,self.nb_edge,
                                   self.dropout_p_edge,self.dropout_p_edge_feat, stack=self.stack_instead_add, use_dropout=edge_dropout)
 
             Hp = tf.concat([H0, P], 1)
@@ -737,9 +762,9 @@ class EdgeConvNet(MultiGraphNN):
             for i in range(self.num_layers-1):
 
                 if self.dropout_rate_H > 0.0:
-                    Hi_ = tf.nn.dropout(tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i]), 1-self.dropout_p_H)
+                    Hi_ = tf.nn.dropout(tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i]) + self.Bnode_layers[i], 1-self.dropout_p_H)
                 else:
-                    Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i])
+                    Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i]) + self.Bnode_layers[i]
 
                 if self.residual_connection:
                     Hi_= tf.add(Hi_,self.Hnode_layers[-1])
@@ -749,7 +774,7 @@ class EdgeConvNet(MultiGraphNN):
                 print('Hi_shape',Hi_.get_shape())
                 print('Hi prevous shape',self.hidden_layers[-1].get_shape())
 
-                P = self.fastconvolve(self.Wed_layers[i], self.F, self.Ssparse, self.Tsparse, Hi_, self.nconv_edge,self.Sshape, self.nb_edge,
+                P = self.fastconvolve(self.Wed_layers[i],self.Bed_layers[i], self.F, self.Ssparse, self.Tsparse, Hi_, self.nconv_edge,self.Sshape, self.nb_edge,
                                       self.dropout_p_edge,self.dropout_p_edge_feat, stack=self.stack_instead_add, use_dropout=edge_dropout)
 
 
@@ -764,16 +789,27 @@ class EdgeConvNet(MultiGraphNN):
             cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
         else:
         # TODO Convolve Logits and learn a transition matrix   #Reduce_sum, reduce_max ? use Dropout ?
-            #Ideally I should convolve the predition and not the logits
             #I would need to have my own cross entropy function , smooth it
             #add entropy regulaztion
-            #this is the current logit multiply by  Transition matrix
-            #check that we are not summing indeed in a correct direction
+
             self.logits = tf.add(tf.matmul(self.hidden_layers[-1], self.W_classif), self.B_classif)
-            self.logits_T = tf.matmul(self.logits,self.logits_Transition)
-            self.logits_convolve= tf.nn.dropout(self.fastconvolve(self.Wel_logits,self.F,self.Ssparse,self.Tsparse,self.logits_T,10,self.Sshape, self.nb_edge, stack=False),keep_prob=0.5)
-            #does not work. investigate ...
-            cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits+self.logits_convolve, labels=self.y_input)
+            #self.pY  = tf.nn.softmax(self.logits)
+            #self.Yt = tf.nn.softmax(self.logits_Transition)
+
+            #Tentative try on convolving the logit  and not the predictions
+            self.pY = self.logits
+            self.Yt = self.logits_Transition
+
+            Yt_sum = EdgeConvNet.logitconvolve_fixed(self.pY, self.Yt, self.NA_indegree)
+
+
+
+            #self.pY_pred = 0.5*self.pY+0.5*Yt_sum
+            #cross_entropy_source = tf.reduce_mean(-tf.reduce_sum(self.y_input * tf.log(self.pY_pred), reduction_indices=[1]))
+
+            cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits+Yt_sum, labels=self.y_input)
+
+
 
         # Global L2 Regulization
         self.loss = tf.reduce_mean(cross_entropy_source)  + self.mu * tf.nn.l2_loss(self.W_classif)
@@ -861,7 +897,8 @@ class EdgeConvNet(MultiGraphNN):
                 self.dropout_p_H: self.dropout_rate_H,
                 self.dropout_p_node: self.dropout_rate_node,
                 self.dropout_p_edge: self.dropout_rate_edge,
-                self.dropout_p_edge_feat: self.dropout_rate_edge_feat
+                self.dropout_p_edge_feat: self.dropout_rate_edge_feat,
+                self.NA_indegree:graph.NA_indegree
             }
 
             Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
@@ -894,7 +931,8 @@ class EdgeConvNet(MultiGraphNN):
             self.dropout_p_H: 0.0,
             self.dropout_p_node: 0.0,
             self.dropout_p_edge: 0.0,
-            self.dropout_p_edge_feat: 0.0
+            self.dropout_p_edge_feat: 0.0,
+            self.NA_indegree: graph.NA_indegree
         }
 
         Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
@@ -925,7 +963,8 @@ class EdgeConvNet(MultiGraphNN):
             self.dropout_p_H: 0.0,
             self.dropout_p_node: 0.0,
             self.dropout_p_edge: 0.0,
-            self.dropout_p_edge_feat: 0.0
+            self.dropout_p_edge_feat: 0.0,
+            self.NA_indegree: graph.NA_indegree
         }
         Ops = session.run([self.pred], feed_dict=feed_batch)
         if verbose:
@@ -933,23 +972,117 @@ class EdgeConvNet(MultiGraphNN):
         return Ops[0]
 
 
-    def train_All_lG(self,session,gcn_graph_train):
+    def train_All_lG(self,session,graph_train,graph_val, max_iter, eval_iter = 10, patience = 7, graph_test = None, save_model_path = None):
         '''
-        Train an a list of graph
+
+        Merge all the graph and train on them
+
         :param session:
-        :param gcn_graph_train:
-        :return:
+        :param graph_train: the list of graph to train on
+        :param graph_val:   the list of graph used for validation
+        :param max_iter:  maximum number of epochs
+        :param eval_iter: evaluate every eval_iter
+        :param patience: stopped training if accuracy is not improved on the validation set after patience_value
+        :param graph_test: Optional. If a test set is provided, then accuracy on the test set is reported
+        :param save_model_path: checkpoints filename to save the model.
+        :return: A Dictionary with training accuracies, validations accuracies and test accuracies if any, and the Wedge parameters
         '''
+        best_val_acc = 0.0
+        wait = 0
+        stop_training = False
+        stopped_iter = max_iter
+        train_accuracies = []
+        validation_accuracies = []
+        test_accuracies = []
+        conf_mat = []
 
-        raise NotImplementedError
-        Xg=[g.X for g in gcn_graph_train]
-        Yg=[g.Y for g in gcn_graph_train]
-        Eg=[g.E for g in gcn_graph_train]
+        start_monitoring_val_acc = False
 
-        #Node Ids are not the same for edges
+        # Not Efficient to compute this for
 
-        for g in gcn_graph_train:
-            self.train(session, g, n_iter=1)
+        merged_graph = gcn_datasets.GCNDataset.merge_allgraph(graph_train)
+
+        self.train(session, merged_graph, n_iter=1)
+
+        for i in range(max_iter):
+            if stop_training:
+                break
+
+            if i % eval_iter == 0:
+                print('\nEpoch', i)
+                _, tr_acc = self.test_lG(session, graph_train, verbose=False)
+                print(' Train Acc', '%.4f' % tr_acc)
+                train_accuracies.append(tr_acc)
+
+                _, node_acc = self.test_lG(session, graph_val, verbose=False)
+                print(' Valid Acc', '%.4f' % node_acc)
+                validation_accuracies.append(node_acc)
+
+                if save_model_path:
+                    save_path = self.saver.save(session, save_model_path, global_step=i)
+
+                if graph_test:
+                    _, test_acc = self.test_lG(session, graph_test, verbose=False)
+                    print('  Test Acc', '%.4f' % test_acc)
+                    test_accuracies.append(test_acc)
+
+
+                    # Ypred = self.predict_lG(session, graph_test,verbose=False)
+                    # Y_true_flat = []
+                    # Ypred_flat = []
+                    # for graph, ypred in zip(graph_test, Ypred):
+                    #    ytrue = np.argmax(graph.Y, axis=1)
+                    #    Y_true_flat.extend(ytrue)
+                    #    Ypred_flat.extend(ypred)
+                    # cm = sklearn.metrics.confusion_matrix(Y_true_flat, Ypred_flat)
+                    # conf_mat.append(cm)
+
+                # TODO min_delta
+                # if tr_acc>0.99:
+                #    start_monitoring_val_acc=True
+
+                if node_acc > best_val_acc:
+                    best_val_acc = node_acc
+                    wait = 0
+                else:
+                    if wait >= patience:
+                        stopped_iter = i
+                        stop_training = True
+                    wait += 1
+            else:
+
+                self.train(session, merged_graph, n_iter=1)
+        # Final Save
+        # if save_model_path:
+        # save_path = self.saver.save(session, save_model_path, global_step=i)
+        # TODO Add the final step
+        mean_acc = []
+        print('Stopped Model Training after', stopped_iter)
+        print('Val Accuracies', validation_accuracies)
+
+        print('Final Training Accuracy')
+        _, node_train_acc = self.test_lG(session, graph_train)
+        print('Train Mean Accuracy', '%.4f' % node_train_acc)
+
+        print('Final Valid Acc')
+        self.test_lG(session, graph_val)
+
+        R = {}
+        R['train_acc'] = train_accuracies
+        R['val_acc'] = validation_accuracies
+        R['test_acc'] = test_accuracies
+        R['stopped_iter'] = stopped_iter
+        R['confusion_matrix'] = conf_mat
+        # R['W_edge'] =self.get_Wedge(session)
+        if graph_test:
+            _, final_test_acc = self.test_lG(session, graph_test)
+            print('Final Test Acc', '%.4f' % final_test_acc)
+            R['final_test_acc'] = final_test_acc
+
+        return R
+
+
+
 
 
 
