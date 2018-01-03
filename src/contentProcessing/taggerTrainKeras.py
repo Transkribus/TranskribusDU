@@ -149,7 +149,7 @@ class DeepTagger():
             self.bTesting=True 
         
         if dParams.predict:
-            self._sent =dParams.predict.decode('latin-1')
+            self._sent =dParams.predict #.decode('latin-1')
             self.bPredict=True 
         
         
@@ -176,33 +176,32 @@ class DeepTagger():
         self.nbClasses = 0
         
         self.lClasses=[]
-               
+
+        lTmp=[]               
         for fname in lFName:
             f=codecs.open(fname,encoding='utf-8')
-        
-            lTmp=[]
             x=[]
             for l in f:
                 l = l.strip()
+                if l[:3] == '#  ':continue  # comments
                 if l =='EOS':
                     lTmp.append(x)
                     self.max_sentence_len = max(self.max_sentence_len,len(x))
                     x=[]
                 else:
                     try:
-                        a,b=l.split('\t')
-                        b1=b.split('_')[0]
-                        b2=b.split('_')[1]
+                        la=l.split('\t')
+                        b1=la[-1].split('_')[0]
+                        b2=la[-1].split('_')[1]
                     except  ValueError:
                         #print 'cannot find value and label in: %s'%(l)
                         continue
-                        
-                    assert len(b) != 0 
+                    assert len(la) != 0 
                     if b2 not in self.lClasses:
                         self.lClasses.append(b2)
                     if b1 not in self.lClasses:
                         self.lClasses.append(b1)
-                    x.append((a,(b1,b2)))
+                    x.append((la[0],(b1,b2)))
         
             if x != []:
                 lTmp.append(x)
@@ -230,8 +229,8 @@ class DeepTagger():
         lX = []
         lY = []    
         for sample in lTmp:
-            lX.append(map(lambda (x,y):x,sample))
-            lY.append(map(lambda (x,y):y,sample))
+            lX.append(list(map(lambda xy:xy[0],sample)))
+            lY.append(list(map(lambda xy:xy[1],sample)))
         
         del lTmp
         
@@ -247,29 +246,29 @@ class DeepTagger():
         self.nbClasses = 0
         
         self.lClasses=[]
-               
+
+        lTmp=[]               
         for fname in lFName:
             f=codecs.open(fname,encoding='utf-8')
-        
-            lTmp=[]
             x=[]
             for l in f:
                 l = l.strip()
+                if l[:3] == '#  ':continue  # comments
                 if l =='EOS':
                     lTmp.append(x)
                     self.max_sentence_len = max(self.max_sentence_len,len(x))
                     x=[]
                 else:
                     try:
-                        a,b=l.split('\t')
+                        la=l.split('\t')
+                        b1=la[-1]
                     except  ValueError:
-                        #print 'cannot find value and label in: %s'%(l)
-                        continue
-                        
-                    assert len(b) != 0 
-                    if b not in self.lClasses:
-                        self.lClasses.append(b)
-                    x.append((a,b))
+                        print ('cannot find value and label in: %s'%(l))
+                        sys.exit()
+                    assert len(la) != 0 
+                    if b1 not in self.lClasses:
+                        self.lClasses.append(b1)
+                    x.append((la[0],b1))                    
         
             if x != []:
                 lTmp.append(x)
@@ -297,11 +296,9 @@ class DeepTagger():
         lX = []
         lY = []    
         for sample in lTmp:
-            lX.append(map(lambda (x,y):x,sample))
-            lY.append(map(lambda (x,y):y,sample))
-        
+            lX.append(list(map(lambda xy:xy[0],sample)))
+            lY.append(list(map(lambda xy:xy[1],sample)))
         del lTmp
-        
         return lX,lY
 
     
@@ -312,27 +309,25 @@ class DeepTagger():
             loadModel first!
         """
         
-        
+        lTmp=[]
         for fname in lFName:
             f=codecs.open(fname,encoding='utf-8')
-        
-            lTmp=[]
             x=[]
             for l in f:
                 l = l.strip()
+                if l[:3] == '#  ':continue  # comments
                 if l =='EOS':
-                    if len(x)<=9:
+                    if x!=[]:
                         lTmp.append(x)
-                    x=[]
+                    x=[]                    
                 else:
                     try:
-                        a,b=l.split('\t')
+                        la=l.split('\t')
+                        b1=la[-1]
                     except  ValueError:
-                        #print 'cannot find value and label in: %s'%(l)
-                        continue
-                        
-                    assert len(b) != 0 
-                    x.append((a,b))
+                        print('cannot find value and label in: %s'%(l))
+                        sys.exit(1)
+                    x.append((la[0],b1))      
         
             if x != []:
                 lTmp.append(x)
@@ -341,39 +336,81 @@ class DeepTagger():
         lX = []
         lY = []    
         for sample in lTmp:
-            lX.append(map(lambda (x,y):x,sample))
-            lY.append(map(lambda (x,y):y,sample))
+            lX.append(list(map(lambda xy:xy[0],sample)))
+            lY.append(list(map(lambda xy:xy[1],sample)))
         
         del lTmp
         
         return lX,lY
 
+    def load_data_for_testing_Multitype(self,lFName):
+        """
+            load data as training data (x,y)
+            nbClasses must be known!
+            loadModel first!
+        """
+        
+        lTmp=[]
+        for fname in lFName:
+            f=codecs.open(fname,encoding='utf-8')
+            x=[]
+            for l in f:
+                l = l.strip()
+                if l[:3] == '#  ':continue  # comments
+                if l =='EOS':
+                    if x!=[]:
+                        lTmp.append(x)
+                    x=[]
+                else:
+                    try:
+                        la=l.split('\t')
+                        b1=la[-1].split('_')[0]
+                        b2=la[-1].split('_')[1]
+                    except  ValueError:
+                        print('ml:cannot find value and label in: %s'%(l))
+                        sys.exit()
+                    assert len(la) != 0 
+                    x.append((la[0],(b1,b2)))
+        
+            if x != []:
+                lTmp.append(x)
+            f.close()
+            
+        lX = []
+        lY = []    
+        for sample in lTmp:
+            lX.append(list(map(lambda xy:xy[0],sample)))
+            lY.append(list(map(lambda xy:xy[1],sample)))            
+        
+        del lTmp
+        
+        return lX,lY
 
     def storeModel(self,model, aux):
         """
             store model and auxillary data (transformer)
         """
         model.save('%s/%s.hd5'%(self.dirName,self.sModelName))
-        traceln('model dumped  in %s/%s.hd5' % (self.dirName,self.sModelName))        
+        print('model dumped  in %s/%s.hd5' % (self.dirName,self.sModelName))        
         
         #max_features,max_sentence_len, self.nbClasses,self.tag_vector , node_transformer
         cPickle.dump((self.bMultiType,self.maxngram,self.max_features,self.max_sentence_len,self.nbClasses,self.tag_vector,self.node_transformer),gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'wb'))
-        traceln('aux data dumped in %s/%s.%s' % (self.dirName,self.sModelName,self.sAux))        
+        print('aux data dumped in %s/%s.%s' % (self.dirName,self.sModelName,self.sAux))        
         
     def loadModels(self):
         """
             load models and aux data
         """
         self.model = load_model(os.path.join(self.dirName,self.sModelName+'.hd5'))
-        traceln('model loaded: %s/%s.hd5' % (self.dirName,self.sModelName))  
+        print('model loaded: %s/%s.hd5' % (self.dirName,self.sModelName))  
         try:
             self.bMultiType,self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses,self.tag_vector , self.node_transformer = cPickle.load(gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'r'))
         except:
             self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses,self.tag_vector , self.node_transformer = cPickle.load(gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'r'))
             self.bMultiType = False
-        traceln('aux data loaded: %s/%s.%s' % (self.dirName,self.sModelName,self.sAux))        
-        traceln("ngram: %s\tmaxfea=%s\tpadding=%s\tnbclasses=%s" % (self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses))
-        traceln("multitype model:%s"%(self.bMultiType))
+        print('aux data loaded: %s/%s.%s' % (self.dirName,self.sModelName,self.sAux))        
+        print("ngram: %s\tmaxfea=%s\tpadding=%s\tnbclasses=%s" % (self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses))
+        print("multitype model:%s"%(self.bMultiType))
         
     def training(self,traindata):
         """
@@ -398,9 +435,10 @@ class DeepTagger():
         model.add(Bidirectional(LSTM(self.hiddenSize,return_sequences = True,bias_regularizer=reg))) 
         model.add(Dropout(0.5))
         model.add(TimeDistributed(Dense(self.nbClasses, activation='softmax')))
+        #keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-08, decay=0.0)
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop',metrics=['categorical_accuracy']  )
-        print model.summary()
-        _ = model.fit(lX, lY, epochs = self.nbEpochs,batch_size = self.batch_size, verbose = 1,validation_split = 0.33, shuffle=True)
+        print (model.summary())
+        _ = model.fit(lX, lY, epochs = self.nbEpochs,batch_size = self.batch_size, verbose = 1,validation_split = 0.1, shuffle=True)
         
         del lX,lY
         
@@ -415,11 +453,10 @@ class DeepTagger():
         train_X,_ = traindata #self.load_data(self.lTrain)
         
         self.initTransformeur()
-        
         fX= [item  for sublist in train_X  for item in sublist ]
         self.node_transformer.fit(fX)
 #         
-        lX,(lY,lY2) = self.prepareTensor_multiptype(traindata)
+        lX,(lY,lY2) = self.prepareTensor_multitype(traindata)
 
 #         print lX.shape
 #         print lY.shape
@@ -436,7 +473,7 @@ class DeepTagger():
         model = Model(input = inputs,output = [out1,out2])
         
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop',metrics=['categorical_accuracy']  )
-        print model.summary()
+        print (model.summary())
         _ = model.fit(lX, [lY,lY2], epochs = self.nbEpochs,batch_size = self.batch_size, verbose = 1,validation_split = 0.33, shuffle=True)
         
         del lX,lY
@@ -445,7 +482,7 @@ class DeepTagger():
         
         return model, auxdata
 
-    def prepareTensor_multiptype(self,annotated):
+    def prepareTensor_multitype(self,annotated):
         lx,ly = annotated 
         
         lX = list()
@@ -521,7 +558,7 @@ class DeepTagger():
 #         print lY.shape
 
         scores = self.model.evaluate(lX,lY,verbose=True)
-        print zip(self.model.metrics_names,scores)
+        print(list(zip(self.model.metrics_names,scores)))
         
         test_x, _ = testdata
         
@@ -535,9 +572,32 @@ class DeepTagger():
                 class_vec[ np.argmax(class_prs) ] = 1
                 if tuple(class_vec.tolist()) in self.tag_vector:
                     pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
-            print test_x[i],lY[i],pred_tags[:len(test_x[i])]    
+            print(test_x[i],pred_tags[:len(test_x[i])])
         
+    def testModel_Multitype(self,testdata):
+        """
+            test model
+        """
         
+        lX,(lY,lY2) = self.prepareTensor_multitype(testdata)
+
+        scores = self.model.evaluate(lX,[lY,lY2],verbose=True)
+        print(list(zip(self.model.metrics_names,scores)))
+        
+        test_x, _ = testdata
+        
+        y_pred1,y_pred2 = self.model.predict(lX)
+        for i,_ in enumerate(lX):
+            for pred_seq in [y_pred1[i],y_pred2[i]]:
+                pred_tags = []
+                for class_prs in pred_seq:
+                    class_vec = np.zeros(self.nbClasses, dtype=np.int32)
+                    class_vec[ np.argmax(class_prs) ] = 1
+#                     print class_prs[class_prs >0.1]
+                    if tuple(class_vec.tolist()) in self.tag_vector:
+#                         print(self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)])
+                        pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
+                print(test_x[i],pred_tags[:len(test_x[i])])
         
     def prepareOutput_multitype(self,lToken,lLTags):
         """
@@ -552,6 +612,7 @@ class DeepTagger():
         curTag=None
         
         for itok,tok in enumerate(lToken):
+#             print(tok,lLTags[0][itok],lLTags[1][itok])
             BIES,_ = lLTags[0][itok]
             offset = itok
             tag,score2 = lLTags[1][itok]
@@ -579,11 +640,12 @@ class DeepTagger():
         
         lRes=[]
         for (lList,label) in lChunk:
-            tok = " ".join(map(lambda (x,tok,y): tok,lList))
-            toffset = (min(map(lambda (offset,x,y): offset,lList)),max(map(lambda (offset,x,y): offset,lList)))
-            lScore = (map(lambda (offset,_,score): score,lList))
+#             tok = " ".join(map(lambda x,tok,y: tok,lList))
+            tok = " ".join(x[1] for x in lList)
+            toffset = min(x[0] for x in lList),max(x[0] for x in lList)
+            lScore = (x[2] for x in lList)
 #             print toffset,tok,label,lScore
-            lRes.append((toffset,tok,label,lScore))
+            lRes.append((toffset,tok,label,list(lScore)))
 
         return lRes       
  
@@ -596,9 +658,9 @@ class DeepTagger():
         chunk=[]
         lChunk=[]
         curTag=None
-        for offset,(tok, (tag,score)) in enumerate(zip(lToken,lTags)):
-#             print tok.encode('utf-8'), tag
-            BIES,tag,_ = tag.split('_')
+        for offset,(tok, (tag,score)) in enumerate(list(zip(lToken,lTags))):
+#             print(tok.encode('utf-8'), tag)
+            BIES,tag = tag.split('_')
             if tag != curTag:
                 if chunk !=[]:
                     lChunk.append((chunk,curTag))
@@ -622,10 +684,13 @@ class DeepTagger():
         
         lRes=[]
         for (lList,label) in lChunk:
-            tok = " ".join(map(lambda (x,tok,y): tok,lList))
-            toffset = (min(map(lambda (offset,x,y): offset,lList)),max(map(lambda (offset,x,y): offset,lList)))
-            lScore = (map(lambda (offset,_,score): score,lList))
-            lRes.append((toffset,tok,label,lScore))
+            tok = " ".join(x[1] for x in lList)
+            toffset = min(x[0] for x in lList),max(x[0] for x in lList)
+            lScore = (x[2] for x in lList)            
+#             tok = " ".join(map(lambda x,tok,y: tok,lList))
+#             toffset = (min(map(lambda offset,x,y: offset,lList)),max(map(lambda offset,x,y: offset,lList)))
+#             lScore = (map(lambda offset,_,score: score,lList))
+            lRes.append((toffset,tok,label,list(lScore)))
         
         return lRes
             
@@ -638,7 +703,7 @@ class DeepTagger():
         for mysent in lsent :
     #         print self.tag_vector
             if len(mysent.split())> self.max_sentence_len:
-                print 'max sent length: %s'%self.max_sentence_len
+                print ('max sent length: %s'%self.max_sentence_len)
                 continue
             allwords= self.node_transformer.transform(mysent.split())
 #             print mysent.split()
@@ -651,7 +716,8 @@ class DeepTagger():
             pad_length = self.max_sentence_len - len(wordsvec)
             lX.append( wordsvec +((pad_length)*[nil_X]) )
             lX=np.array(lX)
-            assert pad_length*[nil_X] + wordsvec >= self.max_sentence_len
+#             print(pad_length*[nil_X] + wordsvec, self.max_sentence_len)
+#             assert pad_length*[nil_X] + wordsvec >= self.max_sentence_len
             y_pred1,y_pred2 = self.model.predict(lX)
             for i,_ in enumerate(lX):
 #                 pred_seq = y_pred[i]
@@ -667,7 +733,7 @@ class DeepTagger():
                             #print self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]
                             pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
                     l_multi_type_results.append(pred_tags[:len(allwords)])
-#                     print l_multi_type_results
+                    print(l_multi_type_results) 
                 lRes.append(self.prepareOutput_multitype(mysent.split(),l_multi_type_results))
 
         return lRes
@@ -681,7 +747,7 @@ class DeepTagger():
         for mysent in lsent :
     #         print self.tag_vector
             if len(mysent.split())> self.max_sentence_len:
-                print 'max sent length: %s'%self.max_sentence_len
+                print ('max sent length: %s'%self.max_sentence_len)
                 continue
             allwords= self.node_transformer.transform(mysent.split())
 #             print mysent.split()
@@ -694,7 +760,7 @@ class DeepTagger():
             pad_length = self.max_sentence_len - len(wordsvec)
             lX.append( wordsvec +((pad_length)*[nil_X]) )
             lX=np.array(lX)
-            assert pad_length*[nil_X] + wordsvec >= self.max_sentence_len
+#             assert pad_length*[nil_X] + wordsvec >= self.max_sentence_len
             y_pred = self.model.predict(lX)
             for i,_ in enumerate(lX):
                 pred_seq = y_pred[i]
@@ -730,6 +796,7 @@ class DeepTagger():
             
         if self.bMultiType and self.bTraining:
             lX, lY = self.load_data_Multitype(self.lTrain)
+            print(lY)
             model, other = self.training_multitype((lX,lY))
             # store
             self.storeModel(model,other)
@@ -748,25 +815,30 @@ class DeepTagger():
             
         if self.bTesting:
             self.loadModels()
-            lX,lY = self.load_data_for_testing(self.lTest)
-            res = self.testModel((lX,lY))
+            if self.bMultiType:
+                lX,lY = self.load_data_for_testing_Multitype(self.lTest)
+                res = self.testModel_Multitype((lX,lY))
+            else:
+                lX,lY = self.load_data_for_testing(self.lTest)
+                res = self.testModel((lX,lY))
+
                        
         if self.bPredict:
             # which input  format: [unicode]
             self.loadModels()
             lsent = [self._sent]
-            print lsent
+            print (lsent)
             if self.bMultiType:
                 lres = self.predict_multiptype(lsent)
             else:
                 lres = self.predict(lsent)
             for r in lres:
-                print r
+                print (r)
 
 if __name__ == '__main__':
     
     cmp = DeepTagger()
-    cmp.parser = OptionParser(usage="", version="0.1")
+    cmp.parser = OptionParser(usage="", version="1.0")
     cmp.parser.description = "BiLSTM approach for NER"
     cmp.parser.add_option("--name", dest="name",  action="store", type="string", help="model name")
     cmp.parser.add_option("--dir", dest="dirname",  action="store", type="string", help="directory to store model")
