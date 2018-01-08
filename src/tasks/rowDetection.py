@@ -183,7 +183,8 @@ class RowDetection(Component.Component):
         self.tagCells(table)
         self.processRows(table,rowscuts)
         
-                     
+
+
     def findRowsInDoc(self,ODoc):
         """
         find rows
@@ -209,9 +210,12 @@ class RowDetection(Component.Component):
             if self.do2DS:
                 dsconv = primaAnalysis()
                 doc = dsconv.convert2DS(doc,self.docid)
+            
             refdoc = self.createRef(doc)
             return refdoc
-#             return doc
+            # single ref per page
+            refdoc= self.createRefPerPage(doc)
+            return None
         
         if self.do2DS:
             dsconv = primaAnalysis()
@@ -362,6 +366,8 @@ class RowDetection(Component.Component):
         ctxt.xpathFreeContext()          
 
 
+#         print map(lambda x:(x.getY()),lRun)
+#         print map(lambda (x,a):(x.getY()),lRef)
         refLen = len(lRef)
 #         bVisual = True
         ltisRefsRunbErrbMiss= list()
@@ -414,7 +420,7 @@ class RowDetection(Component.Component):
         """
         dicTestByTask = dict()
         dicTestByTask['T50']= self.testCPOUM(0.50,srefData,srunData,bVisual)
-#         dicTestByTask['T75']= self.testCPOUM(0.50,srefData,srunData,bVisual)
+#         dicTestByTask['T75']= self.testCPOUM(0.750,srefData,srunData,bVisual)
 #         dicTestByTask['T100']= self.testCPOUM(0.50,srefData,srunData,bVisual)
 
     #         dicTestByTask['FirstName']= self.testFirstNameRecord(srefData, srunData,bVisual)
@@ -457,7 +463,6 @@ class RowDetection(Component.Component):
         rowNode.setProp('id',str(index))
 
             
-
     def createRef(self,doc):
         """
             create a ref file from the xml one
@@ -471,14 +476,23 @@ class RowDetection(Component.Component):
         refdoc.setRootElement(root)
         
 
-        dRows={}
         for page in self.ODoc.getPages():
+            #imageFilename="..\col\30275\S_Freyung_021_0001.jpg" width="977.52" height="780.0">
             pageNode = libxml2.newNode('PAGE')
             pageNode.setProp("number",page.getAttribute('number'))
+            pageNode.setProp("imageFilename",page.getAttribute('imageFilename'))
+            pageNode.setProp("width",page.getAttribute('width'))
+            pageNode.setProp("height",page.getAttribute('height'))
+
             root.addChild(pageNode)   
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
             for table in lTables:
+                dRows={}
                 tableNode = libxml2.newNode('TABLE')
+                tableNode.setProp("x",table.getAttribute('x'))
+                tableNode.setProp("y",table.getAttribute('y'))
+                tableNode.setProp("width",table.getAttribute('width'))
+                tableNode.setProp("height",table.getAttribute('height'))
                 pageNode.addChild(tableNode)
                 for cell in table.getAllNamedObjects(XMLDSTABLECELLClass):
                     try:dRows[int(cell.getAttribute("row"))].append(cell)
@@ -491,6 +505,59 @@ class RowDetection(Component.Component):
                 self.createRowsWithCuts(lYcuts,table,tableNode)
 
         return refdoc
+    
+    def createRefPerPage(self,doc):
+        """
+            create a ref file from the xml one
+            
+            for DAS 2018
+        """
+        self.ODoc = XMLDSDocument()
+        self.ODoc.loadFromDom(doc,listPages = range(self.firstPage,self.lastPage+1))        
+  
+  
+
+        dRows={}
+        for page in self.ODoc.getPages():
+            #imageFilename="..\col\30275\S_Freyung_021_0001.jpg" width="977.52" height="780.0">
+            pageNode = libxml2.newNode('PAGE')
+#             pageNode.setProp("number",page.getAttribute('number'))
+            #SINGLER PAGE pnum=1
+            pageNode.setProp("number",'1')
+
+            pageNode.setProp("imageFilename",page.getAttribute('imageFilename'))
+            pageNode.setProp("width",page.getAttribute('width'))
+            pageNode.setProp("height",page.getAttribute('height'))
+
+            refdoc=libxml2.newDoc("1.0")
+            root=libxml2.newNode("DOCUMENT")
+            refdoc.setRootElement(root)
+            root.addChild(pageNode)
+               
+            lTables = page.getAllNamedObjects(XMLDSTABLEClass)
+            for table in lTables:
+                tableNode = libxml2.newNode('TABLE')
+                tableNode.setProp("x",table.getAttribute('x'))
+                tableNode.setProp("y",table.getAttribute('y'))
+                tableNode.setProp("width",table.getAttribute('width'))
+                tableNode.setProp("height",table.getAttribute('height'))
+                pageNode.addChild(tableNode)
+                for cell in table.getAllNamedObjects(XMLDSTABLECELLClass):
+                    try:dRows[int(cell.getAttribute("row"))].append(cell)
+                    except KeyError:dRows[int(cell.getAttribute("row"))] = [cell]
+        
+                lYcuts = []
+                for rowid in sorted(dRows.keys()):
+#                     print rowid, min(map(lambda x:x.getY(),dRows[rowid]))
+                    lYcuts.append(min(map(lambda x:x.getY(),dRows[rowid])))
+                self.createRowsWithCuts(lYcuts,table,tableNode)
+
+            
+            self.outputFileName = os.path.basename(page.getAttribute('imageFilename')[:-3]+'ref')
+            print self.outputFileName
+            self.writeDom(refdoc, bIndent=True)
+
+        return refdoc    
     
     #         print refdoc.serialize('utf-8', True)
 #         self.testCPOUM(0.5,refdoc.serialize('utf-8', True),refdoc.serialize('utf-8', True))
