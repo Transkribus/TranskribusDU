@@ -53,7 +53,7 @@ class DS2PageXMLConvertor(Component):
         
         self.storagePath = ''
         
-        self.dTagNameMapping = {'PAGE':'Page','TEXT':'TextLine', 'REGION':'TextRegion','BLOCK':'TextRegion','GRAPHELT':'LineDrawingRegion','TABLE':'TableRegion','CELL':'TableCell'} 
+        self.dTagNameMapping = {'PAGE':'Page','TEXT':'TextLine', 'LINE':'TextLine','COLUMN':'TextRegion','REGION':'TextRegion','BLOCK':'TextRegion','GRAPHELT':'LineDrawingRegion','TABLE':'TableRegion','CELL':'TableCell'} 
 
         self.pageXmlNS = None
         
@@ -67,6 +67,7 @@ class DS2PageXMLConvertor(Component):
         Component.setParams(self, dParams)
         if dParams.has_key("bMultiPage"): self.bMultiPages =  dParams["bMultiPage"]  
         if dParams.has_key("bRegionOnly"): self.bRegionOnly =  dParams["bRegionOnly"]  
+        if dParams.has_key("outdir"): self.storagePath =  dParams["outdir"]  
         
     
     def setDPI(self,v): self.dpi=v
@@ -149,7 +150,7 @@ class DS2PageXMLConvertor(Component):
         except KeyError: 
 #             print DSObject.getName() ," not declared"
             return 
-                    
+        
         domNode= PageXml.createPageXmlNode(pageXmlName,self.pageXmlNS)
         if DSObject.getID():
             domNode.setProp("id", "xrce_%s"%DSObject.getID())
@@ -221,8 +222,8 @@ class DS2PageXMLConvertor(Component):
             populate pageXml with OPage
         """
         from ObjectModel.XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
-        from ObjectModel.XMLDSTEXTClass import XMLDSTEXTClass
-        from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
+#         from ObjectModel.XMLDSTEXTClass import XMLDSTEXTClass
+#         from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
 
 #         # TextRegion needed: create a fake one with BB zone?
 #         regionNode= PageXml.createPageXmlNode("TextRegion",self.pageXmlNS)
@@ -233,13 +234,16 @@ class DS2PageXMLConvertor(Component):
 #         coordsNode.setProp('points', self.BB2Polylines(0,0, OPage.getHeight(),OPage.getWidth()))
 #         regionNode.addChild(coordsNode)     
         
-        ##get table elements
-        lElts= OPage.getAllNamedObjects(XMLDSTABLEClass)
-        for DSObject in lElts:
-            self.convertDSObject(DSObject,pageXmlPageNODE)        
+#         ##get table elements
+#         lElts= OPage.getAllNamedObjects(XMLDSTABLEClass)
+#         for DSObject in lElts:
+#             self.convertDSObject(DSObject,pageXmlPageNODE)        
         
         # get textual elements
-        lElts= OPage.getAllNamedObjects('REGION')
+#         lElts= OPage.getAllNamedObjects('REGION')
+#         lElts= OPage.getAllNamedObjects('REGION') + OPage.getAllNamedObjects('COLUMN') + OPage.getNamedObjects('LINE')
+#         lElts =     OPage.getNamedObjects('LINE')
+        lElts = OPage.getObjects()
         for DSObject in lElts:
             self.convertDSObject(DSObject,pageXmlPageNODE)
 
@@ -255,11 +259,15 @@ class DS2PageXMLConvertor(Component):
             write on disc the list of dom in the PageXml format
         """
         for i,(doc,img) in enumerate(lListOfDocs):
+            if img is None: img='fakeimage.jpg'  # generated
             if self.storagePath == "":
-                self.outputFileName = os.path.dirname(self.inputFileName)+os.sep+img[:-3]+"_%.4d"%(i+1) + ".xml"
+                if os.path.dirname(self.inputFileName) =='':
+                    self.outputFileName = img[:-3]+"_%.4d"%(i+1) + ".xml"
+                else:
+                    self.outputFileName = os.path.dirname(self.inputFileName)+os.sep+img[:-3]+"_%.4d"%(i+1) + ".xml"
             else:
-                self.outputFile = self.storagePath + os.sep+img[:-3]+"_%.4d"%(i+1) + ".xml"
-#             print "output: %s" % self.outputFileName
+                self.outputFileName = self.storagePath + os.sep+img[:-4]+"_%.4d"%(i+1) + ".xml"
+            print "output: %s" % self.outputFileName
             try:self.writeDom(doc, bIndent=True)
             except IOError:return -1            
         return 0
@@ -282,12 +290,15 @@ class DS2PageXMLConvertor(Component):
             conversion
         """
         ODoc =XMLDSDocument()
+        ODoc.lastPage=1
         ODoc.loadFromDom(domDoc)
         lPageXmlDoc=[]
         lPages= ODoc.getPages()   
         for page in lPages:
 #             traceln("%s %s"%(page, page.getAttribute('imageFilename')))
-            pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='NLE', filename = os.path.basename(page.getAttribute('imageFilename')), imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
+            try:filename = os.path.basename(page.getAttribute('imageFilename'))
+            except:filename="fakename"
+            pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='NLE', filename =filename, imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
             self.pageXmlNS = pageXmlDoc.getRootElement().ns()
 #             print "??",self.bRegionOnly
             if self.bRegionOnly:
@@ -311,6 +322,7 @@ if __name__ == "__main__":
     docConv.createCommandLineParser()
     docConv.add_option("-m", "--multi", dest="bMultiPage", action="store_true", default=False, help="store as multipagePageXml", metavar="B")
     docConv.add_option("-r", "--region", dest="bRegionOnly", action="store_true", default=False, help="convert only regions", metavar="B")
+    docConv.add_option("--outdir", dest="outdir", action="store", default="", help="output directory")
       
     #parse the command line
     dParams, args = docConv.parseCommandLine()
