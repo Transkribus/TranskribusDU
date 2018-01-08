@@ -27,16 +27,17 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import unicode_literals
+from __future__ import print_function
 
 from XMLDSObjectClass import XMLDSObjectClass
 from XMLDSCELLClass import XMLDSTABLECELLClass
-from XMLDSColumnClass import XMLDSTABLECOLUMNClass
-from XMLDSRowClass import XMLDSTABLEROWClass
+from ObjectModel.XMLDSTableColumnClass import XMLDSTABLECOLUMNClass
+from ObjectModel.XMLDSTableRowClass import XMLDSTABLEROWClass
 
 from config import ds_xml_def as ds_xml
 
 import numpy as np
-from theano.tensor.basic import irow
 
 class  XMLDSTABLEClass(XMLDSObjectClass):
     """
@@ -45,7 +46,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         
         need a TableClass for table primitive, independenty for mXMLDS
     """
-    name = ds_xml.sLINE_Elt
+    name = ds_xml.sTABLE
     def __init__(self,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
@@ -124,8 +125,8 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         '''
         for row in self.getRows():
             for cell in row.getCells():
-                print cell, cell.getFields(),
-            print
+                print(cell, cell.getFields(),end='')
+            print()
                 
     
       
@@ -284,6 +285,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         """
         self._lrows=[]
         
+        self.getCells().sort(key=(lambda x:x.getIndex()[0]))
         for cell in self.getCells():
             irow,_= cell.getIndex()
 #             rowSpan = int(cell.getAttribute('rowSpan'))
@@ -305,6 +307,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         """
             build column objects and 2dzones  from cells
         """
+        self.getCells().sort(key=(lambda x:x.getIndex()[1]))
         self._lcolumns= []
         for cell in self.getCells():
             _,jcol= cell.getIndex()
@@ -332,6 +335,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         """
 #         print 'nb cells:' , len(self.getCells())
         # first despan RowSpan cells
+        self.getCells().sort(key=(lambda x:x.getIndex()[0]))
         for cell in self.getCells():
             # create new non-spanned cell if needed
 #             print cell, cell.getRowSpan(), cell.getColSpan()
@@ -352,6 +356,8 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 self.addCell(newCell)
                 iRowSpan +=1
         # col span
+        #sort them by col?
+        self.getCells().sort(key=(lambda x:x.getIndex()[1]))
         for cell in self.getCells():
             # create new non-spanned cell if needed
             iColSpan = 1
@@ -383,14 +389,13 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
     
     
     def buildNDARRAY(self):
-#         print self.getRows()
-#         print self.getColumns()
         if self.getRows() == []:
             self.buildRowFromCells()
         lce=[]
         [lce.append(cell) for row in self.getRows() for cell in row.getCells()]
         self._npcells = np.array(lce,dtype=object)
         self._npcells = self._npcells.reshape(self.getNbRows(),self.getNbColumns())
+    
     
     def getNPArray(self):
         return self._npcells
