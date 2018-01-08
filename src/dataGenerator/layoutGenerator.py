@@ -31,7 +31,7 @@
 """
 from __future__ import unicode_literals
 
-import libxml2
+from  lxml import etree
 
 from generator import Generator 
 from numericalGenerator import numericalGenerator
@@ -55,12 +55,12 @@ class layoutZoneGenerator(Generator):
             self._h = h
             self._w = w
             
-            
-        self._parent = None
+        
+        self._page= None
         
         # correspond to _structure
         self._structure = [
-                            ((self.getX(),1,100),(self.getY(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),100)
+                            [ (self.getX(),1,100),(self.getY(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),100]
                             ]
         
         # standard deviation used for numerical values
@@ -70,6 +70,7 @@ class layoutZoneGenerator(Generator):
     def getY(self): return self._y
     def getHeight(self): return self._h
     def getWidth(self): return self._w
+    
     
     def getObjects(self): return self._structure
     
@@ -84,19 +85,55 @@ class layoutZoneGenerator(Generator):
         self.setHeight(h)
         self.setWidth(w)
     
+    def setPage(self,p): self._page = p
+    def getPage(self):return self._page
+        
+    
+    def addSkewing(self,angle):
+        """
+            rotate with angle
+        """
+        
+        
+    
+    def updateStructure(self,Gen):
+        """ 
+        add Gen in structure
+        """
+        for struct in self._structure:
+            struct.insert(-1,Gen)
             
+            
+    def PageXmlFormatAnnotatedData(self,linfo,obj):
+        """
+            PageXML export format 
+        """
+        self.domNode = etree.Element(obj.getLabel())
+        # for listed elements
+        if obj.getNumber() is not None:
+            self.domNode.set('number',str(obj.getNumber()))        
+        for info,tag in linfo:
+            if isinstance(tag,Generator):
+                self.domNode.append(tag.XMLDSFormatAnnotatedData(info,tag))
+            else:
+                self.domNode.set(tag,str(info))
+        
+        return self.domNode
+    
+    
     def XMLDSFormatAnnotatedData(self,linfo,obj):
         """
             here noiseGenerator? 
         """
-        self.domNode = libxml2.newNode(obj.getLabel())
+        self.domNode = etree.Element(obj.getLabel())
+        # for listed elements
         if obj.getNumber() is not None:
-            self.domNode.setProp('number',str(obj.getNumber()))        
+            self.domNode.set('number',str(obj.getNumber()))        
         for info,tag in linfo:
             if isinstance(tag,Generator):
-                self.domNode.addChild(tag.XMLDSFormatAnnotatedData(info,tag))
+                self.domNode.append(tag.XMLDSFormatAnnotatedData(info,tag))
             else:
-                self.domNode.setProp(tag,str(info))
+                self.domNode.set(tag,str(info))
         
         return self.domNode    
         

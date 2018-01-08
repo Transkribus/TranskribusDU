@@ -53,6 +53,7 @@ class listGenerator(Generator):
         for i in range(self.nbMax._generation):
             o = self.myObjectGen(*self.objParams).instantiate()
             o.setNumber(i)
+#             print "xx",o,o.getNumber()
             self._instance.append(o)
 #             print "linst:",self.getLabel(), self.nbMax._generation, o
 #         print self.getLabel(), self._instance
