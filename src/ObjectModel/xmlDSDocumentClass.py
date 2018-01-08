@@ -57,7 +57,7 @@ class  XMLDSDocument(XMLDocument):
                 myPage.setNumber(int(page.prop('number')))
                 self.addPage(myPage)
 #                 self.getRootObject()._lObjects = self.getPages()
-                myPage.fromDom(page,['TABLE','REGION','BLOCK',ds_xml.sLINE_Elt,ds_xml.sTEXT,'BASELINE','GRAPHELT','SeparatorRegion'])
+                myPage.fromDom(page,['COLUMN','TABLE','REGION','BLOCK',ds_xml.sLINE_Elt,ds_xml.sTEXT,'BASELINE','GRAPHELT','SeparatorRegion'])
 
     
     def loadFromDom(self,docDom = None,pageTag='PAGE',listPages = []):
