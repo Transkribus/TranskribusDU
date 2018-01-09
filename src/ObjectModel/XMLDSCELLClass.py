@@ -30,6 +30,7 @@
 
 from XMLDSObjectClass import XMLDSObjectClass
 from XMLDSTEXTClass import XMLDSTEXTClass
+from XMLDSLINEClass import XMLDSLINEClass
 from config import ds_xml_def as ds_xml
 
 class  XMLDSTABLECELLClass(XMLDSObjectClass):
@@ -106,10 +107,15 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
         try: self.getColSpan()
         except:  self.addAttribute('colSpan',"1")
         # onlt sTEXT?
-        ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sTEXT))
+#         ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sTEXT))
+        ldomElts = ctxt.xpathEval('./*')
+
         ctxt.xpathFreeContext()
         for elt in ldomElts:
-            myObject= XMLDSTEXTClass(elt)
+            if elt.name ==XMLDSTEXTClass.name:
+                myObject= XMLDSTEXTClass(elt)
+            elif elt.name == XMLDSLINEClass.name:
+                myObject= XMLDSLINEClass(elt)
             self.addObject(myObject)
             myObject.setPage(self.getPage())
             myObject.fromDom(elt)
