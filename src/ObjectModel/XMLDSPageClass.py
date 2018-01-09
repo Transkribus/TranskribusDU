@@ -10,6 +10,9 @@
 
 """
 
+from __future__ import unicode_literals
+from __future__ import print_function
+
 from config import ds_xml_def
 from XMLDSObjectClass import XMLDSObjectClass
 from XMLDSLINEClass import XMLDSLINEClass
@@ -17,6 +20,8 @@ from XMLDSTEXTClass import XMLDSTEXTClass
 from XMLDSBASELINEClass import XMLDSBASELINEClass
 from XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
 from XMLDSTABLEClass import XMLDSTABLEClass
+from XMLDSCOLUMN import XMLDSCOLUMNClass
+
 class  XMLDSPageClass(XMLDSObjectClass):
     """
         PAGE class
@@ -84,8 +89,6 @@ class  XMLDSPageClass(XMLDSObjectClass):
         """
             load a page from dom 
         """
-#         import sys
-        # must be PAGE        
         self.setName(domNode.name)
         self.setNode(domNode)
         # get properties
@@ -100,8 +103,17 @@ class  XMLDSPageClass(XMLDSObjectClass):
         ldomElts = ctxt.xpathEval('./*')
         ctxt.xpathFreeContext()
         for elt in ldomElts:
+            ### GT elt
+            if elt.name =='MARGIN':
+                elt = elt.children
+                
             if elt.name in lEltNames:
-                if elt.name  == ds_xml_def.sLINE_Elt:
+                if elt.name == ds_xml_def.sCOL_Elt:
+                    myObject= XMLDSCOLUMNClass(elt)
+                    self.addObject(myObject)
+                    myObject.setPage(self)
+                    myObject.fromDom(elt)                      
+                elif elt.name  == ds_xml_def.sLINE_Elt:
                     myObject= XMLDSLINEClass(elt)
                     self.addObject(myObject)
                     myObject.setPage(self)
@@ -133,10 +145,9 @@ class  XMLDSPageClass(XMLDSObjectClass):
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(elt)
-
-
-#         print self.getAttribute('number')
-#         sys.stdout.flush()
+        
+            else:
+                pass
 
 
     #TEMPLATE
@@ -608,7 +619,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
         
         for attr in lAttributes:
             for value in lHisto[attr]:
-                print attr, value
+                print (attr, value)
                 if  len(lHisto[attr][value]) > 0.1:
                     ftype= featureObject.NUMERICAL
                     feature = featureObject()

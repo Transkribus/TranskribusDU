@@ -53,6 +53,9 @@ class  XMLDSTABLECOLUMNClass(XMLDSObjectClass):
     def getIndex(self): return self._index
     def setIndex(self,i): self._index = i
     
+    def delCell(self,cell):
+        try:self._lcells.remove(cell)
+        except:pass
     def getCells(self): return self._lcells
     def addCell(self,c): 
         if c not in self.getCells():

@@ -131,7 +131,14 @@ class  XMLDSObjectClass(XMLObjectClass):
                 from XMLDSLINEClass import XMLDSLINEClass
                 from XMLDSTEXTClass import XMLDSTEXTClass
                 from XMLDSBASELINEClass import XMLDSBASELINEClass
-                if child.name  == ds_xml.sLINE_Elt:
+                from XMLDSTABLEClass import XMLDSTABLEClass
+               
+                if child.name == ds_xml.sTABLE:
+                    myObject= XMLDSTABLEClass(child)
+                    self.addObject(myObject)
+                    myObject.setPage(self)
+                    myObject.fromDom(child)      
+                elif child.name  == ds_xml.sLINE_Elt:
                     myObject= XMLDSLINEClass(child)
                     # per type?
                     self.addObject(myObject)

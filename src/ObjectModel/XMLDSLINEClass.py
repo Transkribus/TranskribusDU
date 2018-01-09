@@ -47,7 +47,6 @@ class  XMLDSLINEClass(XMLDSObjectClass):
             self.addObject(myObject)
             myObject.setPage(self.getPage())
             myObject.fromDom(elt)        
-            print myObject.getContent()    
         
          
         
