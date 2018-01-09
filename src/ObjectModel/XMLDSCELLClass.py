@@ -116,9 +116,13 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
                 myObject= XMLDSTEXTClass(elt)
             elif elt.name == XMLDSLINEClass.name:
                 myObject= XMLDSLINEClass(elt)
-            self.addObject(myObject)
-            myObject.setPage(self.getPage())
-            myObject.fromDom(elt)
+            else:
+                print elt
+                myObject= None
+            if myObject is not None:
+                self.addObject(myObject)
+                myObject.setPage(self.getPage())
+                myObject.fromDom(elt)
         
     
         

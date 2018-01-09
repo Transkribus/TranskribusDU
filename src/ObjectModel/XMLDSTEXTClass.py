@@ -19,6 +19,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
     """
         TEXT (chunk) class
     """
+    name=ds_xml.sTEXT
     def __init__(self,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
