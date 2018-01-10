@@ -30,7 +30,9 @@
     under grant agreement No 674943.
 """
 from __future__ import unicode_literals
+from __future__ import print_function
 
+import sys
 import cPickle
 import gzip
 import numpy as np
@@ -48,6 +50,11 @@ class textGenerator(Generator):
         
         Korean!
         https://faker.readthedocs.io/en/master/locales/ko_KR.html
+        
+        
+        what is first generated (from lexicon,...) is a normalised form. What is needed is to apply some transformation for simulating
+        real forms: hyphenation, abbreviation, typo?
+    
     """
     
     def __init__(self,lang):
@@ -60,12 +67,18 @@ class textGenerator(Generator):
         self._lresources = None
         self.isWeighted = False
 
-    
+
+        self._surface=None
+        self._hyphenated=False
+        self._merged=False #with next one
+        self._abbreviated=False
+        self._separator=" "
     def getSeparator(self):
         """
             separator between token
+            should be a generator as well!!
         """
-        return " "
+        return self._separator
     
     def loadResourcesFromList(self,lLists):
         """
@@ -167,10 +180,10 @@ class textGenerator(Generator):
         # when to split 
         for token, labels in lGTTokens:
             generateProb = 1.0 * random.uniform(1,100)
-            print generateProb
+            print (generateProb)
             if generateProb < probaTH:
                 uLabels  = '\t'.join(labels)        
-                print token, uLabels
+                print (token, uLabels)
         
         return lGTTokens
 
@@ -248,6 +261,13 @@ class textGenerator(Generator):
         return lList
          
     
+    def tokenize(self,token):
+        if type(token) == unicode:
+            return  token.split(" ")
+        elif type(token) in [float,int ]:
+            return[token]
+        return None
+        
     def tokenizerString(self,s):
         """
             Use a generator?
@@ -265,6 +285,23 @@ class textGenerator(Generator):
                 
                   
         """
+    
+    def getHyphentatedToken(self,token):
+        """
+            Schwingen  Bh_lastname  h=hyphenated
+            schlögl    E_lastname
+            
+            SS B-l
+            SQ 
+        
+        for one token, return two lines    
+        """
+        if len(token) %2 == 0:
+            ltokens=[token[:-3],token[-3:]] 
+        else:
+            ltokens = token
+        return ltokens
+    
     def formatAnnotatedData(self,gtdata,mode=2):
         """
             format with bIES hierarchically
@@ -277,33 +314,45 @@ class textGenerator(Generator):
         lnewGT=[]
         # duplicate labels for multitoken
         for token,label in gtdata:
-            # should be replace by self.tokenizer(token)
+            ltoken = self.tokenize(token)
             if type(token) == unicode:
                 ltoken= token.split(" ")
             elif type(token) in [float,int ]:
                 ltoken= [token]
-            
+#             #hyphe :
+#             llast =  self.getHyphentatedToken(ltoken[-1])
+#             print token, llast,label
+#             if type(llast) == list:
+#                 ltoken.pop(-1)
+#                 ltoken.extend(llast)
+#                 label[-1]='h='+label[-1]
             if len(ltoken) == 1:
                 lnewGT.append((token,label))
             else:
                 for tok in ltoken:
                     lnewGT.append((tok,label[:]))
     
+        if lnewGT == []:return 
         # compute BIES
         lnewGT = self.hierarchicalBIES(lnewGT)
         
         # noise  here?
 #         lnewGT = self.noiseSplit(lnewGT)
         
-        #output for GT
-        for token, labels in lnewGT:
-            uLabels  = '\t'.join(labels)
-            uString = "%s\t%s" % (token,uLabels)
-            print uString
-        print "EOS".encode('utf-8')
-            
+        if lnewGT != []:
+            #output for GT
+            for token, labels in lnewGT:
+                uLabels  = '\t'.join(labels)
+                uString = "%s\t%s" % (token,uLabels)
+                print (uString.encode('utf-8'))
+            print ("EOS".encode('utf-8'))
+        
     def exportAnnotatedData(self,lLabels):
-        # export (generated value, label) for terminal 
+        """
+            here surface form generation?
+                tokenize the sub elements (space, spe, no sep/space)
+                hyphenation
+        """
         self._GT  = []
 
         lLabels.append(self.getName())
@@ -323,6 +372,76 @@ class textGenerator(Generator):
         
         return self._GT 
             
+    def GTForTokenization(self):
+        """
+            GT to learn how to correct a surface string into a properly tokenized string
+            
+            split tolken  (hyphenation)
+            merge token  (noise)
+            abbrevaition : mm -> m̄   A Mar.  Anna Maria   Joan̄ B. Johann Baptist Sailer   
+            
+            
+            not better to have xcqdqsd xwxcc wcxc   -> keep  merge keep   -> merge= merge with next token
+        """
+        gt= self.serialize()
+        gttok=self.GTtokenize()
+#         print gttok, gt
+        # merge some token
+        ltokens = gt.split(' ')
+        i=10
+        while i < 3 and len(ltokens)>3:
+            lenLto=len(ltokens)
+            pos= random.randint(1,lenLto-2)
+            mtoken =ltokens.pop(pos+1)
+            ltokens[pos]=ltokens[pos]+mtoken
+            i+=1
+        
+        
+        # split some tokens
+        i=0
+        lpos=[]
+        while i < 2 and len(ltokens) >  1:
+            lenLto=len(ltokens)
+            pos= random.randint(1,lenLto-1)
+            if pos not in lpos:
+                lpos.append(pos)
+                poscut= random.randint(2,6)
+                stoken =ltokens[pos]
+                if len(stoken) > 7:
+                    ltokens[pos]=stoken[:-poscut]
+                    ##  ¬   -   add hyph signs randomyl
+                    if random.randint(1,100) >= 80:
+                        if random.randint(1,100) >= 50:
+                            ltokens[pos] += '¬'
+                        else:
+                            ltokens[pos] += '-'
+                    ltokens.insert(pos+1,stoken[-poscut:])
+
+            i+=1
+        
+        print (" ".join(ltokens).encode('utf-8'),'\t',gttok.encode('utf-8'))
+         
+    def GTtokenize(self):
+        self._tokens  = ""
+        
+        #terminal
+        if type(self._generation) == unicode:
+            self._tokens =  self._generation
+        elif type(self._generation) == int:
+            self._tokens = "%d" % (self._generation)            
+        else:
+            for i,obj  in enumerate(self._generation):
+                if type(obj) == unicode:
+                    self._tokens +=  " "+obj
+                elif type(obj) == int:
+                    self._tokens +=  " %d" % (self._generation)    
+                elif type(obj) == float:
+                    self._tokens +=  " %f" % (self._generation)                             
+                else:
+                    self._tokens += " " + obj.GTtokenize()                        
+
+        return self._tokens.strip()
+                 
     def serialize(self):
         self._serialization  = ""
         
@@ -336,13 +455,16 @@ class textGenerator(Generator):
                 if type(obj) == unicode:
                     self._serialization +=  obj
                 elif type(obj) == int:
-                    self._serialization +=  "%d" % (self._generation)                         
+                    self._serialization +=  "%d" % (self._generation)    
+                elif type(obj) == float:
+                    self._serialization +=  "%f" % (self._generation)                             
                 else:
                     if i == 0:
-                        self._serialization +=  obj.serialize()
+                        try:self._serialization +=  obj.serialize()
+                        except: 
+                            print (obj.serialize() , type(obj.serialize()))
                     else:
                         self._serialization += self.getSeparator() + obj.serialize()                        
-    #             self._serialization += self.getSeparator() + obj.serialize()
         return self._serialization    
     
 
