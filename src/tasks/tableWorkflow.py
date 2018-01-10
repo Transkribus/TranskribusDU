@@ -58,9 +58,10 @@ from TranskribusCommands import  sCOL
 import common.Component as Component
 from TranskribusPyClient.common.trace import traceln, trace
 
-from xml_formats.PageXml import PageXml, MultiPageXml
-from tasks.performCVLLA import LAProcessor
+from xml_formats.PageXml import PageXml
+# from tasks.performCVLLA import LAProcessor
 from tasks.DU_ABPTable_T import DU_ABPTable_TypedCRF
+from xml_formats.PageXml import MultiPageXml
 from xml_formats.Page2DS import primaAnalysis
 from xml_formats.DS2PageXml import DS2PageXMLConvertor
 from tasks.rowDetection import RowDetection
@@ -216,12 +217,13 @@ class TableProcessing(Component.Component):
 #             trpdoc =  json.load(codecs.open(options.trp_doc, "rb",'utf-8'))
 #             docId,sPageDesc = doer.buildDescription(colId,options.docid,trpdoc)
 
+        traceln('process %s pages...'%nbpages)
         lretJobIDs = []
         for i in range(1,nbpages+1):
             LA = DoLAbatch(self.myTrKCient.getServerUrl(),self.myTrKCient.getProxies())
             LA._trpMng.setSessionId(self.myTrKCient.getSessionId())
             LA.setSessionId(self.myTrKCient.getSessionId())
-            _,sPageDesc = LA.buildDescription(colid,"%s/%s"%(docid,nbpages))    
+            _,sPageDesc = LA.buildDescription(colid,"%s/%s"%(docid,i))    
             sPageDesc = LA.jsonToXMLDescription(sPageDesc)
             _,lJobIDs = LA.run(colid, sPageDesc,"CITlabAdvancedLaJob",False)
             traceln(lJobIDs)
@@ -229,6 +231,35 @@ class TableProcessing(Component.Component):
             traceln("- LA running for page %d job:%s"%(i,lJobIDs))
         return lretJobIDs
                 
+                
+    def applyHTRForRegions(self,colid,docid,nbpages,modelname,dictionary):
+        """
+            apply an htr model at region level 
+        """
+        
+        htrComp = DoHtrRnn(self.myTrKCient.getServerUrl(),self.myTrKCient.getProxies())
+        htrComp._trpMng.setSessionId(self.myTrKCient.getSessionId())
+        htrComp.setSessionId(self.myTrKCient.getSessionId())
+        
+        _,sPageDesc = htrComp.buildDescription(colid,"%s/%s"%(docid,nbpages))    
+         
+        sPages= "1-%d"%(nbpages)
+        sModelID = None
+        # get modelID
+        lColModels =  self.myTrKCient.listRnns(colid)
+        for model in lColModels:
+#             print model['htrId'], type(model['htrId']), modelname,type(modelname)
+            if str(model['htrId']) == str(modelname):
+                sModelID  = model['htrId']
+                traceln('model id = %s'%sModelID)
+                #some old? models do not have params field
+#             try: traceln("%s\t%s\t%s" % (model['htrId'],model['name'],model['params']))
+#             except KeyError: traceln("%s\t%s\tno params" % (model['htrId'],model['name']))
+        if  sModelID == None: raise Exception, "no model ID found for %s" %(modelname)
+        ret = htrComp.htrRnnDecode(colid, sModelID, dictionary, docid, sPageDesc,bDictTemp=False)
+        traceln(ret)
+        return ret
+        
     def applyHTR(self,colid,docid,nbpages,modelname,dictionary):
         """
             apply HTR on docid
@@ -295,25 +326,20 @@ class TableProcessing(Component.Component):
         #create Transkribus client
         self.myTrKCient = TranskribusClient(sServerUrl=self.server,proxies={},loggingLevel=logging.WARN)
         #login
-        res= self.login(self.myTrKCient,trace=trace, traceln=traceln)
+        _ = self.login(self.myTrKCient,trace=trace, traceln=traceln)
         
 #         self.downloadCollection(colid,coldir,docid,bNoImg=False,bForce=True)
-# #          
-#         #regenerate  mpxml from pxml (optional)      
-#         #python ../../src/xml_formats/PageXml.py trnskrbs_5400/col/17440 --ext=pxml
-#         # which entry?  see PageXml mainb :        
-#           
-#         ## load dom
-#         if dom is None:
-#             self.inputFileName =  os.path.abspath(os.path.join(coldir,TableProcessing.sCOL,docid+TableProcessing.sMPXMLExtension))
-#             mpxml_doc = self.loadDom()
-#         else:
-#             # load provided mpxml
-#             mpxml_doc = dom
-#                    
-#         ### LA: TO BE REPLACED BY LABATCH (CitilabAdvancedLA)
-#         ### HTR as well??? yes for the moment with du_full (updated)
-#           
+
+        ## load dom
+        if dom is None:
+            self.inputFileName =  os.path.abspath(os.path.join(coldir,TableProcessing.sCOL,docid+TableProcessing.sMPXMLExtension))
+            mpxml_doc = self.loadDom()
+            nbPages = MultiPageXml.getNBPages(mpxml_doc)
+        else:
+            # load provided mpxml
+            mpxml_doc = dom
+            nbPages = MultiPageXml.getNBPages(mpxml_doc)
+                    
 #         ### table registration: need to compute/select???   the template
 #         # perform LA  separator, table registration, baseline with normalization  
 #         #python ../../src/tasks/performCVLLA.py  --coldir=trnskrbs_5400/  --docid=17442 -i trnskrbs_5400/col/17442.mpxml  --bl --regTL --form
@@ -324,76 +350,79 @@ class TableProcessing(Component.Component):
 #         tableregtool.bTemplate, tableregtool.bSeparator , tableregtool.bBaseLine , tableregtool.bRegularTextLine = True,False,False,False
 #         # creates xml and a new mpxml 
 #         mpxml_doc,nbPages = tableregtool.performLA(mpxml_doc)
-# #          
-# #          
-# #         #upload
-# #         # python ../../../TranskribusPyClient/src/TranskribusCommands/TranskribusDU_transcriptUploader.py --nodu trnskrbs_5400 5400 17442
+#          
+#          
+
 #         self.upLoadDocument(colid, coldir,docid,sNote='NLE workflow;table reg done')        
-#         
-#         nbPages=3
-#         lJobIDs = self.applyLA_URO(colid, docid, nbPages)
-#         bWait=True
-#         assert  lJobIDs  != []
-#         jobid=lJobIDs[-1]
-#         traceln("waiting for job %s"%jobid)
-#         while bWait:
-#             dInfo = self.myTrKCient.getJobStatus(jobid)
-#             bWait = dInfo['state'] not in [ 'FINISHED', 'FAILED' ]   
-#         
-#         
-#         ## coldir???
-#         self.downloadCollection(colid,coldir,docid,bNoImg=True,bForce=True)
-# 
-#          
-#         # tag text for BIES cell
-#         #python ../../src/tasks/DU_ABPTable_T.py modelMultiType tableRow2 --run=trnskrbs_5400
-#         """ 
-#             needed : doer = DU_ABPTable_TypedCRF(sModelName, sModelDir,
-#         """
-#         doer = DU_ABPTable_TypedCRF(self.sRowModelName, self.sRowModelDir)
-#         doer.load()
-#         ## needed predict at file level, and do not store dom, but return it
-#         rowpath=os.path.join(coldir,"col")
-#         BIESFiles  = doer.predict([rowpath],docid)
-#         BIESDom = self.loadDom(BIESFiles[0])
-# #         res= BIESDom.saveFormatFileEnc('test.mpxml', "UTF-8",True)
-#          
-#         # MPXML2DS
-#         #python ../../src/xml_formats/Page2DS.py --pattern=trnskrbs_5400/col/17442_du.mpxml -o trnskrbs_5400/xml/17442.ds_xml  --docid=17442
-#         dsconv = primaAnalysis()
-#         DSBIESdoc = dsconv.convert2DS(BIESDom,self.docid)
-#           
-#         # create XMLDOC object
-#         self.ODoc = XMLDSDocument()
-#         self.ODoc.loadFromDom(DSBIESdoc) #,listPages = range(self.firstPage,self.lastPage+1))        
-#         # create row
-#         #python src/IE_test.py -i trnskrbs_5400/xml/17442.ds_xml -o trnskrbs_5400/out/17442.ds_xml
-#         rdc = RowDetection()
-#         rdc.findRowsInDoc(self.ODoc)
-#   
-#   
-#         #python ../../src/xml_formats/DS2PageXml.py -i trnskrbs_5400/out/17442.ds_xml --multi
-#         # DS2MPXML
-#         DS2MPXML = DS2PageXMLConvertor()
-#         lPageXml = DS2MPXML.run(self.ODoc.getDom())
-#         if lPageXml != []:
-# #             if DS2MPXML.bMultiPages:
-#             newDoc = MultiPageXml.makeMultiPageXmlMemory(map(lambda (x,y):x,lPageXml))
-#             outputFileName = os.path.join(self.coldir, sCOL, self.docid+TableProcessing.sMPXMLExtension)
-#             res= newDoc.saveFormatFileEnc(outputFileName, "UTF-8",True)
-# #             else:
-# #                 DS2MPXML.storePageXmlSetofFiles(lPageXml)
-# 
-#         
-#         #upload
-#         # python ../../../TranskribusPyClient/src/TranskribusCommands/TranskribusDU_transcriptUploader.py --nodu trnskrbs_5400 5400 17442
-#         self.upLoadDocument(colid, coldir,docid,sNote='NLE workflow;table row done')
-#         
-#         
-#         ## apply HTR
-#         ## how to deal with specific dictionaries?
-#         
-#         ## here need to know the ontology and the template
+         
+        lJobIDs = self.applyLA_URO(colid, docid, nbPages)
+        return 
+    
+        bWait=True
+        assert  lJobIDs  != []
+        jobid=lJobIDs[-1]
+        traceln("waiting for job %s"%jobid)
+        while bWait:
+            dInfo = self.myTrKCient.getJobStatus(jobid)
+            bWait = dInfo['state'] not in [ 'FINISHED', 'FAILED' ]   
+         
+         
+        ## coldir???
+        self.downloadCollection(colid,coldir,docid,bNoImg=True,bForce=True)
+ 
+        ##STOP HERE FOR DAS newx testset:
+        return 
+          
+        # tag text for BIES cell
+        #python ../../src/tasks/DU_ABPTable_T.py modelMultiType tableRow2 --run=trnskrbs_5400
+        """ 
+            needed : doer = DU_ABPTable_TypedCRF(sModelName, sModelDir,
+        """
+        doer = DU_ABPTable_TypedCRF(self.sRowModelName, self.sRowModelDir)
+        doer.load()
+        ## needed predict at file level, and do not store dom, but return it
+        rowpath=os.path.join(coldir,"col")
+        BIESFiles  = doer.predict([rowpath],docid)
+        BIESDom = self.loadDom(BIESFiles[0])
+#         res= BIESDom.saveFormatFileEnc('test.mpxml', "UTF-8",True)
+          
+        # MPXML2DS
+        #python ../../src/xml_formats/Page2DS.py --pattern=trnskrbs_5400/col/17442_du.mpxml -o trnskrbs_5400/xml/17442.ds_xml  --docid=17442
+        dsconv = primaAnalysis()
+        DSBIESdoc = dsconv.convert2DS(BIESDom,self.docid)
+           
+        # create XMLDOC object
+        self.ODoc = XMLDSDocument()
+        self.ODoc.loadFromDom(DSBIESdoc) #,listPages = range(self.firstPage,self.lastPage+1))        
+        # create row
+        #python src/IE_test.py -i trnskrbs_5400/xml/17442.ds_xml -o trnskrbs_5400/out/17442.ds_xml
+        rdc = RowDetection()
+        rdc.findRowsInDoc(self.ODoc)
+   
+   
+        #python ../../src/xml_formats/DS2PageXml.py -i trnskrbs_5400/out/17442.ds_xml --multi
+        # DS2MPXML
+        DS2MPXML = DS2PageXMLConvertor()
+        lPageXml = DS2MPXML.run(self.ODoc.getDom())
+        if lPageXml != []:
+#             if DS2MPXML.bMultiPages:
+            newDoc = MultiPageXml.makeMultiPageXmlMemory(map(lambda (x,y):x,lPageXml))
+            outputFileName = os.path.join(self.coldir, sCOL, self.docid+TableProcessing.sMPXMLExtension)
+            res= newDoc.saveFormatFileEnc(outputFileName, "UTF-8",True)
+#             else:
+#                 DS2MPXML.storePageXmlSetofFiles(lPageXml)
+ 
+        return 
+     
+        #upload
+        # python ../../../TranskribusPyClient/src/TranskribusCommands/TranskribusDU_transcriptUploader.py --nodu trnskrbs_5400 5400 17442
+        self.upLoadDocument(colid, coldir,docid,sNote='NLE workflow;table row done')
+         
+         
+        ## apply HTR
+        ## how to deal with specific dictionaries?
+         
+        ## here need to know the ontology and the template
         
         nbPages=1
         jobid = self.applyHTR(colid,docid, nbPages,self.sHTRmodel,self.sDictName)
@@ -401,7 +430,7 @@ class TableProcessing(Component.Component):
         traceln("waiting for job %s"%jobid)
         while bWait:
             dInfo = self.myTrKCient.getJobStatus(jobid)
-            bWait = dInfo['state'] not in [ 'FINISHED', 'FAILED' ]        
+            bWait = dInfo['state'] not in [ 'FINISHED', 'FAILED' ,'CANCELED']        
      
         
         # download  where???
