@@ -35,16 +35,12 @@ except ImportError:
 from common.trace import traceln
 from tasks import _checkFindColDir, _exit
 
-from xml_formats.PageXml import MultiPageXml 
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from DU_CRF_Task import DU_CRF_Task
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 
 
-from xml_formats.Page2DS import primaAnalysis
-
- 
 class DU_ABPTable(DU_CRF_Task):
     """
     We will do a CRF model for a DU task
@@ -66,8 +62,6 @@ class DU_ABPTable(DU_CRF_Task):
         
         lIgnoredLabels = None
         
-        nbClass = len(lLabels)
-        
         """
         if you play with a toy collection, which does not have all expected classes, you can reduce those.
         """
@@ -79,7 +73,6 @@ class DU_ABPTable(DU_CRF_Task):
             lLabels         = [lLabels[i] for i in lActuallySeen ]
             print len(lLabels)          , lLabels
             print len(lIgnoredLabels)   , lIgnoredLabels
-            nbClass = len(lLabels) + 1  #because the ignored labels will become OTHER
         
         #DEFINING THE CLASS OF GRAPH WE USE
         DU_GRAPH = Graph_MultiSinglePageXml
@@ -126,7 +119,6 @@ class DU_ABPTable(DU_CRF_Task):
                      ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
                      )
         
-        #self.setNbClass(3)     #so that we check if all classes are represented in the training set
         
         self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
     #=== END OF CONFIGURATION =============================================================
