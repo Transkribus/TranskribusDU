@@ -29,7 +29,7 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
-
+from __future__ import unicode_literals
 import random
 from generator import Generator
 
@@ -73,16 +73,22 @@ class numericalGenerator(Generator):
     def generate(self):
         self._generation = random.gauss(self._mean,self._std)
         return self
-    
+    def GTtokenize(self):return unicode(self._generation)
     def serialize(self):
-        return self._generation
+        return unicode(self._generation)
 
 class positiveNumericalGenerator(numericalGenerator):
     def generate(self):
-        raise self._mean > 0
         self._generation = random.gauss(self._mean,self._std)
         while self._generation < 0:  
             self._generation = random.gauss(self._mean,self._std)            
+        return self
+
+class positiveIntegerGenerator(numericalGenerator):
+    def generate(self):
+        self._generation = int(round(random.gauss(self._mean,self._std)))
+        while self._generation < 0:  
+            self._generation = int(round(random.gauss(self._mean,self._std)))         
         return self
     
 class integerGenerator(numericalGenerator):
