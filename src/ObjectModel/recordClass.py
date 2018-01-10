@@ -32,7 +32,7 @@ import cPickle
 # import regex
 import gzip
 #from keras.models import load_model
-from contentProcessing.taggerTrainKeras import DeepTagger
+from contentProcessing.taggerTrainKeras2 import DeepTagger
 
 
 class recordClass(object):

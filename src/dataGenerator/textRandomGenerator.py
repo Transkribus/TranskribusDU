@@ -54,7 +54,8 @@ class textRandomGenerator(textGenerator):
         return self._GT 
     def generate(self):
         self._generation=""
-        for i in range(int(round(random.gauss(self._length,self._std)))):
+                                                                    # hack +1 for avoiding empty string!
+        for _ in range(int(round(random.gauss(self._length,self._std)))+1):
             self._generation += random.choice(string.ascii_letters+ string.punctuation)
 
         return self

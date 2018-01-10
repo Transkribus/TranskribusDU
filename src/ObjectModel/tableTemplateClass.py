@@ -11,6 +11,9 @@
     
     
 """
+from __future__ import unicode_literals
+from __future__ import print_function
+
 from templateClass import templateClass
 
 import numpy as np
@@ -113,10 +116,12 @@ class tableTemplateClass(templateClass):
         """
         
         for sslice,_, lFields in self._lLabellingInstruction:
+#             print (sslice,lFields)
             for field in lFields:
                 if field is not None:
                     for cell in np.nditer(table.getNPArray()[sslice],['refs_ok'],op_dtypes=np.dtype(object)):
                         cell[()].addField(field.cloneMe())
+#                         print (cell, cell[()],cell[()].getFields())
         
     def registration(self,o):
         raise "SOFTWARE ERROR: your component must define a testRun method"
@@ -159,7 +164,7 @@ if __name__ == "__main__":
     table.buildColumnFromCells()
     table.buildRowFromCells()
     table.buildNDARRAY()
-    print table.getNPArray()
+#     print(table.getNPArray())
     # ([1:,2],(fieldname,None))
     stemplate='[((slice(1,None),slice(0,1)) ,["name", "fistname"]),((slice(1,2),slice(1,None)) ,["ledig"])]'
     
@@ -170,8 +175,8 @@ if __name__ == "__main__":
     myTemplate.buildFromPattern(ltemplate)
     myTemplate.labelTable(table)
     
-    for cell in table.getCells():
-        print cell.getIndex(), cell.getFields()
+#     for cell in table.getCells():
+#         print(cell.getIndex(), cell.getFields())
     
     ## extract data usinf field information
     
