@@ -42,7 +42,7 @@ from ObjectModel.xmlDSDocumentClass import XMLDSDocument
 from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
 from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
 from ObjectModel.XMLDSCELLClass import XMLDSTABLECELLClass
-from ObjectModel.XMLDSRowClass import XMLDSTABLEROWClass
+from ObjectModel.XMLDSTableRowClass import XMLDSTABLEROWClass
 from spm.spmTableRow import tableRowMiner
 from xml_formats.Page2DS import primaAnalysis
 from xml_formats.DS2PageXml import DS2PageXMLConvertor
