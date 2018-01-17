@@ -7,9 +7,13 @@ Sophie Andrieu - October 2006
 Copyright Xerox XRCE 2006
 
 """
+from __future__ import absolute_import
+from __future__ import unicode_literals
+from __future__ import print_function
+
 
 import types
-from common.trace import trace, traceln
+from common.trace import  traceln
 
 ## The <code>Parameter</code> class describes a parameter defined by a name, a short option, a long option and an argument.
 # It can also contains a default value, a type and a description.

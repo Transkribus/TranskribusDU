@@ -29,11 +29,12 @@
 """
 from __future__ import unicode_literals
 from __future__ import print_function
+from __future__ import absolute_import
 
-from XMLDSObjectClass import XMLDSObjectClass
-from XMLDSCELLClass import XMLDSTABLECELLClass
-from ObjectModel.XMLDSTableColumnClass import XMLDSTABLECOLUMNClass
-from ObjectModel.XMLDSTableRowClass import XMLDSTABLEROWClass
+from .XMLDSObjectClass import XMLDSObjectClass
+from .XMLDSCELLClass import XMLDSTABLECELLClass
+from .XMLDSTableColumnClass import XMLDSTABLECOLUMNClass
+from .XMLDSTableRowClass import XMLDSTABLEROWClass
 
 from config import ds_xml_def as ds_xml
 
@@ -259,7 +260,8 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         
         #delete fake cells
         for cell in self.getCells():
-            cell.getNode().unlinkNode()
+#             cell.getNode().unlinkNode()
+            cell.getNode().getparent().remove(cell.getNode())
             del cell
         
         #update with real cells
@@ -453,19 +455,18 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         """
             load cells
         """
-        self.setName(domNode.name)
+        self.setName(domNode.tag)
         self.setNode(domNode)
         # get properties
-        prop = domNode.properties
-        while prop:
-            self.addAttribute(prop.name,prop.getContent())
-            # add attributes
-            prop = prop.next
+        for prop in domNode.keys():
+            self.addAttribute(prop,domNode.get(prop))
             
-        ctxt = domNode.doc.xpathNewContext()
-        ctxt.setContextNode(domNode)
-        ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sCELL))
-        ctxt.xpathFreeContext()
+#         ctxt = domNode.doc.xpathNewContext()
+#         ctxt.setContextNode(domNode)
+#         ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sCELL))
+#         ctxt.xpathFreeContext()
+        
+        ldomElts = domNode.findall('./%s'%(ds_xml.sCELL))
         for elt in ldomElts:
             myObject= XMLDSTABLECELLClass(elt)
             self.addCell(myObject)

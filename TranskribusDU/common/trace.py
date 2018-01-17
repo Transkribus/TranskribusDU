@@ -4,6 +4,7 @@
 # JL Meunier - May 2004
 # Copyright XRCE, 2004
 #
+from __future__ import unicode_literals
 
 import sys
 
@@ -17,13 +18,14 @@ def setTraceFD(fd):
 def trace(*msg):
     global traceFD
     for i in msg:
-        try: traceFD.write(str(i))
-        except UnicodeEncodeError:sys.stderr.write(i.encode("utf-8"))
+        traceFD.write(str(i))
+#         try: traceFD.write(str(i))
+#         except UnicodeEncodeError:sys.stderr.write(i.encode("utf-8"))
 
 def traceln(*msg):
     global traceFD
     
-    apply(trace, msg)
+    trace(*msg)
     trace("\n")
     traceFD.flush()
 

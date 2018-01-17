@@ -29,11 +29,13 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import absolute_import
+from __future__ import  print_function
 from __future__ import unicode_literals
 
 import random
 import string
-from textGenerator import textGenerator
+from .textGenerator import textGenerator
 
 class textRandomGenerator(textGenerator):
     """
@@ -77,4 +79,4 @@ if __name__ == "__main__":
     for i in range(10):
         nGen= textRandomGenerator(10,10)
         nGen.generate()
-        print nGen.serialize()
+        print(nGen.serialize())

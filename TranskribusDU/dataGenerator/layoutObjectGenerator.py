@@ -29,19 +29,21 @@
     
     @author: H. Déjean
 """
-
+from __future__ import absolute_import
+from __future__ import  print_function
 from __future__ import unicode_literals
 
 #import libxml2
 from lxml import etree
 import sys, os.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
-from numericalGenerator import numericalGenerator
-from numericalGenerator import  integerGenerator
-from generator import Generator
-from layoutGenerator import layoutZoneGenerator
-from listGenerator import listGenerator
+from dataGenerator.numericalGenerator import numericalGenerator
+from dataGenerator.numericalGenerator import  integerGenerator
+from dataGenerator.generator import Generator
+from dataGenerator.layoutGenerator import layoutZoneGenerator
+from dataGenerator.listGenerator import listGenerator
 # from booleanGenerator import booleanGenerator
 
 class doublePageGenerator(layoutZoneGenerator):
@@ -672,6 +674,11 @@ class tableGenerator(layoutZoneGenerator):
         
         "padding" between two rows  (either a line and smal padding, or a larger space)
         idem for columns 
+        
+        
+        either: use number of  rows/columns
+                or rows/column height/width  (or constraint = allthesamevalue)
+        
     """   
     def __init__(self,nbCols,nbRows):
         layoutZoneGenerator.__init__(self)
@@ -681,6 +688,7 @@ class tableGenerator(layoutZoneGenerator):
         self.nbRows = integerGenerator(nbRows[0],nbRows[1])
         self.nbRows.setLabel('nbRows')
         
+        self._bSameRowHeight=True
         self._lRowsGen = listGenerator(layoutZoneGenerator, self.nbRows ,None)
         self._lRowsGen.setLabel("row")
         self._lColumnsGen = listGenerator(layoutZoneGenerator, self.nbCols ,None)
@@ -737,15 +745,22 @@ class tableGenerator(layoutZoneGenerator):
             self.lCols.append(colGen)
             
         ## here 
+        
+        rowH = None
         nexty = self.getY()._generation
         for i,rowGen in enumerate(self._lRowsGen._instance):
             if nexty > self.getHeight()._generation + self.getY()._generation:
                 continue
             rowx = self.getX()._generation 
-            # here   genertor for height variation!
-            self._rowHeightG.generate() 
-            rowy = nexty #self._rowHeightG._generation
-            rowH = self._rowHeightG._generation
+            # here   generator for height variation!
+            if self._bSameRowHeight:
+                if rowH is None:
+                    self._rowHeightG.generate() 
+                    rowH = self._rowHeightG._generation
+            else:
+                self._rowHeightG.generate() 
+                rowH = self._rowHeightG._generation
+            rowy = nexty 
             # here test that that there is anough space for the row!!
 #             print self._rowHeightM, self._rowHeightG._generation
             rowW = self.getWidth()._generation

@@ -7,35 +7,38 @@ Sophie Andrieu, H Dejean, JL Meunier - 2006
 Copyright Xerox XRCE 2006
 
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 #Adjustement of the PYTHONPATH to include /.../DS/src
 import sys, os.path
 import logging
 sys.path.append( os.path.dirname( os.path.dirname( os.path.abspath( sys.argv[0] ) ) ) )
 
-import sys, os.path, types, socket
+import socket
 import config.ds_xml_def as ds_xml
-import chrono
+from common import  chrono
 import time
-import string
-import types
 import math
 import inspect
 from collections import defaultdict
-import codecs
+# import codecs
+from io import open
 
-import libxml2
+from lxml import etree
 
 ### FIX to a problem with libxml2... :-(
 def FIX_docSetCompressMode(doc, ratio):
 	"""get the compression ratio for a document, ZLIB based """
 	#traceln("ratio :", ratio)
 	assert ratio in [0,1,2,3,4,5,6,7,8,9], "Internal SW Error zlib in Component.py: ratio=%s"%ratio
-	ret = libxml2.libxml2mod.xmlSetDocCompressMode(doc._o, ratio)
+	ret = None #libxml2.libxml2mod.xmlSetDocCompressMode(doc._o, ratio)
 	return ret
 
-import XmlConfig
+from common import XmlConfig
+
 from optparse import OptionParser
-from trace import trace, traceln
+from common.trace import trace, traceln
 
 sHttpHost = "ds.grenoble.xrce.xerox.com"  #server hosting the collections for online browsing
 
@@ -234,38 +237,38 @@ class Component:
 		if self.bDebug: traceln("Component arguments: ", dParams)
 		
 		#at this point the dParams maybe the indicated configuration one!
-		if dParams.has_key("verbose"): 
+		if "verbose" in dParams: 
 			#the value may come from the command line or from the config file or from the programatic dictionary
 			v = dParams["verbose"]
-			if type(v) == types.BooleanType:
+			if type(v) == bool:
 				self.bVerbose = v
 			else:
 				self.bVerbose = (dParams["verbose"] in ["true", "True"])
 			self.setVerbose(self.bVerbose)
-		if dParams.has_key("debug"): 
+		if "debug" in dParams: 
 			#the value may come from the command line or from the config file or from the programatic dictionary
 			v = dParams["debug"]
-			if type(v) == types.BooleanType:
+			if type(v) == bool:
 				self.bDebug = v
 			else:
 				self.bDebug = (dParams["debug"] in ["true", "True"])
-		if dParams.has_key("zlib"): 
+		if "zlib" in dParams: 
 			#the value may come from the command line or from the config file or from the programatic dictionary
 			v = dParams["zlib"]
-			if type(v) == types.BooleanType:
+			if type(v) == bool:
 				self.bZLib = v
 			else:
 				self.bZLib = (dParams["zlib"] in ["true", "True"])
 		
-		if dParams.has_key("oxclient"): self.sOXClientID = dParams["oxclient"]
+		if "oxclient" in dParams: self.sOXClientID = dParams["oxclient"]
 		
-		if dParams.has_key("logLevel"): self.loggingLevel = dParams["logLevel"]
-		if dParams.has_key("logDir"): self.logDir = dParams["logDir"]
-		if dParams.has_key('log'):self._bLog = dParams['log'] 		
+		if "logLevel" in dParams: self.loggingLevel = dParams["logLevel"]
+		if "logDir" in dParams: self.logDir = dParams["logDir"]
+		if 'log' in dParams:self._bLog = dParams['log'] 		
 		
 		#saveconfig or load config (not both)
-		if dParams.has_key("saveconf"): 
-			if dParams.has_key("conf"):
+		if "saveconf" in dParams: 
+			if "conf" in dParams:
 				raise Exception("Either save or load a configuration, not both")
 			else:
 				fnConfig = dParams["saveconf"]
@@ -274,13 +277,13 @@ class Component:
 				traceln("SAVING CONFIGURATION AND EXITING.")
 				sys.exit(0)
 		
-		bInput = dParams.has_key("input")  
+		bInput = "input" in dParams 
 		if bInput: self.inputFileName  = dParams["input"]
 		
-		bOutput = dParams.has_key("output")
+		bOutput = "output" in dParams
 		if bOutput: self.outputFileName = dParams["output"]
 
-		if dParams.has_key("conf"):
+		if "conf" in dParams:
 			fnConfig = dParams["conf"]
 			for k,v in dParams.items(): del dParams[k]	#empty the ditionary
 			self.loadConfig(fnConfig, dParams)  #re-populate the dictionary
@@ -289,22 +292,22 @@ class Component:
 		if bInput:  dParams["input"]  = self.inputFileName
 		if bOutput: dParams["output"] = self.outputFileName
 
-		if dParams.has_key("first"): self.firstPage = int(dParams["first"])
-		if dParams.has_key("last"): self.lastPage = int(dParams["last"])
+		if "first" in  dParams: self.firstPage = int(dParams["first"])
+		if "last" in dParams: self.lastPage = int(dParams["last"])
 		self.listOfPages = range(self.firstPage,self.lastPage+1)
-		if dParams.has_key("evalOut"): self.evalOutputFile = dParams["evalOut"]
+		if "evalOut" in dParams: self.evalOutputFile = dParams["evalOut"]
 
-		if dParams.has_key("tag"): self.tag = dParams["tag"]  
+		if "tag" in  dParams: self.tag = dParams["tag"]  
 
 		self.dParam = dParams #keep in memory
 
 		#TEST mode, ignore any other option, test and return
-		if dParams.has_key("test") and dParams["test"]:
-			bDiff = dParams.has_key("diff")
-			self.bTestIncr = dParams.has_key("incr")
-			self.bTestCSV  = dParams.has_key("csv")
-			self.bTestOUT  = dParams.has_key("testout")
-			if dParams.has_key("testvariant"): self.sTestVariant = dParams["testvariant"]
+		if "test" in  dParams and dParams["test"]:
+			bDiff = "diff" in dParams
+			self.bTestIncr = "incr" in dParams
+			self.bTestCSV  = "csv" in dParams
+			self.bTestOUT  = "testout" in dParams
+			if "testvariant" in dParams: self.sTestVariant = dParams["testvariant"]
 		
 			#if --out:  check if the component has the capability to store the computation output. Typically, old components won't.
 			if self.bTestOUT:
@@ -318,7 +321,7 @@ class Component:
 			self.testDir(dParams["test"], bDiff)
 			traceln("Test done, exiting.")
 			sys.exit(0)
-		elif dParams.has_key("diff") or dParams.has_key("incr") or dParams.has_key("csv") or dParams.has_key("testout") or dParams.has_key("testvariant"):
+		elif "diff" in dParams or "incr" in dParams or "csv" in  dParams or "testout" in  dParams or "testvariant" in dParams:
 			traceln("ERROR: use of --diff --incr --csv --out --variant is restricted to the test mode (see --test)")
 			raise ComponentException(self.usageTest)
 			
@@ -396,10 +399,15 @@ class Component:
 	def loadDom(self, filename=None,bGraphic = False):
 		if filename == None: 
 			filename = self.inputFileName
-		libxml2.keepBlanksDefault(False)
-		doc =  libxml2.parseFile(filename)
+# 		libxml2.keepBlanksDefault(False)
+# 		doc =  libxml2.parseFile(filename)
+
+		parser = etree.XMLParser(encoding='UTF-8')
+		doc = etree.parse(filename, parser)
+# 		doc = etree.parse(filename)
 		if bGraphic:
-			res = doc.xincludeProcess()
+			res = doc.xinclude()
+		self.doc= doc
 		return doc
 	
 	## Save the DOM into the output file name
@@ -410,13 +418,15 @@ class Component:
 			#traceln("ZLIB WRITE")
 			try:
 				FIX_docSetCompressMode(doc, self.iZLibRatio)
-			except Exception, e:
+			except Exception as e:
 				traceln("WARNING: ZLib error in Component.py: cannot set the libxml2 in compression mode. Was libxml2 compiled with zlib? :", e)
 		if bIndent:
-			doc.saveFormatFileEnc(self.getOutputFileName(), "UTF-8",bIndent)
+# 			doc.saveFormatFileEnc(self.getOutputFileName(), "UTF-8",bIndent)
+			doc.write(self.getOutputFileName(), xml_declaration=True,encoding="UTF-8",pretty_print=True)
 		else: 
 			#JLM - April 2009 - dump does not support the compressiondoc.dump(self.getOutputFile())
-			doc.saveFileEnc(self.getOutputFileName(),"UTF-8")
+# 			doc.saveFileEnc(self.getOutputFileName(),"UTF-8")
+			doc.write(self.getOutputFileName(), encoding="UTF-8")
 		
 		if self.sOXClientID: self.accounting(doc)
 	
@@ -434,10 +444,10 @@ class Component:
 	#Open Xerox accounting: we create a .cost file, containing the client ID and the number of pages
 	# space separation
 	def accounting(self, doc):
-		ctxt = doc.xpathNewContext()
-		nPageTot = int(ctxt.xpathEval('count(//PAGE)'))
-		ctxt.xpathFreeContext()
-		
+# 		ctxt = doc.xpathNewContext()
+# 		nPageTot = int(ctxt.xpathEval('count(//PAGE)'))
+# 		ctxt.xpathFreeContext()
+		nPageTot = doc.getroot().xpath('count(//PAGE)')
 		#Cost "statement"  :-)
 		#sCost = time.strftime("%Y/%m/%d\t%H:%M:%S\tGMT", time.gmtime()) #%Z can be verbose, e.g. Romance Standard Time or empty
 		sCost = self.name.expandtabs(1).strip()
@@ -575,7 +585,9 @@ class Component:
 			if bReusePreviousRun:
 				#do not re-compute it
 #				try:
-					f = codecs.open(fnRun, "r",'utf-8'); rundata = f.read(); f.close()
+					f = open(fnRun, "r",encoding='utf-8')
+					rundata = f.read() 
+					f.close()
 #				except IOError, e:
 #					traceln("WARNING: SKIPPING FILE %s: %s"%(fn, e))
 #					lMissingRunFile.append(fn)
@@ -591,12 +603,15 @@ class Component:
 					rundata = self.testRun( fnXML ) #RUN on THIS ONE!
 				#store this new result in a run file
 # 				if type(rundata) == str:
-				f = codecs.open(fnRun, "w",'utf-8'); f.write(rundata); f.close()
+				f = open(fnRun, "w",encoding='utf-8'); 
+				f.write(rundata); f.close()
 				nbRun += 1
 			
 			#read the ref data
 			if os.path.exists(fnRef):
-				f = codecs.open(fnRef, "r",'utf-8'); refdata = f.read(); f.close()
+				f = open(fnRef, "r",encoding='utf-8'); 
+				refdata = f.read()
+				f.close()
 				if bDiff: traceln("--- Diffing for: %s"%fn)
 				#Compare both results
 				cmpData = self.testCompare(refdata, rundata, bDiff)
@@ -628,9 +643,9 @@ class Component:
 		sRpt += " - Params =\n"
 		dParam = self.getParams()
 		lk = dParam.keys()
-		lk.sort()
-		for k in lk:
-			sRpt += " "*11 + "%s = %s\n" % (k, `dParam[k]`)
+# 		lk.sort()
+		for k in sorted(lk):
+			sRpt += " "*11 + "%s = %s\n" % (k, repr(dParam[k]))
 		sRpt += sLineLn
 		sRpt += "\n--- TEST REPORT ---\n"
 		sRpt += "\n"
@@ -794,15 +809,18 @@ class Component:
 		 
 		"""
 		nok, nerr, nmiss = 0,0,0
+
+		if isinstance(refdoc, str): refdoc = etree.parse(refdoc)
+		if isinstance(rundoc, str): rundoc = etree.parse(rundoc)
+				
+# 		if isinstance(refdoc, str): refdoc = libxml2.parseMemory(refdoc, len(refdoc))
+# 		if isinstance(rundoc, str): rundoc = libxml2.parseMemory(rundoc, len(rundoc))
 		
-		if isinstance(refdoc, str): refdoc = libxml2.parseMemory(refdoc, len(refdoc))
-		if isinstance(rundoc, str): rundoc = libxml2.parseMemory(rundoc, len(rundoc))
+# 		refctxt, runctxt = refdoc.xpathNewContext(), rundoc.xpathNewContext()
+# 		refctxt.setContextNode(refdoc.getRootElement())
+# 		runctxt.setContextNode(rundoc.getRootElement())
 		
-		refctxt, runctxt = refdoc.xpathNewContext(), rundoc.xpathNewContext()
-		refctxt.setContextNode(refdoc.getRootElement())
-		runctxt.setContextNode(rundoc.getRootElement())
-		
-		reflpnum, runlpnum = refctxt.xpathEval(sXpathExpr), runctxt.xpathEval(sXpathExpr)
+		reflpnum, runlpnum = refdoc.getroo().findall(sXpathExpr), rundoc.getroot().findall(sXpathExpr)
 		
 		itreflLen, itrunlLen = iter(reflpnum), iter(runlpnum)
 
@@ -812,7 +830,7 @@ class Component:
 			while True:
 				i += 1
 				bErr, bMiss = False, False
-				ref, run = itreflLen.next().getContent(), itrunlLen.next().getContent()
+				ref, run = itreflLen.next().text, itrunlLen.next().text
 				if funNormalize:
 					srunnorm = funNormalize(run) #using also our normalization in addition to the standard one				
 					srefnorm = funNormalize(ref)
@@ -845,7 +863,7 @@ class Component:
 						
 		except StopIteration:
 			pass
-		refctxt.xpathFreeContext(), runctxt.xpathFreeContext()
+# 		refctxt.xpathFreeContext(), runctxt.xpathFreeContext()
 
 		assert len(reflpnum) == len(runlpnum), "***** ERROR: inconsistent ref (%d) and run (%d) lengths. *****"%(len(reflpnum), len(runlpnum))
 
@@ -865,7 +883,7 @@ class Component:
 		if isinstance(cmpData, dict):
 			#new way of returning the results for multiple tasks!!
 			ltTaskName_cmpData = cmpData.items()
-			ltTaskName_cmpData.sort()
+			ltTaskName_cmpData = sorted(ltTaskName_cmpData)
 			ltOkErrMissltis = list()
 			for taskName, cmpData in ltTaskName_cmpData:
 				(nOk, nErr, nMiss, ltisRefsRunbErrbMiss) = cmpData
@@ -889,9 +907,9 @@ class Component:
 		if len(cmpData) == 3: #old style, no HTML report can be  produced
 			(nOk, nErr, nMiss) = cmpData
 			errorMsg = "either testRun returns a tuple (<int>, <int>, int>) or the component defines its own testInit, testRecord and testReport methods"
-			assert type(nOk)   == types.IntType, errorMsg
-			assert type(nErr)  == types.IntType, errorMsg
-			assert type(nMiss) == types.IntType, errorMsg
+			assert type(nOk)   == int, errorMsg
+			assert type(nErr)  == int, errorMsg
+			assert type(nMiss) == int, errorMsg
 			ltisRefsRunbErrbMiss = None
 		else:
 			assert len(cmpData) == 4, "either testRun returns a tuple (<int>, <int>, int>, list-of-item-test) or the component defines its own testInit, testRecord and testReport methods"
@@ -923,8 +941,8 @@ class Component:
 		sRpt = ""
 		
 		lItems = self.dic_ltFileOkErrMiss.items()
-		lItems.sort()
-		for taskName, lt_Filename_nOk_nErr_nMiss_ltisRefsRunbErrbMiss in lItems:
+# 		lItems.sort()
+		for taskName, lt_Filename_nOk_nErr_nMiss_ltisRefsRunbErrbMiss in sorted(lItems):
 			
 			
 			lPRF = []
@@ -973,8 +991,8 @@ class Component:
 		line = 0
 		#sRpt += " Doc Prec. Recall F1\t   nOk\t  nErr\t nMiss\tFilename\n"
 		lItems = self.dic_ltFileOkErrMiss.items()
-		lItems.sort()		
-		for taskName, lt_Filename_nOk_nErr_nMiss_ltisRefsRunbErrbMiss in lItems:
+# 		lItems.sort()		
+		for taskName, lt_Filename_nOk_nErr_nMiss_ltisRefsRunbErrbMiss in sorted(lItems):
 			sRpt += "\n\n%s\n"%taskName
 			sRpt += "Doc,Precision,Recall,F1,#ok,#error,#miss,filename\n"
 			line += 4
@@ -1046,8 +1064,8 @@ class Component:
 		sRpt = self.makeHTMLReportHeader(None, None, "", sCollec, sCollec)
 
 		lItems = self.dic_ltFileOkErrMiss.items()
-		lItems.sort()
-		for taskName, lt_Filename_nOk_nErr_nMiss_ltisRefsRunbErrbMiss in lItems:
+# 		lItems.sort()
+		for taskName, lt_Filename_nOk_nErr_nMiss_ltisRefsRunbErrbMiss in sorted(lItems):
 			sRpt += self.genHtmlTableReport(sCollec, taskName, lt_Filename_nOk_nErr_nMiss_ltisRefsRunbErrbMiss)
 		sRpt += """
 </body>
@@ -1099,7 +1117,7 @@ class Component:
 			lltisRefsRunbErrbMiss = data #this is a list of (taskName, nOk, nErr, nMiss, ltisRefsRunbErrbMiss)
 		else:
 			lltisRefsRunbErrbMiss = [ (None, nOk, nErr, nMiss, data) ]
-			
+		
 		#let's produce an HTML report!! 
 		sCollecDir = os.path.dirname(self.testDirXML)
 		sCollec = os.path.basename(sCollecDir)
@@ -1147,7 +1165,8 @@ color: orange;
 	</tr>
 """		% taskName
 			fHtml.write(sRpt)
-			ipnum_prev = None
+			# before P3 was None
+			ipnum_prev = -1  
 
 			for (ipnum, sRef, sRun, bErr, bMiss) in ltisRefsRunbErrbMiss:
 				if bErr and bMiss:
@@ -1160,11 +1179,12 @@ color: orange;
 					else:
 						sRptType = "OK"
 					
-				if ipnum:	
+				#P2: if ipnum:
+				if ipnum is not None:	
 					sPfFile = sCollec + "/" + sFile + "/" + "pf%06d"%ipnum
 				else:
 					sPfFile = sCollec + "/" + sFile #may not work!!
-					ipnum = ""
+					ipnum = -1
 					
 				lViews = [
 						    ('pdf', "/v/" + sCollec + "/" + sFile + "/" + str(ipnum))  #this page deals with generating the real filename
@@ -1174,7 +1194,7 @@ color: orange;
 						  ]
 				lsViews = [ '<a target="dla_%s" href="%s">%s</a>'%(name, url, name) for (name, url) in lViews ]
 				
-				if ipnum > ipnum_prev: #a new page
+				if int(ipnum) > ipnum_prev: #a new page
 					fHtml.write('<tr class="%s"><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n' % (sRptType, sRptType
 								, ipnum
 								, sRef
@@ -1284,7 +1304,7 @@ color: orange;
 		sx2 = 0.0
 	
 		#Compute CNT, SX, SX2
-		cnt = len( lFloat )
+		cnt = len( list(lFloat ))
 		for v in lFloat:
 			if v != None:
 				sx = sx + v
@@ -1317,22 +1337,24 @@ color: orange;
 	#@param doc The document object
 	def addTagProcessToMetadata(self, doc=None):
 		if not doc: doc = self.loadDom()
-		ctxt = doc.xpathNewContext()
-		ctxt.setContextNode(doc.getRootElement())
-		metadata= ctxt.xpathEval('/*/%s[1]'%ds_xml.sMETADATA)
-		ctxt.xpathFreeContext()
+# 		ctxt = doc.xpathNewContext()
+# 		ctxt.setContextNode(doc.getRootElement())
+# 		metadata= ctxt.xpathEval('/*/%s[1]'%ds_xml.sMETADATA)
+# 		ctxt.xpathFreeContext()
+		metadata = doc.getroot().xpath('/*/%s[1]'%ds_xml.sMETADATA)
 		if len(metadata)>=1:
-			meta = metadata[0].newChild(None, ds_xml.sPROCESS, None)
+			meta = etree.SubElement(metadata[0],ds_xml.sPROCESS)
 			#show both the name, sys.argv[0[ and the args, because a component can be activated from anothe rone
 			# and it is useful to see this from the PROCESS tags.
 			#JL Dec. 07
-			meta.setProp(ds_xml.sATTR_NAME, self.name)
-			meta.setProp(ds_xml.sATTR_CMD, self.getProgName())
-			meta.setProp(ds_xml.sATTR_CMD_ARG, self.buildCmdLine())
-			version = meta.newChild(None, ds_xml.sVERSION, None)
-			version.setProp(ds_xml.sATTR_VALUE, self.versionComponent)
-			comment = version.newChild(None, ds_xml.sCOMMENT, None)
-			meta.newChild(None, ds_xml.sCREATIONDATE, time.ctime())
+			meta.set(ds_xml.sATTR_NAME, self.name)
+			meta.set(ds_xml.sATTR_CMD, self.getProgName())
+			meta.set(ds_xml.sATTR_CMD_ARG, self.buildCmdLine())
+			version = etree.SubElement(meta,ds_xml.sVERSION)
+			version.set(ds_xml.sATTR_VALUE, self.versionComponent)
+			comment = etree.SubElement(version,ds_xml.sCOMMENT)
+			date = etree.SubElement(meta, ds_xml.sCREATIONDATE)
+			date.text = time.ctime()
 		else:
 			self.addTagMetadata(doc)
 			self.addTagProcessToMetadata(doc)
@@ -1343,10 +1365,11 @@ color: orange;
 		if yes return the list of nodes PROCESS with the appropriate name
 		if no returns []
 		"""
-		ctxt = doc.xpathNewContext()
-		ctxt.setContextNode(doc.getRootElement())
-		lNd = ctxt.xpathEval('/*/%s/%s[@%s="%s"]'%(ds_xml.sMETADATA, ds_xml.sPROCESS, ds_xml.sATTR_NAME, self.name))
-		ctxt.xpathFreeContext()
+# 		ctxt = doc.xpathNewContext()
+# 		ctxt.setContextNode(doc.getroot())
+# 		lNd = ctxt.xpathEval('/*/%s/%s[@%s="%s"]'%(ds_xml.sMETADATA, ds_xml.sPROCESS, ds_xml.sATTR_NAME, self.name))
+# 		ctxt.xpathFreeContext()
+		lNd= doc.getroot().xpath('/*/%s/%s[@%s="%s"]'%(ds_xml.sMETADATA, ds_xml.sPROCESS, ds_xml.sATTR_NAME, self.name))
 		return lNd
 	hasTagProcess = classmethod(hasTagProcess)
 	
@@ -1354,15 +1377,15 @@ color: orange;
 	# (Note : the boolean parameters are ignored)
 	#@return the command line like a string
 	def buildCmdLine(self):
-		return `self.dParam`
+		return repr(self.dParam)
 		
 	## Add a <METADATA> tag into the <DOCUMENT> tag in the XML document input.
 	#@param doc The document object
 	def addTagMetadata(self, doc):
-		node = doc.getRootElement()
-		first = node.children
-		if first: first.addPrevSibling(libxml2.newNode(ds_xml.sMETADATA))
-		else: node.newChild(None, ds_xml.sMETADATA, None)
+		node= doc.getroot()
+		try: node[0].addprevious(etree.Element(ds_xml.sMETADATA))
+		except IndexError as e: etree.SubElement(node, ds_xml.sMETADATA)		
+		
 
 	## Get the program python name which has been executed
 	#@return the program python name
@@ -1479,21 +1502,21 @@ if __name__=="__main__":
 			pass
 		
 		def testRun(self, x):
-			print "B.testRun(%s)"%x
+			print("B.testRun(%s)"%x)
 			return (x,)
 			
 	class C(A):
 		def __init__(self):
 			pass
 		def testRun(self, x,y):
-			print "B.testRun(%s,%s)"%(x,y)
+			print ("B.testRun(%s,%s)"%(x,y))
 			return (x,y)
 			
 	class D(A):
 		def __init__(self):
 			pass
 		def testRun(self, x,y=None):
-			print "D.testRun(%s,%s)"%(x,y)
+			print ("D.testRun(%s,%s)"%(x,y))
 			if y == None:
 				return (x,)
 			else:

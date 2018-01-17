@@ -6,14 +6,12 @@ Sophie Andrieu - October 2006
 Copyright Xerox XRCE 2006
 
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-import sys, libxml2
 import config.ds_xml_def as ds_xml
-import chrono as chrono
-import string
-from trace import trace, traceln
-from Parameter import Parameter
-import Component
+from lxml import  etree
 
 sFalse = "False"
 sTrue = "True"
@@ -45,15 +43,17 @@ class XmlConfig:
     #@param options The list of options command line
     #@param parser The parser which store options and arguments
     def writeXmlConfig(self, dArgs, dicOptionDef=None):
-        doc = libxml2.newDoc(ds_xml.sXML_VERSION)
-        root = doc.newChild(None,ds_xml.sCONFIGURATION,None)
+        root = etree.Element(ds_xml.sCONFIGURATION)
+        doc = etree.ElementTree(root)
         
         # TOOL tag
-        tool = root.newChild(None, ds_xml.sTOOL, None)
-        nameTool = tool.newChild(None, ds_xml.sNAME, self.progName)
-        versionTool = tool.newChild(None, ds_xml.sVERSION, self.version)
+        tool = etree.SubElement(root, ds_xml.sTOOL)
+        nameTool = etree.SubElement(tool, ds_xml.sNAME)
+        nameTool.text =  self.progName
+        versionTool = etree.SubElement(tool, ds_xml.sVERSION)
+        versionTool.text =  self.version
 
-        newComment = libxml2.newComment("""We describe here the command line argument:
+        newComment = etree.Comment("""We describe here the command line argument:
   - @form is a space separated seris of option syntaxic form, e.g. '-i' for the 'input' option
   - @default is the default value
   - @help is a textual help for the user
@@ -63,35 +63,39 @@ class XmlConfig:
   See http://docs.python.org/lib/module-optparse.html understand fully the meaning of the attributes.
   Note @dest and @name are the same thing
 """)
-        root.addChild(newComment)
+        root.append(newComment)
 
-        descriptionTool = tool.newChild(None, ds_xml.sDESCRIPTION, self.description)
-        tagArg = False
+        descriptionTool = etree.SubElement(tool, ds_xml.sDESCRIPTION)
+        descriptionTool.text = self.description
 
         lItems = dArgs.items()
-        lItems.sort()
-        for k, v in lItems:
-            param = root.newChild(None,ds_xml.sPARAM,`v`)
-            param.setProp(ds_xml.sATTR_NAME, k)
+#         lItems.sort()
+        for k, v in sorted(lItems):
+            param =etree.SubElement(root,ds_xml.sPARAM)
+            param.text = repr(v)
+            param.set(ds_xml.sATTR_NAME, k)
             if dicOptionDef:
-            	#add all the details we have!
-            	(tForms, dKW) = dicOptionDef[k]
-            	param.setProp(ds_xml.sATTR_FORM, string.joinfields(tForms)) #e.g. "-i --input"
-            	for k, v in dKW.items():
-					param.setProp(k, str(v)) #e.g. store="store_true"
-             		
-        doc.saveFormatFile(self.confFileName, 1)
-        doc.freeDoc()
+                #add all the details we have!
+                (tForms, dKW) = dicOptionDef[k]
+#                 param.set(ds_xml.sATTR_FORM, string.joinfields(tForms)) #e.g. "-i --input"
+                param.set(ds_xml.sATTR_FORM, str.join(" ",tForms)) #e.g. "-i --input"
+
+                for k, v in dKW.items():
+                    param.set(k, str(v)) #e.g. store="store_true"
+        
+        doc.write(self.confFileName,xml_declaration=True,encoding='UTF-8',pretty_print=True)
+#         doc.saveFormatFile(self.confFileName, 1)
+        del(doc)
        
     ## Read the XML configuration file and store all options inforations into a list of <code>Parameter</code> 
     #@see Parameter
     def readXmlConfig(self, dic):
-        configXML = libxml2.parseFile(self.confFileName)
+        configXML = etree.parse(self.confFileName)
                 
-        lNode = self.getListNode(configXML, configXML.getRootElement(),"/%s/%s" %(ds_xml.sCONFIGURATION, ds_xml.sPARAM))
+        lNode = self.getListNode(configXML, configXML.getroot(),"/%s/%s" %(ds_xml.sCONFIGURATION, ds_xml.sPARAM))
         for node in lNode:
-            name = node.prop(ds_xml.sATTR_NAME)
-            value = eval(node.get_content(), {}, {})
+            name = node.get(ds_xml.sATTR_NAME)
+            value = eval(node.text, {}, {})
             
             dic[name] = value
                   
@@ -101,10 +105,11 @@ class XmlConfig:
     #@param xpathQuery The Xpath query used to get the node list
     #@return the list of node
     def getListNode(self, context, nodeContext, xpathQuery):
-        ctxt = context.xpathNewContext()
-        ctxt.setContextNode(nodeContext)
-        list = ctxt.xpathEval(xpathQuery)
-        ctxt.xpathFreeContext()
-        return list
+#         ctxt = context.xpathNewContext()
+#         ctxt.setContextNode(nodeContext)
+#         list = ctxt.xpathEval(xpathQuery)
+#         ctxt.xpathFreeContext()
+        return nodeContext.xpath(xpathQuery)
+#         return list
 
     

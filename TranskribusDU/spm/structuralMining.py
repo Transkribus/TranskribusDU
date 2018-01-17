@@ -22,6 +22,11 @@
     see viterby : https://github.com/phvu/misc/blob/master/viterbi/
 """
 
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
+
 # Adjustement of the PYTHONPATH to include /.../DS/src
 import sys, os.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
@@ -31,7 +36,7 @@ import config.ds_xml_def as ds_xml
 from operator import itemgetter
 
 import numpy as np
-from  feature import featureObject, multiValueFeatureObject   
+from  .feature import featureObject, multiValueFeatureObject   
 
 
 class sequenceMiner(Component.Component):
@@ -170,7 +175,7 @@ class sequenceMiner(Component.Component):
                                 fConfidence = 1.0 *support / dP[str(newPattern)]
 #                                 if self.bDebug:print 'RULE: %s => %s[%d] (%s/%s = %s)'%(newPattern, item,i,dP[str(newPattern)],support, fConfidence)
                                 if fConfidence >  self.THRULES: 
-                                    if self.bDebug:print 'RULE: %s => %s[%d] (%s/%s = %s)'%(newPattern, item,i,dP[str(newPattern)],support, fConfidence)
+                                    if self.bDebug:print( 'RULE: %s => %s[%d] (%s/%s = %s)'%(newPattern, item,i,dP[str(newPattern)],support, fConfidence))
                                     lRules.append( (newPattern,item,i,pattern, fConfidence) )
         return lRules
     
@@ -184,12 +189,12 @@ class sequenceMiner(Component.Component):
         lNewPatterns=[]
         for pattern, _ in lPatterns:
             lNewPatterns=[]
-            print "**",pattern
+            print( "**",pattern)
             curpattern = pattern
             for rule in lSeqRules:
-                print '\t',curpattern,'\t',rule
+                print( '\t',curpattern,'\t',rule)
                 newpattern = self.applyRule(rule, curpattern)
-                print '\t\t-> ',newpattern
+                print( '\t\t-> ',newpattern)
                 if newpattern:
                     curpattern = newpattern[:]
             if curpattern not in lNewPatterns:
@@ -199,7 +204,7 @@ class sequenceMiner(Component.Component):
             if len(lNewPatterns) > 1  and len(pattern) == 1:
                 lNewPatterns.sort(key=lambda x:len(x))
                 dAncestor[str(pattern)] =  lNewPatterns[-1]
-                print pattern, lNewPatterns
+                print (pattern, lNewPatterns)
             
         return dAncestor        
     
@@ -216,7 +221,7 @@ class sequenceMiner(Component.Component):
         if len(lhs) == len(pattern):
 #             if len
             if elt not in lhs[pos]:
-                foo = map(lambda x:x[:],lhs)
+                foo = [x[:] for x in lhs]
                 foo[pos].append(elt)
                 foo[pos].sort()
                 if foo == rhs:
@@ -256,7 +261,7 @@ class sequenceMiner(Component.Component):
 #             print ":",pattern,'\t\t', itemset
             # if no list in itemset: terminal 
 #             print map(lambda x:type(x).__name__ ,itemset)
-            if  'list' not in map(lambda x:type(x).__name__ ,itemset):
+            if  'list' not in list(map(lambda x:type(x).__name__ ,itemset)):
                 # if one item which is boolean: gramplus element
                 # no longer used???
                 if False and len(itemset)==1 and itemset[0].getType()==1:
@@ -266,7 +271,9 @@ class sequenceMiner(Component.Component):
                     name= "multi" #'|'.join(i.getName() for i in itemset)
                     mv.setName(name)
                     mv.setTH(TH)
-                    mv.setValue(map(lambda x:x,itemset))
+#                     mv.setValue(list([x for x in itemset]))
+                    mv.setValue(list(itemset))
+
         #             print mv.getValue()
                     lmv.append( mv )
                     dMtoSingleFeature[str(mv)]=itemset
@@ -281,15 +288,15 @@ class sequenceMiner(Component.Component):
     def parseWithPattern(self,pattern,lSeq):
         """
         """
-        from feature import multiValueFeatureObject , featureObject
+        from .feature import multiValueFeatureObject , featureObject
 
-        print 'parsing with... ',pattern
+        print ('parsing with... ',pattern)
         ##" convert into multivalFO here to get features 
 #         mvPattern = self.patternToMV(pattern)
 #         print pattern, mvPattern
         lParsingRes = self.parseSequence(pattern,multiValueFeatureObject,lSeq)
         lns,lnf = self.generateKleeneItemsets(lSeq,lParsingRes,featureObject)
-        print "loop0:",lns, lnf        
+        print ("loop0:",lns, lnf)        
         
         
         
@@ -350,7 +357,7 @@ class sequenceMiner(Component.Component):
                 minf them
                 if kleene: generate new sets of sequences
         """
-        from msps import msps
+        from .msps import msps
         
         myMiner=msps()
         myMiner.bDEBUG = self.bDebug
@@ -363,16 +370,15 @@ class sequenceMiner(Component.Component):
             return None
         # frequency correction:     
         ## sort them for rule detection
-        lPatterns = filter(lambda (p,s):len(p) >= self.getMinSequenceLength() and len(p) <= self.getMaxSequenceLength(),lPatterns)
+        lPatterns = list(filter(lambda ps:len(ps[0]) >= self.getMinSequenceLength() and len(ps[0]) <= self.getMaxSequenceLength(),lPatterns))
 
         for p,s in lPatterns:
-#             print p, len(p), self.getMinSequenceLength(), len(p) >= self.getMinSequenceLength(), len(p) <= self.getMaxSequenceLength()
             for i in p:
                 i.sort(key=lambda x:x.getValue())
                 
-        # s= None !!!?? how 
-        lPatterns =  filter(lambda (p,s):s is not None,lPatterns)    
-        lPatterns= map(lambda (p,s): (p, round(1.0*len(p)*s/self.getMaxSequenceLength())),lPatterns)    
+        # s= None !!!?? how
+        lPatterns =  list(filter(lambda ps:ps[1] is not None,lPatterns))
+        lPatterns= list(map(lambda ps: (ps[0], round(1.0*len(p)*s/self.getMaxSequenceLength())),lPatterns))    
 
         return lPatterns
         
@@ -389,55 +395,52 @@ class sequenceMiner(Component.Component):
             ?? REGROUP FEATURES PER node 
             when enriching, consider only features from other nodes?
         """
-        ll=[]
+#         ll=[]
         lFeatures = {}
+        self.bDebug=False
         for elt in lList:
             elt._canonicalFeatures=None
-#             if self.bDebug: print "\t",elt, str(elt.getSetofFeatures())
+            if self.bDebug: print ("\t",elt, str(elt.getSetofFeatures()))
             for feature in elt.getSetofFeatures():
 #                 print '\t\t',elt,feature
-                ll.append(feature.getValue())
                 try:lFeatures[feature].append(feature)
                 except KeyError: lFeatures[feature] = [feature]
             
-#         from sklearn import  mixture
-#         print ll    
-#         ll= np.array(ll).reshape(-1,1)
-#         for n in range(1,20):
-#             if len(ll)> n:
-#                 gmm=mixture.GaussianMixture(n_components=n)
-#                 gmm.fit(ll)
-#                 print gmm.bic(ll)
-#                 print gmm.means_
-#                 print gmm.covariances_
                 
-                
-        sortedItems = map(lambda x: (x, len(lFeatures[x])), lFeatures)
+#         sortedItems = map(lambda x: (x, len(lFeatures[x])), lFeatures)
+        sortedItems = list([(x, len(lFeatures[x])) for x in lFeatures])
         sortedItems.sort(key=itemgetter(1), reverse=True)    
+        
         
         lCovered = []
         lMergedFeatures = {}
         for i, (f, _) in enumerate(sortedItems):
-#             print f, lFeatures[f], f.getID(),  map(lambda x: x.getID(), lCovered)
-            if f.getID() not in map(lambda x: x.getID(), lCovered):
+#             print (f, f.getNodes(),[x.getID() for x in lFeatures[f]], f.getID() ) #,  list(map(lambda x: x.getID(), lCovered)))
+            try:print(lMergedFeatures[f])
+            except KeyError:pass
+#             if f.getID() not in list([x.getID() for x in lCovered]):
+            if f.getID() not in map(lambda x: x.getID(), lCovered):                
                 lMergedFeatures[f] = lFeatures[f]
-#                 print f, lFeatures[f], f.getID()
+#                 print( f, lFeatures[f], lMergedFeatures[f],f.getID())
                 lCovered.append(f)
                 # usefull? YES, 2D equality does not work with HASH !!! 
                 for ff, freq in sortedItems[i + 1:]:
                     # 2d equality
                     if f == ff and f.getID() != ff.getID():
-#                         print '=',f,ff, f.getTH(),ff.getTH(),
+#                         print ('=',f,ff,f==ff,ff.getID(), map(lambda x: x.getID(), lCovered))
                         for ff2 in lFeatures[ff]:
                             if ff2.getID() not in map(lambda x: x.getID(), lCovered):
+#                             if ff2.getID() not in list([x.getID() for x in lCovered]):
                                 # test with IF if ff2 not in list 
+#                                 print('merge',f,ff2)
                                 lMergedFeatures[f].append(ff2)
                                 lCovered.append(ff2)
                                 
-        sortedItems = map(lambda x: (x, len(lMergedFeatures[x])), lMergedFeatures)
+        sortedItems = list([ (x, len(lMergedFeatures[x])) for x in lMergedFeatures])
+#         sortedItems = map(lambda x: (x, len(lMergedFeatures[x])), lMergedFeatures)
+        
         sortedItems.sort(key=itemgetter(1), reverse=True)
 #         print lList
-#         print sortedItems
         lCanonicalFeatures = list()
         # creation of the canonical features
         for f, s in sortedItems:
@@ -452,12 +455,12 @@ class sequenceMiner(Component.Component):
             myValue=f.getValue()
             cf.setValue(myValue)
             if f.getType() == featureObject.NUMERICAL:
-                lvalues=map(lambda x:x.getValue(),lMergedFeatures[f])
+                lvalues= [x.getValue() for x in lMergedFeatures[f]]
                 ## now values can be tuples!!
-                try:             lweights = map(lambda x:1.0*x/len(lMergedFeatures[f]),lvalues)
+                try:             lweights = [1.0*x/len(lMergedFeatures[f]) for x in lvalues]
                 except TypeError:
-                    lvalues=map(lambda x:x.getValue()[0],lMergedFeatures[f])
-                    lweights = map(lambda x:1.0*x/len(lMergedFeatures[f]),lvalues)
+                    lvalues=[x.getValue() for x in lMergedFeatures[f]]
+                    lweights =   [1.0*x/len(lMergedFeatures[f]) for x in lvalues]
                 try:
                     myValue =  round(np.average(lvalues,weights=lweights),0)
 #                     print cf, lvalues, lweights, myValue
@@ -497,11 +500,11 @@ class sequenceMiner(Component.Component):
                     for n in f.getNodes():
                         f.getCanonical().addNode(n)
 #                 print elt,f, f.getCanonical() 
-            elt._lBasicFeatures = filter(lambda x:x not in ltbd,  elt.getSetofFeatures())
-            if self.bDebug: print elt, elt.getSetofFeatures(), elt.getCanonicalFeatures()
+            elt._lBasicFeatures = list(filter(lambda x:x not in ltbd,  elt.getSetofFeatures()))
+            if self.bDebug: print( elt, elt.getSetofFeatures(), elt.getCanonicalFeatures())
 #             print elt, elt.getSetofFeatures(), elt.getCanonicalFeatures()
 #         print lCanonicalFeatures
-        lCanonicalFeatures = filter(lambda x:len(x.getNodes()) >= TH, lCanonicalFeatures)
+        lCanonicalFeatures = list(filter(lambda x:len(x.getNodes()) >= TH, lCanonicalFeatures))
 
         
         # create weights: # elt per cf / total
@@ -515,7 +518,9 @@ class sequenceMiner(Component.Component):
         
         
         lCanonicalFeatures.sort(key=lambda x:x.getWeight(),reverse=True)
-        lCanonicalFeatures = filter(lambda x:len(x.getNodes()) >= TH,lCanonicalFeatures)
+#         for x in lCanonicalFeatures:print(x)
+        lCanonicalFeatures = list(filter(lambda x:len(x.getNodes()) >= TH,lCanonicalFeatures))
+#         for x in lCanonicalFeatures:print(x)
         
         return lCanonicalFeatures
     
@@ -534,7 +539,7 @@ class sequenceMiner(Component.Component):
                        then final completion? ???
         """
         
-        from grammarTool import sequenceGrammar
+        from .grammarTool import sequenceGrammar
         
         myGram = sequenceGrammar()
         lParsings = myGram.parseSequence(myFeatureType,myPattern, lSeqElements)
@@ -544,6 +549,7 @@ class sequenceMiner(Component.Component):
         
         lFullList=[]
         for x,_ in lParsings:
+#             print (x)
             lFullList.extend(x)
         return (myPattern,lFullList,lParsings)
 
@@ -581,13 +587,13 @@ class sequenceMiner(Component.Component):
                     ### if len=2 and [b,a] already exists: skip it !!
                     ### also if a bigger pattern contains it ???  (but not TA!!)
                     if len(mytemplate.getPattern())==2 and [mytemplate.getPattern()[1],mytemplate.getPattern()[0]] in  lFullPattern:
-                        print 'mirrored already in', mytemplate
+                        print( 'mirrored already in', mytemplate)
                     else:
                         lFullTemplates.append(mytemplate)
                         lFullPattern.append(mytemplate.getPattern())
                         iFound+= 1  
                         dScoreFullTemplate[mytemplate]=len(parseRes[1])                        
-                        print iCpt,'add kleenedPlus template', mytemplate,len(parseRes[1])
+                        print (iCpt,'add kleenedPlus template', mytemplate,len(parseRes[1]))
                         ## traverse the tree template to list the termnimal pattern
     #                     print mytemplate,'\t\t', mytemplate,len(parseRes[1])
                         lterm= mytemplate.getTerminalTemplates()
@@ -698,7 +704,6 @@ class sequenceMiner(Component.Component):
         PARTIALMATCH_TH = 1.0
         dMtoSingleFeature = {}
         mvPattern = self.treePatternToMV(mytemplate.getPattern(),dMtoSingleFeature, PARTIALMATCH_TH)
-#         print mvPattern
 #         print dMtoSingleFeature
 #         self.bDebug =True
         #need to optimize this double call        
@@ -713,7 +718,6 @@ class sequenceMiner(Component.Component):
                 elt.resetFeatures()
                 elt.setFeatureFunction(elt.getSetOfMutliValuedFeatures,TH = PARTIALMATCH_TH, lFeatureList = lf )
                 elt.computeSetofFeatures()
-#                 print elt, elt.getSetofFeatures()
 
         # what is missing is the correspondence between rule name (sX) and template element
         ## provide a template to seqGen ? instead if recursive list (mvpatern)
@@ -726,6 +730,7 @@ class sequenceMiner(Component.Component):
         nbSeq = 0.0
         nbKleeneInSeq= 0.0 
         if parsingRes is not None:
+#             print (mytemplate)
             self.populateElementWithTreeParsing(mytemplate,parsingRes,dMtoSingleFeature)
             _,_, lParse  = parsingRes
             for  lElts, rootNode in lParse:
@@ -736,10 +741,10 @@ class sequenceMiner(Component.Component):
                 if bReplace:
                     lNewSequence = self.replaceEltsByParsing(lNewSequence,lElts,xx,mytemplate.getPattern())            
             isKleenePlus = nbSeq > 0 and nbKleeneInSeq / nbSeq >= self.getKleenePlusTH()
-            if isKleenePlus: print mytemplate, nbSeq, nbKleeneInSeq, nbKleeneInSeq / nbSeq
+            if isKleenePlus: print( mytemplate, nbSeq, nbKleeneInSeq, nbKleeneInSeq / nbSeq)
 
             ### retrun nbKleeneInSeq / nbSeq and let decide at smpcomponent level (if pattern is mirrored: keep it if nbKleeneInSeq / nbSeq near 1.66 )
-            if self.bDebug:print mytemplate, nbSeq, nbKleeneInSeq, nbKleeneInSeq / nbSeq
+            if self.bDebug:print( mytemplate, nbSeq, nbKleeneInSeq, nbKleeneInSeq / nbSeq)
         return isKleenePlus,parsingRes, lNewSequence
 
     def populateElementWithTreeParsing(self,mytemplate,parsings,dMtoSingleFeature):

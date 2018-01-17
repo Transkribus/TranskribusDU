@@ -27,10 +27,13 @@
     under grant agreement No 674943.
 
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-from XMLDSObjectClass import XMLDSObjectClass
-from XMLDSTEXTClass import XMLDSTEXTClass
-from XMLDSLINEClass import XMLDSLINEClass
+from .XMLDSObjectClass import XMLDSObjectClass
+from .XMLDSTEXTClass import XMLDSTEXTClass
+from .XMLDSLINEClass import XMLDSLINEClass
 from config import ds_xml_def as ds_xml
 
 class  XMLDSTABLECELLClass(XMLDSObjectClass):
@@ -78,10 +81,10 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
     ### dom tagging
     def tagMe2(self):
         self.tagMe()
-        self.getNode().setProp('row',str(self.getIndex()[0]))
-        self.getNode().setProp('col',str(self.getIndex()[1]))        
-        self.getNode().setProp('rowSpan',str(self.getRowSpan()))
-        self.getNode().setProp('colSpan',str(self.getColSpan()))        
+        self.getNode().set('row',str(self.getIndex()[0]))
+        self.getNode().set('col',str(self.getIndex()[1]))        
+        self.getNode().set('rowSpan',str(self.getRowSpan()))
+        self.getNode().set('colSpan',str(self.getColSpan()))        
     
     ########### LOAD FROM DSXML ################
     
@@ -89,17 +92,13 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
         """
             only contains TEXT?
         """
-        self.setName(domNode.name)
+        self.setName(domNode.tag)
         self.setNode(domNode)
         # get properties
-        prop = domNode.properties
-        while prop:
-            self.addAttribute(prop.name,prop.getContent())
-            # add attributes
-            prop = prop.next
+        for prop in domNode.keys():
+            self.addAttribute(prop,domNode.get(prop))
+            
         self.setIndex(int(self.getAttribute('row')),int(self.getAttribute('col')))
-        ctxt = domNode.doc.xpathNewContext()
-        ctxt.setContextNode(domNode)
         
         # add default values if missinf
         try:  self.getRowSpan()
@@ -108,16 +107,14 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
         except:  self.addAttribute('colSpan',"1")
         # onlt sTEXT?
 #         ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sTEXT))
-        ldomElts = ctxt.xpathEval('./*')
+        ldomElts = domNode.findall('./*')
 
-        ctxt.xpathFreeContext()
         for elt in ldomElts:
-            if elt.name ==XMLDSTEXTClass.name:
+            if elt.tag ==XMLDSTEXTClass.name:
                 myObject= XMLDSTEXTClass(elt)
-            elif elt.name == XMLDSLINEClass.name:
+            elif elt.tag == XMLDSLINEClass.name:
                 myObject= XMLDSLINEClass(elt)
             else:
-                print elt
                 myObject= None
             if myObject is not None:
                 self.addObject(myObject)

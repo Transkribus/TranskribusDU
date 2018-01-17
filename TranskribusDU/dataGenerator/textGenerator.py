@@ -29,6 +29,8 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import absolute_import
+from __future__ import  print_function
 from __future__ import unicode_literals
 
 import cPickle
@@ -38,7 +40,7 @@ import locale
 
 import random
 
-from generator import Generator 
+from .generator import Generator 
 
 class textGenerator(Generator):
     
@@ -167,10 +169,10 @@ class textGenerator(Generator):
         # when to split 
         for token, labels in lGTTokens:
             generateProb = 1.0 * random.uniform(1,100)
-            print generateProb
+            print(generateProb)
             if generateProb < probaTH:
                 uLabels  = '\t'.join(labels)        
-                print token, uLabels
+                print( token, uLabels)
         
         return lGTTokens
 
@@ -299,8 +301,8 @@ class textGenerator(Generator):
         for token, labels in lnewGT:
             uLabels  = '\t'.join(labels)
             uString = "%s\t%s" % (token,uLabels)
-            print uString
-        print "EOS".encode('utf-8')
+            print(uString)
+        print ("EOS".encode('utf-8'))
             
     def exportAnnotatedData(self,lLabels):
         # export (generated value, label) for terminal 

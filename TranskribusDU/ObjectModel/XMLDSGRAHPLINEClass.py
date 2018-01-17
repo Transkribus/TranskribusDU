@@ -11,8 +11,11 @@
     a class for gaphical line
 
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-from XMLDSObjectClass import XMLDSObjectClass
+from .XMLDSObjectClass import XMLDSObjectClass
 
 class  XMLDSGRAPHLINEClass(XMLDSObjectClass):
     """
@@ -37,13 +40,13 @@ class  XMLDSGRAPHLINEClass(XMLDSObjectClass):
             self.lPoints = self.getAttribute('points')
 #             print 'after split?',self.lPoints
         if self.lPoints is not None:
-            lX = map(lambda x:float(x),self.lPoints.split(','))[0::2]
-            lY = map(lambda x:float(x),self.lPoints.split(','))[1::2]
+            lX = list(map(lambda x:float(x),self.lPoints.split(',')))[0::2]
+            lY = list(map(lambda x:float(x),self.lPoints.split(',')))[1::2]
             self.lPoints = zip(lX,lY)
             try:
                 self.avgY = 1.0 * sum(lY)/len(lY)
             except ZeroDivisionError:
-                print 'ZeroDivisionError:', lY, self.lPoints
+                print ('ZeroDivisionError:', lY, self.lPoints)
             self.length= lX[-1]-lX[0]
             self.addAttribute('x', lX[0])
             self.addAttribute('x2', lX[-1])
@@ -81,12 +84,9 @@ class  XMLDSGRAPHLINEClass(XMLDSObjectClass):
         """
             only contains points attribute
         """
-        self.setName(domNode.name)
+        self.setName(domNode.tag)
         self.setNode(domNode)
-        prop = domNode.properties
-        while prop:
-            self.addAttribute(prop.name,prop.getContent())
-            # add attributes
-            prop = prop.next
+        for prop in domNode.keys():
+            self.addAttribute(prop,domNode.get(prop))
         self.computePoints()
 
