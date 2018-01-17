@@ -9,9 +9,13 @@
     a class for object from a XMLDocument
 
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-from objectClass import objectClass
-import libxml2 
+
+from .objectClass import objectClass
+from lxml   import etree
 
 class  XMLObjectClass(objectClass):
     """
@@ -35,11 +39,11 @@ class  XMLObjectClass(objectClass):
         self._ltemplates = None
 
     def __str__(self):
-        return  "%s[%s] %s" % (self.getName(),self.getID(),self.getContent()[:10].encode('utf-8'))
+        return  "%s[%s] %s" % (self.getName(),self.getID(),self.getContent())
     
     def __repr__(self):
-        return "%s[%s] %s" % (self.getName(),self.getID(),self.getContent()[:10].encode('utf-8'))
-        return "%s %s %s" % (self.getName(),self.getContent().encode('utf-8'),self.getAttributes())
+        return "%s[%s] %s" % (self.getName(),self.getID(),self.getContent())
+        return "%s %s %s" % (self.getName(),self.getContent(),self.getAttributes())
     
     def getID(self): return self._orderedID
     #def __eq__(self,xmlo):   _eq__ or __cmp__
@@ -68,27 +72,27 @@ class  XMLObjectClass(objectClass):
         """
              create a dom elt and add it to the doc
         """
-        newNode = libxml2.newNode(self.tagName)
+        newNode = etree.Element(self.tagName)
         
-        newNode.setProp('x',str(self.getX()))
-        newNode.setProp('y',str(self.getY()))
-        newNode.setProp('height',str(self.getHeight()))
-        newNode.setProp('width',str(self.getWidth()))
+        newNode.set('x',str(self.getX()))
+        newNode.set('y',str(self.getY()))
+        newNode.set('height',str(self.getHeight()))
+        newNode.set('width',str(self.getWidth()))
         if self.getID():
-            newNode.setProp('id',str(self.getID()))
+            newNode.set('id',str(self.getID()))
             
         if self.getParent():
-            self.getParent().getNode().addChild(newNode)
+            self.getParent().getNode().append(newNode)
         else:
-            self.getPage().getNode().addChild(newNode)
+            self.getPage().getNode().append(newNode)
         
 
         # add attributres
         for att in self.getAttributes():
-            newNode.setProp(att,str(self.getAttribute(att)))
+            newNode.set(att,str(self.getAttribute(att)))
         
         # add content:!
-        newNode.setContent(self.getContent().encode('utf-8'))
+        newNode.text = self.getContent()
         
         # add children!!!!
         
@@ -105,27 +109,24 @@ class  XMLObjectClass(objectClass):
         ## if domNode in mappingTable:
         ## -> ise the fromDom of the specific object
         
-        self.setName(domNode.name)
+        self.setName(domNode.tag)
 #         print self.getName()
         self.setNode(domNode)
         # get properties
-        prop = domNode.properties
-        while prop:
-            self.addAttribute(prop.name,prop.getContent())
-            # add attributes
-            prop = prop.next
-        child = domNode.children
+        for prop in domNode.keys():
+            self.addAttribute(prop,domNode.get(prop))
+#         child = domNode.children
         ## if no text: add a category: text, graphic, image, whitespace
-        while child:
-            if child.type == 'text':
+        for  child in domNode:
+            if child.text is not None:
                 if self.getContent() is not None:
-                    self.addContent(child.getContent().decode("UTF-8"))
+                    self.addContent(child.text)
                 else:
-                    self.setContent(child.getContent().decode("UTF-8"))
+                    self.setContent(child.text)
                 pass
-            elif child.type =="comment":
+            elif child.tag == etree.Comment:
                 pass
-            elif child.type == 'element':
+            else : #if child.tag == etree.Element:
                 newChild = XMLObjectClass()
                 # create sibling relation?
                 newChild.fromDom(child)
@@ -269,3 +270,68 @@ class  XMLObjectClass(objectClass):
         mv.setType(multiValueFeatureObject.COMPLEX)
         self.addFeature(mv)
         return self._lBasicFeatures            
+    
+    
+    
+if __name__ == "__main__":
+
+    NS_PAGE_XML         = "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"
+    
+    NS_XSI ="http://www.w3.org/2001/XMLSchema-instance"
+    XSILOCATION ="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd"  
+
+# <PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd">
+# 
+# 
+# xmlns = "http://www.topografix.com/GPX/1/1"
+# xsi = "http://www.w3.org/2001/XMLSchema-instance"
+# schemaLocation = "http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd"
+# version = "1.1"
+# ns = "{xsi}"
+# 
+# getXML = etree.Element("{" + xmlns + "}gpx", version=version, attrib={"{xsi}schemaLocation": schemaLocation}, creator='My Product', nsmap={'xsi': xsi, None: xmlns})
+# print(etree.tostring(getXML, xml_declaration=True, standalone='Yes', encoding="UTF-8", pretty_print=True))
+
+    #Schema for Transkribus PageXml
+    XSL_SCHEMA_FILENAME = "pagecontent.xsd"
+
+
+#     xmlPAGERoot = etree.Element('{%s}PcGts'%NS_PAGE_XML,attrib={"{"+NS_XSI+"}schemaLocation" : XSILOCATION},nsmap={ None: NS_PAGE_XML})
+#     xmlPageDoc = etree.ElementTree(xmlPAGERoot)
+# 
+#     print (etree.QName(xmlPAGERoot.tag).localname)
+# #     print(etree.tostring(xmlPAGERoot))
+#     tag = etree.QName('http://www.w3.org/1999/xhtml', 'html')
+#     print(tag)
+
+
+    root=etree.Element('{sss}root',nsmap={ None: "sss"})
+    doc = etree.ElementTree(root)
+    elem = etree.Element("{sss}tag1", first="1", second="2")
+    elem2 = etree.Element("{sss}tag2", first="1", second="2")
+    root.append(elem)
+    root.append(elem2)
+    elem.text ='sdsd'
+    elem.tail="tail"
+    comment = etree.Comment("my comment")
+    root.append(comment)
+    
+    for x in root.xpath('.//@*'): print (x)
+        
+    for p in root.findall('.//*[@first]'):
+        p.set('first',"4")
+
+    for x in root:
+        if x.tag  != etree.Comment:
+            print(etree.QName(x.tag))
+    ss=elem.text
+    elem2.text=elem.tail
+    print(ss)
+    root[-1] = root[0]
+    print (etree.tostring(doc,encoding='UTF-8',xml_declaration=True,pretty_print=True))
+    print (elem.getnext())
+    if elem.get('sdsdsd'): print("ddddddddddd")
+    else: print ('aaaaaaaaa')
+    
+
+        

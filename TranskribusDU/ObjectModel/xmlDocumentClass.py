@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+
 """
     document class 
     Hervé Déjean
@@ -7,9 +7,12 @@ from __future__ import unicode_literals
 
     a class for document
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-from documentClass import documentObject 
-from XMLObjectClass import XMLObjectClass
+from .documentClass import documentObject 
+from .XMLObjectClass import XMLObjectClass
 
 class  XMLDocument(documentObject):
     """ 
@@ -71,7 +74,7 @@ class  XMLDocument(documentObject):
             self.setDom(docDom)
         if self.getDom():
             self._rootObject = XMLObjectClass()
-            self._rootObject.fromDom(self.getDom().getRootElement())
+            self._rootObject.fromDom(self.getDom().getroot())
             #self._lObjects = self._rootObject.getObjects()
         else:
             return -1
@@ -114,7 +117,6 @@ class  XMLDocument(documentObject):
 
     def getAllNamedObjects(self,objectName):
         lList =[]
-        print objectName, self.getName()
         try:
             if isinstance(self,objectName):
                 lList.append(self)
@@ -129,6 +131,6 @@ class  XMLDocument(documentObject):
                 
 
     def display(self,lvl=0):
-        print 'Document: ',self.getName()
+        print ('Document: ',self.getName())
         self.getRootObject().display(lvl+1)
 

@@ -9,23 +9,24 @@
     mine a set of lines (itemset generation)
     
 """
-
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 import sys, os.path
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
-import libxml2
-
+from lxml import etree
 import numpy as np
 
-import warnings
-warnings.filterwarnings('ignore')
+# import warnings
+# warnings.filterwarnings('ignore')
 
 import common.Component as Component
  
-from structuralMining import sequenceMiner
-
-from feature import featureObject 
+from spm.structuralMining import sequenceMiner
+from spm.feature import featureObject
+from spm.spm2 import PrefixSpan 
 
 from ObjectModel.xmlDSDocumentClass import XMLDSDocument
 from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
@@ -66,7 +67,7 @@ class lineMiner(Component.Component):
         Here, we set our internal attribute according to a possibly specified value (otherwise it stays at its default value)
         """
         Component.Component.setParams(self, dParams)
-        if dParams.has_key("pattern"): 
+        if "pattern" in dParams: 
             self.manualPattern = eval( dParams["pattern"])
             self.bManual=True  
 
@@ -89,8 +90,7 @@ class lineMiner(Component.Component):
             ## filter elements!!!
 #             lElts = filter(lambda x:min(x.getHeight(),x.getWidth()) > 10,lElts)
 #             lElts = filter(lambda x:x.getHeight() > 10,lElts)
-            lElts = filter(lambda x:x.getX() > 60,lElts)
-
+#             lElts = list(filter(lambda x:x.getX() > 60,lElts))
             lElts.sort(key=lambda x:x.getY())
             lLElts[i]=lElts
             lVEdge = TwoDRel.findVerticalNeighborEdges(lElts)
@@ -103,7 +103,6 @@ class lineMiner(Component.Component):
                 ### need of more abstract features: justified, center, left, right  + numerical 
                 elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['x','2','xc','text'],myLevel=XMLDSTEXTClass)
                 elt.computeSetofFeatures()
-#                 print elt.getSetofFeatures()
             seqGen = sequenceMiner()
             seqGen.setMaxSequenceLength(1)
             seqGen.setSDC(0.7) # related to noise level       AND STRUCTURES (if many columns)          
@@ -111,11 +110,11 @@ class lineMiner(Component.Component):
             seqGen.setObjectLevel(XMLDSTEXTClass)
 
             # for registration: needs to be replaced by ._lRegValues
-            print "sequence of elements and their features:"
+            print("sequence of elements and their features:")
 
             for elt in lElts:
                 elt.lFeatureForParsing=elt.getSetofFeatures()
-                print elt, elt.lFeatureForParsing
+#                 print (elt, elt.lFeatureForParsing)
             
             lTerminalTemplates=[]
             lCurList=lElts[:]
@@ -131,7 +130,7 @@ class lineMiner(Component.Component):
         seqGen.setMinSequenceLength(iLen)
         seqGen.setMaxSequenceLength(iLen)
         
-        print '***'*20, iLen
+        print( '***'*20, iLen)
         seqGen.bDebug = False
         for elt in lCurList:
             if elt.getSetofFeatures() is None:
@@ -145,22 +144,35 @@ class lineMiner(Component.Component):
         lSortedFeatures  = seqGen.featureGeneration(lCurList,2)
         for cf in lSortedFeatures:
             cf.setWeight(len((cf.getNodes())))
-        for x in lCurList:
-            print x, x.getCanonicalFeatures()
+#         for x in lCurList:
+#             print( x, x.getCanonicalFeatures())
         lmaxSequence = seqGen.generateItemsets(lCurList)
         seqGen.bDebug = False
         
-        lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.01)
-        lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
+        lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.01)
+        model = PrefixSpan.train(lSeq, minSupport = 0.1, maxPatternLength = 10)
+        result = model.freqSequences().collect()
+        result.sort(key=lambda x:x.freq)
+        lPatterns=[]
+        for fs in result:
+            if fs.freq > 1:
+#                 for i in fs.sequence:
+#                     for x in i:
+#                         print(x,x.getValue())
+#                     i.sort(key=lambda x:x.getValue())
+                lPatterns.append((fs.sequence,fs.freq))
+        lPatterns = list(filter(lambda p_s:len(p_s[0]) >= seqGen.getMinSequenceLength() and len(p_s[0]) <= seqGen.getMaxSequenceLength(),lPatterns))
+            
+#         lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
         if lPatterns is None:
             return lCurList, lTerminalTemplates
                     
-        lPatterns.sort(key=lambda (x,y):y, reverse=True)
+        lPatterns.sort(key=lambda xy:xy[1], reverse=True)
         
-        print "List of patterns and their support:"
+        print ("List of patterns and their support:")
         for p,support  in lPatterns:
             if support >= 1: 
-                print p, support
+                print (p, support)
         seqGen.THRULES = 0.95
         lSeqRules = seqGen.generateSequentialRules(lPatterns)
         
@@ -194,7 +206,7 @@ class lineMiner(Component.Component):
                             
 #                 print 'curList:',lCurList
 #                 print len(lCurList)
-        print "final hierarchy"
+        print( "final hierarchy")
         self.printTreeView(lCurList)
 #             lRegions= self.getRegionsFromStructure(page,lCurList)
                 # store all interation
@@ -217,9 +229,9 @@ class lineMiner(Component.Component):
             for e in lElts:
                 e.lnext=[]
             ## filter elements!!!
-            lElts = filter(lambda x:min(x.getHeight(),x.getWidth()) > 10,lElts)
-            lElts = filter(lambda x:x.getHeight() > 10,lElts)
-            lElts = filter(lambda x:x.getX() > 100,lElts)
+            lElts = list(filter(lambda x:min(x.getHeight(),x.getWidth()) > 10,lElts))
+#             lElts = filter(lambda x:x.getHeight() > 10,lElts)
+#             lElts = list(filter(lambda x:x.getX() > 100,lElts))
 
             lElts.sort(key=lambda x:x.getY())
             lLElts[i]=lElts
@@ -240,11 +252,11 @@ class lineMiner(Component.Component):
             seqGen.setObjectLevel(XMLDSTEXTClass)
 
             # for registration: needs to be replaced by ._lRegValues
-            print "sequence of elements and their features:"
+            print( "sequence of elements and their features:")
 
             for elt in lElts:
                 elt.lFeatureForParsing=elt.getSetofFeatures()
-                print elt, elt.lFeatureForParsing
+                print( elt, elt.lFeatureForParsing)
             icpt=0
             lTerminalTemplates = []
             
@@ -257,7 +269,7 @@ class lineMiner(Component.Component):
                     seqGen.setMinSequenceLength(2)
                     seqGen.setMaxSequenceLength(2)
                     
-                    print '***'*20, icpt
+                    print( '***'*20, icpt)
                     seqGen.bDebug = False
                     for elt in lCurList:
                         if elt.getSetofFeatures() is None:
@@ -267,7 +279,6 @@ class lineMiner(Component.Component):
                             elt.lFeatureForParsing=elt.getSetofFeatures()
                         else:
                             elt.setSequenceOfFeatures(elt.lFeatureForParsing)
-                            print elt, elt.getSetofFeatures()
                     lSortedFeatures  = seqGen.featureGeneration(lCurList,2)
                     
                 lmaxSequence = seqGen.generateItemsets(lCurList)
@@ -275,12 +286,12 @@ class lineMiner(Component.Component):
                 
                 lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.2)
                 lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)            
-                lPatterns.sort(key=lambda (x,y):y, reverse=True)
+                lPatterns.sort(key=lambda xy:xy[1], reverse=True)
                 
-                print "List of patterns and their support:"
+                print( "List of patterns and their support:")
                 for p,support  in lPatterns:
                     if support >= 1: 
-                        print p, support
+                        print (p, support)
                 seqGen.THRULES = 0.95
                 lSeqRules = seqGen.generateSequentialRules(lPatterns)
                 
@@ -318,7 +329,7 @@ class lineMiner(Component.Component):
                 icpt +=1
 #                 print 'curList:',lCurList
 #                 print len(lCurList)
-            print "final hierarchy"
+            print ("final hierarchy")
             self.printTreeView(lCurList)
 #             lRegions= self.getRegionsFromStructure(page,lCurList)
                 # store all interation
@@ -377,7 +388,7 @@ class lineMiner(Component.Component):
 
         # add empty template (last one in state)
         lTemplates.append(None)
-        print states, score
+        print (states, score)
 
         #assign to each elt the template assigned by viterbi
         for i,elt, in enumerate(lElts):
@@ -395,8 +406,8 @@ class lineMiner(Component.Component):
 #                     print registeredPoints, lMissing , score
                     if lMissing != []:
                         registeredPoints.extend(zip(lMissing,lMissing))
-                    registeredPoints.sort(key=lambda (x,y):y.getValue())
-                    lcuts = map(lambda (ref,cut):cut,registeredPoints)
+                    registeredPoints.sort(key=lambda xy:xy[1].getValue())
+                    lcuts = map(lambda refcut:refcut[1],registeredPoints)
                     ## store features for the final parsing!!!
 #                     print elt, lcuts
 #                     elt.addVSeparator(mytemplate,lcuts)
@@ -468,7 +479,7 @@ class lineMiner(Component.Component):
 #             print x,y,self.computePatternScore(x)
              
         dTemplatesTypes = {}
-        for pattern,support in filter(lambda (x,y):y>1,lPatterns):
+        for pattern,support in filter(lambda xy:xy[1]>1,lPatterns):
             try:
                 dCA[str(pattern)]
                 bSkip = True
@@ -547,10 +558,12 @@ class lineMiner(Component.Component):
         """
         for elt in lElts:
             if elt.getAttribute('virtual'):
-                print "  "*level, 'Node', elt.getAttribute('virtual')
+                print ("  "*level, 'Node', elt.getAttribute('virtual'))
                 self.printTreeView(elt.getObjects(),level+1)
             else:
-                print "  "*level, elt, elt.getContent().encode('utf-8')
+                print ("  " * level,elt.getContent())
+#                 try:print ("  "*level, elt, elt.getContent())
+#                 except: print (elt._content[:3])
     
     def getPatternGraph(self,lRules):
         """
@@ -590,19 +603,19 @@ class lineMiner(Component.Component):
             create a run XML file
         """
         
-        self.evalData = libxml2.newDoc('1.0')
-        root = libxml2.newNode('DOCUMENT')
-        self.evalData.setRootElement(root)
+        root = etree.Element('DOCUMENT')
+        self.evalData = etree.ElementTree(root)
         for page in lPages:
-            domp=libxml2.newNode('PAGE')
-            domp.setProp('number',page.getAttribute('number'))
-            root.addChild(domp)
+            domp = etree.Element('PAGE')
+            domp.set('number',page.getAttribute('number'))
+            root.append(domp)
             for sep in page.lVSeparator:
-                print page.lVSeparator
-                domsep= libxml2.newNode('SeparatorRegion')
-                domp.addChild(domsep)
-#                 domsep.setProp('x', str(sep[0].getValue()))
-                domsep.setProp('x', str(sep[0]))
+#                 print( page.lVSeparator)
+                domsep= etree.Element('SeparatorRegion')
+                domp.append(domsep)
+                domsep.set('x', str(sep[0]))
+        
+        return self.evalData
         
     def getRegionsFromStructure(self,page,lTree):
         """
@@ -647,25 +660,24 @@ class lineMiner(Component.Component):
         """
         fMinX , fMinY,  fMaxX , fMaxY, ltail = region
         # new region node
-        regionNode = libxml2.newNode('REGION')
-        page.getNode().addChild(regionNode)
-        regionNode.setProp('x',str(fMinX))
-        regionNode.setProp('y',str(fMinY))
-        regionNode.setProp('height',str(fMaxY-fMinY))
-        regionNode.setProp('width',str(fMaxX - fMinX))
-        print 
-        print region
-        print regionNode
+        regionNode = etree.Element('REGION')
+        page.getNode().append(regionNode)
+        regionNode.set('x',str(fMinX))
+        regionNode.set('y',str(fMinY))
+        regionNode.set('height',str(fMaxY-fMinY))
+        regionNode.set('width',str(fMaxX - fMinX))
+        print() 
+        print (region)
+        print (regionNode)
         [self.tagDom(page,tail) for tail in ltail]
         
         return regionNode        
             
     #--- RUN ---------------------------------------------------------------------------------------------------------------    
-    def run(self, doc):
+    def run(self):
         """
             take a set of line in a page and mine it
         """
-        self.doc= doc
         # use the lite version
         self.ODoc = XMLDSDocument()
         self.ODoc.loadFromDom(self.doc,listPages=range(self.firstPage,self.lastPage+1))        
@@ -693,10 +705,110 @@ class lineMiner(Component.Component):
     # Here we have the code used to test this component on a prepared testset (see under <ROOT>/test/common)
     # Do: python ../../src/common/TypicalComponent.py --test REF_TypicalComponent/
     #
-    
-    
+    def testeval(self,srefData,srunData, bVisual):
+        """
+            Test found reftemplate and reftemplate
+        """ 
+        cntOk = cntErr = cntMissed = 0
+        RefData = etree.XML(srefData.strip("\n").encode('utf-8'))
+        RunData = etree.XML(srunData.strip("\n").encode('utf-8'))        
+         
+        lRun = []
+        if RunData is not None:
+            lpages = RunData.xpath('//%s' % ('PAGE'))
+            for page in lpages:
+                if page.get('reftemplate'):
+                    lRun.append(eval(page.get('reftemplate')))
+
+        lRef = []
+        lPages = RefData.xpath('//%s' % ('PAGE'))
+        for page in lPages:
+            if page.get('reftemplate'):
+                lRef.append(eval(page.get('reftemplate')))
+            else: lRef.append([])
  
+        ltisRefsRunbErrbMiss= list()
+        for i in range(0,len(lRef)):
+            lRefCovered = []
+            if lRun[i] ==[]:
+                runLen=0
+            else:
+                posrun = lRun[i][0]
+                runLen = len(lRun[i][posrun+1])
+            if lRef[i]==[]:
+                refLen=0
+                refElt=None
+                posref=None
+            else:
+                posref=lRef[i][0]
+                refLen= len(lRef[i][posref+1])
+            curRun = curRef = 0
+            while curRun <= runLen - 1:  # or curRef <= refLen -1:
+                bErr, bMiss = False, False
+                try:
+                    runElt = lRun[i][posrun+1][curRun]
+                except IndexError: runElt = None
+    #             print '___',curRun,runElt
+                curRef = 0
+                bFound = False
+                while not bFound and curRef <= refLen - 1:
+                    try: refElt = lRef[i][posref+1][curRef]
+                    except IndexError: refElt = None
+    #                 self.compareString(runElt,runElt)
+                    if runElt and refElt not in lRefCovered and self.testComparePageVertical(runElt, refElt):
+                        bFound = True
+                        lRefCovered.append(refElt)
+                        resRef=refElt
+                    else:
+                        curRef += 1
+                if bFound:
+                    if bVisual:print ("FOUND:", runElt, ' -- ', lRefCovered[-1])
+                    cntOk += 1
+                    curRun += 1
+                else:
+                    resRef=''
+                    curRun += 1
+                    cntErr += 1
+                    bErr = True
+#                     bMiss = True
+                    if bVisual:print ("ERROR:", runElt)
+                ltisRefsRunbErrbMiss.append( (i, resRef, runElt,bErr, bMiss) )
+             
+            if posref is not None:
+                for ref in lRef[i][posref+1]:
+                    if ref not in lRefCovered:
+                        ltisRefsRunbErrbMiss.append( (i, ref, '',False, True) )
+                        # add missed elements!
+#                         print 'missed', len(lRef[i][posref+1]) , len(lRefCovered), lRef[i][posref+1], lRefCovered
+                        cntMissed += 1#(len(lRef[i][posref+1]) - len(lRefCovered))
+ 
+        ltisRefsRunbErrbMiss.sort(key=lambda x_y_z_t_u:x_y_z_t_u[0])
+
+        return (cntOk, cntErr, cntMissed,ltisRefsRunbErrbMiss)              
+    def testRun(self, filename, outFile=None):
+        """
+        testRun is responsible for running the component on this file and returning a string that reflects the result in a way
+        that is understandable to a human and to a program. Nicely serialized Python data or XML is fine
+        """
         
+        doc = self.loadDom(filename)
+        self.doc= doc
+        self.run()
+#         doc.freeDoc()
+        self.generateTestOutput(self.lPages)
+
+        if outFile: self.writeDom(doc)
+        return etree.tostring(self.evalData,encoding='unicode')
+        
+    def testCompare(self, srefData, srunData, bVisual=False):
+        """
+        Our comparison is very simple: same or different. N
+        We anyway return this in term of precision/recall
+        If we want to compute the error differently, we must define out own testInit testRecord, testReport
+        """
+        dicTestByTask = dict()
+        dicTestByTask['EVAL']= self.testeval(srefData, srunData,bVisual)
+        return dicTestByTask
         
 #--- MAIN -------------------------------------------------------------------------------------------------------------    
 #
@@ -721,8 +833,8 @@ if __name__ == "__main__":
     #Now we are back to the normal programmatic mode, we set the componenet parameters
     docM.setParams(dParams)
     
-    doc = docM.loadDom()
-    docM.run(doc)
-    if doc and docM.getOutputFileName() != "-":
-        docM.writeDom(doc, True)
+    docM.doc = docM.loadDom()
+    docM.run()
+    if docM.doc and docM.getOutputFileName() != "-":
+        docM.writeDom(docM.doc, True)
 

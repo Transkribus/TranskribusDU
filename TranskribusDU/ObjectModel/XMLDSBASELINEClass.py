@@ -11,10 +11,12 @@
     a class for baseline
 
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-from XMLDSObjectClass import XMLDSObjectClass
+from .XMLDSObjectClass import XMLDSObjectClass
 from config import ds_xml_def as ds_xml
-import libxml2
 
 class  XMLDSBASELINEClass(XMLDSObjectClass):
     """
@@ -44,8 +46,8 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
             self.lPoints = self.getAttribute('blpoints')
 #             print 'after split?',self.lPoints
         if self.lPoints is not None:
-            lX = map(lambda x:float(x),self.lPoints.split(','))[0::2]
-            lY = map(lambda x:float(x),self.lPoints.split(','))[1::2]
+            lX = list(map(lambda x:float(x),self.lPoints.split(',')))[0::2]
+            lY = list(map(lambda x:float(x),self.lPoints.split(',')))[1::2]
             self.lPoints = zip(lX,lY)
 #             lY.sort()
 #             if len(lY)> 10:  ## if basline automatically generated: beg and end noisy 
@@ -53,7 +55,7 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
             try:
                 self.avgY = 1.0 * sum(lY)/len(lY)
             except ZeroDivisionError:
-                print 'ZeroDivisionError:', lY, self.lPoints
+                print ('ZeroDivisionError:', lY, self.lPoints)
             self.length= lX[-1]-lX[0]
             self.addAttribute('x', lX[0])
             self.addAttribute('x2', lX[-1])
@@ -101,11 +103,8 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
         self.setNode(domNode)
         # get properties
         # all?
-        prop = domNode.properties
-        while prop:
-            self.addAttribute(prop.name,prop.getContent())
-            # add attributes
-            prop = prop.next
+        for prop in domNode.keys():
+            self.addAttribute(prop,domNode.get(prop))
         self.computePoints()
             
             
@@ -118,7 +117,7 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
         
 #         myPoints = ' '.join(["%d,%d"%(xa,ya) for xa,ya  in self.getPoints()])
         myPoints = '%f,%f,%f,%f'%(self.getX(),ymin,self.getX2(),ymax)      
-        self.getParent().getNode().setProp('blpoints', myPoints)
+        self.getParent().getNode().set('blpoints', myPoints)
             
     def getSetOfListedFeatures(self,TH,lAttributes,myObject):
         """

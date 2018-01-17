@@ -29,9 +29,13 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import absolute_import
+from __future__ import  print_function
 from __future__ import unicode_literals
+
 import random
-from generator import Generator
+
+from .generator import Generator
 
 """
      see http://www.southampton.ac.uk/~fangohr/blog/physical-quantities-numerical-value-with-units-in-python.html
@@ -99,5 +103,5 @@ if __name__ == "__main__":
     for  i in range(10):
         numGen= integerGenerator(1000,1000)
         numGen.generate()
-        print numGen.exportAnnotatedData([])
+        print(numGen.exportAnnotatedData([]))
     

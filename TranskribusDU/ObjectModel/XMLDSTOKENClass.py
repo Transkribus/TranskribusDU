@@ -9,9 +9,11 @@
     a class for object from a XMLDocument
 
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-from XMLDSObjectClass import XMLDSObjectClass
-from config import ds_xml_def as ds_xml
+from .XMLDSObjectClass import XMLDSObjectClass
 
 class  XMLDSTOKENClass(XMLDSObjectClass):
     """
@@ -28,16 +30,13 @@ class  XMLDSTOKENClass(XMLDSObjectClass):
         """
         
         # must be PAGE        
-        self.setName(domNode.name)
+        self.setName(domNode.tag)
         self.setNode(domNode)
         # get properties
-        # all?
-        prop = domNode.properties
-        while prop:
-            self.addAttribute(prop.name,prop.getContent())
-            # add attributes
-            prop = prop.next
-        self.addContent(domNode.getContent().decode("UTF-8"))
+        for prop in domNode.keys():
+            self.addAttribute(prop,domNode.get(prop))        
+
+        self.addContent(domNode.text)
         
         self.addAttribute('x2', float(self.getAttribute('x'))+self.getWidth())
         self.addAttribute('y2',float(self.getAttribute('y'))+self.getHeight() )                

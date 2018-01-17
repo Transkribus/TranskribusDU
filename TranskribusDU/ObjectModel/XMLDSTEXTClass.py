@@ -9,10 +9,15 @@
     a class for TEXT from a XMLDocument
 
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-from XMLDSObjectClass import XMLDSObjectClass
+
+from .XMLDSObjectClass import XMLDSObjectClass
+from .XMLDSTOKENClass import XMLDSTOKENClass
+
 from config import ds_xml_def as ds_xml
-from XMLDSTOKENClass import XMLDSTOKENClass
 
 
 class  XMLDSTEXTClass(XMLDSObjectClass):
@@ -45,13 +50,11 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
             attributes x y  id height width  (all!)
             
         """
-#         self.setName(domNode.name)
+#         self.setName(domNode.atg)
         self.setNode(domNode)
         # get properties
-        prop = domNode.properties
-        while prop:
-            self.addAttribute(prop.name,prop.getContent())
-            prop = prop.next
+        for prop in domNode.keys():
+            self.addAttribute(prop,domNode.get(prop))
         try: 
             self._id = self.getAttribute('id')
         except:pass
@@ -65,21 +68,23 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
             b.setParent(self.getParent())
             self.setBaseline(b)
         
-        ctxt = domNode.doc.xpathNewContext()
-        ctxt.setContextNode(domNode)   
-        
-        # if directly text
-        child = domNode.children
         ## if no text: add a category: text, graphic, image, whitespace??
-        while child:
-            if child.type == 'text':
-                if self.getContent() is not None:
-                    self.addContent(child.getContent().decode("UTF-8"))
-                else:
-                    self.setContent(child.getContent().decode("UTF-8"))
-            child=child.next 
+        for txt in domNode.itertext():
+            stxt=txt.strip()
+            if len(stxt) == 0:
+                continue
+            if type(txt) != str:
+                pass
+            else:
+                try:txt=txt.decode('utf-8')
+                except AttributeError:
+                    pass
+            if self.getContent() is not None:
+                self.addContent(txt)
+            else:
+                self.setContent(txt)
              
-        ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sTOKEN))
+        ldomElts = domNode.findall('./%s'%(ds_xml.sTOKEN))
         for elt in ldomElts:
             try:
                 myObject= XMLDSTOKENClass(elt)
@@ -88,7 +93,6 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
                 myObject.fromDom(elt)
             except: pass #print 'issue with token'
           
-        ctxt.xpathFreeContext()        
     
     def setBaseline(self,ob): self.Obaseline = ob
     def getBaseline(self):

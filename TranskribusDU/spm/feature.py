@@ -7,7 +7,9 @@
     
     feature classes 
 """
-
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 class  featureObject(object):
     
@@ -191,19 +193,14 @@ class  featureObject(object):
     def getCanonical(self): return self._canonical
     
     def getValue(self): return self._value
+
     def getStringValue(self): 
         try:
             float(self._value)
             return str(self.getValue())
         except ValueError:
-            try:
-                return str(self.getValue().encode('utf-8'))
-            except AttributeError:
-                return str(self.getValue())
+                return self.getValue()
         except TypeError:
-            try:
-                return str(self.getValue().encode('utf-8'))
-            except AttributeError:
                 return str(self.getValue())
     
     
@@ -293,7 +290,7 @@ class multiValueFeatureObject(featureObject):
             return 'EMPTY'
         if self.getType() == 1:
             return self.getName()
-        return "|".join(map(lambda x:x.getStringValue(),self.getValue()))
+        return "|".join([x.getStringValue() for x in self.getValue()]) #map(lambda x:x.getStringValue(),self.getValue()))
             
 #     def __str__(self): return self.getStringValue()
 #     def __repr__(self): return self.getStringValue()
@@ -304,9 +301,10 @@ class multiValueFeatureObject(featureObject):
         if self.getClassName() == other.getClassName():
             if self.getName() == other.getName():
                 nbCommon = 0
+                xlist=list(other.getValue()) # find the iterator!!!
                 for x in self.getValue():
-                    if x in other.getValue(): nbCommon +=1
-#                 print self, other, self.getTH() , nbCommon,self.getTH() * len(self.getValue()),nbCommon >= ( self.getTH() * len(self.getValue()))
+                    if x in xlist: nbCommon +=1
+#                 print (self, other, self.getTH() , nbCommon,self.getTH() * len(self.getValue()),nbCommon >= ( self.getTH() * len(self.getValue())))
                 return nbCommon >= ( self.getTH() * len(self.getValue())) #and self.getTH() * len(other.getValue()))
         return False
 class emptyFeatureObject(featureObject):

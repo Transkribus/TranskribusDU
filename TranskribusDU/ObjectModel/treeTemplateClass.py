@@ -9,8 +9,11 @@
     treeTemplate Class
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-from templateClass import templateClass
+from .templateClass import templateClass
 import numpy as np
 
 class treeTemplateClass(templateClass):
@@ -48,12 +51,12 @@ class treeTemplateClass(templateClass):
     def getChildren(self): return self.lChildren
     
     def print_(self,level=1):
-        print  '*'* level,self.getPattern(), self.getChildren()
+        print  ('*'* level,self.getPattern(), self.getChildren())
         if self.getChildren():
             for child in self.getChildren():
                 child.print_(level+1)
         else:
-            print "\t terminal", self.getPattern()
+            print ("\t terminal", self.getPattern())
     
     
     def buildTreeFromPattern(self,pattern):
@@ -83,7 +86,7 @@ class treeTemplateClass(templateClass):
         # if a flat list of patterns: terminal
         if self.getChildren() is None:
             return [self]
-        elif  'list' not in map(lambda x:type(x.getPattern()).__name__, self.getChildren()):
+        elif  'list' not in [type(x.getPattern()).__name__ for x in self.getChildren()]:
             return [self]
         else:
             lRes=[]
@@ -101,7 +104,8 @@ class treeTemplateClass(templateClass):
         else:
             if self.getChildren() is not None:
                 ##??
-                if  'list' not in map(lambda x:type(x.getPattern()).__name__, self.getChildren()):
+                if 'list' not in [type(x.getPattern()).__name__ for x in self.getChildren()]:
+#                 if  'list' not in map(lambda x:type(x.getPattern()).__name__, self.getChildren()):
 #                     print '\t===', self, self.getChildren(), map(lambda x:x.getPattern(), self.getChildren())
                     for c in self.getChildren():
                         if c == pattern:
@@ -203,17 +207,17 @@ class treeTemplateClass(templateClass):
 #         print map(lambda (r,x):x.getWeight(),lReg)
 #         print lCuts
 #         print map(lambda x:x.getWeight(),lCuts)
-        fFound= 1.0 * sum(map(lambda (r,x):x.getWeight(),lReg))
-        fTotal = 1.0 * sum(map(lambda x:x.getWeight(),lCuts))
-        fMissed = 1.0 * sum(map(lambda x:x.getWeight(),lMissed))
+        fFound= 1.0 * sum(list(map(lambda rx:rx[0].getWeight(),lReg)))
+        fTotal = 1.0 * sum(list(map(lambda x:x.getWeight(),lCuts)))
+        fMissed = 1.0 * sum(list(map(lambda x:x.getWeight(),lMissed)))
 
-        dist = sum(map(lambda (x,y): abs(x.getValue()-y.getValue()),lReg))
+        dist = sum(list(map(lambda xy: abs(xy[0].getValue()-xy[1].getValue()),lReg)))
         
 #         print map(lambda (x,y): abs(x.getValue()-y.getValue()),lReg)
         if dist ==0:dist=1.0
 #         print "# match:",len(set(map(lambda (r,x):r,lReg))), patLen,fFound, fTotal, dist 
         # how many of the lreg found:
-        ff= 1.0*len(set(map(lambda (r,x):r,lReg)))/patLen
+        ff= 1.0*len(set(list(map(lambda rx:rx[0],lReg))))/patLen
         assert dist/patLen != 0
 #         ff= 1/(dist)
 #         ff=1.0
@@ -231,7 +235,7 @@ class treeTemplateClass(templateClass):
             try:kRef[ref].append(cut)
             except KeyError: kRef[ref]=[cut]
         lUniqMatch=[]
-        ll=kRef.keys()
+        ll=list(kRef.keys())
         ll.sort(key=lambda x:x.getValue())
         for mykey in ll:
             kRef[mykey].sort(key=lambda x:x.getWeight(),reverse=True)
@@ -258,11 +262,11 @@ class treeTemplateClass(templateClass):
 #         print bestReg, curScore
         ltmp = self.getPattern()[:]
         ltmp.append('EMPTY')
-        lMissingIndex = filter(lambda x: x not in bestReg, range(0,len(self.getPattern())+1))
+        lMissingIndex = list(filter(lambda x: x not in bestReg, range(0,len(self.getPattern())+1)))
         lMissing = np.array(ltmp)[lMissingIndex].tolist()
-        lMissing = filter(lambda x: x!= 'EMPTY',lMissing)
+        lMissing = list(filter(lambda x: x!= 'EMPTY',lMissing))
         result = np.array(ltmp)[bestReg].tolist()
-        lFinres= filter(lambda (x,y): x!= 'EMPTY',zip(result, lobjectFeatures))
+        lFinres= list(filter(lambda xy: xy[0]!= 'EMPTY',zip(result, lobjectFeatures)))
 #         print map(lambda x:(x,x.getWeight()),self.getPattern())
         if lFinres != []:
             lFinres =  self.selectBestUniqueMatch(lFinres)

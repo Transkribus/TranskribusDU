@@ -9,8 +9,10 @@
     a class for object
 
 """
-
-from sequenceAPI import sequenceAPI
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+from .sequenceAPI import sequenceAPI
 
 class  objectClass(sequenceAPI):
     """
@@ -64,15 +66,11 @@ class  objectClass(sequenceAPI):
             o.setParent(self)
             
     def addContent(self,c):
-        c=c.replace(u"\n",u" ")
+        c=c.replace(u'\n',u' ')
         if self.getContent() is not None:
-            try:
-                self._content += c + u' '
-            except:
-                # ??
-                self._content = c + u' '
+            self._content +=  u' ' + c
         else:
-            self._content = c + u' '
+            self._content =  u' ' + c
         self._content= self._content.strip()
     def setContent(self,c): self._content = c.strip()
     
@@ -80,13 +78,17 @@ class  objectClass(sequenceAPI):
         if self._content is not None:
             return self._content
         else: 
-            c = u""
-            for x in self._lObjects:
-                c+= x.getContent()+ u' '
-            c= c.strip()
-            self._content = c
-            return c
+            if self._lObjects != []:
+                c = u''
+                for x in self._lObjects:
+                    c+= x.getContent()+ u' '
+                self._content = c.strip()
+                return self._content
+        return self._content
             
+    def print_(self):
+        print(self.getContent())
+    
     def getAllNamedObjects(self,objectName):
         
         lList = []
@@ -139,7 +141,8 @@ class  objectClass(sequenceAPI):
 
     def display(self,level=0):
         margin = " " * level
-        print margin,self.getName(), self.getContent().encode('utf-8')[:10]
+        print (margin,self.getName(), self.getContent()[:10])
+
         for obj in self.getObjects():
             obj.display(level+1)
             

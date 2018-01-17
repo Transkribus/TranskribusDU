@@ -13,8 +13,12 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+ 
 import sys, os
-import libxml2
+from lxml import etree
 
 try: #to ease the use without proper Python installation
     import TranskribusDU_version
@@ -23,7 +27,6 @@ except ImportError:
     import TranskribusDU_version
     
 from common.Component import Component
-from common.trace import traceln, trace
 
 from xml_formats.PageXml import PageXml
 from ObjectModel.xmlDSDocumentClass import XMLDSDocument
@@ -65,9 +68,9 @@ class DS2PageXMLConvertor(Component):
         Always call first the Component setParams
         """
         Component.setParams(self, dParams)
-        if dParams.has_key("bMultiPage"): self.bMultiPages =  dParams["bMultiPage"]  
-        if dParams.has_key("bRegionOnly"): self.bRegionOnly =  dParams["bRegionOnly"]  
-        if dParams.has_key("outdir"): self.storagePath =  dParams["outdir"]  
+        if "bMultiPage" in dParams: self.bMultiPages =  dParams["bMultiPage"]  
+        if "bRegionOnly" in dParams: self.bRegionOnly =  dParams["bRegionOnly"]  
+        if "outdir" in dParams: self.storagePath =  dParams["outdir"]  
         
     
     def setDPI(self,v): self.dpi=v
@@ -93,7 +96,7 @@ class DS2PageXMLConvertor(Component):
         if x <0: x = abs(x)  
         if y <0: y = abs(y)
         
-        lx= map(lambda x:1.0*x*self.dpi/72.0, ( x,y, x+w,y, x+w,y+h, x,y+h, x,y))
+        lx= list(map(lambda x:1.0*x*self.dpi/72.0, ( x,y, x+w,y, x+w,y+h, x,y+h, x,y)))
         myPoints = ' '.join(["%d,%d"%(xa,ya) for xa,ya  in zip(lx[0::2], lx[1::2])])
         return myPoints    
         
@@ -105,10 +108,10 @@ class DS2PageXMLConvertor(Component):
             
         """
         lPoints = sPoints.split(",")
-        lx= map(lambda x:1.0*float(x)*self.dpi/72.0, lPoints)
+        lx= list(map(lambda x:1.0*float(x)*self.dpi/72.0, lPoints))
         # order left right 
-        xx =  zip(lx[0::2], lx[1::2])
-        xx.sort(key=lambda (x,y):x)
+        xx =  list(zip(lx[0::2], lx[1::2]))
+        xx.sort(key=lambda xy:xy[0])
         return ' '.join(["%d,%d"%(xa,ya) for xa,ya  in xx])
         
     def convertDSObject(self,DSObject,pageXmlParentNode):
@@ -150,35 +153,33 @@ class DS2PageXMLConvertor(Component):
         except KeyError: 
 #             print DSObject.getName() ," not declared"
             return 
-        
         domNode= PageXml.createPageXmlNode(pageXmlName,self.pageXmlNS)
         if DSObject.getID():
-            domNode.setProp("id", "xrce_%s"%DSObject.getID())
+            domNode.set("id", "xrce_%s"%DSObject.getID())
         else: self.addXRCEID(domNode)
-        pageXmlParentNode.addChild(domNode)
-        
-        coordsNode = libxml2.newNode('Coords')
-        coordsNode.setNs(self.pageXmlNS)
-        coordsNode.setProp('points', self.BB2Polylines(DSObject.getX(),DSObject.getY(), DSObject.getHeight(),DSObject.getWidth()))        
-        domNode.addChild(coordsNode)            
+        pageXmlParentNode.append(domNode)
+        coordsNode = etree.Element('{%s}Coords'%(self.pageXmlNS))
+#         coordsNode.setNs(self.pageXmlNS)
+        coordsNode.set('points', self.BB2Polylines(DSObject.getX(),DSObject.getY(), DSObject.getHeight(),DSObject.getWidth()))        
+        domNode.append(coordsNode)            
         
         
         for attr in ['custom', 'structure','col']:
             if DSObject.hasAttribute(attr):
-                domNode.setProp(attr, DSObject.getAttribute(attr))
+                domNode.set(attr, DSObject.getAttribute(attr))
         # if blpoints:  build Baseline        
         
         # type 
         if DSObject.hasAttribute('type'):
-            domNode.setProp('type', DSObject.getAttribute('type'))
+            domNode.set('type', DSObject.getAttribute('type'))
         # if blpoints:  build Baseline
         # <Baseline points="218,95 280,95"/>
         ## Baseline needs to be left-right!!
         if DSObject.hasAttribute('blpoints'):
-            domBaseLine=libxml2.newNode('Baseline')
-            domBaseLine.setNs(self.pageXmlNS)
-            domBaseLine.setProp('points', self.DSPoint2PagePoints(DSObject.getAttribute('blpoints')))        
-            domNode.addChild(domBaseLine)                
+            domBaseLine=etree.Element('{%s}Baseline'%(self.pageXmlNS))
+#             domBaseLine.setNs(self.pageXmlNS)
+            domBaseLine.set('points', self.DSPoint2PagePoints(DSObject.getAttribute('blpoints')))        
+            domNode.append(domBaseLine)                
             
         
         # collect content and generate a textequiv
@@ -186,14 +187,14 @@ class DS2PageXMLConvertor(Component):
         ## specific attributes for cell
         ###  row="0" col="2" colSpan="1
         if pageXmlName == 'TableCell':
-            domNode.setProp('row',str(DSObject.getIndex()[0]))
-            domNode.setProp('col',str(DSObject.getIndex()[1]))
-            cornerNode = libxml2.newNode('CornerPts')
-            cornerNode.setContent("0 1 2 3")
-            cornerNode.setNs(self.pageXmlNS)
-            domNode.addChild(cornerNode)    
-            coordsNode.setProp('colSpan',str(DSObject.getColSpan()))
-            coordsNode.setProp('rowSpan',str(DSObject.getRowSpan()))
+            domNode.set('row',str(DSObject.getIndex()[0]))
+            domNode.set('col',str(DSObject.getIndex()[1]))
+            cornerNode = etree.Element('{%s}CornerPts'%(self.pageXmlNS))
+            cornerNode.text = "0 1 2 3"
+#             cornerNode.setNs(self.pageXmlNS)
+            domNode.append(cornerNode)    
+            coordsNode.set('colSpan',str(DSObject.getColSpan()))
+            coordsNode.set('rowSpan',str(DSObject.getRowSpan()))
             
         
         #process objects
@@ -202,7 +203,7 @@ class DS2PageXMLConvertor(Component):
         
         
     def addXRCEID(self,node):
-        node.setProp("id", "xrce_%d"%self.xrce_id)  
+        node.set("id", "xrce_%d"%self.xrce_id)  
         self.xrce_id += 1
         
         
@@ -225,24 +226,6 @@ class DS2PageXMLConvertor(Component):
 #         from ObjectModel.XMLDSTEXTClass import XMLDSTEXTClass
 #         from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
 
-#         # TextRegion needed: create a fake one with BB zone?
-#         regionNode= PageXml.createPageXmlNode("TextRegion",self.pageXmlNS)
-#         pageXmlPageNODE.addChild(regionNode)
-#         self.addXRCEID(regionNode)
-#         coordsNode = libxml2.newNode('Coords')
-#         coordsNode.setNs(self.pageXmlNS)
-#         coordsNode.setProp('points', self.BB2Polylines(0,0, OPage.getHeight(),OPage.getWidth()))
-#         regionNode.addChild(coordsNode)     
-        
-#         ##get table elements
-#         lElts= OPage.getAllNamedObjects(XMLDSTABLEClass)
-#         for DSObject in lElts:
-#             self.convertDSObject(DSObject,pageXmlPageNODE)        
-        
-        # get textual elements
-#         lElts= OPage.getAllNamedObjects('REGION')
-#         lElts= OPage.getAllNamedObjects('REGION') + OPage.getAllNamedObjects('COLUMN') + OPage.getNamedObjects('LINE')
-#         lElts =     OPage.getNamedObjects('LINE')
         lElts = OPage.getObjects()
         for DSObject in lElts:
             self.convertDSObject(DSObject,pageXmlPageNODE)
@@ -267,9 +250,11 @@ class DS2PageXMLConvertor(Component):
                     self.outputFileName = os.path.dirname(self.inputFileName)+os.sep+img[:-3]+"_%.4d"%(i+1) + ".xml"
             else:
                 self.outputFileName = self.storagePath + os.sep+img[:-4]+"_%.4d"%(i+1) + ".xml"
-            print "output: %s" % self.outputFileName
+            print("output: %s" % self.outputFileName)
             try:self.writeDom(doc, bIndent=True)
-            except IOError:return -1            
+            except IOError as e:
+                print(e)
+                return -1            
         return 0
     
     def storeMultiPageXml(self,lListDocs,outputFileName=None):
@@ -278,10 +263,11 @@ class DS2PageXMLConvertor(Component):
         """
         from xml_formats.PageXml import MultiPageXml
         mp = MultiPageXml()
-        newDoc = mp.makeMultiPageXmlMemory(map(lambda (x,y):x,lListDocs))
+        newDoc = mp.makeMultiPageXmlMemory(map(lambda xy:xy[0],lListDocs))
         if outputFileName is None:
             outputFileName = os.path.dirname(self.inputFileName) + os.sep + ".."+os.sep +"col" + os.sep + os.path.basename(self.inputFileName)[:-7] + "_du.mpxml"
-        res= newDoc.saveFormatFileEnc(outputFileName, "UTF-8",True)
+        res= newDoc.write(outputFileName, encoding="UTF-8",pretty_print=True,xml_declaration=True)
+#         res= newDoc.saveFormatFileEnc(outputFileName, "UTF-8",True)
 #         print res
 #         print "output: %s" % outputFileName
         
@@ -293,13 +279,13 @@ class DS2PageXMLConvertor(Component):
         ODoc.lastPage=1
         ODoc.loadFromDom(domDoc)
         lPageXmlDoc=[]
-        lPages= ODoc.getPages()   
+        lPages= ODoc.getPages()
         for page in lPages:
-#             traceln("%s %s"%(page, page.getAttribute('imageFilename')))
+#             print("%s %s"%(page, page.getAttribute('imageFilename')))
             try:filename = os.path.basename(page.getAttribute('imageFilename'))
             except:filename="fakename"
             pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='NLE', filename =filename, imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
-            self.pageXmlNS = pageXmlDoc.getRootElement().ns()
+            self.pageXmlNS = etree.QName(pageXmlDoc.getroot()).namespace
 #             print "??",self.bRegionOnly
             if self.bRegionOnly:
                 self.convertOnlyRegion(page, pageNode)
