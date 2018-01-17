@@ -11,10 +11,13 @@
     
     
 """
-from templateClass import templateClass
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+from .templateClass import templateClass
 
 import numpy as np
-from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
+from .XMLDSTABLEClass import XMLDSTABLEClass
 
 class tableTemplateClass(templateClass):
     """
@@ -135,8 +138,8 @@ class tableTemplateClass(templateClass):
 # --- AUTO-TESTS --------------------------------------------------------------------------------------------
 #def test_template():
 if __name__ == "__main__":
-    from XMLDSCELLClass import XMLDSTABLECELLClass
-    from recordClass import fieldClass
+    from .XMLDSCELLClass import XMLDSTABLECELLClass
+    from .recordClass import fieldClass
     table=XMLDSTABLEClass()
     
     cell1=XMLDSTABLECELLClass()
@@ -159,7 +162,7 @@ if __name__ == "__main__":
     table.buildColumnFromCells()
     table.buildRowFromCells()
     table.buildNDARRAY()
-    print table.getNPArray()
+    print (table.getNPArray())
     # ([1:,2],(fieldname,None))
     stemplate='[((slice(1,None),slice(0,1)) ,["name", "fistname"]),((slice(1,2),slice(1,None)) ,["ledig"])]'
     
@@ -171,7 +174,7 @@ if __name__ == "__main__":
     myTemplate.labelTable(table)
     
     for cell in table.getCells():
-        print cell.getIndex(), cell.getFields()
+        print (cell.getIndex(), cell.getFields())
     
     ## extract data usinf field information
     

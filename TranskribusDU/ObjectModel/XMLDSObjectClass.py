@@ -3,15 +3,21 @@
 
     XML object class 
     
-    Herv� D�jean
+    Hervé Déjean
     cpy Xerox 2009
     
     a class for object from a XMLDocument
 
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-from XMLObjectClass import XMLObjectClass
+
+from .XMLObjectClass import XMLObjectClass
 from config import ds_xml_def as ds_xml
+
+from lxml import etree
 
 class  XMLDSObjectClass(XMLObjectClass):
     """
@@ -63,7 +69,6 @@ class  XMLDSObjectClass(XMLObjectClass):
                 if o.getNode() is not None and self.getNode() is not None:
                     o.getNode().unlinkNode()
                     self.getNode().addChild(o.getNode())
-                    print self.getNode()
                
     
 
@@ -99,58 +104,56 @@ class  XMLDSObjectClass(XMLObjectClass):
         
         ## if domNode in mappingTable:
         ## -> ise the fromDom of the specific object
+        from .XMLDSLINEClass import XMLDSLINEClass
+        from .XMLDSTEXTClass import XMLDSTEXTClass
+        from .XMLDSBASELINEClass import XMLDSBASELINEClass
+        from .XMLDSTABLEClass import XMLDSTABLEClass        
         
-        self.setName(domNode.name)
+        
+        self.setName(domNode.tag)
         self.setNode(domNode)
         # get properties
-        prop = domNode.properties
-        while prop:
-            self.addAttribute(prop.name,prop.getContent())
-            # add attributes
-            prop = prop.next
-            
+        for prop in domNode.keys():
+            self.addAttribute(prop,domNode.get(prop))
+        
         self.addAttribute('x2', float(self.getAttribute('x'))+self.getWidth())
         self.addAttribute('y2',float(self.getAttribute('y'))+self.getHeight() )
         
-        child = domNode.children
+        
         self._id = self.getAttribute('id')
         if self.getID() is None:
             self._id = XMLDSObjectClass.orderID
             XMLDSObjectClass.orderID+= 1
         ## if no text: add a category: text, graphic, image, whitespace
-        while child:
-            if child.type == 'text':
-                if self.getContent() is not None:
-                    self.addContent(child.getContent().decode("UTF-8"))
-                else:
-                    self.setContent(child.getContent().decode("UTF-8"))
+        for child in domNode:
+#             if child.type == 'text':
+#                 if self.getContent() is not None:
+#                     self.addContent(child.getContent().decode("UTF-8"))
+#                 else:
+#                     self.setContent(child.getContent().decode("UTF-8"))
+#                 pass
+            if child.tag == etree.Comment:
                 pass
-            elif child.type =="comment":
-                pass
-            elif child.type == 'element':
-                from XMLDSLINEClass import XMLDSLINEClass
-                from XMLDSTEXTClass import XMLDSTEXTClass
-                from XMLDSBASELINEClass import XMLDSBASELINEClass
-                from XMLDSTABLEClass import XMLDSTABLEClass
+            else: #if child.type == 'element':
                
-                if child.name == ds_xml.sTABLE:
+                if child.tag == ds_xml.sTABLE:
                     myObject= XMLDSTABLEClass(child)
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(child)      
-                elif child.name  == ds_xml.sLINE_Elt:
+                elif child.tag  == ds_xml.sLINE_Elt:
                     myObject= XMLDSLINEClass(child)
                     # per type?
                     self.addObject(myObject)
                     myObject.setPage(self.getPage())
                     myObject.fromDom(child)
-                elif child.name  == ds_xml.sTEXT:
+                elif child.tag  == ds_xml.sTEXT:
                     myObject= XMLDSTEXTClass(child)
                     self.addObject(myObject)
                     myObject.setPage(self.getPage())
                     myObject.fromDom(child)
 
-                elif child.name == ds_xml.sBaseline:
+                elif child.tag == ds_xml.sBaseline:
                     myObject= XMLDSBASELINEClass(child)
                     self.addObject(myObject)
                     myObject.setPage(self.getPage())
@@ -163,7 +166,6 @@ class  XMLDSObjectClass(XMLObjectClass):
                     myObject.setPage(self.getPage())
                     myObject.fromDom(child)   
                 
-            child = child.next
          
          
         

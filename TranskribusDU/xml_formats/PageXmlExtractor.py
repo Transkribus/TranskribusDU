@@ -8,12 +8,17 @@ Utility to extract several pages from several document to a folder or a MultiPag
 
 @author: meunier
 '''
+
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 import os
 import json, codecs
 import shutil
 import math
 
-import PageXml
+import xml_formats.PageXml as PageXml
 
 class DocPageSet:
     '''
@@ -123,7 +128,7 @@ class PageXmlExtractor:
         return the number of copied files, and list of tuple (pnum, orig-docID, orig-pnum, orig-filename)
         """
         if not os.path.isdir(sToDir):
-            print " - creating directory ", sToDir 
+            print(" - creating directory ", sToDir) 
             os.mkdir(sToDir) 
         else:
             if len(os.listdir(sToDir)) > 0: raise ValueError("Target folder (%s) must be empty."%sToDir)
@@ -132,14 +137,14 @@ class PageXmlExtractor:
         jsonOriginFilename = os.path.join(sToDir, "origin.json")
         cnt, ltOrigin = cls.getOriginTuple(lDocPageSet, jsonOriginFilename)
                
-        print " - total number of pages = %d"%cnt
+        print( " - total number of pages = %d"%cnt)
         
         nbDigit = math.log10(cnt)+1
         sFmt = "%%0%dd.pxml" % nbDigit    #e.g. %03d.pxml
         
         for (cnt, docID, n, sFilename) in ltOrigin:
             sToFilename = os.path.join(sToDir, sFmt%cnt)
-            print "   copying %s --> %s"%(sFilename, sToFilename)
+            print("   copying %s --> %s"%(sFilename, sToFilename))
             shutil.copy(sFilename, sToFilename)
         
         return cnt, ltOrigin
@@ -156,9 +161,9 @@ class PageXmlExtractor:
         jsonOriginFilename = sBaseName + "_origin.json"
         cnt, ltOrigin = cls.getOriginTuple(lDocPageSet, jsonOriginFilename)
                
-        print " - total number of pages = %d"%cnt
+        print( " - total number of pages = %d"%cnt)
         
-        print "   Generating %s"%(sToFile)
+        print( "   Generating %s"%(sToFile))
         doc = PageXml.MultiPageXml.makeMultiPageXml([sFilename for (cnt, docID, n, sFilename) in ltOrigin] )
         doc.saveFormatFileEnc(sToFile, "utf-8", bIndent)
         doc.freeDoc()
@@ -175,7 +180,7 @@ class PageXmlExtractor:
         ltOrigin = list() 
         cnt = 0
         for o in lDocPageSet:
-            print " - Processing doc %s, pages %s"%(o.getDocID(), o.getRangeString())
+            print( " - Processing doc %s, pages %s"%(o.getDocID(), o.getRangeString()))
             lsFilename = cls.getPageFilenameList(o.getDocID(), ".pxml")
             for n in o.iterPageNumber():
                 cnt += 1
@@ -184,7 +189,7 @@ class PageXmlExtractor:
 
         if jsonOriginFilename:
             with codecs.open(jsonOriginFilename, "wb",'utf-8') as fd: json.dump(ltOrigin, fd, indent=True)        
-            print "   (see %s)"%(jsonOriginFilename)
+            print( "   (see %s)"%(jsonOriginFilename))
         
         return cnt, ltOrigin
         
@@ -206,13 +211,13 @@ class PageXmlExtractor:
                 sBaseName, _ = os.path.splitext(sImgFileName)
                 sXmlFilename = cls.getFilename(sDocID,  sBaseName + sExt)
                 lsFilename .append( sXmlFilename )
-                if page['pageNr'] != i+1: print "\tWarning: expected page number %d , got %s"%(i+1, page['pageNr'])
+                if page['pageNr'] != i+1: print( "\tWarning: expected page number %d , got %s"%(i+1, page['pageNr']))
             
         return lsFilename
     
 if __name__ == "__main__":
     
-    import sys, glob, optparse
+    import sys, optparse
     usage = """
 %s [--mpxml filename] [--dir dirname] [docID=<page-range-set>]+
 
@@ -241,20 +246,20 @@ JL Meunier - Aug. 2017
         parser.exit(1, "")
     
     lDocPageSet = []
-    print "Parsing range(s)"
+    print("Parsing range(s)")
     for s in lsDocPageSet:
         o = DocPageSet(s)
         lDocPageSet.append(o)
     
     if options.dir:
-        print "Extracting into folder: ", options.dir
+        print( "Extracting into folder: ", options.dir)
         n = PageXmlExtractor.extractPagesToDir(lDocPageSet, options.dir)    
     
     if options.file != None:
         if options.file in["", "-"]: options.file = "extraction_" + "_".join(map(str, lDocPageSet))     #automatic filename
         sToFile = options.file if options.file.lower().endswith(".mpxml") else options.file+".mpxml"   #automatic .mpxml extension
-        print "Extracting into file: ", sToFile
+        print( "Extracting into file: ", sToFile)
         n = PageXmlExtractor.extractPagesToFile(lDocPageSet, sToFile)    
 
-    print "DONE"
+    print( "DONE")
         

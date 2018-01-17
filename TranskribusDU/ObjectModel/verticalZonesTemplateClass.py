@@ -10,8 +10,13 @@
     READ project
     
 """
-from templateClass import templateClass
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
+from .templateClass import templateClass
 import numpy as np
+
 class verticalZonestemplateClass(templateClass):
     """
         a class  for vertical layout  (like columns) 
@@ -146,7 +151,7 @@ class verticalZonestemplateClass(templateClass):
                 bestElt=(x,y)
                 fShort = abs(x.getValue() - y.getValue()) 
         
-        print 'BEST', bestElt
+        print ('BEST', bestElt)
             
         
     def selectBestCandidat(self,lCuts):

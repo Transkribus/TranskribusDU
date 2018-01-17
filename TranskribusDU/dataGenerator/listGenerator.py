@@ -29,9 +29,11 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import absolute_import
+from __future__ import  print_function
 from __future__ import unicode_literals
 
-from generator import Generator 
+from .generator import Generator 
 
 
 class listGenerator(Generator):
@@ -83,8 +85,8 @@ class listGenerator(Generator):
     
 if __name__ == "__main__":
     
-    from numericalGenerator import integerGenerator
+    from .numericalGenerator import integerGenerator
     
     lG =listGenerator(integerGenerator,10,100,5)
     lG.generate()
-    print lG._generation
+    print(lG._generation)

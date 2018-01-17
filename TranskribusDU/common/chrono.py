@@ -7,6 +7,10 @@
 # Copyright Xerox 2004
 #
 
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 import time
 
 class Chrono:
@@ -54,11 +58,11 @@ def chronoOff(expected_name=None):
 #----------   SELF-TEST    --------------
 if __name__ == "__main__":
 
-    print "Selft-test"
+    print ("Selft-test")
     chronoOn()
     time.sleep(1)
     v = chronoOff()
-    print v==1, v
+    print (v==1, v)
 
     chronoOn()
     time.sleep(1)
@@ -66,10 +70,10 @@ if __name__ == "__main__":
     chronoOn()
     time.sleep(2.2)
     v = chronoOff()
-    print v==2.2, v
+    print ( v==2.2, v)
     
     c = Chrono().on()
-    print "elapsed time: %.1fs" % c.off()
+    print("elapsed time: %.1fs" % c.off())
 
     
 #    v = chronoOff(2)

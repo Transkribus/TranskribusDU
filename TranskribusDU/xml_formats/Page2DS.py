@@ -9,12 +9,16 @@
     
 """
 
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import sys, os.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))))
 
-import  libxml2
+# import  libxml2
+from lxml import etree
 
 import common.Component as Component
 import config.ds_xml_def as ds_xml
@@ -56,13 +60,13 @@ class primaAnalysis(Component.Component):
         Here, we set our internal attribute according to a possibly specified value (otherwise it stays at its default value)
         """
         Component.Component.setParams(self, dParams)
-        if dParams.has_key(self.kPTTRN)    : self.sPttrn     = dParams[self.kPTTRN]
-        if dParams.has_key(self.kDPI)    : self.dpi          = int(dParams[self.kDPI])
-        if dParams.has_key(self.kREF)    : self.bRef         = dParams[self.kREF]
-        if dParams.has_key(self.kREFTAG)    : self.lRefTag   = tuple(dParams[self.kREFTAG])
-        if dParams.has_key(self.kDOCID)    : self.sDocID   =dParams[self.kDOCID]
-        if dParams.has_key(self.kRegion)    : self.bSkipRegion   =dParams[self.kRegion]
-        if dParams.has_key(self.kCanLine)    : self.bCanonicalLine   =dParams[self.kCanLine]
+        if self.kPTTRN in  dParams  : self.sPttrn     = dParams[self.kPTTRN]
+        if self.kDPI in  dParams    : self.dpi          = int(dParams[self.kDPI])
+        if self.kREF in dParams     : self.bRef         = dParams[self.kREF]
+        if self.kREFTAG in dParams  : self.lRefTag   = tuple(dParams[self.kREFTAG])
+        if self.kDOCID in dParams   : self.sDocID   =dParams[self.kDOCID]
+        if self.kRegion in dParams  : self.bSkipRegion   =dParams[self.kRegion]
+        if self.kCanLine in dParams : self.bCanonicalLine   =dParams[self.kCanLine]
 
 
 
@@ -96,7 +100,9 @@ class primaAnalysis(Component.Component):
         miny = 9e9
         maxx = 0
         maxy = 0        
-        lList = sList.getContent().split(' ')
+#         lList = sList.getContent().split(' ')
+        lList = sList.split(' ')
+
         for x,y in [x.split(',') for x in lList]:
             minx = min(minx,int(x))
             maxx = max(maxx,int(x))
@@ -110,10 +116,10 @@ class primaAnalysis(Component.Component):
         maxx = 0
         maxy = 0
         for elt in lList:
-            if float(elt.prop("x")) < minx: minx = float(elt.prop("x"))
-            if float(elt.prop("y")) < miny: miny = float(elt.prop("y"))
-            if float(elt.prop("x")) > maxx: maxx = float(elt.prop("x"))
-            if float(elt.prop("y")) > maxy: maxy = float(elt.prop("y"))            
+            if float(elt.get("x")) < minx: minx = float(elt.get("x"))
+            if float(elt.get("y")) < miny: miny = float(elt.get("y"))
+            if float(elt.get("x")) > maxx: maxx = float(elt.get("x"))
+            if float(elt.get("y")) > maxy: maxy = float(elt.get("y"))            
         return [minx,miny,maxy-miny,maxx-minx]          
     
     
@@ -138,18 +144,14 @@ class primaAnalysis(Component.Component):
         """
             extract polylines, and convert into points(pdf)
         """
-        ctxt = curNode.doc.xpathNewContext()
-        ctxt.xpathRegisterNs("a", self.xmlns)
-        xpath  = "./a:Coords/@%s" % ("points")
-        ctxt.setContextNode(curNode)
-        lPoints = ctxt.xpathEval(xpath)   
-        ctxt.xpathFreeContext()
-
+        lPoints = curNode.xpath("./x:Coords/@%s"%'points' ,namespaces={'x':self.xmlns})
         if lPoints!= []:
-            sp = lPoints[0].getContent().replace(' ',',')
+#             sp = lPoints[0].text.replace(' ',',')
+            sp = lPoints[0].replace(' ',',')
+
             if sp != "":
                 scaledP=  map(lambda x: 72.0* float(x) / self.dpi,sp.split(','))
-                scaledP = str(scaledP)[1:-1].replace(' ','')
+                scaledP = str(list(scaledP))[1:-1].replace(' ','')
                 return scaledP
         else:
             return ""
@@ -162,80 +164,82 @@ class primaAnalysis(Component.Component):
                 ->Word 
                     PlainText
         """
-        document = curNode.doc
+#         document = curNode.doc
 #         xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2010-03-19"
-        ctxt = document.xpathNewContext()
-        ctxt.xpathRegisterNs("a", self.xmlns)
-        xpath  = "./a:%s" % ("TextLine")
-        ctxt.setContextNode(curNode)
-        lLines = ctxt.xpathEval(xpath)
-        ctxt.xpathFreeContext()
+#         ctxt.xpathRegisterNs("a", self.xmlns)
+#         xpath  = "./{%s}:%s" % (self.xmlns,"TextLine")
+#         ctxt.setContextNode(curNode)
+        lLines = curNode.findall("./{%s}%s" % (self.xmlns,"TextLine"))
+#         ctxt.xpathFreeContext()
         for line in lLines:
-            node = libxml2.newNode('TEXT')
+            node = etree.Element('TEXT')
             try:
-                node.setProp('id',line.prop('id'))
+                node.set('id',line.get('id'))
             except:
-                node.setProp('id',str(self.id))
+                node.set('id',str(self.id))
                 self.id += 1
                 
                 
-            dsNode.addChild(node)
+            dsNode.append(node)
             ## type
-            node.setProp("type", line.prop('type'))            
+            if line.get('type'):     
+                node.set("type", line.get('type'))            
+            
             sp = self.getPoints(line)
             # polylines
-            node.setProp('points',sp)
+            node.set('points',sp)
             
             
             ## baseline
             ## add @baselintpoints 
             ##<Baseline points="373,814 700,805 1027,785 1354,804 1681,783 2339,780"/>
-#             blnode = libxml2.newNode('BASELINE')
+#             blnode = etree.Element('BASELINE')
             
-            ctxt = line.doc.xpathNewContext()
-            ctxt.xpathRegisterNs("a", self.xmlns)
-            ctxt.setContextNode(line)
-            scaledP=None
-            xpath  = "./a:Baseline/@%s" % ("points")
-            lPoints = ctxt.xpathEval(xpath)
-            ctxt.xpathFreeContext()
+#             ctxt = line.doc.xpathNewContext()
+#             ctxt.xpathRegisterNs("a", self.xmlns)
+#             ctxt.setContextNode(line)
+#             scaledP=None
+#             xpath  = "./a:Baseline/@%s" % ("points")
+            lPoints = line.xpath("./x:Baseline/@%s"%'points',namespaces={'x':self.xmlns})
             if lPoints!= []:
-                sp = lPoints[0].getContent().replace(' ',',')
+#                 sp = lPoints[0].text.replace(' ',',')
+                sp = lPoints[0].replace(' ',',')
+
                 try:
                     scaledP =  map(lambda x: 72.0* float(x) / self.dpi,sp.split(','))
                     scaledP = str(scaledP)[1:-1].replace(' ','')
-                    node.setProp('blpoints',scaledP)
-                    dsNode.addChild(node)
+                    node.set('blpoints',scaledP)
+                    dsNode.append(node)
                 except IndexError: 
                     pass            
             # text
-            ctxt = line.doc.xpathNewContext()
-            ctxt.xpathRegisterNs("a", self.xmlns)
-            xpath  = "./a:TextEquiv/a:Unicode"
-            ctxt.setContextNode(line)
-            ltxt = ctxt.xpathEval(xpath)
-            ctxt.xpathFreeContext()
-            if ltxt != []:
-                node.setContent(ltxt[0].getContent())
+#             ctxt = line.doc.xpathNewContext()
+#             ctxt.xpathRegisterNs("a", self.xmlns)
+#             xpath  = "./a:TextEquiv/a:Unicode"
+#             ctxt.setContextNode(line)
+            txt =line.find("./TextEquiv/Unicode")
+#             ctxt.xpathFreeContext()
+            if txt is not None:
+                node.text = txt[0].text
             
             
             # BB
-            ctxt = curNode.doc.xpathNewContext()
-            ctxt.xpathRegisterNs("a", self.xmlns)
-            xpath  = "./a:Coords/@%s" % ("points")
-            ctxt.setContextNode(line)
-            lPoints = ctxt.xpathEval(xpath)
-            if lPoints != [] and lPoints[0].getContent() !="":
+#             ctxt = curNode.doc.xpathNewContext()
+#             ctxt.xpathRegisterNs("a", self.xmlns)
+#             xpath  = "./a:Coords/@%s" % ("points")
+#             ctxt.setContextNode(line)
+            lPoints = curNode.xpath("./x:Coords/@%s" % ("points"),namespaces={'x':self.xmlns})
+            if lPoints != [] and lPoints[0] !="":
                 if self.bCanonicalLine and scaledP is not None:
                     [xp,yp,hp,wp] = self.baselineCanon(scaledP)
                 else: 
                     [x,y,h,w] = self.regionBoundingBox(lPoints[0])                
                     xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w))
-                node.setProp(ds_xml.sX,str(xp))
-                node.setProp(ds_xml.sY,str(yp))
-                node.setProp(ds_xml.sHeight,str(hp))
-                node.setProp(ds_xml.sWidth,str(wp))            
-            node.setProp('font-size','20')
+                node.set(ds_xml.sX,str(xp))
+                node.set(ds_xml.sY,str(yp))
+                node.set(ds_xml.sHeight,str(hp))
+                node.set(ds_xml.sWidth,str(wp))            
+            node.set('font-size','20')
 
             
 #             # if word
@@ -260,18 +264,18 @@ class primaAnalysis(Component.Component):
 #                     print "??",node
 #                     lCWords= ltxt[0].getContent().split(' ')
 #                     for word in lCWords:
-#                         wnode= libxml2.newNode('TOKEN')
-#                         wnode.setProp('font-color','BLACK')
-#                         wnode.setProp('font-size','8')
+#                         wnode= etree.Element('TOKEN')
+#                         wnode.set('font-color','BLACK')
+#                         wnode.set('font-size','8')
 #                         wnode.setContent(word)     
-#                         node.addChild(wnode)
+#                         node.append(wnode)
 #                
 #                     
 #             for word in lWords:
-#                 wnode= libxml2.newNode('TOKEN')
-#                 wnode.setProp('font-color','BLACK')
-#                 wnode.setProp('font-size','8')
-#                 node.addChild(wnode)
+#                 wnode= etree.Element('TOKEN')
+#                 wnode.set('font-color','BLACK')
+#                 wnode.set('font-size','8')
+#                 node.append(wnode)
 #                 ctxt = curNode.doc.xpathNewContext()
 #                 ctxt.xpathRegisterNs("a", self.xmlns)
 #                 xpath  = ".//a:%s" % ("Points")
@@ -281,10 +285,10 @@ class primaAnalysis(Component.Component):
 #                 if lPoints != []:
 #                     [x,y,h,w] = self.regionBoundingBox(lPoints[0])
 #                     xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w)) 
-#                     wnode.setProp(ds_xml.sX,str(xp))
-#                     wnode.setProp(ds_xml.sY,str(yp))
-#                     wnode.setProp(ds_xml.sHeight,str(hp))
-#                     wnode.setProp(ds_xml.sWidth,str(wp))                            
+#                     wnode.set(ds_xml.sX,str(xp))
+#                     wnode.set(ds_xml.sY,str(yp))
+#                     wnode.set(ds_xml.sHeight,str(hp))
+#                     wnode.set(ds_xml.sWidth,str(wp))                            
 #                     ctxt = word.doc.xpathNewContext()
 #                     ctxt.xpathRegisterNs("a", self.xmlns)
 #                     xpath  = './a:TextEquiv/a:PlainText/text()'
@@ -310,50 +314,40 @@ class primaAnalysis(Component.Component):
             </TableCell>            
         """
         
-        dstable= libxml2.newNode(ds_xml.sTABLE)
-        document = tableNode.doc
-        ctxt = document.xpathNewContext()
-        ctxt.xpathRegisterNs("a", self.xmlns)
-        xpath  = "./a:%s" % ("TableCell")
-        ctxt.setContextNode(tableNode)
-        lCells = ctxt.xpathEval(xpath)
-        ctxt.xpathFreeContext()
+        dstable= etree.Element(ds_xml.sTABLE)
+#         document = tableNode.doc
+#         ctxt = document.xpathNewContext()
+#         ctxt.xpathRegisterNs("a", self.xmlns)
+#         xpath  = "./a:%s" % ("TableCell")
+#         ctxt.setContextNode(tableNode)
+        lCells = tableNode.findall("./{%s}%s" % (self.xmlns,"TableCell"))
         for cell in lCells:
-            cellNode = libxml2.newNode(ds_xml.sCELL)
-            dstable.addChild(cellNode)
+            cellNode = etree.Element(ds_xml.sCELL)
+            dstable.append(cellNode)
             ## need to get x, y, h, w
-            cellNode.setProp("id", cell.prop('row'))
-            cellNode.setProp("row", cell.prop('row'))
-            cellNode.setProp("col", cell.prop('col'))
-            cellNode.setProp("rowSpan", cell.prop('rowSpan'))
-            cellNode.setProp("colSpan", cell.prop('colSpan'))
+            cellNode.set("id", cell.get('id'))
+            cellNode.set("row", cell.get('row'))
+            cellNode.set("col", cell.get('col'))
+            if cell.get('rowSpan'): cellNode.set("rowSpan", cell.get('rowSpan'))
+            if cell.get('colSpan'): cellNode.set("colSpan", cell.get('colSpan'))
             sp= self.getPoints(cell)
-            cellNode.setProp('points',sp)        
+            cellNode.set('points',sp)        
             # BB
-            ctxt = cell.doc.xpathNewContext()
-            ctxt.xpathRegisterNs("a", self.xmlns)
-            xpath  = "./a:Coords/@%s" % ("points")
-            ctxt.setContextNode(cell)
-            lPoints = ctxt.xpathEval(xpath)
+#             ctxt = cell.doc.xpathNewContext()
+#             ctxt.xpathRegisterNs("a", self.xmlns)
+#             xpath  = "./a:Coords/@%s" % ("points")
+#             ctxt.setContextNode(cell)
+            lPoints = cell.xpath("./x:Coords/@%s" % ("points"),namespaces={'x':self.xmlns})
             if lPoints != []:
                 [x,y,h,w] = self.regionBoundingBox(lPoints[0])
                 xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w))
-                cellNode.setProp(ds_xml.sX,str(xp))
-                cellNode.setProp(ds_xml.sY,str(yp))
-                cellNode.setProp(ds_xml.sHeight,str(hp))
-                cellNode.setProp(ds_xml.sWidth,str(wp))                    
+                cellNode.set(ds_xml.sX,str(xp))
+                cellNode.set(ds_xml.sY,str(yp))
+                cellNode.set(ds_xml.sHeight,str(hp))
+                cellNode.set(ds_xml.sWidth,str(wp))                    
             
             
             self.getTextLineSubStructure(cellNode,cell)
-            #corners
-#              <CornerPts>0 1 2 3</CornerPts>
-#             ctxt = document.xpathNewContext()
-#             ctxt.xpathRegisterNs("a", self.xmlns)
-#             xpath  = "./%s" % ("CornerPts")
-#             ctxt.setContextNode(tableNode)
-#             lCorners = ctxt.xpathEval(xpath)
-#             ctxt.xpathFreeContext()
-#             cellNode.setProp('corners',lCorners[0].getContent())
             
         return dstable
 
@@ -362,35 +356,35 @@ class primaAnalysis(Component.Component):
         """
             create REGION
         """
-        dsnode = libxml2.newNode("REGION")
-        if pnode.hasProp('type'):
-            dsnode.setProp('type',pnode.prop('type') )
-        if pnode.hasProp('custom'):
-            dsnode.setProp('custom',pnode.prop('custom') )
-#         dsnode.setProp('structure',pnode.prop('structure') )
+        dsnode = etree.Element("REGION")
+        if pnode.get('type'):
+            dsnode.set('type',pnode.get('type') )
+        if pnode.get('custom'):
+            dsnode.set('custom',pnode.get('custom') )
+#         dsnode.set('structure',pnode.get('structure') )
 
         try:
-            dsnode.setProp('id',pnode.prop('id'))
+            dsnode.set('id',pnode.get('id'))
         except:
-            dsnode.setProp('id',str(self.id))
+            dsnode.set('id',str(self.id))
             self.id += 1
         return dsnode
             
     def convertPage(self,ipage,dspage):
-        child = ipage.children
-        while child:
-            if child.type == "element":
-                if not self.bRef or (self.bRef and child.name in self.lRefTag): 
-                    ctxt = ipage.doc.xpathNewContext()
-                    ctxt.xpathRegisterNs("a", self.xmlns)
-                    xpath  = "./a:Coords/@%s" % ("points")
-                    ctxt.setContextNode(child)
-                    lPoints = ctxt.xpathEval(xpath)
+        for child in ipage:
+            if child.tag != etree.Comment:
+                if not self.bRef or (self.bRef and child.tag in self.lRefTag): 
+#                     ctxt = ipage.doc.xpathNewContext()
+#                     ctxt.xpathRegisterNs("a", self.xmlns)
+#                     xpath  = "./a:Coords/@%s" % ("points")
+#                     ctxt.setContextNode(child)
+                    childname =etree.QName(child.tag).localname
+#                     lPoints = child.xpath("./{%s}Coords/@%s" % (self.xmlns,"points"))
+                    lPoints = child.xpath("./x:Coords/@points", namespaces={"x":self.xmlns})
                     if lPoints !=[]:
-                        ctxt.xpathFreeContext()
                         [x,y,h,w] = self.regionBoundingBox(lPoints[0])
-                        xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w)) 
-                        if child.name == "TextRegion":
+                        xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w))
+                        if childname == "TextRegion":
                             #get type
                             node = self.createRegion(child)
                             if not self.bRef:
@@ -400,50 +394,49 @@ class primaAnalysis(Component.Component):
                                     # no region
                                     self.getTextLineSubStructure(dspage,child)
 
-                        elif child.name =="ImageRegion":
-                            node = libxml2.newNode("IMAGE")
-                        elif child.name =="LineDrawingRegion":
-                            node = libxml2.newNode("IMAGE")
-                        elif child.name =="GraphicRegion":
-                            node = libxml2.newNode("IMAGE")
-                        elif child.name =="SeparatorRegion":
-                            node = libxml2.newNode("SeparatorRegion")
+                        elif childname =="ImageRegion":
+                            node = etree.Element("IMAGE")
+                        elif childname =="LineDrawingRegion":
+                            node = etree.Element("IMAGE")
+                        elif childname =="GraphicRegion":
+                            node = etree.Element("IMAGE")
+                        elif childname =="SeparatorRegion":
+                            node = etree.Element("SeparatorRegion")
                             sp= self.getPoints(child)
                             # polylines
-                            node.setProp('points',sp)                                         
-                        elif child.name =="TableRegion":
+                            node.set('points',sp)                                         
+                        elif childname =="TableRegion":
                             node = self.getTable(child)
-                        elif child.name =="FrameRegion":
-                            node = libxml2.newNode("FRAME")
-                        elif child.name =="ChartRegion":
-                            node = libxml2.newNode("FRAME")
-                        elif child.name =="MathsRegion":
-                            node = libxml2.newNode("MATH")
-                        elif  child.name =="PrintSpace":
-                            node = libxml2.newNode("typeArea")                                     
+                        elif childname =="FrameRegion":
+                            node = etree.Element("FRAME")
+                        elif childname =="ChartRegion":
+                            node = etree.Element("FRAME")
+                        elif childname =="MathsRegion":
+                            node = etree.Element("MATH")
+                        elif  childname =="PrintSpace":
+                            node = etree.Element("typeArea")                                     
                         else:
-                            node = libxml2.newNode("MISC")
+                            node = etree.Element("MISC")
                         ## ADD ROTATION INFO
-                        if child.hasProp("orientation"):
-                            rotation = child.prop("orientation")
+                        if child.get("orientation"):
+                            rotation = child.get("orientation")
                             if float(rotation) == 0:
-                                node.setProp("rotation","0")
+                                node.set("rotation","0")
                             elif float(rotation) == -90:
-                                node.setProp("rotation","1")
+                                node.set("rotation","1")
                             elif float(rotation) == 90:
-                                node.setProp("rotation","2")
+                                node.set("rotation","2")
                             elif float(rotation) == 180:
-                                node.setProp("rotation","3")           
-                        node.setProp(ds_xml.sX,str(xp))
-                        node.setProp(ds_xml.sY,str(yp))
-                        node.setProp(ds_xml.sHeight,str(hp))
-                        node.setProp(ds_xml.sWidth,str(wp))
+                                node.set("rotation","3")           
+                        node.set(ds_xml.sX,str(xp))
+                        node.set(ds_xml.sY,str(yp))
+                        node.set(ds_xml.sHeight,str(hp))
+                        node.set(ds_xml.sWidth,str(wp))
                         if not self.bSkipRegion:
-                            dspage.addChild(node)
-#                     elif child.name =="TableRegion":
+                            dspage.append(node)
+#                     elif child.tag =="TableRegion":
 #                         node = self.getTable(child) 
-#                         dspage.addChild(node)
-            child = child.next
+#                         dspage.append(node)
         
         return dspage
     
@@ -451,25 +444,25 @@ class primaAnalysis(Component.Component):
         """
             convert a MPXMLDom to DSDOM
         """ 
-        dsdom = libxml2.newDoc("1.0")
-        dsroot = libxml2.newNode(ds_xml.sDOCUMENT)
-        dsdom.setRootElement(dsroot)
+        dsroot = etree.Element(ds_xml.sDOCUMENT)
+        dsdom = etree.ElementTree(dsroot)
+                
         
-        
-        ctxt = mprimedoc.xpathNewContext()
-        ctxt.xpathRegisterNs("a", self.xmlns)
-        xpath  = "//a:%s" % ("Page")
-        lPages = ctxt.xpathEval(xpath)
-        ctxt.xpathFreeContext()
+#         ctxt = mprimedoc.xpathNewContext()
+#         ctxt.xpathRegisterNs("a", self.xmlns)
+#         xpath  = "//a:%s" % ("Page")
+#         lPages = ctxt.xpathEval(xpath)
+#         ctxt.xpathFreeContext()
+        lPages = dsroot.findall(".//{%s}%s"%(self.xmlns,'Page'))
         for ipageNumber,ipage in enumerate(lPages):
-            page = libxml2.newNode(ds_xml.sPAGE)
-            dsroot.addChild(page)            
-            page.setProp(ds_xml.sPageNumber,str(ipageNumber+1))
-            page.setProp("imageFilename",'..%scol%s%s%s'%(os.sep,os.sep,sDocID,os.sep)+ ipage.prop("imageFilename"))
-            imageWidth =  72 * (float(ipage.prop("imageWidth"))  / self.dpi)
-            imageHeight = 72 * (float(ipage.prop("imageHeight")) / self.dpi)
-            page.setProp("width",str(imageWidth))
-            page.setProp("height",str(imageHeight))
+            page = etree.Element(ds_xml.sPAGE)
+            dsroot.append(page)            
+            page.set(ds_xml.sPageNumber,str(ipageNumber+1))
+            page.set("imageFilename",'..%scol%s%s%s'%(os.sep,os.sep,sDocID,os.sep)+ ipage.get("imageFilename"))
+            imageWidth =  72 * (float(ipage.get("imageWidth"))  / self.dpi)
+            imageHeight = 72 * (float(ipage.get("imageHeight")) / self.dpi)
+            page.set("width",str(imageWidth))
+            page.set("height",str(imageHeight))
             self.convertPage(ipage, page)
                 
         self.addTagProcessToMetadata(dsdom)                 
@@ -477,9 +470,8 @@ class primaAnalysis(Component.Component):
                  
     def run(self):
         
-        dsdom = libxml2.newDoc("1.0")
-        dsroot = libxml2.newNode(ds_xml.sDOCUMENT)
-        dsdom.setRootElement(dsroot)
+        dsroot = etree.Element(ds_xml.sDOCUMENT)
+        dsdom = etree.ElementTree(dsroot)
         
 
         import glob
@@ -490,32 +482,33 @@ class primaAnalysis(Component.Component):
                 #pathname = it.next()
                 traceln(pathname)
                 primedoc = self.loadDom(pathname)
-#                 page = libxml2.newNode(ds_xml.sPAGE)
-#                 page.setProp(ds_xml.sPageNumber,str(ipageNumber))
+#                 page = etree.Element(ds_xml.sPAGE)
+#                 page.set(ds_xml.sPageNumber,str(ipageNumber))
 #                 ipageNumber += 1
-#                 dsroot.addChild(page)            
-                ctxt = primedoc.xpathNewContext()
-                ctxt.xpathRegisterNs("a", self.xmlns)
-                xpath  = "//a:%s" % ("Page")
-                lPages = ctxt.xpathEval(xpath)
-                ctxt.xpathFreeContext()
+#                 dsroot.append(page)            
+#                 ctxt = primedoc.xpathNewContext()
+#                 ctxt.xpathRegisterNs("a", self.xmlns)
+#                 xpath  = "//a:%s" % ("Page")
+#                 lPages = ctxt.xpathEval(xpath)
+#                 ctxt.xpathFreeContext()
+                lPages = primedoc.getroot().findall(".//{%s}%s"%(self.xmlns,'Page'))
                 for ipage in lPages:
-                    page = libxml2.newNode(ds_xml.sPAGE)
-                    page.setProp(ds_xml.sPageNumber,str(ipageNumber))
+                    page = etree.Element(ds_xml.sPAGE)
+                    page.set(ds_xml.sPageNumber,str(ipageNumber))
                     ipageNumber += 1
-                    dsroot.addChild(page)                       
-                    page.setProp("imageFilename",'..%scol%s%s%s'%(os.sep,os.sep,self.sDocID,os.sep)+ ipage.prop("imageFilename"))
-                    imageWidth =  72 * (float(ipage.prop("imageWidth"))  / self.dpi)
-                    imageHeight = 72 * (float(ipage.prop("imageHeight")) / self.dpi)
-                    page.setProp("width",str(imageWidth))
-                    page.setProp("height",str(imageHeight))
-                    imgNode = libxml2.newNode("IMAGE")
-                    imgNode.setProp("href",ipage.prop("imageFilename"))
-                    imgNode.setProp("x","0")
-                    imgNode.setProp("y","0")
-                    imgNode.setProp("height",str(imageHeight))
-                    imgNode.setProp("width",str(imageWidth))
-                    page.addChild(imgNode)
+                    dsroot.append(page)                       
+                    page.set("imageFilename",'..%scol%s%s%s'%(os.sep,os.sep,self.sDocID,os.sep)+ ipage.get("imageFilename"))
+                    imageWidth =  72 * (float(ipage.get("imageWidth"))  / self.dpi)
+                    imageHeight = 72 * (float(ipage.get("imageHeight")) / self.dpi)
+                    page.set("width",str(imageWidth))
+                    page.set("height",str(imageHeight))
+                    imgNode = etree.Element("IMAGE")
+                    imgNode.set("href",ipage.get("imageFilename"))
+                    imgNode.set("x","0")
+                    imgNode.set("y","0")
+                    imgNode.set("height",str(imageHeight))
+                    imgNode.set("width",str(imageWidth))
+                    page.append(imgNode)
                     self.convertPage(ipage, page)
 #         except StopIteration, e:
 #             traceln("=== done.")

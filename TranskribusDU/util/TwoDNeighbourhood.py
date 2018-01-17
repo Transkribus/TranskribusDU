@@ -3,7 +3,10 @@
 """
 
 # ------------------------------------------------------------------------------------------------------------------------------------
-#OLD
+# #OLD
+# from __future__ import absolute_import
+# from __future__ import  print_function
+# from __future__ import unicode_literals
 
 def rotateMinus90degOLD(e):
 #     self.x1, self.y1,  self.x2, self.y2 = -self.y2, self.x1,  -self.y1, self.x2
@@ -43,7 +46,11 @@ def rotatePlus90deg(e):
 
 def epsilonRound( f, epsilon): 
         return int(round(f / epsilon, 0)*epsilon)
-def XXOverlap( (Ax1,Ax2), (Bx1, Bx2)): #overlap if the max is smaller than the min
+# def XXOverlap( (Ax1,Ax2), (Bx1, Bx2)): #overlap if the max is smaller than the min
+#     return max(Ax1, Bx1), min(Ax2, Bx2)
+def XXOverlap( Ax1_Ax2, Bx1_Bx2): #overlap if the max is smaller than the min
+    Ax1, Ax2 = Ax1_Ax2
+    Bx1, Bx2 = Bx1_Bx2
     return max(Ax1, Bx1), min(Ax2, Bx2)
 
 def findVerticalNeighborEdges( lBlk, bShortOnly=False, epsilon = 2):
@@ -61,7 +68,6 @@ def findVerticalNeighborEdges( lBlk, bShortOnly=False, epsilon = 2):
     
     #look for vertical neighbors
     lVEdge = list()
-    
     #index along the y axis based on y1 and y2
     dBlk_Y1 = collections.defaultdict(list)     # y1 --> [ list of block having that y1 ]
     setY2 = set()                               # set of (unique) y2
@@ -73,7 +79,7 @@ def findVerticalNeighborEdges( lBlk, bShortOnly=False, epsilon = 2):
         setY2.add(ry2)
     
     #lY1 and lY2 are sorted list of unique values
-    lY1 = dBlk_Y1.keys(); lY1.sort(); n1 = len(lY1)
+    lY1 = list(dBlk_Y1.keys()); lY1.sort(); n1 = len(lY1)
     lY2 = list(setY2) 
     lY2.sort(); n2 = len(lY2)
             
@@ -87,13 +93,12 @@ def findVerticalNeighborEdges( lBlk, bShortOnly=False, epsilon = 2):
     
     for i1,y1 in enumerate(lY1):
         #start with the block(s) with lowest y1
-#         print 'start:',i1, y1
+#         print ('start:',i1, y1)
         #  (they should not overlap horizontally and cannot be vertical neighbors to each other)
         for A in dBlk_Y1[y1]:
 #             print 'A:', A
 #             Ax1,Ay1, Ax2,Ay2 = map(epsilonRound, A.getBB(), [epsilon, epsilon, epsilon, epsilon])
             Ax1,Ay1, Ax2,Ay2 = epsilonRound(A.getX(),epsilon), epsilonRound(A.getY(),epsilon), epsilonRound(A.getX2(),epsilon), epsilonRound(A.getY2(),epsilon)
-
             A_height = A.getHeight()
             assert Ay2 >= Ay1
             lOx1x2 = list() #list of observed overlaps for current block A
@@ -131,7 +136,6 @@ def findVerticalNeighborEdges( lBlk, bShortOnly=False, epsilon = 2):
                                 lVEdge.append( (A, B) )
 #                                 print '\t\tadded:', B
 #                                 A.getNode().setProp('nextItem',B.getID())
-                            
                         lOx1x2.append( (ovABx1, ovABx2) ) #an hidden object may hide another one
                         #optimization to see when block A has been entirely "covered"
                         #(it does not account for all cases, but is fast and covers many common situations)
@@ -151,11 +155,10 @@ def findNeighborhood(selfx,list):
         
         rename X in Y and Y in x !!! (06/07/2011)
     """
-
     for elt1 in list:
         # get nearest left/right
-        print elt1.getID(), elt1.getY(),  elt1.getY() + elt1.getHeight(),"---"
-        leftElt = filter(lambda x: x < elt1.getX(),selfx.X1Tree.keys())
+#         print elt1.getID(), elt1.getY(),  elt1.getY() + elt1.getHeight(),"---"
+        leftElt = list(filter(lambda x: x < elt1.getX(),selfx.X1Tree.keys()))
         lOverlap= []
         for x in leftElt:
             for elt2 in selfx.X1Tree[x]:
@@ -163,10 +166,10 @@ def findNeighborhood(selfx,list):
                     lOverlap.append(elt2)
 #                        print elt2.getID(), elt2.getY(), elt.getY() + elt.getHeight() 
         lOverlap.sort(key=lambda x:x.getX())
-        print 'x-left overY', lOverlap
+#         print 'x-left overY', lOverlap
         if lOverlap !=[]:
             value  = lOverlap[-1].getX()+lOverlap[-1].getWidth()
-            filterList= filter(lambda x: x.getX()+x.getWidth() >= value,lOverlap)
+            filterList= list(filter(lambda x: x.getX()+x.getWidth() >= value,lOverlap))
 #                print value, filterList
 #                print "\t" , map(lambda x: x.getID(),lOverlap), value,map(lambda x: x.getID(),filterList) 
 
@@ -178,9 +181,9 @@ def findNeighborhood(selfx,list):
 
         
         # get nearest top
-        topElt = filter(lambda x: x < elt1.getY(),selfx.Y1Tree.keys())
+        topElt = list(filter(lambda x: x < elt1.getY(),selfx.Y1Tree.keys()))
         ## do not start after the end of elt1
-        leftequalElt =  filter(lambda x: x < elt1.getX()+elt1.getWidth(),selfx.X1Tree.keys())
+        leftequalElt =  list(filter(lambda x: x < elt1.getX()+elt1.getWidth(),selfx.X1Tree.keys()))
         lOverlap= []
         for y in topElt:
             for elt2 in selfx.Y1Tree[y]:
@@ -189,7 +192,7 @@ def findNeighborhood(selfx,list):
                     lOverlap.append(elt2)
 #            lOverlap.sort(key=lambda x:x.getBaseline())
         lOverlap.sort(key=lambda x:x.getY())
-        print 'over y', lOverlap
+#         print 'over y', lOverlap
         if lOverlap !=[]:
             # how to define a near (est?) object
             # take the nearest Y and add elements which end after it
@@ -198,7 +201,7 @@ def findNeighborhood(selfx,list):
             value  = lOverlap[-1].getY()
 #                 print  value,  lOverlap[-1].getY(), lOverlap
 #                 filterList= filter(lambda x: x.getY()+x.getHeight() >= value,lOverlap)
-            filterList= filter(lambda x: x.getY() >= value,lOverlap)
+            filterList= list(filter(lambda x: x.getY() >= value,lOverlap))
 
 #                value  = lOverlap[-1].getBaseline()
 #                filterList= filter(lambda x: x.getBaseline() >= value,lOverlap)
@@ -235,7 +238,6 @@ def getBoundingBoxOLD(l):
         maxbx = 0
         maxby = 0
         for elt in l:
-            print elt
             if elt.getX()>=0 and elt.getX() < minbx: minbx = elt.getX()
             if elt.getY()>=0 and elt.getY() < minby: minby = elt.getY()
             if elt.getX() + elt.getWidth() > maxbx: maxbx = elt.getX() + elt.getWidth()

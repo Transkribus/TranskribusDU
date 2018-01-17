@@ -8,14 +8,16 @@
     READ project     
     
 """
-
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 # Adjustement of the PYTHONPATH to include /.../DS/src
 import sys, os.path
-from spm import earleyParser
+# from spm import earleyParser
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
-from  earleyParser import Rule, Production, State, parse, build_trees
+from  .earleyParser import Rule, Production, State, parse, build_trees
 
 class parsingNode(object):
     """
@@ -85,10 +87,10 @@ class parsingNode(object):
         
     def print_(self,level):
         if self.isTerminal():
-            print '  '*level, 'T*',self.getData(), self.getRule().name
+            print ('  '*level, 'T*',self.getData(), self.getRule().name)
         else:
             if self.getRule():
-                print '  ' * level,self.getRule().name
+                print ('  ' * level,self.getRule().name)
             if self.getChildren() is not None:
                 for child in self.getChildren():
                     child.print_(level+1)
@@ -273,21 +275,21 @@ class sequenceGrammar():
         
         self.bDEBUG = False
         
-        if self.bDEBUG:print "\n\n===== GRAMMAR: %s =============" % (grammar)
+        if self.bDEBUG:print ("\n\n===== GRAMMAR: %s =============" % (grammar))
         myGrammar = self.generateGrammarRules(grammar,0,0)
         ## if just one rule: a+  : need optimisation!
 #         print myGrammar.productions
         # # here start with the first possible match?  (minus x for fussy?) 
         lList = lSeqElement
-        if self.bDEBUG: 'start parsing...'
+        if self.bDEBUG: print('start parsing...')
         res, lT = parse(myGrammar, lList)
 #         print 'res:',res
 #         return 
         
-        self.bDEBUG = False
+#         self.bDEBUG = False
         lParsings = []
         if res == 0 :
-            if self.bDEBUG:print "full res",res
+            if self.bDEBUG:print("full res",res)
             if len(lSeqElement)>500: iMax=2 
             else:iMax=-1
             lNodes = build_trees(lT[0],MAX=iMax)
@@ -302,7 +304,7 @@ class sequenceGrammar():
 #                 except KeyError:pass
                 lTMP.append((lList,dInvertDict,lOut))
             if lTMP != []:
-                lTMP.sort(key=lambda (x,y,z):len(str(x)))
+                lTMP.sort(key=lambda xyz:len(str(xyz[0])))
                 lParsings.append(lTMP[0])
 #                 print lTMP[0]
                 
@@ -336,7 +338,7 @@ class sequenceGrammar():
 #                 print 'xxxxhere',lT, lList
                 lResults.append((lT[0], lList))
             
-            if self.bDEBUG:print 'final structures'
+            if self.bDEBUG:print ('final structures')
             ### find the best coverage: sort by length and take the longest ones first???
             ### find all non overlapping solutions and take the ones with the best coverage
             lParsings.extend(self.getSortedPartialParsing(lResults))
@@ -372,7 +374,7 @@ class sequenceGrammar():
         lParsings= []
         lResults.sort(key=lambda x:len(x[1]),reverse=True)
         for res in lResults:
-            if self.bDEBUG:print 'partial res:',res
+            if self.bDEBUG:print('partial res:',res)
             if len(res[1]) > 500: iMax=5 
             else:iMax=-1            
             lNodes= build_trees(res[0],MAX=iMax)
@@ -381,13 +383,13 @@ class sequenceGrammar():
                 if self.bDEBUG:eachres.print_()
                 dInvertDict={}
                 lout= self.getHListFromNode(eachres,res[1],dInvertDict)
-                if self.bDEBUG:print lout
+                if self.bDEBUG:print( lout)
 #                 try:print dInvertDict['s0']
 #                 except KeyError:pass
                 lTMP.append((res[1],dInvertDict,lout))
             #take the shortest
             if lTMP !=[]:
-                lTMP.sort(key=lambda (x,y,z):len(str(z)))
+                lTMP.sort(key=lambda xyz:len(str(xyz[2])))
                 lParsings.append(lTMP[0])
 #                 print "?",lTMP[0]
                             

@@ -11,15 +11,18 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import sys, os.path
 
 sys.path.append(os.path.dirname(os.path.abspath(sys.argv[0])))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
-from xmlDocumentClass import XMLDocument
-from XMLObjectClass import XMLObjectClass
-from XMLDSPageClass import XMLDSPageClass
+from .xmlDocumentClass import XMLDocument
+from .XMLObjectClass import XMLObjectClass
+from .XMLDSPageClass import XMLDSPageClass
 
 from config import ds_xml_def as ds_xml
 
@@ -36,22 +39,22 @@ class  XMLPAGEDocument(XMLDocument):
         XMLDocument.__init__(self)        
     
     
-    def loadFromFolder(self,pathname):
-        """
-            For each node, create an object with the tag name. features?
-        
-            assume specbook/division/PAGE
-        """
-        if docDom:
-            self.setDom(docDom)
-        if self.getDom():
-            self._rootObject = XMLObjectClass()
-            self.loadPages(self.getDom().getRootElement())
-        else:
-            return -1
+#     def loadFromFolder(self,pathname):
+#         """
+#             For each node, create an object with the tag name. features?
+#         
+#             assume specbook/division/PAGE
+#         """
+#         if docDom:
+#             self.setDom(docDom)
+#         if self.getDom():
+#             self._rootObject = XMLObjectClass()
+#             self.loadPages(self.getDom().getRootElement())
+#         else:
+#             return -1
         
 
     def display(self,lvl=0):
-        print 'Document: ',self.getName()
+        print ('Document: ',self.getName())
         self.getRootObject().display(lvl+1)
 

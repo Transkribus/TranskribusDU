@@ -9,8 +9,12 @@
     READ project
     
 """
-from templateClass import templateClass
-from verticalZonesTemplateClass import verticalZonestemplateClass
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
+from .templateClass import templateClass
+from .verticalZonesTemplateClass import verticalZonestemplateClass
 
 class doublePageTemplateClass(templateClass):
 #     def __hash__(self):

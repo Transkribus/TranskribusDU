@@ -9,6 +9,9 @@
     mine table text to identify  rows
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import sys, os.path
 
@@ -23,12 +26,11 @@ warnings.filterwarnings('ignore')
 
 import common.Component as Component
  
-from structuralMining import sequenceMiner
+from .structuralMining import sequenceMiner
 
-from feature import featureObject 
+from .feature import featureObject 
 
 from ObjectModel.xmlDSDocumentClass import XMLDSDocument
-# from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
 from ObjectModel.treeTemplateClass import treeTemplateClass
 from ObjectModel.XMLDSCELLClass import XMLDSTABLECELLClass
 from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
@@ -219,7 +221,7 @@ class tableRowMiner(Component.Component):
         seqGen.setMinSequenceLength(1)
         seqGen.setMaxSequenceLength(1)
         
-        print '***'*20
+        print ('***'*20)
         
         seqGen.bDebug = False
         for elt in lCurList:
@@ -245,10 +247,10 @@ class tableRowMiner(Component.Component):
                     
         lPatterns.sort(key=lambda (x,y):y, reverse=True)
         
-        print "List of patterns and their support:"
+        print( "List of patterns and their support:")
         for p,support  in lPatterns:
             if support >= 1: 
-                print p, support
+                print( p, support)
         seqGen.THRULES = 0.95
         lSeqRules = seqGen.generateSequentialRules(lPatterns)
         
@@ -311,7 +313,7 @@ class tableRowMiner(Component.Component):
 
         # add empty template (last one in state)
         lTemplates.append(None)
-        print states, score
+        print(states, score)
 
         #assign to each elt the template assigned by viterbi
         for i,elt, in enumerate(lElts):
@@ -437,8 +439,7 @@ class tableRowMiner(Component.Component):
     
         pattern = lfPattern
         
-        print pattern
-        print self.THNUMERICAL
+        print (pattern)
         
         ### in prodf: mytemplate given by page.getVerticalTemplates()
         mytemplate = treeTemplateClass()
@@ -449,16 +450,15 @@ class tableRowMiner(Component.Component):
         ## from registration matched: select the final cuts
         for i,p in enumerate(lPages):
             p.lFeatureForParsing  = p.lf_XCut 
-            print p, p.lf_XCut
             sys.stdout.flush()
             registeredPoints1, lMissing1, score1 = mytemplate.registration(p)
             if score1 >= 0:
                 lfinalCuts= map(lambda (x,y):y,filter(lambda (x,y): x!= 'EMPTY',registeredPoints1))
-                print p,'final1:',lfinalCuts, lMissing1
+                print( p,'final1:',lfinalCuts, lMissing1)
                 p.addVerticalTemplate(mytemplate)
                 p.addVSeparator(mytemplate,lfinalCuts)
             else:
-                print 'NO REGISTRATION'
+                print( 'NO REGISTRATION')
         
         self.tagAsRegion(lPages)
         
@@ -473,7 +473,7 @@ class tableRowMiner(Component.Component):
                 # if several template ???
                 for template in page.getVerticalTemplates():
                     page.getdVSeparator(template).sort(key=lambda x:x.getValue())
-                    print page.getdVSeparator(template)
+                    print (page.getdVSeparator(template))
                     page.getNode().setProp('template',str(page.getdVSeparator(template)))
                     XMinus = 1
                     prevcut = 10
@@ -504,7 +504,7 @@ class tableRowMiner(Component.Component):
             domp.setProp('number',page.getAttribute('number'))
             root.addChild(domp)
             for sep in page.lVSeparator:
-                print page.lVSeparator
+                print (page.lVSeparator)
                 domsep= libxml2.newNode('SeparatorRegion')
                 domp.addChild(domsep)
 #                 domsep.setProp('x', str(sep[0].getValue()))

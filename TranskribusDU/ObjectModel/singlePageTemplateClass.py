@@ -9,7 +9,11 @@
     READ project
     
 """
-from templateClass import templateClass
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
+from .templateClass import templateClass
 class singlePageTemplateClass(templateClass):
 #     def __hash__(self):
 #         return sequenceAPI.__hash__(self)
@@ -32,5 +36,3 @@ class singlePageTemplateClass(templateClass):
         ## here send also the objects features used for the registration????
         raise "SOFTWARE ERROR: your component must define a testRun method"
 
-        
-      
