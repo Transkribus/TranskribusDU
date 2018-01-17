@@ -47,7 +47,7 @@ class ResourceGen(object):
 
     def __init__(self):
         
-        self.outputDir  = None
+        self.outputDir  = "."
         self.lFileRes = []
         self.lOutNames = []   
         self.lDelimitor=[] 
@@ -55,6 +55,10 @@ class ResourceGen(object):
         self.bFreqNorm = False
         self.bHeader = True
         self.bTok =False
+        self.normalizeFreq = None
+        self.firstN  = -1
+        
+        
     ## Add a parameter to the component
     ## Syntax is similar to optparse.OptionParser.add_option (the Python module optparse, class OptionParser, method add_option)
     #@param *args    (passing by position)
@@ -68,12 +72,14 @@ class ResourceGen(object):
         self.parser.description = self.description
         self.add_option("--freqone", dest="freqone",  action="store_true",  help="assume freq=1 for all entries")
         self.add_option("--freqnorm", dest="freqnorm",  action="store_true",  help="normalse (<1) for all entries")
-
+        self.add_option("--normalize", dest="freanormalize",  action="store",type='int',default=None, help="normalize max weight to N")
+        self.add_option("--firstN", dest="firstN",  action="store",type='int',default=None, help="take the N most frequent")
         self.add_option("--outdir", dest="outputDir", default="-", action="store", type="string", help="output folder", metavar="<dir>")
         self.add_option("--res", dest="lres",  action="append", type="string", help="resources for tagger/genrator/HTR")
         self.add_option("--name", dest="lnames",  action="append", type="string", help="output file names")
         self.add_option("--delimitor", dest="ldelimits",  action="append", type="string", help="CSV delimitors")
         self.add_option("--tokenize", dest="bTok",  action="store_true",default=False, help="perform tokenization")
+
 
     def parseCommandLine(self):
         (options, args) = self.parser.parse_args()
@@ -96,6 +102,8 @@ class ResourceGen(object):
         if  dParams.has_key("freqone"): self.bFreqOne=True
         if  dParams.has_key("bTok"): self.bTok=True
         if  dParams.has_key("freqnorm"): self.bFreqNorm=True
+        if  dParams.has_key("freanormalize"): self.normalizeFreq=dParams['freanormalize']
+        if  dParams.has_key("firstN"): self.firstN=dParams['firstN']
 
     def createResource(self,destDir,dbfilename,outname,sDelimiter=' ', nbEntries=-1):
         """
@@ -107,6 +115,7 @@ class ResourceGen(object):
         
         db={}
         fSum = 0.0
+        fMax = 0.0 
         with open(dbfilename,'rb') as dbfilename:
             dbreader= csv.reader(dbfilename,delimiter=sDelimiter )
             for lFields in dbreader:
@@ -125,6 +134,7 @@ class ResourceGen(object):
                                 db[tok.decode('utf-8').strip()] += int(lFields[1])
                             except KeyError: db[tok.decode('utf-8').strip()] = int(lFields[1])
                             fSum += int(lFields[1])
+                            fMax=max(fMax,db[tok.decode('utf-8').strip()])
                 except IndexError:
                     #just one column with the string; no frequency
                     if  len(lFields[0].strip()) > 0:
@@ -134,8 +144,14 @@ class ResourceGen(object):
         if self.bFreqNorm:
             for item in db:
                 db[item] = db[item]/fSum
+        elif self.normalizeFreq is not None:
+            for item in db:
+                db[item] =  1.0*self.normalizeFreq * (1.0*db[item]/fMax)
+                db[item] =  max(1.0,db[item])              
                 
         sorted_db = sorted(db.items(), key=operator.itemgetter(1),reverse=True)
+        
+        sorted_db = sorted_db[:self.firstN]
         # where to store them
         outFile=gzip.open(os.path.join(destDir,outname+'.pkl'),'w')
         print os.path.join(destDir,outname+".pkl")

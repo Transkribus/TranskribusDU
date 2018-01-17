@@ -28,7 +28,7 @@
     under grant agreement No 674943.
 """
 from __future__ import unicode_literals
-
+from __future__ import print_function
 
 import sys, os.path
 sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'src')
@@ -57,6 +57,12 @@ class deathRecord(recordClass):
         nfield.setMandatory()
         self.addField(nfield)
 
+        
+        rfield=religionField()
+        rfield.addTagger(myTagger)
+        rfield.setLabelMapping(['religionGenerator'])
+        self.addField(rfield)
+        
         lfield= locationField()
         lfield.addTagger(myTagger)
         lfield.setLabelMapping(['locationGenerator'])
@@ -76,15 +82,19 @@ class deathRecord(recordClass):
         dDate.addTagger(myTagger)
 #         dDate.setLabelMapping(['weekDayDateGenerator','MonthDayDateGenerator','MonthDateGenerator'])         
         dDate.setLabelMapping(['MonthDateGenerator'])         
-
         self.addField(dDate)
         
         bDate= burialDate()
         bDate.addTagger(myTagger)
 #         bDate.setLabelMapping(['weekDayDateGenerator','MonthDayDateGenerator','MonthDateGenerator'])         
         bDate.setLabelMapping(['MonthDateGenerator'])         
-
         self.addField(bDate)         
+
+
+        agefield=age()
+        agefield.addTagger(myTagger)
+        agefield.setLabelMapping(['ageValueGenerator'])
+        self.addField(agefield)        
 
         blfield= burialLocation()
         blfield.addTagger(myTagger)
@@ -96,6 +106,10 @@ class deathRecord(recordClass):
         reasonField.setLabelMapping(['deathreasonGenerator'])
         self.addField(reasonField)        
 
+        drField = doktorField()
+        drField.addTagger(myTagger)
+        drField.setLabelMapping(['lastNameGenerator'])  #lastNameGenerator
+        self.addField(drField)  
     
     def generateOutput(self,outDom):
         """
@@ -120,7 +134,7 @@ class deathRecord(recordClass):
         ## store all with score; evaluation uses scoresTH
         lPages={}
         for cand in self.getCandidates():
-            print cand, cand.getPage(), cand.getAllFields()
+#             print cand, cand.getPage(), cand.getAllFields()
             try:lPages[cand.getPage()].append(cand)
             except:lPages[cand.getPage()]=[cand]
 
@@ -128,6 +142,12 @@ class deathRecord(recordClass):
             # page node
             domp=libxml2.newNode('PAGE')
             domp.setProp('number',str(page.getNumber()))
+            #in ref :Seebach_006_03_0030
+            key=os.path.basename(page.getAttribute('imageFilename'))[:-4]
+            key=key.replace('-','_')
+            key=key[2:]
+            domp.setProp('pagenum',key)
+
             domp.setProp('years','NA')
             root.addChild(domp)         
             sortedRows = lPages[page]
@@ -172,6 +192,11 @@ class burialLocation(fieldClass):
     def __init__(self):
         fieldClass.__init__(self, burialLocation.sName)
                     
+class age(fieldClass):
+    sName='age'
+    def __init__(self):
+        fieldClass.__init__(self, age.sName)
+        
 class firstNameField(fieldClass):
     sName = 'firstname'
     def __init__(self):
@@ -187,6 +212,11 @@ class situationField(fieldClass):
     sName='situation'
     def __init__(self):
         fieldClass.__init__(self, situationField.sName)    
+
+class doktorField(fieldClass):
+    sName='doktor'
+    def __init__(self):
+        fieldClass.__init__(self, doktorField.sName) 
 
 class religionField(fieldClass):
     sName='religion'
@@ -268,6 +298,6 @@ if __name__ == "__main__":
     for field in dr.getFields():
         lParsingRes = field.applyTaggers(mydocO)
         foo = field.extractLabel(lParsingRes)
-        print field.getName(),lParsingRes
-        print foo
+        print(field.getName(),lParsingRes)
+        print(foo)
 
