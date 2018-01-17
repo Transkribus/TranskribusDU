@@ -10,6 +10,9 @@
     initial code found atn https://github.com/dinsaurabh123/msps
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import math  
 import itertools
@@ -34,7 +37,7 @@ class msps(object):
     def begin_msps(self,sequences):
       if (  sequences == None or len(sequences) == 0 or
             self.lMIS == None or len(self.lMIS) == 0  ):
-        print 'Invalid data sequence or minimum support values'
+        print ('Invalid data sequence or minimum support values')
         return None;
       
       # Total no. of data sequences
@@ -42,18 +45,18 @@ class msps(object):
       output_patterns = []
       # Get the item support for each item i.e. sup(i)
       flattened_sequences = [ list(set(itertools.chain(*sequence))) for sequence in sequences ]
-      if self.bDEBUG:print flattened_sequences
-      if self.bDEBUG: print "MIS:",self.lMIS
+      if self.bDEBUG:print (flattened_sequences)
+      if self.bDEBUG: print ("MIS:",self.lMIS)
       support_counts = dict(Counter(item for flattened_sequence in flattened_sequences for item in flattened_sequence))
       self.actual_supports = {item:support_counts.get(item)/float(sequence_count) for item in support_counts.keys()}
 #       if self.bDEBUG:
-      print "actual supports: %s" % self.actual_supports
+      print ("actual supports: %s" % self.actual_supports)
       del flattened_sequences
       
       # Get the sorted list of frequent items i.e items with sup(i) >= MIS(i)
       frequent_items = sorted([item for item in self.actual_supports.keys() if self.actual_supports.get(item) >= self.lMIS.get(item)],key=self.lMIS.get)
 
-      if self.bDEBUG:print "FrequentItems:",frequent_items
+      if self.bDEBUG:print ("FrequentItems:",frequent_items)
       
       # Iterate through frequent items to get sequential patterns
       for item in frequent_items:
@@ -65,13 +68,13 @@ class msps(object):
             # issue in featureGeneration: to be fixed!!
             mis_count = 0.00
         
-        if self.bDEBUG:print "------------- Current item:",item,"MIS:",mis_count, "Sup:",support_counts.get(item),"-----------------"
-        if self.bDEBUG:print "Seq:", [sequence for sequence in sequences if self.has_item(sequence, item)]
+        if self.bDEBUG:print ("------------- Current item:",item,"MIS:",mis_count, "Sup:",support_counts.get(item),"-----------------")
+        if self.bDEBUG:print ("Seq:", [sequence for sequence in sequences if self.has_item(sequence, item)])
            
         # Get the sequences containing that item and filter them to remove elements that do not satisfy SDC i.e. |sup(j) - sup(item)| > sdc
         item_sequences = [self.sdc_filter_on_item(sequence, item, self.actual_supports.get(item), self.actual_supports, self.sdc) for sequence in sequences if self.has_item(sequence, item)]
-        if self.bDEBUG:print "ItemSeq:"
-        if self.bDEBUG:print "\n".join([str(sequence) for sequence in item_sequences])
+        if self.bDEBUG:print( "ItemSeq:")
+        if self.bDEBUG:print( "\n".join([str(sequence) for sequence in item_sequences]))
         
         
         # Run the restricted Prefix-Span to get sequential patterns
@@ -108,7 +111,7 @@ class msps(object):
         
         output_text += "\n"
       
-      print output_text
+      print (output_text)
     #   output_file = open(out_file, 'w')
     #   output_file.write(output_text)
     #   output_file.close()
@@ -187,12 +190,12 @@ class msps(object):
       
     
     def prefix_span(self,output_patterns,prefix, item_sequences, base_item, mis_count):
-      if self.bDEBUG:print "Prefix:",prefix
+      if self.bDEBUG:print( "Prefix:",prefix)
         
       # Compute the projected database for the current prefix
       projected_db = self.compute_projected_database(prefix, item_sequences, base_item, mis_count)
-      if self.bDEBUG:print "DB:"
-      if self.bDEBUG:print "\n".join([str(sequence) for sequence in projected_db])
+      if self.bDEBUG:print( "DB:")
+      if self.bDEBUG:print( "\n".join([str(sequence) for sequence in projected_db]))
       
       # Find the prefix_length + 1 sequential patterns 
       if projected_db:    # Check if the projected database has any sequences
@@ -223,26 +226,26 @@ class msps(object):
           all_template_1_items += list(set(template_1_items))   
           all_template_2_items += list(set(template_2_items))
       
-        if self.bDEBUG:print "Template 1 items:", all_template_1_items
-        if self.bDEBUG: print "Template 2 items:", all_template_2_items
+        if self.bDEBUG:print( "Template 1 items:", all_template_1_items)
+        if self.bDEBUG: print("Template 2 items:", all_template_2_items)
         
         # Compute the total occurences of each element for each template i.e number of sequences it satisfied for a template match
 #         print Counter(item for item in all_template_1_items)
         dict_template_1 = dict(Counter(item for item in all_template_1_items))
         dict_template_2 = dict(Counter(item for item in all_template_2_items))
         
-        if self.bDEBUG:print "Template 1 item support:", dict_template_1
-        if self.bDEBUG:print "Template 2 item support:", dict_template_2 
+        if self.bDEBUG:print( "Template 1 item support:", dict_template_1)
+        if self.bDEBUG:print( "Template 2 item support:", dict_template_2) 
         
         freq_sequential_patterns = []  # Initialize empty list to contain obtained sequential patterns
         
         # For both the template matches, generate freuqent sequential patterns i.e patterns having support count >= MIS count
-        for item, sup_count in dict_template_1.iteritems():
+        for item, sup_count in dict_template_1.items():
           if sup_count >= mis_count:
             # Add the item to the last itemset of prefix for obtaining the pattern
             freq_sequential_patterns.append((prefix[:-1] + [prefix[-1] + [item]], sup_count))    # Add the pattern with its support count to frequent patterns list
         
-        for item, sup_count in dict_template_2.iteritems():
+        for item, sup_count in dict_template_2.items():
           if sup_count >= mis_count:
             # Append the item contained in a new itemset to the prefix
             freq_sequential_patterns.append((prefix + [[item]], sup_count))    # Add the pattern with its support count to frequent patterns list
@@ -277,8 +280,8 @@ class msps(object):
           if projected_sequence:    # Non-empty sequence, add to projected database
             projected_db.append(projected_sequence)
       
-      if self.bDEBUG:print "DB1:",projected_db
-      if self.bDEBUG:print "\n".join([str(sequence) for sequence in projected_db])
+      if self.bDEBUG:print( "DB1:",projected_db)
+      if self.bDEBUG:print( "\n".join([str(sequence) for sequence in projected_db]))
       
       # Check if any frequent items are left
       validation_db = self.remove_empty_elements([[[item for item in itemset if not item == '_'] for itemset in sequence] for sequence in projected_db])
@@ -380,6 +383,5 @@ class msps(object):
       return filtered_list    # Return the filtered list from current recursion
 
   
-if __name__ == '__main__':
-    main()
+
      

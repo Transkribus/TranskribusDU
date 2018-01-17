@@ -8,10 +8,17 @@ Various utilities to deal with PageXml format
 
 @author: meunier
 '''
+
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 import os
 import datetime
+from copy import deepcopy
 
-import libxml2
+
+from lxml import etree
 
 class PageXmlException(Exception): pass
 
@@ -54,15 +61,21 @@ class PageXml:
 #         schDoc = cls.getSchemaAsDoc()
         if not cls.cachedValidationContext: 
             schemaFilename = cls.getSchemaFilename()
-            buff = open(schemaFilename).read()
-            prsrCtxt = libxml2.schemaNewMemParserCtxt(buff, len(buff))
-            schema = prsrCtxt.schemaParse()
-            cls.cachedValidationContext = schema.schemaNewValidCtxt()
-            del buff, prsrCtxt
+#             buff = open(schemaFilename).read()
+            xmlschema_doc = etree.parse(schemaFilename)
+            xmlschema = etree.XMLSchema(xmlschema_doc)            
+            
+#             prsrCtxt = libxml2.schemaNewMemParserCtxt(buff, len(buff))
+#             schema = prsrCtxt.schemaParse()
+#             cls.cachedValidationContext = schema.schemaNewValidCtxt()
+            cls.cachedValidationContext = xmlschema
+#             del buff , prsrCtxt
 
-        res = cls.cachedValidationContext.schemaValidateDoc(doc)
-
-        return res == 0
+#         res = cls.cachedValidationContext.schemaValidateDoc(doc)
+        res = cls.cachedValidationContext.validate(doc)
+        log = cls.cachedValidationContext.error_log
+        print(log)
+        return res
          
     validate = classmethod(validate)
 
@@ -97,10 +110,10 @@ class PageXml:
         return a Metadata object
         """
         _, ndCreator, ndCreated, ndLastChange, ndComments = cls._getMetadataNodes(doc, domNd)
-        return Metadata(ndCreator.getContent()
-                        , ndCreated.getContent()
-                        , ndLastChange.getContent()
-                        , None if not ndComments else ndComments.getContent())
+        return Metadata(ndCreator.text
+                        , ndCreated.text
+                        , ndLastChange.text
+                        , None if not ndComments else ndComments.text)
     getMetadata = classmethod(getMetadata)
 
     def setMetadata(cls, doc, domNd, Creator, Comments=None):
@@ -119,16 +132,16 @@ class PageXml:
         return the Metadata DOM node
         """
         ndMetadata, ndCreator, ndCreated, ndLastChange, ndComments = cls._getMetadataNodes(doc, domNd)
-        ndCreator.setContent(Creator)
+        ndCreator.text = Creator
         #The schema seems to call for GMT date&time  (IMU)
         #ISO 8601 says:  "If the time is in UTC, add a Z directly after the time without a space. Z is the zone designator for the zero UTC offset."
         #Python seems to break the standard unless one specifies properly a timezone by sub-classing tzinfo. But too complex stuff
         #So, I simply add a 'Z' 
-        ndLastChange.setContent(datetime.datetime.utcnow().isoformat()+"Z") 
+        ndLastChange.text = datetime.datetime.utcnow().isoformat()+"Z" 
         if Comments != None:
             if not ndComments: #we need to add one!
-                ndComments = ndMetadata.newChild(None, cls.sCOMMENTS_ELT, Comments)
-            ndComments.setContent(Comments)
+                ndComments = etree.SubElement(ndMetadata, cls.sCOMMENTS_ELT)
+            ndComments.text = Comments
         return ndMetadata
     setMetadata = classmethod(setMetadata)        
     
@@ -139,12 +152,13 @@ class PageXml:
             Example: lNd = PageXMl.getChildByName(elt, "Baseline")
         return a DOM node
         """
-        ctxt = elt.doc.xpathNewContext()
-        ctxt.xpathRegisterNs("pc", cls.NS_PAGE_XML)  
-        ctxt.setContextNode(elt)
-        lNd = ctxt.xpathEval(".//pc:%s"%sChildName)
-        ctxt.xpathFreeContext()
-        return lNd
+        return elt.findall(".//{%s}:%s"%(cls.NS_PAGE_XML,sChildName))
+#         ctxt = elt.doc.xpathNewContext()
+#         ctxt.xpathRegisterNs("pc", cls.NS_PAGE_XML)  
+#         ctxt.setContextNode(elt)
+#         lNd = ctxt.xpathEval(".//pc:%s"%sChildName)
+#         ctxt.xpathFreeContext()
+#         return lNd
     getChildByName = classmethod(getChildByName)
     
     def getCustomAttr(cls, nd, sAttrName, sSubAttrName=None):
@@ -155,7 +169,7 @@ class PageXml:
         return a dictionary if no 2nd key provided, or a string if 1st and 2nd key provided
         Raise KeyError is one of the attribute does not exist
         """
-        ddic = cls.parseCustomAttr( nd.prop( cls.sCUSTOM_ATTR) )
+        ddic = cls.parseCustomAttr( nd.get( cls.sCUSTOM_ATTR) )
         
         #First key
         try:
@@ -174,7 +188,7 @@ class PageXml:
         return the value
         Raise KeyError is one of the attribute does not exist
         """
-        ddic = cls.parseCustomAttr( nd.prop(cls.sCUSTOM_ATTR) )
+        ddic = cls.parseCustomAttr( nd.get(cls.sCUSTOM_ATTR) )
         try:
             ddic[sAttrName][sSubAttrName] = str(sVal)
         except KeyError:
@@ -182,7 +196,7 @@ class PageXml:
             ddic[sAttrName][sSubAttrName] = str(sVal)
             
         sddic = cls.formatCustomAttr(ddic)
-        nd.setProp(cls.sCUSTOM_ATTR,sddic)
+        nd.set(cls.sCUSTOM_ATTR,sddic)
         return sVal
     setCustomAttr = classmethod(setCustomAttr)
     
@@ -251,13 +265,14 @@ class PageXml:
         return None if no textual node found
         """
         try:
-            ctxt.setContextNode(nd)
-            lsText = [ntext.content.decode('utf-8') for ntext in ctxt.xpathEval('.//text()')]
+#             ctxt.setContextNode(nd)
+            lsText = [ntext.text for ntext in nd.itertext()]
         except AttributeError:
-            ctxt = nd.doc.xpathNewContext()
-            ctxt.setContextNode(nd)
-            lsText = [ntext.content.decode('utf-8') for ntext in ctxt.xpathEval('.//text()')]
-            ctxt.xpathFreeContext()
+#             ctxt = nd.doc.xpathNewContext()
+#             ctxt.setContextNode(nd)
+#             lsText = [ntext.content.decode('utf-8') for ntext in ctxt.xpathEval('.//text()')]
+            lsText = [ntext.text for ntext in nd.itertext()]
+#             ctxt.xpathFreeContext()
 
         return " ".join(lsText)
     makeText = classmethod(makeText)
@@ -272,14 +287,15 @@ class PageXml:
         return the number of modified attributes
         """
         sAttr = sAttr.strip()
-        ctxt = nd.doc.xpathNewContext()
-        ctxt.setContextNode(nd)
-        lAttrNd = ctxt.xpathEval(".//@%s"%sAttr)
+#         ctxt = nd.doc.xpathNewContext()
+#         ctxt.setContextNode(nd)
+#         lAttrNd = ctxt.xpathEval(".//@%s"%sAttr)
+        lAttrNd = nd.findall(".//*[@%s]"%sAttr)
         ret = len(lAttrNd)
         for ndAttr in lAttrNd:
-            sNewValue = sPrefix+ndAttr.getContent().decode('utf-8')
-            ndAttr.setContent(sNewValue.encode('utf-8)'))
-        ctxt.xpathFreeContext()   
+            sNewValue = sPrefix+ndAttr.get(sAttr)
+            ndAttr.set(sAttr,sNewValue)
+#         ctxt.xpathFreeContext()   
         return ret
     addPrefix = classmethod(addPrefix)
                 
@@ -292,17 +308,20 @@ class PageXml:
         return the number of modified attributes        
         """
         sAttr = sAttr.strip()
-        ctxt = nd.doc.xpathNewContext()
-        ctxt.setContextNode(nd)
-        lAttrNd = ctxt.xpathEval(".//@%s"%sAttr)
+#         ctxt = nd.doc.xpathNewContext()
+#         ctxt.setContextNode(nd)
+        lAttrNd = nd.findall(".//*[@%s]"%sAttr)
         n = len(sPrefix)
         ret = len(lAttrNd)
         for ndAttr in lAttrNd:
-            sValue = ndAttr.getContent().decode('utf-8')
+#             sValue = ndAttr.getContent().decode('utf-8')
+            sValue = ndAttr.get(sAttr)
             assert sValue.startswith(sPrefix), "Prefix '%s' from attribute '@%s=%s' is missing"%(sPrefix, sAttr, sValue)
             sNewValue = sValue[n:]
-            ndAttr.setContent(sNewValue.encode('utf-8)'))
-        ctxt.xpathFreeContext()   
+#             ndAttr.setContent(sNewValue.encode('utf-8)'))
+            ndAttr.set(sAttr,sNewValue)
+
+#         ctxt.xpathFreeContext()   
         return ret
     rmPrefix = classmethod(rmPrefix)
 
@@ -314,19 +333,22 @@ class PageXml:
         """
         assert bool(doc) != bool(domNd), "Internal error: pass either a DOM or a Metadata node"  #XOR
         if doc:
-            lNd = cls.getChildByName(doc.getRootElement(), cls.sMETADATA_ELT)
+            lNd = cls.getChildByName(doc.getroot(), cls.sMETADATA_ELT)
             if len(lNd) != 1: raise ValueError("PageXml should have exactly one %s node"%cls.sMETADATA_ELT)
             domNd = lNd[0]
-            assert domNd.name == cls.sMETADATA_ELT
-        nd1 = domNd.firstElementChild()
-        if nd1.name != cls.sCREATOR_ELT: raise ValueError("PageXMl mal-formed Metadata: Creator element must be 1st element")
-        nd2 = nd1.nextElementSibling()
-        if nd2.name != cls.sCREATED_ELT: raise ValueError("PageXMl mal-formed Metadata: Created element must be 2nd element")
-        nd3 = nd2.nextElementSibling()
-        if nd3.name != cls.sLAST_CHANGE_ELT: raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
-        nd4 = nd3.nextElementSibling()
+            assert domNd.tag == cls.sMETADATA_ELT
+#         nd1 = domNd.firstElementChild()
+        nd1 = list(domNd)[0]
+
+        if nd1.tag != cls.sCREATOR_ELT: raise ValueError("PageXMl mal-formed Metadata: Creator element must be 1st element")
+        
+        nd2 = nd1.getnext()
+        if nd2.tag != cls.sCREATED_ELT: raise ValueError("PageXMl mal-formed Metadata: Created element must be 2nd element")
+        nd3 = nd2.getnext()
+        if nd3.tag != cls.sLAST_CHANGE_ELT: raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
+        nd4 = nd3.getnext()
         if nd4:
-            if nd4.name != cls.sCOMMENTS_ELT: raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
+            if nd4.tag != cls.sCOMMENTS_ELT: raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
         return domNd, nd1, nd2, nd3, nd4
     _getMetadataNodes = classmethod(_getMetadataNodes)
 
@@ -341,13 +363,14 @@ class PageXml:
         try:
             lsPair = data.split(' ')
         except:
-            ctxt = data.doc.xpathNewContext()
-            ctxt.xpathRegisterNs("pc", cls.NS_PAGE_XML)  
-            ctxt.setContextNode(data)
-            lndPoints = ctxt.xpathEval("(.//@points)[1]")  #no need to collect all @points below!
-            sPoints = lndPoints[0].getContent()
+#             ctxt = data.doc.xpathNewContext()
+#             ctxt.xpathRegisterNs("pc", cls.NS_PAGE_XML)  
+#             ctxt.setContextNode(data)
+#             lndPoints = ctxt.xpathEval("(.//@points)[1]")  #no need to collect all @points below!
+            lndPoints = data.findall("(.//@points)[1]")
+            sPoints = lndPoints[0] #.getContent()
             lsPair = sPoints.split(' ')
-            ctxt.xpathFreeContext()
+#             ctxt.xpathFreeContext()
         lXY = list()
         for sPair in lsPair:
             (sx,sy) = sPair.split(',')
@@ -383,41 +406,31 @@ class PageXml:
         """
             create a new PageXml document
         """
-        xmlPageDoc = libxml2.newDoc("1.0")
+        xmlPAGERoot = etree.Element('{%s}PcGts'%cls.NS_PAGE_XML,attrib={"{"+cls.NS_XSI+"}schemaLocation" : cls.XSILOCATION},nsmap={ None: cls.NS_PAGE_XML})
+        xmlPageDoc = etree.ElementTree(xmlPAGERoot)
+
+        metadata= etree.Element('{%s}%s'%(cls.NS_PAGE_XML,cls.sMETADATA_ELT))
+        xmlPAGERoot.append(metadata)
+        creator=etree.Element('{%s}%s'%(cls.NS_PAGE_XML,cls.sCREATOR_ELT))
+        creator.text= creatorName
+        created=etree.Element('{%s}%s'%(cls.NS_PAGE_XML,cls.sCREATED_ELT))
+        created.text= datetime.datetime.now().isoformat()
+        lastChange=etree.Element('{%s}%s'%(cls.NS_PAGE_XML,cls.sLAST_CHANGE_ELT))
+        lastChange.text = datetime.datetime.utcnow().isoformat()+"Z" 
+        metadata.append(creator)
+        metadata.append(created)
+        metadata.append(lastChange)
+        
+        
+        pageNode= etree.Element('{%s}%s'%(cls.NS_PAGE_XML,'Page'))
+#         pageNode.setNs(pagens)
+        pageNode.set('imageFilename',filename )
+        pageNode.set('imageWidth',str(imgW))
+        pageNode.set('imageHeight',str(imgH))
     
-        xmlPAGERoot = libxml2.newNode('PcGts')
-        xmlPageDoc.setRootElement(xmlPAGERoot)
-        pagens = xmlPAGERoot.newNs(cls.NS_PAGE_XML,None)
-        xmlPAGERoot.setNs(pagens)
-        XSINs = xmlPAGERoot.newNs(cls.NS_XSI, "xsi")
-        xmlPAGERoot.setNsProp(XSINs,"schemaLocation",cls.XSILOCATION)    
+        xmlPAGERoot.append(pageNode)
         
-        
-        metadata= libxml2.newNode(cls.sMETADATA_ELT)
-        metadata.setNs(pagens)
-        xmlPAGERoot.addChild(metadata)
-        creator=libxml2.newNode(cls.sCREATOR_ELT)
-        creator.setNs(pagens)
-        creator.addContent(creatorName)
-        created=libxml2.newNode(cls.sCREATED_ELT)
-        created.setNs(pagens)
-        created.addContent(datetime.datetime.now().isoformat())
-        lastChange=libxml2.newNode(cls.sLAST_CHANGE_ELT)
-        lastChange.setNs(pagens)
-        lastChange.setContent(datetime.datetime.utcnow().isoformat()+"Z") 
-        metadata.addChild(creator)
-        metadata.addChild(created)
-        metadata.addChild(lastChange)
-        
-        
-        pageNode= libxml2.newNode('Page')
-        pageNode.setNs(pagens)
-        pageNode.setProp('imageFilename',filename )
-        pageNode.setProp('imageWidth',str(imgW))
-        pageNode.setProp('imageHeight',str(imgH))
-    
-        xmlPAGERoot.addChild(pageNode)
-        
+#         print (etree.tostring(xmlPageDoc))
         bValidate = cls.validate(xmlPageDoc)
         assert bValidate, 'new file not validated by schema'
         
@@ -428,11 +441,8 @@ class PageXml:
         """
             create a PageXMl element
         """
-        node=libxml2.newNode(nodeName)
+        node=etree.Element('{%s}%s'%(cls.NS_PAGE_XML,nodeName))
         
-        #ns
-        node.setNs(ns)        
-
         return node
     
        
@@ -453,24 +463,25 @@ class MultiPageXml(PageXml):
         assert lDom, "ERROR: empty list of DOM PageXml"
         pnum = 1
         doc = lDom.pop(0)
-        rootNd = doc.getRootElement()
+        rootNd = doc.getroot()
         #Let's addPrefix all IDs with a page number...
         cls.addPrefix("p%d_"%pnum, rootNd, "id")
         
         while lDom:
             pnum += 1
             _doc = lDom.pop(0)
-            _rootNd = _doc.getRootElement()
-            assert _rootNd.name == "PcGts", "Data error: expected a root element named 'PcGts' in %d th dom" %pnum
+            _rootNd = _doc.getroot()
+            assert etree.QName(_rootNd.tag).localname == "PcGts", "Data error: expected a root element named 'PcGts' in %d th dom" %pnum
 
             ndChild = _rootNd.children
             sPagePrefix = "p%d_"%pnum
-            while ndChild:
-                if ndChild.type == "element": 
-                    cls.addPrefix(sPagePrefix, ndChild, "id")
-                rootNd.addChild(ndChild.copyNode(1))  #1=recursive copy (properties, namespaces and children when applicable)
-                ndChild = ndChild.next 
-            _doc.freeDoc()
+            for ndChild in _rootNd:
+#                 if ndChild.type == "element": 
+                cls.addPrefix(sPagePrefix, ndChild, "id")
+                rootNd.append(ndChild.copyNode(1))  #1=recursive copy (properties, namespaces and children when applicable)
+#                 ndChild = ndChild.next 
+            
+#             _doc.freeDoc()
         
         return doc
         
@@ -487,26 +498,26 @@ class MultiPageXml(PageXml):
         
         pnum = 1
         sXmlFile = lsXmlDocFilename.pop(0)
-        doc = libxml2.parseFile(sXmlFile)
-        rootNd = doc.getRootElement()
+        doc = etree.parse(sXmlFile)
+        rootNd = doc.getroot()
         #Let's addPrefix all IDs with a page number...
         cls.addPrefix("p%d_"%pnum, rootNd, "id")
         
         while lsXmlDocFilename:
             pnum += 1
             sXmlFile = lsXmlDocFilename.pop(0)
-            _doc = libxml2.parseFile(sXmlFile)
-            _rootNd = _doc.getRootElement()
-            assert _rootNd.name == "PcGts", "Data error: expected a root element named 'PcGts' in %s"%sXmlFile
+            _doc = etree.parse(sXmlFile)
+            _rootNd = _doc.getroot()
+            assert etree.QName(_rootNd).localname == "PcGts", "Data error: expected a root element named 'PcGts' in %s"%sXmlFile
 
-            ndChild = _rootNd.children
+#             ndChild = _rootNd.children
             sPagePrefix = "p%d_"%pnum
-            while ndChild:
-                if ndChild.type == "element": 
-                    cls.addPrefix(sPagePrefix, ndChild, "id")
-                rootNd.addChild(ndChild.copyNode(1))  #1=recursive copy (properties, namespaces and children when applicable)
-                ndChild = ndChild.next 
-            _doc.freeDoc()
+            for ndChild in _rootNd:
+#                 if ndChild.type == "element": 
+                cls.addPrefix(sPagePrefix, ndChild, "id")
+                rootNd.append(deepcopy(ndChild))   #.copyNode(1))  #1=recursive copy (properties, namespaces and children when applicable)
+#                 ndChild = ndChild.next 
+#             _doc.freeDoc()
         
         return doc
     makeMultiPageXml = classmethod(makeMultiPageXml)
@@ -533,7 +544,9 @@ class MultiPageXml(PageXml):
             #dump the new XML into a file in target folder
             name = sFilenamePattern%pnum
             sFilename = os.path.join(sToDir, name)
-            newDoc.saveFormatFileEnc(sFilename, "UTF-8", bIndent)
+#             newDoc.saveFormatFileEnc(sFilename, "UTF-8", bIndent)
+            newDoc.write(sFilename, encoding="UTF-8", xml_declaration=True,pretty_print=True)
+
             lXmlFilename.append(sFilename)
 
         return lXmlFilename
@@ -576,7 +589,7 @@ class MultiPageXml(PageXml):
         """
         assert bool(doc) != bool(lDomNd), "Internal error: pass either a DOM or a Metadata node list"  #XOR
         if doc:
-            lDomNd = cls.getChildByName(doc.getRootElement(), cls.sMETADATA_ELT)
+            lDomNd = cls.getChildByName(doc.getroot(), cls.sMETADATA_ELT)
             if not lDomNd: raise ValueError("PageXml should have at least one %s node"%cls.sMETADATA_ELT)
         return lDomNd
     _getMetadataNodeList = classmethod(_getMetadataNodeList)
@@ -599,13 +612,14 @@ class MultiPageXml(PageXml):
         
         yield DOMs
         """
-        rootNd = doc.getRootElement()
+        rootNd = doc.getroot()
         
-        ctxt = doc.xpathNewContext()
-        ctxt.xpathRegisterNs("a", cls.NS_PAGE_XML)
-        ctxt.setContextNode(rootNd)
+#         ctxt = doc.xpathNewContext()
+#         ctxt.xpathRegisterNs("a", cls.NS_PAGE_XML)
+#         ctxt.setContextNode(rootNd)
         
-        lMetadataNd = ctxt.xpathEval("/a:PcGts/a:Metadata")
+#         lMetadataNd = ctxt.xpathEval("/a:PcGts/a:Metadata")
+        lMetadataNd = rootNd.findall("/{%s}:PcGts/{%s}:Metadata"%(cls.NS_PAGE_XML,cls.NS_PAGE_XML))
         if not lMetadataNd: raise ValueError("Input multi-page PageXml should have at least one page and therefore one Metadata element")
         
         lDocToBeFreed = []
@@ -614,49 +628,57 @@ class MultiPageXml(PageXml):
             pnum += 1
             
             #create a DOM
-            newDoc = libxml2.newDoc("1.0")
-            newRootNd = rootNd.copyNode(2) #2 copy properties and namespaces (when applicable)
-            newDoc.setRootElement(newRootNd)
+#             newRootNd = rootNd.copyNode(2) #2 copy properties and namespaces (when applicable)
+            newRootNd = deepcopy(rootNd)   #2 copy properties and namespaces (when applicable)
+            newDoc = etree.ElementTree(newRootNd)
             
             #to jump to the PAGE sibling node (we do it now, defore possibly unlink...)
-            node = metadataNd.next
+            node = metadataNd.getnext()
 
             #Add a copy of the METADATA node and sub-tree
             if bInPlace:
-                metadataNd.unlinkNode()
-                newRootNd.addChild(metadataNd)
+#                 metadataNd.unlinkNode()
+                newRootNd.append(metadataNd)
             else:
-                newMetadataNd = metadataNd.copyNode(1)
-                newRootNd.addChild(newMetadataNd)
+#                 newMetadataNd = metadataNd.copyNode(1)
+                newMetadataNd=deepcopy(metadataNd)
+                newRootNd.append(newMetadataNd)
             
 #             #jump to the PAGE sibling node
 #             node = metadataNd.next
             while node:
-                if node.type == "element": break
-                node = node.next
-            if node.name != "Page": raise ValueError("Input multi-page PageXml for page %d should have a PAGE node after the METADATA node."%pnum)
+#                 if node.type == "element": break
+#                 node = node.next
+                if node.tag != etree.Comment: break
+                node = node.getnext()
+
+            if node.tag != "Page": raise ValueError("Input multi-page PageXml for page %d should have a PAGE node after the METADATA node."%pnum)
             
             #Add a copy of the PAGE node and sub-tree
             if bInPlace:
-                node.unlinkNode()
-                newNode = newRootNd.addChild(node)
+#                 node.unlinkNode()
+#                 newNode = newRootNd.addChild(node)
+                newRootNd.append(node)
+                newNode= node
             else:
-                newPageNd = node.copyNode(1)
-                newNode = newRootNd.addChild(newPageNd)
-           
+#                 newPageNd = node.copyNode(1)
+#                 newNode = newRootNd.addChild(newPageNd)
+                newNode = deepcopy(node)
+                newRootNd.append(newNode)
             #Remove the prefix on the "id" attributes
             sPagePrefix = "p%d_"%pnum
-            nb = cls.rmPrefix(sPagePrefix, newNode, "id")
+            _ = cls.rmPrefix(sPagePrefix, newNode, "id")
             
-            newRootNd.reconciliateNs(newDoc)
+            ###??? with lxml
+#             newRootNd.reconciliateNs(newDoc)
             
             yield pnum, newDoc
 
             lDocToBeFreed.append(newDoc)
 #             newDoc.freeDoc()
             
-        ctxt.xpathFreeContext()
-        for doc in lDocToBeFreed: doc.freeDoc()
+#         ctxt.xpathFreeContext()
+#         for doc in lDocToBeFreed: doc.freeDoc()
            
         raise StopIteration
     _iter_splitMultiPageXml = classmethod(_iter_splitMultiPageXml)
@@ -713,14 +735,14 @@ Utility to create a set of MultipageXml XML files from a set of folders, each co
         parser.print_help()
         parser.exit(1, "")
     
-    print "TODO: ", lsDir
+    print ("TODO: ", lsDir)
     
     for sDir in lsDir:
         if not os.path.isdir(sDir):
-            print "skipping %s (not a directory)"%sDir
+            print ("skipping %s (not a directory)"%sDir)
             continue
         
-        print "Processing %s..."%sDir,
+        print ("Processing %s..."%sDir,)
         if options.extension != '':
             l =      glob.glob(os.path.join(sDir, "*.%s"%options.extension))
         else:
@@ -729,20 +751,26 @@ Utility to create a set of MultipageXml XML files from a set of folders, each co
             l.extend(glob.glob(os.path.join(sDir, "*.xml.gz")))
             l.extend(glob.glob(os.path.join(sDir, "*.pxml.gz")))
         l.sort()
-        print "   %d pages"%len(l)
+        print ("   %d pages"%len(l))
         
         doc = MultiPageXml.makeMultiPageXml(l)
-        
+        print(MultiPageXml.validate(doc))
         filename = sDir + ".mpxml"
-        if options.bCompress: 
-            doc.setDocCompressMode(9)
+        if options.bCompress:
+            iCompress = 9
+#             doc.setDocCompressMode(9)
         else:
-            doc.setDocCompressMode(0)
+            iCompress = 0
+#             doc.setDocCompressMode(0)
         
-        doc.saveFormatFileEnc(filename, "utf-8", bool(options.bIndent))
-        doc.freeDoc()
+        doc.write(filename,encoding='UTF-8',xml_declaration=True, compression=iCompress) 
+#             doc.setDocCompressMode(0)
         
-        print "\t done: %s"%filename
+#         doc.saveFormatFileEnc(filename, "utf-8", bool(options.bIndent))
+#         doc.freeDoc()
+        del(doc)
         
-    print "DONE"
+        print ("\t done: %s"%filename)
+        
+    print ("DONE")
         

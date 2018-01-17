@@ -26,13 +26,15 @@
     under grant agreement No 674943.    
 
 """
+from __future__ import absolute_import
+from __future__ import  print_function
 from __future__ import unicode_literals
 
 import cPickle
 # import regex
 import gzip
 #from keras.models import load_model
-from contentProcessing.taggerTrainKeras import DeepTagger
+from contentProcessing.taggerTrainKeras2 import DeepTagger
 
 
 class recordClass(object):
@@ -175,10 +177,10 @@ class recordClass(object):
         for cand in self.getCandidates():
             # currently cell
             if len(cand.getContent()) > 5:
-                print  cand.getContent().encode('utf-8')
+                print (cand.getContent().encode('utf-8'))
                 for field in cand.getFields():
                     if field.getBestValue() is not None:
-                        print "f:",field.getName().encode('utf-8'), field.getBestValue().encode('utf-8'), field.isMandatory()
+                        print ("f:",field.getName().encode('utf-8'), field.getBestValue().encode('utf-8'), field.isMandatory())
             
         
     def generateOutput(self):

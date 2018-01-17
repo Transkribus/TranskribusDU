@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <CONFIGURATION>
   <TOOL>
-    <NAME>DocMiner</NAME>
+    <NAME>pageVerticalMiner</NAME>
     <VERSION>v.01</VERSION>
-    <DESCRIPTION>description: document miner component.</DESCRIPTION>
+    <DESCRIPTION>description: page vertical Zones miner </DESCRIPTION>
   </TOOL>
   <!--We describe here the command line argument:
   - @form is a space separated seris of option syntaxic form, e.g. '-i' for the 'input' option
@@ -15,6 +15,8 @@
   See http://docs.python.org/lib/module-optparse.html understand fully the meaning of the attributes.
   Note @dest and @name are the same thing
 -->
+  <PARAM name="KLEENETH" form="--KTH" dest="KLEENETH" action="store" type="float" help="TH for sequentiality" metavar="NN">1.5</PARAM>
+  <PARAM name="THNUM" form="--TH" dest="THNUM" action="store" type="int" help="TH as eq delta" metavar="NN">40</PARAM>
   <PARAM name="debug" form="--debug" dest="debug" action="store_true" default="False" help="debug mode">False</PARAM>
   <PARAM name="input" form="-i --input" help="input XML file" dest="input" default="-" action="store" type="string" metavar="&lt;file&gt;">'-'</PARAM>
   <PARAM name="log" form="--log" dest="log" action="store_true" default="False" help="log mode">False</PARAM>

@@ -28,12 +28,14 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
-
-import libxml2
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import sys, os.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
+from lxml import etree
 
 import common.Component as Component
 from common.trace import traceln
@@ -42,7 +44,7 @@ from ObjectModel.xmlDSDocumentClass import XMLDSDocument
 from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
 from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
 from ObjectModel.XMLDSCELLClass import XMLDSTABLECELLClass
-from ObjectModel.XMLDSRowClass import XMLDSTABLEROWClass
+from ObjectModel.XMLDSTableRowClass import XMLDSTABLEROWClass
 from spm.spmTableRow import tableRowMiner
 from xml_formats.Page2DS import primaAnalysis
 from xml_formats.DS2PageXml import DS2PageXMLConvertor
@@ -83,12 +85,12 @@ class RowDetection(Component.Component):
         Component.Component.setParams(self, dParams)
 #         if dParams.has_key("coldir"): 
 #             self.colname = dParams["coldir"]
-        if dParams.has_key("docid"):         
+        if "docid" in dParams:         
             self.docid = dParams["docid"]
-        if dParams.has_key("dsconv"):         
+        if "dsconv" in dParams:         
             self.do2DS = dParams["dsconv"]
                         
-        if dParams.has_key("createref"):         
+        if "createref" in dParams:         
             self.bCreateRef = dParams["createref"]                        
     
     
@@ -151,7 +153,7 @@ class RowDetection(Component.Component):
                             o.tagMe()
 #                         table.addCell(newCell)
                         lNewCells.append(newCell)
-                    cell.getNode().unlinkNode()
+                    cell.getNode().getparent().remove(cell.getNode())
                     del(cell)
             col.setObjectsList(lNewCells[:])
             [table.addCell(c) for c in lNewCells]        
@@ -235,7 +237,7 @@ class RowDetection(Component.Component):
             conv= DS2PageXMLConvertor()
             lPageXDoc = conv.run(self.doc)
             conv.storeMultiPageXml(lPageXDoc,self.getOutputFileName())
-            print self.getOutputFileName()
+#             print self.getOutputFileName()
             return None
         return self.doc
         
@@ -254,7 +256,8 @@ class RowDetection(Component.Component):
         doc =self.run(doc)
         self.evalData = self.createRef(doc)
         if outFile: self.writeDom(doc)
-        return self.evalData.serialize('utf-8',1)
+#         return self.evalData.serialize('utf-8',1)
+        return etree.tostring(self.evalData,encoding='unicode',pretty_print=True)
     
     
     def overlapX(self,zone):
@@ -326,8 +329,8 @@ class RowDetection(Component.Component):
 
         cntOk = cntErr = cntMissed = 0
         
-        RefData = libxml2.parseMemory(srefData.strip("\n").encode('utf-8'), len(srefData.strip("\n").encode('utf-8')))
-        RunData = libxml2.parseMemory(srunData.strip("\n").encode('utf-8'), len(srunData.strip("\n").encode('utf-8')))
+        RefData = etree.XML(srefData.strip("\n").encode('utf-8'))
+        RunData = etree.XML(srunData.strip("\n").encode('utf-8'))
 #         try:
 #             RunData = libxml2.parseMemory(srunData.strip("\n"), len(srunData.strip("\n")))
 #         except:
@@ -335,35 +338,27 @@ class RowDetection(Component.Component):
 #             return (cntOk, cntErr, cntMissed)        
         lRun = []
         if RunData:
-            ctxt = RunData.xpathNewContext()
-            lpages = ctxt.xpathEval('//%s' % ('PAGE'))
+            lpages = RunData.xpath('//%s' % ('PAGE'))
             for page in lpages:
-                pnum=page.prop('number')
+                pnum=page.get('number')
                 #record level!
-                xpath = ".//%s" % ("ROW")
-                ctxt.setContextNode(page)
-                lRows = ctxt.xpathEval(xpath)
+                lRows = page.xpath(".//%s" % ("ROW"))
                 lORows = map(lambda x:XMLDSTABLEROWClass(0,x),lRows)
                 for row in lORows:
                     row.fromDom(row._domNode)
                     row.setIndex(row.getAttribute('id'))
                     lRun.append((pnum,row))            
-            ctxt.xpathFreeContext()
 
         lRef = []
-        ctxt = RefData.xpathNewContext()
-        lPages = ctxt.xpathEval('//%s' % ('PAGE'))
+        lPages = RefData.xpath('//%s' % ('PAGE'))
         for page in lPages:
-            pnum=page.prop('number')
-            xpath = ".//%s" % ("ROW")
-            ctxt.setContextNode(page)
-            lRows = ctxt.xpathEval(xpath)
+            pnum=page.get('number')
+            lRows = page.xpath(".//%s" % ("ROW"))
             lORows = map(lambda x:XMLDSTABLEROWClass(0,x),lRows)
             for row in lORows:    
                 row.fromDom(row._domNode)
                 row.setIndex(row.getAttribute('id'))
                 lRef.append((pnum,row))  
-        ctxt.xpathFreeContext()          
 
 
 #         print map(lambda x:(x.getY()),lRun)
@@ -385,22 +380,22 @@ class RowDetection(Component.Component):
                     lRefCovered.append(curRef)
                 iRef+=1
             if bFound:
-                if bVisual:print "FOUND:", runElt, ' -- ', lRefCovered[-1]
+                if bVisual:print("FOUND:", runElt, ' -- ', lRefCovered[-1])
                 cntOk += 1
             else:
                 curRef=''
                 cntErr += 1
                 bErr = True
-                if bVisual:print "ERROR:", runElt
+                if bVisual:print("ERROR:", runElt)
             if bFound or bErr:
                 ltisRefsRunbErrbMiss.append( (int(runElt[0]), curRef, runElt,bErr, bMiss) )
              
         for i,curRef in enumerate(lRef):
             if curRef not in lRefCovered:
-                if bVisual:print "MISSED:", curRef
+                if bVisual:print("MISSED:", curRef)
                 ltisRefsRunbErrbMiss.append( (int(curRef[0]), curRef, '',False, True) )
                 cntMissed+=1
-        ltisRefsRunbErrbMiss.sort(key=lambda (x,y,z,t,u):x)
+        ltisRefsRunbErrbMiss.sort(key=lambda xyztu:xyztu[0])
 
 #         print cntOk, cntErr, cntMissed,ltisRefsRunbErrbMiss
         return (cntOk, cntErr, cntMissed,ltisRefsRunbErrbMiss)              
@@ -440,27 +435,27 @@ class RowDetection(Component.Component):
         for index,cut in enumerate(lYCuts):
             # first correspond to the table: no rpw
             if prevCut is not None:
-                rowNode= libxml2.newNode("ROW")
+                rowNode= etree.Element("ROW")
                 if bTagDoc:
-                    tableNode.addChild(rowNode)
+                    tableNode.append(rowNode)
                 else:
-                    tableNode.addChild(rowNode)
-                rowNode.setProp('y',str(prevCut))
-                rowNode.setProp('height',str(cut - prevCut))
-                rowNode.setProp('x',str(table.getX()))
-                rowNode.setProp('width',str(table.getWidth()))
-                rowNode.setProp('id',str(index-1))
+                    tableNode.append(rowNode)
+                rowNode.set('y',str(prevCut))
+                rowNode.set('height',str(cut - prevCut))
+                rowNode.set('x',str(table.getX()))
+                rowNode.set('width',str(table.getWidth()))
+                rowNode.set('id',str(index-1))
 
             prevCut= cut
         #last
         cut=table.getY2()
-        rowNode= libxml2.newNode("ROW")
-        tableNode.addChild(rowNode)
-        rowNode.setProp('y',str(prevCut))
-        rowNode.setProp('height',str(cut - prevCut))
-        rowNode.setProp('x',str(table.getX()))
-        rowNode.setProp('width',str(table.getWidth()))        
-        rowNode.setProp('id',str(index))
+        rowNode= etree.Element("ROW")
+        tableNode.append(rowNode)
+        rowNode.set('y',str(prevCut))
+        rowNode.set('height',str(cut - prevCut))
+        rowNode.set('x',str(table.getX()))
+        rowNode.set('width',str(table.getWidth()))        
+        rowNode.set('id',str(index))
 
             
     def createRef(self,doc):
@@ -471,29 +466,28 @@ class RowDetection(Component.Component):
         self.ODoc.loadFromDom(doc,listPages = range(self.firstPage,self.lastPage+1))        
   
   
-        refdoc=libxml2.newDoc("1.0")
-        root=libxml2.newNode("DOCUMENT")
-        refdoc.setRootElement(root)
+        root=etree.Element("DOCUMENT")
+        refdoc=etree.ElementTree(root)
         
 
         for page in self.ODoc.getPages():
             #imageFilename="..\col\30275\S_Freyung_021_0001.jpg" width="977.52" height="780.0">
-            pageNode = libxml2.newNode('PAGE')
-            pageNode.setProp("number",page.getAttribute('number'))
-            pageNode.setProp("imageFilename",page.getAttribute('imageFilename'))
-            pageNode.setProp("width",page.getAttribute('width'))
-            pageNode.setProp("height",page.getAttribute('height'))
+            pageNode = etree.Element('PAGE')
+            pageNode.set("number",page.getAttribute('number'))
+            pageNode.set("imageFilename",page.getAttribute('imageFilename'))
+            pageNode.set("width",page.getAttribute('width'))
+            pageNode.set("height",page.getAttribute('height'))
 
-            root.addChild(pageNode)   
+            root.append(pageNode)   
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
             for table in lTables:
                 dRows={}
-                tableNode = libxml2.newNode('TABLE')
-                tableNode.setProp("x",table.getAttribute('x'))
-                tableNode.setProp("y",table.getAttribute('y'))
-                tableNode.setProp("width",table.getAttribute('width'))
-                tableNode.setProp("height",table.getAttribute('height'))
-                pageNode.addChild(tableNode)
+                tableNode = etree.Element('TABLE')
+                tableNode.set("x",table.getAttribute('x'))
+                tableNode.set("y",table.getAttribute('y'))
+                tableNode.set("width",table.getAttribute('width'))
+                tableNode.set("height",table.getAttribute('height'))
+                pageNode.append(tableNode)
                 for cell in table.getAllNamedObjects(XMLDSTABLECELLClass):
                     try:dRows[int(cell.getAttribute("row"))].append(cell)
                     except KeyError:dRows[int(cell.getAttribute("row"))] = [cell]
@@ -501,7 +495,7 @@ class RowDetection(Component.Component):
                 lYcuts = []
                 for rowid in sorted(dRows.keys()):
 #                     print rowid, min(map(lambda x:x.getY(),dRows[rowid]))
-                    lYcuts.append(min(map(lambda x:x.getY(),dRows[rowid])))
+                    lYcuts.append(min(list(map(lambda x:x.getY(),dRows[rowid]))))
                 self.createRowsWithCuts(lYcuts,table,tableNode)
 
         return refdoc
@@ -520,28 +514,27 @@ class RowDetection(Component.Component):
         dRows={}
         for page in self.ODoc.getPages():
             #imageFilename="..\col\30275\S_Freyung_021_0001.jpg" width="977.52" height="780.0">
-            pageNode = libxml2.newNode('PAGE')
-#             pageNode.setProp("number",page.getAttribute('number'))
+            pageNode = etree.Element('PAGE')
+#             pageNode.set("number",page.getAttribute('number'))
             #SINGLER PAGE pnum=1
-            pageNode.setProp("number",'1')
+            pageNode.set("number",'1')
 
-            pageNode.setProp("imageFilename",page.getAttribute('imageFilename'))
-            pageNode.setProp("width",page.getAttribute('width'))
-            pageNode.setProp("height",page.getAttribute('height'))
+            pageNode.set("imageFilename",page.getAttribute('imageFilename'))
+            pageNode.set("width",page.getAttribute('width'))
+            pageNode.set("height",page.getAttribute('height'))
 
-            refdoc=libxml2.newDoc("1.0")
-            root=libxml2.newNode("DOCUMENT")
-            refdoc.setRootElement(root)
-            root.addChild(pageNode)
+            root=etree.Element("DOCUMENT")
+            refdoc=etree.ElementTree(root)
+            root.append(pageNode)
                
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
             for table in lTables:
-                tableNode = libxml2.newNode('TABLE')
-                tableNode.setProp("x",table.getAttribute('x'))
-                tableNode.setProp("y",table.getAttribute('y'))
-                tableNode.setProp("width",table.getAttribute('width'))
-                tableNode.setProp("height",table.getAttribute('height'))
-                pageNode.addChild(tableNode)
+                tableNode = etree.Element('TABLE')
+                tableNode.set("x",table.getAttribute('x'))
+                tableNode.set("y",table.getAttribute('y'))
+                tableNode.set("width",table.getAttribute('width'))
+                tableNode.set("height",table.getAttribute('height'))
+                pageNode.append(tableNode)
                 for cell in table.getAllNamedObjects(XMLDSTABLECELLClass):
                     try:dRows[int(cell.getAttribute("row"))].append(cell)
                     except KeyError:dRows[int(cell.getAttribute("row"))] = [cell]
@@ -549,12 +542,12 @@ class RowDetection(Component.Component):
                 lYcuts = []
                 for rowid in sorted(dRows.keys()):
 #                     print rowid, min(map(lambda x:x.getY(),dRows[rowid]))
-                    lYcuts.append(min(map(lambda x:x.getY(),dRows[rowid])))
+                    lYcuts.append(min(list(map(lambda x:x.getY(),dRows[rowid]))))
                 self.createRowsWithCuts(lYcuts,table,tableNode)
 
             
             self.outputFileName = os.path.basename(page.getAttribute('imageFilename')[:-3]+'ref')
-            print self.outputFileName
+            print(self.outputFileName)
             self.writeDom(refdoc, bIndent=True)
 
         return refdoc    

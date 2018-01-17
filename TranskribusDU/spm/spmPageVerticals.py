@@ -9,20 +9,22 @@
 
     mine a document (itemset generation)
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import sys, os.path
-
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
+sys.path.append(os.path.dirname(os.path.abspath(sys.argv[0])))
 
-import libxml2
+from lxml import etree
 import numpy as np
 
 import common.Component as Component
 from common.chrono import chronoOff , chronoOn
-from structuralMining import sequenceMiner
-from feature import featureObject 
 
+from spm.structuralMining import sequenceMiner
+from spm.feature import featureObject 
 
 from ObjectModel.xmlDSDocumentClass import XMLDSDocument
 from ObjectModel.XMLDSObjectClass import XMLDSObjectClass
@@ -91,30 +93,30 @@ class pageVerticalMiner(Component.Component):
         Here, we set our internal attribute according to a possibly specified value (otherwise it stays at its default value)
         """
         Component.Component.setParams(self, dParams)
-        if dParams.has_key("pattern"): 
+        if "pattern" in dParams: 
             self.manualPattern = eval( dParams["pattern"])
             self.bManual=True  
 
-        if dParams.has_key("THNUM"):
+        if "THNUM" in dParams:
             self.testTH =   dParams["THNUM"]
 
-        if dParams.has_key("KLEENETH"):
+        if "KLEENETH" in dParams:
             self.fKleenPlusTH =   dParams["KLEENETH"]
         
 
-        if dParams.has_key('baseline'):
+        if 'baseline' in dParams:
             self.baselineMode = dParams['baseline']     
 
-        if dParams.has_key('bIgnoreRegions'):
+        if 'bIgnoreRegions' in dParams:
             self.bIgnoreRegions = dParams['bIgnoreRegions']
             
-        if dParams.has_key('nogline'):
+        if 'nogline' in dParams:
             self.bGLOnly = dParams['nogline']
         
-        if dParams.has_key('glonly'):
+        if 'glonly' in dParams:
             self.bNOGline = dParams['glonly']
             
-        if dParams.has_key('tag'):
+        if 'tag' in dParams:
             self.sTag = dParams['tag']                              
             
     def minePageDimensions(self,lPages):
@@ -129,7 +131,6 @@ class pageVerticalMiner(Component.Component):
         for i,page, in enumerate(lPages):
             page.setFeatureFunction(page.getSetOfFeaturesPageSize,self.THNUMERICAL)
             page.computeSetofFeatures()
-#             print i, page.getSetofFeatures()
             
         seqGen = sequenceMiner()
         seqGen.setMaxSequenceLength(1)
@@ -137,7 +138,7 @@ class pageVerticalMiner(Component.Component):
 
         seqGen.setSDC(0.96)          
         lSortedFeatures  = seqGen.featureGeneration(lPages,2)
-            
+
         for _,p in enumerate(lPages):
             p.lFeatureForParsing=p.getSetofFeatures()
 #             print p, p.lFeatureForParsing
@@ -155,7 +156,6 @@ class pageVerticalMiner(Component.Component):
                         elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['virtual'],myLevel=XMLDSPageClass)
                         elt.computeSetofFeatures()
                         elt.lFeatureForParsing=elt.getCanonicalFeatures()
-#                         print elt, elt.lFeatureForParsing
                     else:
                         elt.setSequenceOfFeatures(elt.lFeatureForParsing)
                 lSortedFeatures  = seqGen.featureGeneration(lCurList,1)
@@ -163,14 +163,16 @@ class pageVerticalMiner(Component.Component):
             seqGen.bDebug = False
             
             # mis very small since: space is small; some specific pages can be 
+            ## replace by PrefiwScan
             lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.002)
             lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
             if lPatterns is None:
                 return [lPages]
             
             # ignore unigram:  covered by previous steps 
-            if icpt <3:lPatterns  = filter(lambda (p,s):len(p[0])>1,lPatterns)
-            lPatterns.sort(key=lambda (x,y):y, reverse=True)
+            if icpt < 3:
+                lPatterns  = list(filter(lambda p_s:len(p_s[0][0])>1,lPatterns))
+            lPatterns.sort(key=lambda x_y:x_y[1], reverse=True)
 
             seqGen.bDebug = False
             seqGen.THRULES = 0.8
@@ -178,14 +180,13 @@ class pageVerticalMiner(Component.Component):
             _,dCP = self.getPatternGraph(lSeqRules)
             
             dTemplatesCnd = self.pattern2PageTemplate(lPatterns,dCP,icpt)
-#             print dTemplatesCnd
             
             #no new template: stop here
             if dTemplatesCnd == {}:
                 icpt=9e9
                 break
-            
             _,lTerminalTemplates,_ = seqGen.testTreeKleeneageTemplates(dTemplatesCnd, lCurList)
+        
 #             print tranprob
 #             self.pageSelectFinalTemplates(lTerminalTemplates,tranprob,lCurList)
             
@@ -204,6 +205,7 @@ class pageVerticalMiner(Component.Component):
             
             icpt +=1
             if self.bDebug:self.printTreeView(lCurList)
+        
         lList = self.getFlatStructure(lCurList)
 #         print lList
         del seqGen        
@@ -217,7 +219,7 @@ class pageVerticalMiner(Component.Component):
             Need to specify the template for terminals; or simply the registration function ?
         """
         dTemplatesTypes = {}
-        for pattern,support in filter(lambda (x,y):y>1,lPatterns):
+        for pattern,support in filter(lambda x_y:x_y[1]>1,lPatterns):
             try:
                 dCA[str(pattern)]
                 bSkip = True
@@ -229,7 +231,7 @@ class pageVerticalMiner(Component.Component):
             bSkip = bSkip or (len(pattern) == 2 and pattern[0] == pattern[1])  
 #             print pattern, bSkip          
             if not bSkip: 
-                print '========',pattern, support, self.isMirroredPattern(pattern)
+                print ('========',pattern, support, self.isMirroredPattern(pattern))
                 ## test is pattern is mirrored         
                 template  = treeTemplateClass()
                 template.setPattern(pattern)
@@ -246,7 +248,7 @@ class pageVerticalMiner(Component.Component):
             select patterns and convert them into appropriate templates.
         """
         dTemplatesTypes = {}
-        for pattern,support in filter(lambda (x,y):y>1,lPatterns):
+        for pattern,support in filter(lambda x_y:x_y[1]>1,lPatterns):
             bSkip=False
             try:
                 dCA[str(pattern)]
@@ -266,7 +268,7 @@ class pageVerticalMiner(Component.Component):
         
         
         for ttype in dTemplatesTypes.keys():
-            dTemplatesTypes[ttype].sort(key=lambda (x,y,t):len(x[0]), reverse=True)
+            dTemplatesTypes[ttype].sort(key=lambda x_y_t:len(x_y_t[0]), reverse=True)
         return dTemplatesTypes
 
 
@@ -287,10 +289,10 @@ class pageVerticalMiner(Component.Component):
             # same width: the longest width must be shared
             inv1 =  pattern[1][:]
             lcouple1= zip(inv1,inv1[1:])
-            lw1= map(lambda (x,y):abs(y.getValue()-x.getValue()),lcouple1)
+            lw1= map(lambda x_y:abs(x_y[1].getValue()-x_y[0].getValue()),lcouple1)
             max1 =max(lw1)
             lcouple0= zip(pattern[0],pattern[0][1:])
-            lw0= map(lambda (x,y):abs(y.getValue()-x.getValue()),lcouple0)
+            lw0= map(lambda x_y:abs(x_y[1].getValue()-x_y[0].getValue()),lcouple0)
             max0= max(lw0)
             ## all width similar???
 #             print pattern, zip(lw0,lw1) , max0,max1, abs(max1 - max0) < self.THNUMERICAL*2
@@ -304,7 +306,7 @@ class pageVerticalMiner(Component.Component):
         """
         dTemplatesTypes = {}
         iNbClosed = 0
-        for pattern,support in filter(lambda (x,y):y>1,lPatterns):
+        for pattern,support in filter(lambda x_y:x_y[1]>1,lPatterns):
             bSkip=False
             try:
                 dCA[str(pattern)]
@@ -326,10 +328,10 @@ class pageVerticalMiner(Component.Component):
                         try:dTemplatesTypes[template.__class__.__name__].append((pattern, support, template))
                         except KeyError: dTemplatesTypes[template.__class__.__name__] = [(pattern,support,template)]                      
         
-        print "closed-patterns: ", iNbClosed
+        print ("closed-patterns: ", iNbClosed)
         for ttype in dTemplatesTypes.keys():
 #             dTemplatesTypes[ttype].sort(key=lambda (x,y,t):len(x[0]), reverse=True)
-            dTemplatesTypes[ttype].sort(key=lambda (p,s,t):s, reverse=True)
+            dTemplatesTypes[ttype].sort(key=lambda p_s_t:p_s_t[1], reverse=True)
 
         return dTemplatesTypes
     
@@ -388,7 +390,6 @@ class pageVerticalMiner(Component.Component):
                 a.next.append( b )
 
         ### VerticalZones START
-        print self.bGLOnly, self.bNOGline
         for i,page, in enumerate(lPages):
             page._VX1Info=[]
             lElts=[]
@@ -461,7 +462,7 @@ class pageVerticalMiner(Component.Component):
 #                 graphline.addFeature(f)
 #                 page.setVGLFeatures(f)     
 
-
+            
             ## select regular x                                 
             seqGen = sequenceMiner()
 #             seqGen.bDebug  =self.bDebug
@@ -475,10 +476,9 @@ class pageVerticalMiner(Component.Component):
             page.setVX1Info(lKleendPlus)
 #             page.setVX1Info(_fullFeatures)
             del seqGen
-        
         self.buildVZones(lPages)
         
-        print 'chronoFeature',chronoOff()
+        print ('chronoFeature',chronoOff())
         
         return lPages
             
@@ -507,7 +507,7 @@ class pageVerticalMiner(Component.Component):
         for fea in dFreqFeatures:
             try:
                 dKleenePlusFeatures[fea]
-#                 print fea, len(set(dKleenePlusFeatures[fea])), dFreqFeatures[fea] #, dKleenePlusFeatures[fea]
+#                 print ("###",fea, len(set(dKleenePlusFeatures[fea])), dFreqFeatures[fea] ) #, dKleenePlusFeatures[fea]
                 if len(set(dKleenePlusFeatures[fea])) >= 0.5 *  dFreqFeatures[fea]:
                     lKleenePlus.append(fea) 
                     fea.setKleenePlus(1.0*len(set(dKleenePlusFeatures[fea])) / dFreqFeatures[fea])
@@ -521,10 +521,11 @@ class pageVerticalMiner(Component.Component):
         """
             store vertical positions in each page
         """
+        
         for _, p in enumerate(lp):
             p.lf_XCut=[]
             p.getVX1Info().sort(key=lambda x:x.getWeight(),reverse=True)
-#             print p,  p.getVX1Info(),p.getVGLFeatures(), p.lf_XCut 
+#             print (p,  p.getVX1Info(),p.getVGLFeatures(), p.lf_XCut) 
             for fi in p.getVX1Info():
                 if fi not in p.lf_XCut:
 #                     l = sum(x.getWidth()*x.getHeight() for x in fi.getNodes())
@@ -585,10 +586,10 @@ class pageVerticalMiner(Component.Component):
         """
         for elt in lElts:
             if elt.getAttribute('virtual'):
-                print "  "*level, 'Node', elt.getAttribute('virtual')
+                print ("  "*level, 'Node', elt.getAttribute('virtual'))
                 self.printTreeView(elt.getObjects(),level+1)
             else:
-                print "  "*level, elt, elt.getContent().encode('utf-8'), elt.lFeatureForParsing            
+                print ("  "*level, elt.getContent(), elt.lFeatureForParsing)            
     
    
     
@@ -633,8 +634,8 @@ class pageVerticalMiner(Component.Component):
     
         pattern = lfPattern
         
-        print pattern
-        print self.THNUMERICAL
+        print (pattern)
+        print (self.THNUMERICAL)
         
         maintemplate = treeTemplateClass()
         maintemplate.buildTreeFromPattern(pattern)
@@ -669,21 +670,21 @@ class pageVerticalMiner(Component.Component):
 #             print i,p,registeredPoints
             # if score1 == score 2 !!
             if score > 0 : # and score1 >= score2:
-                lfinalCuts= map(lambda (x,y):y,filter(lambda (x,y): x!= 'EMPTY',registeredPoints))
+                lfinalCuts= list(map(lambda x_y:x_y[1],list(filter(lambda x_y:x_y[0] != 'EMPTY',registeredPoints))))
 #                 print p,'final1:',lfinalCuts, lMissing, score, '\t\t',registeredPoints
                 lScores.append(score)
                 p.addVerticalTemplate(mytemplate)
                 p.addVSeparator(mytemplate,lfinalCuts)
 #             elif score2 > 0 and  score2 > score1:
-#                 lfinalCuts= map(lambda (x,y):y,filter(lambda (x,y): x!= 'EMPTY',registeredPoints2))
+#                 lfinalCuts= map(lambda x_y:x_y[1],filter(lambda (x,y): x!= 'EMPTY',registeredPoints2))
 #                 print registeredPoints2
 #                 print 'final2:',lfinalCuts, lMissing2
 #                 p.addVerticalTemplate(mytemplate2)
 #                 p.addVSeparator(mytemplate,lfinalCuts)
             else:
-                print 'NO REGISTRATION'
+                print ('NO REGISTRATION')
             fscore= np.average(lScores)                
-        print 'final score:', fscore
+        print ('final score:', fscore)
         self.tagAsRegion(lPages)
         
         return 1
@@ -718,7 +719,7 @@ class pageVerticalMiner(Component.Component):
             it has an impact on getPatternGraph
         """
         
-        return  filter(lambda (x,_): (len(x) != 2) or (len(x[0])==len(x[1])) , lPatterns)
+        return  list(filter(lambda x_y: (len(x_y[0]) != 2) or (len(x_y[0][0])==len(x_y[0][1])) , lPatterns))
 
 
 
@@ -728,7 +729,6 @@ class pageVerticalMiner(Component.Component):
         """
         
         lSubList= self.minePageDimensions(lPages)
-#         return  [lPages]
 
         return lSubList
 
@@ -738,7 +738,7 @@ class pageVerticalMiner(Component.Component):
             lProfiles =  self.computeObjectProfile(lp)
             lS = self.segmentWithProfile(lp,lProfiles[self.kContentSize])
             lNewSub.extend(lS)
-#         print lNewSub
+
         
         return lNewSub
             
@@ -781,8 +781,9 @@ class pageVerticalMiner(Component.Component):
  
         flattened_sequences = [ list(set(itertools.chain(*sequence))) for sequence in sequences ]
         support_counts = dict(Counter(item for flattened_sequence in flattened_sequences for item in flattened_sequence))
-        actual_supports = {item:support_counts.get(item)/float(sequence_count) for item in support_counts.keys()}        
-        lOneSupport= [k for k,v in actual_supports.iteritems() if v >= 0.8 ]
+        actual_supports = {item:support_counts.get(item)/float(sequence_count) for item in support_counts.keys()}
+#         print(actual_supports.items())        
+        lOneSupport= [k for k,v in actual_supports.items() if v >= 0.8 ]
         return lOneSupport
 
 #         lOneSupport=[]
@@ -915,9 +916,7 @@ class pageVerticalMiner(Component.Component):
             lAllF.sort(key=lambda x:x.getValue())
             for i,f in enumerate(lAllF):
                 lMapping[f]=i
-                print i, f
                 mmax = max(mmax, sum(x.getHeight() for x in f.getNodes()) )
-            print mmax
             for p in lPages:
                 for f in p.getSetofFeatures():
                     f.setWeight(sum(x.getHeight() for x in f.getNodes())/mmax )
@@ -927,19 +926,17 @@ class pageVerticalMiner(Component.Component):
                 page.lFeatureForParsing = page.getSetofFeatures() 
 
                 page.nparray = np.zeros((len(lAllF),1),dtype='float64')
-                print page, map(lambda x: (x.getValue(), x.getWeight(), len(x.getNodes()),x.getKleenePlus()), page.getSetofFeatures())
                 for f in page.getSetofFeatures():
                     page.nparray[lMapping[f]] = np.array((f.getWeight())) #, len(f.getNodes()),f.getKleenePlus()))
-                print page.nparray
 #                 print Embedding(page.nparray)
 
             # then ?
             for i,p, in enumerate(lPages):
                 if i >0:
-                    print p,p.getSetofFeatures(), lPages[i+1].getSetofFeatures()
-                    print self.contrastive_loss(p.nparray, lPages[i+1].nparray)
-                    print p,p.getSetofFeatures(), lPages[i+2].getSetofFeatures()                        
-                    print self.contrastive_loss(p.nparray, lPages[i+2].nparray)
+                    print( p,p.getSetofFeatures(), lPages[i+1].getSetofFeatures())
+                    print( self.contrastive_loss(p.nparray, lPages[i+1].nparray))
+                    print( p,p.getSetofFeatures(), lPages[i+2].getSetofFeatures())                        
+                    print( self.contrastive_loss(p.nparray, lPages[i+2].nparray))
             
     def iterativeProcessVSegmentation(self, lLPages):
         """
@@ -960,7 +957,6 @@ class pageVerticalMiner(Component.Component):
         
         setFullListTemplates= set() 
         for lPages in lLPages:
-#             print lPages
             #Width 
 #             self.THNUMERICAL = 50
 #             self.minePageVerticalFeature(lPages, ['width'])
@@ -984,14 +980,14 @@ class pageVerticalMiner(Component.Component):
 #                 print nbPage, nbPage + NBATCH
 #                 print lPages[nbPage:nbPage+NBATCH]
                 sys.stdout.flush()
-                print "LENGTH = 1"
+                print ("LENGTH = 1")
                 self.minePageVerticalFeature(lPages[nbPage:nbPage+NBATCH], ['x','x2'],level=self.sTag)
                 
                 ## V ZONES
                 # length 1
                 lT1, lScore1,score1 = self.processVSegmentation(lPages[nbPage:nbPage+NBATCH],[],bTAMode=False,iMinLen=1,iMaxLen=1)
-                print nbPage, nbPage+NBATCH, lT1, score1
-                print '\t',lScore1
+                print( nbPage, nbPage+NBATCH, lT1, score1)
+                print( '\t',lScore1)
                 sys.stdout.flush()
 
                 bTable = lT1 is not None and lT1 !=[] and len(lT1[0].getPattern()) > 6
@@ -1000,14 +996,14 @@ class pageVerticalMiner(Component.Component):
                 # if high enough score: skip len=2?
     #             sys.stdout.flush()
                 lOneSupport=[]
-                print "LENGTH = 2"
+                print( "LENGTH = 2")
                 if len( lPages) > 1 and bTable or len(lOneSupport) > 8:
                     score2=0
                     lT2=None
                     lScore2=[]
                 else:
                     if lT1 is not None: 
-                        lNegativesPatterns=map(lambda x:x.getPattern(),lT1)
+                        lNegativesPatterns=list(map(lambda x:x.getPattern(),lT1))
                     else: lNegativesPatterns=[]
                     lT2, lScore2, score2 = self.processVSegmentation(lPages[nbPage:nbPage+NBATCH],lNegativesPatterns,bTAMode=False,iMinLen=2,iMaxLen=2)
     #                 score2=0
@@ -1015,8 +1011,8 @@ class pageVerticalMiner(Component.Component):
     #                 lScore2=[]
                     # test if cut somewhere
                     #  segment and relearn : if better score: keep the cut 
-                    print nbPage, nbPage+NBATCH, lT2, score2    
-                    print '\t',lScore2
+                    print (nbPage, nbPage+NBATCH, lT2, score2)    
+                    print ('\t',lScore2)
 #                     for ii,(_,score) in enumerate(lScore2):
 #                         print '\t',ii,score
                     
@@ -1039,7 +1035,7 @@ class pageVerticalMiner(Component.Component):
                                 p.getVerticalTemplates().remove(deltemplate)
                             except ValueError:pass  # page not associated  
                 
-                print "#",lPages[nbPage:nbPage+NBATCH], bTwo , lT
+                print ("#",lPages[nbPage:nbPage+NBATCH], bTwo , lT)
             
             
             ## final step: finetuning and creation of separator???
@@ -1073,10 +1069,10 @@ class pageVerticalMiner(Component.Component):
             Should correspond to column-like zones    
             
         """
-    
+        self.bDebug = False
         for _,p in enumerate(lPages):
             p._lBasicFeatures=p.lf_XCut[:]
-#             print p, map(lambda x:(x,x.getTH()),p.getSetofFeatures())
+#             print (p, list(map(lambda x:(x,x.getTH()),p.getSetofFeatures())))
 #             print p, map(lambda x:(x,x.getTH()),p.lf_XCut)
         
         seqGen = sequenceMiner()
@@ -1087,7 +1083,7 @@ class pageVerticalMiner(Component.Component):
 
         chronoOn()
 
-        print 'featuring...',chronoOff()
+        print ('featuring...',chronoOff())
         lSortedFeatures = seqGen.featureGeneration(lPages,2)
         for cf in lSortedFeatures:
             # weights must not be too large ecause theyv are used in np.obs  (max=64000)
@@ -1095,15 +1091,15 @@ class pageVerticalMiner(Component.Component):
             cf.setWeight(sum(x.getHeight() for x in cf.getNodes())/64000)
 #             cf.setWeight(1)
 #             cf.setWeight(len(cf.getNodes()))
-            #print cf, cf.getWeight(),len(cf.getNodes()) # map(lambda x:x.getX(),cf.getNodes())
+#             print (cf, cf.getWeight(),len(cf.getNodes())) # map(lambda x:x.getX(),cf.getNodes())
 #         print lSortedFeatures                      
         for _,p in enumerate(lPages):
             p.lFeatureForParsing = p.getCanonicalFeatures() 
-            if self.bDebug:print p, p.lFeatureForParsing
+            if self.bDebug:print (p, p.lFeatureForParsing)
         sys.stdout.flush()
 
         if lSortedFeatures == []:
-            print "No template found in this document"
+            print ("No template found in this document")
             return None,None,-1
         
         seqGen.bDebug = False
@@ -1113,13 +1109,13 @@ class pageVerticalMiner(Component.Component):
         if len(lPages)>1:
             lOneSupport  = self.testHighSupport(lSeq)
         else : lOneSupport=[]
-        print 'L1OneSupport: ', lOneSupport
+        print ('L1OneSupport: ', lOneSupport)
         ## reference solution
         if len(lOneSupport) < 8:
             # MIS also for patterns, not only item!!
             ## can be used to assess the noise level or here
             chronoOn()
-            print "generation..."
+            print( "generation...")
             sys.stdout.flush()
             lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.1,L1Support=[])
             sys.stdout.flush()
@@ -1138,7 +1134,7 @@ class pageVerticalMiner(Component.Component):
                         for i in fs.sequence:
                             i.sort(key=lambda x:x.getValue())
                         lPatterns.append((fs.sequence,fs.freq))
-                lPatterns = filter(lambda (p,s):len(p) >= seqGen.getMinSequenceLength() and len(p) <= seqGen.getMaxSequenceLength(),lPatterns)
+                lPatterns = list(filter(lambda p_s:len(p_s[0]) >= seqGen.getMinSequenceLength() and len(p_s[0]) <= seqGen.getMaxSequenceLength(),lPatterns))
             
             else:
                 ## sdc: support difference constraint 
@@ -1148,15 +1144,15 @@ class pageVerticalMiner(Component.Component):
                     return None, None, -1
                 
 #             lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
-            print "chronoTraining", chronoOff()
-            print 'nb patterns: ',len(lPatterns)
+            print( "chronoTraining", chronoOff())
+            print( 'nb patterns: ',len(list(lPatterns)))
             sys.stdout.flush()
             lPatterns  = self.filterNonRegularPatterns(lPatterns)
-            lPatterns.sort(key=lambda (p,s):self.computePatternScore(p), reverse=True)
+            lPatterns.sort(key=lambda p_s:self.computePatternScore(p_s[0]), reverse=True)
 #             lPatterns.sort(key=lambda (p,s):s, reverse=True)
 
-            lPatterns = filter(lambda (p,_):p not in lNegativePatterns, lPatterns)
-
+            lPatterns = list(filter(lambda p_:p_[0] not in lNegativePatterns, lPatterns))
+            
 #             if self.bDebug:
 #                 for p,s in lPatterns:
 #                     if s >= 1: 
@@ -1177,7 +1173,7 @@ class pageVerticalMiner(Component.Component):
             chronoOn()
             seqGen.setKleenePlusTH(self.fKleenPlusTH)
             _, lVTemplates,tranprob = seqGen.testTreeKleeneageTemplates(dTemplatesCnd, lPages,iterMax=10)
-            print "chronoParsing", chronoOff()
+            print("chronoParsing", chronoOff())
     
             
             ## merge if similar patterns (see testV/nn)
@@ -1203,7 +1199,7 @@ class pageVerticalMiner(Component.Component):
 #             print 
            
         lT, lScores, score= self.selectFinalTemplate(lVTemplates,tranprob,lPages)
-        print "chronoFinalViterbi: score=", chronoOff(), score
+        print ("chronoFinalViterbi: score=", chronoOff(), score)
          
 #         del seqGen
         
@@ -1231,8 +1227,8 @@ class pageVerticalMiner(Component.Component):
             for i,temp in enumerate(lTemplates):
                 for j,page in enumerate(lPages):
                     x, y, score= temp.registration(page)
-#                     print page, i, temp, score,x,y
-                    if score == -1:
+                    if score < 0:
+#                         print (page, i, temp, score,x,y)
                         score= 0
                         # no template
                         obs[-1,j]=1.0
@@ -1257,9 +1253,6 @@ class pageVerticalMiner(Component.Component):
 #         print fscore
         np.set_printoptions(precision= 3, linewidth =1000)
 
-#         print transProb
-#         print obs
-        print states, fscore
         lTemplate=[]
         lScores=[]
         #assigned to each page the template assigned by viterbi
@@ -1276,18 +1269,20 @@ class pageVerticalMiner(Component.Component):
                 registeredPoints, _, score = mytemplate.registration(page)
 #                 print page, states[i], mytemplate, registeredPoints, score, page.lFeatureForParsing
                 if registeredPoints:
-                    registeredPoints.sort(key=lambda (x,y):y.getValue())
-                    lcuts = map(lambda (ref,cut):cut,registeredPoints)
+                    registeredPoints.sort(key=lambda x_y:x_y[1].getValue())
+                    lcuts = list(map(lambda ref_cut:ref_cut[1],registeredPoints))
 #                     print page, score, lcuts, map(lambda x:x.getWeight(), lcuts),registeredPoints
 #                     print '\t', page.lFeatureForParsing,map(lambda x:x.getWeight(), page.lFeatureForParsing)
 
                     page.addVSeparator(mytemplate,lcuts)
                     lScores.append((states[i],score))
             else:
-                lScores.append((N,-1))
+#                 lScores.append((N,-1))
+                lScores.append((N,0))
+
 #         for t in lTemplate:
 #             print t, t.getParent()
-        fscore= np.average(map(lambda (x,y):y,lScores))
+        fscore= np.average(list(map(lambda x_y:x_y[1],lScores)))
         return lTemplate, lScores, fscore        
         
 
@@ -1353,10 +1348,10 @@ class pageVerticalMiner(Component.Component):
             inv1 =  pattern[1][:]
             inv1.reverse()
             lcouple1= zip(inv1,inv1[1:])
-            lw1= map(lambda (x,y):abs(y.getValue()-x.getValue()),lcouple1)
+            lw1= map(lambda x_y:abs(x_y[1].getValue()-x_y[0].getValue()),lcouple1)
             lcouple0 = zip(pattern[0],pattern[0][1:])
-            lw0 = map(lambda (x,y):abs(y.getValue()-x.getValue()),lcouple0)
-            final = set(map(lambda (x,y): abs(x-y) < self.THNUMERICAL * 2,zip(lw0,lw1)))
+            lw0 = map(lambda x_y:abs(x_y[1].getValue()-x_y[0].getValue()),lcouple0)
+            final = set(map(lambda x_y: abs(x_y[0] -x_y[1]) < self.THNUMERICAL * 2,zip(lw0,lw1)))
             return  set(final) == set([True])
     
 #     def isVZonePattern(self,pattern,iNbCol=3,iNbColMax=None):
@@ -1424,7 +1419,7 @@ class pageVerticalMiner(Component.Component):
                     sys.stdout.flush()
                     registeredPoints, lMissing, score = template.registration(page)
                     if registeredPoints is not None:
-                        lfinalCuts= map(lambda (x,y):y,filter(lambda (x,y): x!= 'EMPTY',registeredPoints))
+                        lfinalCuts= map(lambda x_y:x_y[1],filter(lambda x: x[0]!= 'EMPTY',registeredPoints))
 #                         print page,registeredPoints, lMissing, score
                         page.resetVSeparator(template)
                         page.addVSeparator(template,lfinalCuts)
@@ -1452,7 +1447,7 @@ class pageVerticalMiner(Component.Component):
                 # get first child length
                 N=len(template.getChildren()[0].getPattern())
             lTemplateRO[template]= [ [] for i in range(0,N+1)]
-            print template, lTemplateRO[template]
+#             print (template, lTemplateRO[template])
             
 #         return 
         for  page in lPages:
@@ -1463,15 +1458,15 @@ class pageVerticalMiner(Component.Component):
                 parentTemplate= template.getParent()
                 bReverse=False
                 ## need a real test for  isMirrored(self)
-                print parentTemplate,parentTemplate.isMirrored()
+#                 print (parentTemplate,parentTemplate.isMirrored())
                 if parentTemplate.isMirrored():
                     bReverse = template.getPattern() == parentTemplate.getPattern()[1]
                 lregions= page.getVerticalObjects(template)
                 if bReverse:
                     lregions.reverse()
-                print page, bReverse
+#                 print (page, bReverse)
                 for i,region in enumerate(lregions):
-                    print region.getContent().encode('utf-8')
+                    print (region.getContent().encode('utf-8'))
                     lTemplateRO[parentTemplate][i].append(region)
 #                     print page, i,  parentTemplate,len(lTemplateRO[parentTemplate][i]) #.getContent().encode('utf-8')
 
@@ -1484,7 +1479,7 @@ class pageVerticalMiner(Component.Component):
 
         ### now patterns with indentation
         for tem in lTemplateRO:
-            print "###################################", tem
+            print ("###################################", tem)
             lColumnElts=[ [] for i in range(len(lTemplateRO[tem]))]
             for i,lreg in enumerate(lTemplateRO[tem]):
 #                 print "%d\t\t%s"%(i,"")
@@ -1514,35 +1509,35 @@ class pageVerticalMiner(Component.Component):
                 bestScore = 0
                 for mytemplate in page.getVerticalTemplates():
                     registeredPoints, lMissing, score= mytemplate.registration(page)
-                    print page, mytemplate, score
+                    print( page, mytemplate, score)
                     if score > bestScore:
                         best = mytemplate
                         bestRegisteredPoints= registeredPoints
                         lMissingBest=lMissing 
                         bestScore = score
-                print page,best, bestScore # bestRegisteredPoints, lMissingBest
+                print( page,best, bestScore) # bestRegisteredPoints, lMissingBest
                 if best:
                     prevcut=0
                     for refcut,realcut in bestRegisteredPoints:
                         if realcut != prevcut:
-                            region  = libxml2.newNode('REGION')
-                            region.setProp("x",str(prevcut))
-                            region.setProp("y",'0')
-                            region.setProp("height",str(page.getHeight()))
-                            region.setProp("width", str(realcut.getValue() - prevcut))                              
-                            region.setProp('points', '%f,%f,%f,%f,%f,%f,%f,%f'%(prevcut,0, realcut.getValue(),0 ,realcut.getValue(),page.getHeight(),prevcut,page.getHeight()))
-                            page.getNode().addChild(region)
+                            region  = etree.Element('REGION')
+                            region.set("x",str(prevcut))
+                            region.set("y",'0')
+                            region.set("height",str(page.getHeight()))
+                            region.set("width", str(realcut.getValue() - prevcut))                              
+                            region.set('points', '%f,%f,%f,%f,%f,%f,%f,%f'%(prevcut,0, realcut.getValue(),0 ,realcut.getValue(),page.getHeight(),prevcut,page.getHeight()))
+                            page.getNode().append(region)
                             prevcut = realcut.getValue()
                     #final col
                     if prevcut != page.getWidth():
-                        region  = libxml2.newNode('REGION')
+                        region  = etree.Element('REGION')
                         width = page.getWidth() - prevcut
-                        region.setProp("x",str(prevcut))
-                        region.setProp("y",'0')
-                        region.setProp("height",str(page.getHeight()))
-                        region.setProp("width", str(width))                              
-                        region.setProp('points', '%f,%f,%f,%f,%f,%f,%f,%f'%(prevcut,0, page.getWidth(),0,page.getWidth(),page.getHeight(),prevcut,page.getHeight()))
-                        page.getNode().addChild(region)
+                        region.set("x",str(prevcut))
+                        region.set("y",'0')
+                        region.set("height",str(page.getHeight()))
+                        region.set("width", str(width))                              
+                        region.set('points', '%f,%f,%f,%f,%f,%f,%f,%f'%(prevcut,0, page.getWidth(),0,page.getWidth(),page.getHeight(),prevcut,page.getHeight()))
+                        page.getNode().append(region)
                         
                         
 
@@ -1552,8 +1547,8 @@ class pageVerticalMiner(Component.Component):
             delete regions of the page
         """
         for region in page.getAllNamedObjects('REGION'):
-            region.getNode().unlinkNode()
-    
+            region.getNode().getparent().remove(region.getNode())
+                
     def storeLineInRegions(self,page,lRegions):
         """
             assign lines to region
@@ -1563,8 +1558,8 @@ class pageVerticalMiner(Component.Component):
             myReg= line.bestRegionsAssignment(lRegions)
             if myReg:
                 myReg.addObject(line)
-                line.getNode().unlinkNode()
-                myReg.getNode().addChild(line.getNode())
+#                 line.getNode().unlinkNode()
+                myReg.getNode().append(line.getNode())
         
     def tagAsRegion(self,lPages):
         """
@@ -1577,7 +1572,7 @@ class pageVerticalMiner(Component.Component):
                 or don't put them for tagging
         """
         for page in lPages:
-            if page.getNode():
+            if page.getNode() is not None:
                 if self.bIgnoreRegions:
                     self.deleteRegions(page)
                 # if several template ??
@@ -1585,7 +1580,8 @@ class pageVerticalMiner(Component.Component):
 #                     print page, template, template.getParent()
                     page.getdVSeparator(template).sort(key=lambda x:x.getValue())
 #                     print page.getdVSeparator(template)
-                    page.getNode().setProp('template',str(map(lambda x:x.getValue(),page.getdVSeparator(template))))
+                    page.getNode().set('template',str(list(map(lambda x:x.getValue(),page.getdVSeparator(template)))))
+#                     print (page,page.getNode().get('template'))
                     if template.getParent() is not None and len(template.getParent().getPattern())==2:
                         pos = -1
                         if template.getPattern() == template.getParent().getPattern()[0]:
@@ -1594,10 +1590,10 @@ class pageVerticalMiner(Component.Component):
                             pos = 1
                         else:
                             raise 'template index issue'
-                        page.getNode().setProp('reftemplate',str((pos,map(lambda x:x.getValue(),template.getParent().getPattern()[0]),map(lambda x:x.getValue(),template.getParent().getPattern()[1]))))
+                        page.getNode().set('reftemplate',str((pos,list(map(lambda x:x.getValue(),template.getParent().getPattern()[0])),list(map(lambda x:x.getValue(),template.getParent().getPattern()[1])))))
                     else:
                         # sinlge: add () for comparison/evaluation
-                        page.getNode().setProp('reftemplate',str((0,(map(lambda x:x.getValue(),template.getPattern())))))
+                        page.getNode().set('reftemplate',str((0,(list(map(lambda x:x.getValue(),template.getPattern()))))))
 
                     XMinus = 1
                     prevcut = 1
@@ -1606,16 +1602,16 @@ class pageVerticalMiner(Component.Component):
 #                     print page, page.getdVSeparator(template)
                     for cut in page.getdVSeparator(template):
                         newReg= XMLDSObjectClass()
-                        domNode  = libxml2.newNode('REGION')
-                        domNode.setProp("x",str(prevcut))
+                        domNode  = etree.Element('REGION')
+                        domNode.set("x",str(prevcut))
                         ## it is better to avoid
                         YMinus= 1
-                        domNode.setProp("y",str(YMinus))
-                        domNode.setProp("height",str(page.getHeight()-2 * YMinus))
-                        domNode.setProp("width", str(cut.getValue() - prevcut))
+                        domNode.set("y",str(YMinus))
+                        domNode.set("height",str(page.getHeight()-2 * YMinus))
+                        domNode.set("width", str(cut.getValue() - prevcut))
                         lCuts.append(cut.getValue() )
                         newReg.setNode(domNode)
-                        page.getNode().addChild(domNode)
+                        page.getNode().append(domNode)
                         newReg.setDimensions(prevcut,YMinus, page.getHeight()-2 * YMinus,cut.getValue() - prevcut)
 #                         print newReg.getX(),newReg.getY(),newReg.getHeight(),newReg.getWidth(),cut.getValue() - prevcut
                         lRegions.append(newReg)
@@ -1633,26 +1629,26 @@ class pageVerticalMiner(Component.Component):
                 # if several template ???
                 for template in page.getVerticalTemplates():
                     ### create a table
-                    tableNode = libxml2.newNode('TABLE')
-                    tableNode.setProp('x','0')
-                    tableNode.setProp('y','0')
-                    tableNode.setProp('height',str(page.getHeight()))
-                    tableNode.setProp('width',str(page.getWidth()))
+                    tableNode = etree.Element('TABLE')
+                    tableNode.set('x','0')
+                    tableNode.set('y','0')
+                    tableNode.set('height',str(page.getHeight()))
+                    tableNode.set('width',str(page.getWidth()))
 
-                    page.getNode().addChild(tableNode) 
+                    page.getNode().append(tableNode) 
                     page.getdVSeparator(template).sort(key=lambda x:x.getValue())
 #                     print page.getdVSeparator(template)
                     prevcut=0
                     for i,cut in enumerate(page.getdVSeparator(template)):
-                        cellNode  = libxml2.newNode('CELL')
-                        cellNode.setProp("x",str(prevcut))
-                        cellNode.setProp("y",'0')
-                        cellNode.setProp("irow","0")
-                        cellNode.setProp("icol",str(i))
-                        cellNode.setProp("height",str(page.getHeight()))
-                        cellNode.setProp("width", str(cut.getValue() - prevcut))                            
-#                         cellNode.setProp('points', '%f,%f,%f,%f,%f,%f,%f,%f'%(cut,0, cut.getValue(),0 ,cut.getValue(),page.getHeight(),cut,page.getHeight()))
-                        tableNode.addChild(cellNode)
+                        cellNode  = etree.Element('CELL')
+                        cellNode.set("x",str(prevcut))
+                        cellNode.set("y",'0')
+                        cellNode.set("irow","0")
+                        cellNode.set("icol",str(i))
+                        cellNode.set("height",str(page.getHeight()))
+                        cellNode.set("width", str(cut.getValue() - prevcut))                            
+#                         cellNode.set('points', '%f,%f,%f,%f,%f,%f,%f,%f'%(cut,0, cut.getValue(),0 ,cut.getValue(),page.getHeight(),cut,page.getHeight()))
+                        tableNode.append(cellNode)
                         prevcut  = cut.getValue()      
             
             
@@ -1661,15 +1657,14 @@ class pageVerticalMiner(Component.Component):
             all in the name
             
         """
-        from ObjectModel.XMLDSObjectClass import XMLDSObjectClass 
         for page in lPages:
             region=XMLDSObjectClass()
             region.addAttribute('x', 0)
             region.addAttribute('y', 0)
             region.addAttribute('height', page.getAttribute('height'))
             region.addAttribute('width', 110)
-            print        region.getX(),region.getY(),region.getWidth(),region.getHeight()
-            print page.getAttributes(), page.getX2()
+            print (region.getX(),region.getY(),region.getWidth(),region.getHeight())
+            print (page.getAttributes(), page.getX2())
             lObjects = page.clipMe(region)
             region.setObjectsList(lObjects)       
         
@@ -1701,7 +1696,7 @@ class pageVerticalMiner(Component.Component):
                     try:
                         page.getObjects().remove(txt)
                     except ValueError:
-                        print txt
+                        print(txt)
                 else:
                     txt.resizeMe(XMLDSTOKENClass)
             
@@ -1711,15 +1706,16 @@ class pageVerticalMiner(Component.Component):
             create a run XML file
         """
         
-        self.evalData = libxml2.newDoc('1.0')
-        root = libxml2.newNode('DOCUMENT')
-        self.evalData.setRootElement(root)
+        root = etree.Element('DOCUMENT')
+        self.evalData = etree.ElementTree(root)
         for page in lPages:
-            domp=libxml2.newNode('PAGE')
-            domp.setProp('number',page.getAttribute('number'))
-            root.addChild(domp)
-            domp.setProp('template',page.getNode().prop('template'))
-            domp.setProp('reftemplate',page.getNode().prop('reftemplate'))
+            domp=etree.Element('PAGE')
+            domp.set('number',page.getAttribute('number'))
+            root.append(domp)
+            if page.getNode().get('template'):
+                domp.set('template',page.getNode().get('template'))
+            if page.getNode().get('reftemplate'):
+                domp.set('reftemplate',page.getNode().get('reftemplate'))
         
         return self.evalData
     
@@ -1736,9 +1732,10 @@ class pageVerticalMiner(Component.Component):
         
         chronoOn()
         self.ODoc.loadFromDom(self.doc,listPages=range(self.firstPage,self.lastPage+1))        
-        self.lPages= self.ODoc.getPages() 
+        self.lPages= self.ODoc.getPages()
+#         self.lPages= self.lPages[:1] 
 #         self.cleanInput(self.lPages)
-        print 'chronoloading:', chronoOff()
+        print('chronoloading:', chronoOff())
         sys.stdout.flush()
 
     def run(self):
@@ -1749,7 +1746,6 @@ class pageVerticalMiner(Component.Component):
             indicate if bigram page template (mirrored pages)
              
         """
-        
         
         if self.bManual:
 #             self.tagWithTemplate(self.manualPattern,self.lPages)
@@ -1763,6 +1759,7 @@ class pageVerticalMiner(Component.Component):
             # first mine page size!!
             ## if width is not the 'same' , then  initial values are not comparable (x-end-ofpage)
             lSubPagesList = self.highLevelSegmentation(self.lPages)
+            
             ## need to regroup similar 
              
 #             self.arrayApproach(lSubPagesList)
@@ -1776,7 +1773,7 @@ class pageVerticalMiner(Component.Component):
                 ## in this package?? current yes
                 self.flattencontent(self.lPages,lTemplates)
 #             self.processVSegmentation(self.lPages)
-            print 'chronoprocessing: ', chronoOff()
+            print( 'chronoprocessing: ', chronoOff())
             
 #         self.addTagProcessToMetadata(self.doc)
         
@@ -1805,42 +1802,25 @@ class pageVerticalMiner(Component.Component):
             ref PAGE @refteemplate 
         """
         
-        cntOk = cntErr = cntMissed = 0
-        RefData = libxml2.parseMemory(srefData.strip("\n"), len(srefData.strip("\n")))
-        try:
-            RunData = libxml2.parseMemory(srunData.strip("\n"), len(srunData.strip("\n")))
-        except:
-            RunData = None
-            return (cntOk, cntErr, cntMissed)        
         
+        cntOk = cntErr = cntMissed = 0
+        RefData = etree.XML(srefData.strip("\n").encode('utf-8'))
+        RunData = etree.XML(srunData.strip("\n").encode('utf-8'))
+
         lRun = []
         if RunData:
-            ctxt = RunData.xpathNewContext()
-            lpages = ctxt.xpathEval('//%s' % ('PAGE'))
+            lpages = RunData.xpath('//%s' % ('PAGE'))
             for page in lpages:
-                xpath = "./@%s" % ("reftemplate")
-                ctxt.setContextNode(page)
-                ltemp = ctxt.xpathEval(xpath)
-                if len(ltemp) > 0 and len(ltemp[0].getContent()) >0:
-#                     print 'run',ltemp[0].getContent()
-                    lRun.append(eval(ltemp[0].getContent()))
+                if page.get('reftemplate'):
+                    lRun.append(eval(page.get('reftemplate')))
                 else:lRun.append([])
-            ctxt.xpathFreeContext()
 
         lRef = []
-        ctxt = RefData.xpathNewContext()
-        lPages = ctxt.xpathEval('//%s' % ('PAGE'))
+        lPages = RefData.xpath('//%s' % ('PAGE'))
         for page in lPages:
-            xpath = "./@%s" % ("reftemplate")
-            ctxt.setContextNode(page)
-            ltemp = ctxt.xpathEval(xpath)
-            if ltemp != []:
-                if len(ltemp) > 0 and len(ltemp[0].getContent()) >0:
-#                     print "ref",ltemp[0].getContent()
-                    lRef.append(eval(ltemp[0].getContent()))
-                else: lRef.append([])
+            if page.get('reftemplate'):
+                lRef.append(eval(page.get('reftemplate')))
             else: lRef.append([])
-        ctxt.xpathFreeContext()            
 
         runLen = len(lRun)
         refLen = len(lRef)
@@ -1865,7 +1845,7 @@ class pageVerticalMiner(Component.Component):
                 cntMissed+=1
                 ltisRefsRunbErrbMiss.append( (i,  lRef[i],lRun[i], True, True) )
 
-        ltisRefsRunbErrbMiss.sort(key=lambda (x,y,z,t,u):x)
+        ltisRefsRunbErrbMiss.sort(key=lambda x_y_z_t_u:x_y_z_t_u[0])
         return (cntOk, cntErr, cntMissed,ltisRefsRunbErrbMiss)        
         
    
@@ -1876,42 +1856,24 @@ class pageVerticalMiner(Component.Component):
         """ 
         
         cntOk = cntErr = cntMissed = 0
-        RefData = libxml2.parseMemory(srefData.strip("\n"), len(srefData.strip("\n")))
-        try:
-            RunData = libxml2.parseMemory(srunData.strip("\n"), len(srunData.strip("\n")))
-        except:
-            RunData = None
-            return (cntOk, cntErr, cntMissed)        
+        RefData = etree.XML(srefData.strip("\n").encode('utf-8'))
+        RunData = etree.XML(srunData.strip("\n").encode('utf-8'))    
          
         lRun = []
         if RunData:
-            ctxt = RunData.xpathNewContext()
-            lpages = ctxt.xpathEval('//%s' % ('PAGE'))
+            lpages = RunData.xpath('//%s' % ('PAGE'))
             for page in lpages:
-                xpath = "./@%s" % ("template")
-                ctxt.setContextNode(page)
-                ltemp = ctxt.xpathEval(xpath)
-                if len(ltemp[0].getContent()) >0:
-#                     print 'run',ltemp[0].getContent()
-                    lRun.append(eval(ltemp[0].getContent()))
+                if page.get('template'):
+                    lRun.append(eval(page.get('template')))
                 else:lRun.append([])
-            ctxt.xpathFreeContext()
 
         lRef = []
             #### NO LONGER REFDATA!!!
-        ctxt = RunData.xpathNewContext()
-        lPages = ctxt.xpathEval('//%s' % ('PAGE'))
+        lPages = RunData.xpath('//%s' % ('PAGE'))
         for page in lPages:
-            xpath = "./@%s" % ("reftemplate")
-            ctxt.setContextNode(page)
-            ltemp = ctxt.xpathEval(xpath)
-            if ltemp != []:
-                if len(ltemp[0].getContent()) >0:
-#                     print "ref",ltemp[0].getContent()
-                    lRef.append(eval(ltemp[0].getContent()))
-                else: lRef.append([])
+            if page.get('reftemplate'):
+                    lRef.append(eval(page.get('reftemplate')))
             else: lRef.append([])
-        ctxt.xpathFreeContext()          
  
         ltisRefsRunbErrbMiss= list()
         for i in range(0,len(lRef)):
@@ -1945,7 +1907,7 @@ class pageVerticalMiner(Component.Component):
                     else:
                         curRef += 1
                 if bFound:
-                    if bVisual:print "FOUND:", runElt, ' -- ', lRefCovered[-1]
+                    if bVisual:print( "FOUND:", runElt, ' -- ', lRefCovered[-1])
                     cntOk += 1
                     curRun += 1
                 else:
@@ -1954,7 +1916,7 @@ class pageVerticalMiner(Component.Component):
                     cntErr += 1
                     bErr = True
 #                     bMiss = True
-                    if bVisual:print "ERROR:", runElt
+                    if bVisual:print ("ERROR:", runElt)
                 ltisRefsRunbErrbMiss.append( (i, resRef, runElt,bErr, bMiss) )
              
             if posref is not None:
@@ -1965,7 +1927,7 @@ class pageVerticalMiner(Component.Component):
                         cntMissed += 1 #len(lRef[i][posref+1]) - len(lRefCovered)
  
  
-        ltisRefsRunbErrbMiss.sort(key=lambda (x,y,z,t,u):x)
+        ltisRefsRunbErrbMiss.sort(key=lambda x_y_z_t_u:x_y_z_t_u[0])
 
         return (cntOk, cntErr, cntMissed,ltisRefsRunbErrbMiss)  
     
@@ -1973,43 +1935,23 @@ class pageVerticalMiner(Component.Component):
         """
             Test found reftemplate and reftemplate
         """ 
-        
         cntOk = cntErr = cntMissed = 0
-        RefData = libxml2.parseMemory(srefData.strip("\n"), len(srefData.strip("\n")))
-        try:
-            RunData = libxml2.parseMemory(srunData.strip("\n"), len(srunData.strip("\n")))
-        except:
-            RunData = None
-            return (cntOk, cntErr, cntMissed)        
+        RefData = etree.XML(srefData.strip("\n").encode('utf-8'))
+        RunData = etree.XML(srunData.strip("\n").encode('utf-8'))        
          
         lRun = []
-        if RunData:
-            ctxt = RunData.xpathNewContext()
-            lpages = ctxt.xpathEval('//%s' % ('PAGE'))
+        if RunData is not None:
+            lpages = RunData.xpath('//%s' % ('PAGE'))
             for page in lpages:
-                xpath = "./@%s" % ("reftemplate")
-                ctxt.setContextNode(page)
-                ltemp = ctxt.xpathEval(xpath)
-                if len(ltemp[0].getContent()) >0:
-#                     print 'run',ltemp[0].getContent()
-                    lRun.append(eval(ltemp[0].getContent()))
-                else:lRun.append([])
-            ctxt.xpathFreeContext()
+                if page.get('reftemplate'):
+                    lRun.append(eval(page.get('reftemplate')))
 
         lRef = []
-        ctxt = RefData.xpathNewContext()
-        lPages = ctxt.xpathEval('//%s' % ('PAGE'))
+        lPages = RefData.xpath('//%s' % ('PAGE'))
         for page in lPages:
-            xpath = "./@%s" % ("reftemplate")
-            ctxt.setContextNode(page)
-            ltemp = ctxt.xpathEval(xpath)
-            if ltemp != []:
-                if len(ltemp[0].getContent()) >0:
-#                     print "ref",ltemp[0].getContent()
-                    lRef.append(eval(ltemp[0].getContent()))
-                else: lRef.append([])
+            if page.get('reftemplate'):
+                lRef.append(eval(page.get('reftemplate')))
             else: lRef.append([])
-        ctxt.xpathFreeContext()          
  
         ltisRefsRunbErrbMiss= list()
         for i in range(0,len(lRef)):
@@ -2046,7 +1988,7 @@ class pageVerticalMiner(Component.Component):
                     else:
                         curRef += 1
                 if bFound:
-                    if bVisual:print "FOUND:", runElt, ' -- ', lRefCovered[-1]
+                    if bVisual:print ("FOUND:", runElt, ' -- ', lRefCovered[-1])
                     cntOk += 1
                     curRun += 1
                 else:
@@ -2055,7 +1997,7 @@ class pageVerticalMiner(Component.Component):
                     cntErr += 1
                     bErr = True
 #                     bMiss = True
-                    if bVisual:print "ERROR:", runElt
+                    if bVisual:print ("ERROR:", runElt)
                 ltisRefsRunbErrbMiss.append( (i, resRef, runElt,bErr, bMiss) )
              
             if posref is not None:
@@ -2066,7 +2008,7 @@ class pageVerticalMiner(Component.Component):
 #                         print 'missed', len(lRef[i][posref+1]) , len(lRefCovered), lRef[i][posref+1], lRefCovered
                         cntMissed += 1#(len(lRef[i][posref+1]) - len(lRefCovered))
  
-        ltisRefsRunbErrbMiss.sort(key=lambda (x,y,z,t,u):x)
+        ltisRefsRunbErrbMiss.sort(key=lambda x_y_z_t_u:x_y_z_t_u[0])
 
         return (cntOk, cntErr, cntMissed,ltisRefsRunbErrbMiss)                 
                  
@@ -2078,41 +2020,23 @@ class pageVerticalMiner(Component.Component):
  
 
         cntOk = cntErr = cntMissed = 0
-        RefData = libxml2.parseMemory(srefData.strip("\n"), len(srefData.strip("\n")))
-        try:
-            RunData = libxml2.parseMemory(srunData.strip("\n"), len(srunData.strip("\n")))
-        except:
-            RunData = None
-            return (cntOk, cntErr, cntMissed)        
-         
+        RefData = etree.XML(srefData.strip("\n").encode('utf-8'))
+        RunData = etree.XML(srunData.strip("\n").encode('utf-8'))   
+
         lRun = []
         if RunData:
-            ctxt = RunData.xpathNewContext()
-            lpages = ctxt.xpathEval('//%s' % ('PAGE'))
+            lpages = RunData.xpath('//%s' % ('PAGE'))
             for page in lpages:
-                xpath = "./@%s" % ("template")
-                ctxt.setContextNode(page)
-                ltemp = ctxt.xpathEval(xpath)
-                if len(ltemp[0].getContent()) >0:
-#                     print 'run',ltemp[0].getContent()
-                    lRun.append(eval(ltemp[0].getContent()))
+                if page.get('template'):
+                    lRun.append(eval(page.get('template')))
                 else:lRun.append([])
-            ctxt.xpathFreeContext()
 
         lRef = []
-        ctxt = RefData.xpathNewContext()
-        lPages = ctxt.xpathEval('//%s' % ('PAGE'))
+        lPages = RefData.xpath('//%s' % ('PAGE'))
         for page in lPages:
-            xpath = "./@%s" % ("reftemplate")
-            ctxt.setContextNode(page)
-            ltemp = ctxt.xpathEval(xpath)
-            if ltemp != []:
-                if len(ltemp[0].getContent()) >0:
-#                     print "ref",ltemp[0].getContent()
-                    lRef.append(eval(ltemp[0].getContent()))
-                else: lRef.append([])
+            if page.get('reftemplate'):
+                    lRef.append(eval(page.get('reftemplate')))
             else: lRef.append([])
-        ctxt.xpathFreeContext()          
  
         ltisRefsRunbErrbMiss= list()
         for i in range(0,len(lRef)):
@@ -2144,7 +2068,7 @@ class pageVerticalMiner(Component.Component):
                     else:
                         curRef += 1
                 if bFound:
-                    if bVisual:print "FOUND:", runElt, ' -- ', lRefCovered[-1]
+                    if bVisual:print( "FOUND:", runElt, ' -- ', lRefCovered[-1])
                     cntOk += 1
                     curRun += 1
                 else:
@@ -2153,7 +2077,7 @@ class pageVerticalMiner(Component.Component):
                     cntErr += 1
                     bErr = True
 #                     bMiss = True
-                    if bVisual:print "ERROR:", runElt
+                    if bVisual:print ("ERROR:", runElt)
                 ltisRefsRunbErrbMiss.append( (i, resRef, runElt,bErr, bMiss) )
              
             if posref is not None:
@@ -2164,7 +2088,7 @@ class pageVerticalMiner(Component.Component):
                     cntMissed += (len(lRef[i][posref+1]) - len(lRefCovered))
  
  
-        ltisRefsRunbErrbMiss.sort(key=lambda (x,y,z,t,u):x)
+        ltisRefsRunbErrbMiss.sort(key=lambda x_y_z_t_u:x_y_z_t_u[0])
 
         return (cntOk, cntErr, cntMissed,ltisRefsRunbErrbMiss)        
                 
@@ -2177,12 +2101,15 @@ class pageVerticalMiner(Component.Component):
         """
         
         doc = self.loadDom(filename)
-        self.run(doc)
+        self.loadDSDoc(doc)
+        self.doc= doc
+        self.run()
 #         doc.freeDoc()
         self.generateTestOutput(self.lPages)
 
         if outFile: self.writeDom(doc)
-        return self.evalData.serialize('utf-8',1)
+        return etree.tostring(self.evalData,encoding='unicode')
+#         return etree.tostring(self.evalData,encoding='utf-8',xml_declaration=True)
     
     def testCompare(self, srefData, srunData, bVisual=False):
         """
@@ -2195,7 +2122,6 @@ class pageVerticalMiner(Component.Component):
 #         dicTestByTask['Vzones']= self.testVerticalSegmentation(srefData, srunData,bVisual)
         dicTestByTask['VRUNREFzones']= self.testRUNREFVerticalSegmentation(srefData, srunData,bVisual)
 #         dicTestByTask['templateType']= self.testTemplateType(srefData, srunData,bVisual)
-    
         return dicTestByTask
         
         
@@ -2231,7 +2157,9 @@ if __name__ == "__main__":
     
     doc = docM.loadDom()
     docM.loadDSDoc(doc)
+    docM.bDebug = True
     docM.run()
+    
     if doc and docM.getOutputFileName() != "-":
         docM.writeDom(doc, True)
 

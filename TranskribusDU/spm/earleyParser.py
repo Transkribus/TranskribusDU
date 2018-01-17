@@ -2,9 +2,15 @@
     https://github.com/tomerfiliba/tau/blob/master/earley3.py
     see also http://en.wikipedia.org/wiki/Earley_parser#Python_Implementations
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
+
 class Production(object):
     def __init__(self, *terms):
         self.terms = terms
+#         print (self.terms)
     def __len__(self):
         return len(self.terms)
     def __getitem__(self, index):
@@ -86,20 +92,20 @@ class Column(object):
             return True
         return False
     def print_(self, completedOnly = False):
-        print "[%s] %r" % (self.index, self.token)
-        print "=" * 35
+        print ("[%s] %r" % (self.index, self.token))
+        print ("=" * 35)
         for s in self.states:
             if completedOnly and not s.completed():
                 continue
-            print repr(s)
-        print
+            print (repr(s))
+        print()
 
 class Node(object):
     def __init__(self, value, children):
         self.value = value
         self.children = children
     def print_(self, level = 0):
-        print "  " * level + str(self.value)
+        print ("  " * level + str(self.value))
         for child in self.children:
             child.print_(level + 1)
 
@@ -209,17 +215,17 @@ def build_trees_helper(children, state, rule_index, end_column,MAX=-1):
 # NP = Rule("NP", Production(D, N), Production("john"), Production("houston"))
 # NP.add(Production(NP, PP))
 # PP.add(Production(P, NP))
-# 
+# # 
 # VP = Rule("VP", Production(V, NP))
 # VP.add(Production(VP, PP))
 # S = Rule("S", Production(NP, VP), Production(VP))
-# 
-# for tree in build_trees(parse(S, "book the flight through houston")):
-#     print "--------------------------"
-#     tree.print_()
-# 
+# # 
+# # for tree in build_trees(parse(S, "book the flight through houston")):
+# #     print( "--------------------------")
+# #     tree.print_()
+# # 
 # for tree in build_trees(parse(S, "john saw the boy with the telescope")):
-#     print "--------------------------"
+#     print ("--------------------------")
 #     tree.print_()
 # 
 

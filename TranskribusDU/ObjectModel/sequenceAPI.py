@@ -1,3 +1,16 @@
+# -*- coding: utf-8 -*-
+"""
+
+    object class 
+    
+    Hervé Déjean
+    cpy Xerox 2009
+    
+    a class for object
+"""
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 
 class sequenceAPI():
@@ -23,7 +36,9 @@ class sequenceAPI():
         
         self._subObjects=None
     def __hash__(self):
-        return hash(str(self.getSetofFeatures()))
+        try:
+            return hash(str(list([x.getID() for x in self.getSetofFeatures()])))
+        except: return hash('None')
     
     def __repr__(self):
 #         return str(len(self._node.getContent())) + " " + self._node.getContent().encode('utf-8').strip()[:20]

@@ -10,17 +10,18 @@
 
 """
 
+from __future__ import absolute_import
+from __future__ import  print_function
 from __future__ import unicode_literals
-from __future__ import print_function
 
 from config import ds_xml_def
-from XMLDSObjectClass import XMLDSObjectClass
-from XMLDSLINEClass import XMLDSLINEClass
-from XMLDSTEXTClass import XMLDSTEXTClass
-from XMLDSBASELINEClass import XMLDSBASELINEClass
-from XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
-from XMLDSTABLEClass import XMLDSTABLEClass
-from XMLDSCOLUMN import XMLDSCOLUMNClass
+from .XMLDSObjectClass import XMLDSObjectClass
+from .XMLDSLINEClass import XMLDSLINEClass
+from .XMLDSTEXTClass import XMLDSTEXTClass
+from .XMLDSBASELINEClass import XMLDSBASELINEClass
+from .XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
+from .XMLDSTABLEClass import XMLDSTABLEClass
+from .XMLDSCOLUMN import XMLDSCOLUMNClass
 
 class  XMLDSPageClass(XMLDSObjectClass):
     """
@@ -89,51 +90,48 @@ class  XMLDSPageClass(XMLDSObjectClass):
         """
             load a page from dom 
         """
-        self.setName(domNode.name)
+        self.setName(domNode.tag)
         self.setNode(domNode)
         # get properties
-        prop = domNode.properties
-        while prop:
-            self.addAttribute(prop.name,prop.getContent())
-            # add attributes
-            prop = prop.next
+        for  prop in domNode.keys():
+            self.addAttribute(prop,domNode.get(prop))
             
-        ctxt = domNode.doc.xpathNewContext()
-        ctxt.setContextNode(domNode)
-        ldomElts = ctxt.xpathEval('./*')
-        ctxt.xpathFreeContext()
+#         ctxt = domNode.doc.xpathNewContext()
+#         ctxt.setContextNode(domNode)
+#         ldomElts = ctxt.xpathEval('./*')
+#         ctxt.xpathFreeContext()
+        ldomElts = domNode.findall('./*')
         for elt in ldomElts:
             ### GT elt
-            if elt.name =='MARGIN':
-                elt = elt.children
-                
-            if elt.name in lEltNames:
-                if elt.name == ds_xml_def.sCOL_Elt:
+            if elt.tag =='MARGIN':
+                elt = list(elt)[0]  #elt=elt.children
+            if elt.tag in lEltNames:
+                if elt.tag == ds_xml_def.sCOL_Elt:
                     myObject= XMLDSCOLUMNClass(elt)
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(elt)                      
-                elif elt.name  == ds_xml_def.sLINE_Elt:
+                elif elt.tag  == ds_xml_def.sLINE_Elt:
                     myObject= XMLDSLINEClass(elt)
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(elt)
-                elif elt.name  == ds_xml_def.sTEXT:
+                elif elt.tag  == ds_xml_def.sTEXT:
                     myObject= XMLDSTEXTClass(elt)
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(elt)
-                elif elt.name == "BASELINE":
+                elif elt.tag == "BASELINE":
                     myObject= XMLDSBASELINEClass(elt)
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(elt)       
-                elif elt.name in ['SeparatorRegion', 'GRAPHELT']:
+                elif elt.tag in ['SeparatorRegion', 'GRAPHELT']:
                     myObject= XMLDSGRAPHLINEClass(elt)
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(elt)
-                elif elt.name == ds_xml_def.sTABLE:
+                elif elt.tag == ds_xml_def.sTABLE:
                     myObject= XMLDSTABLEClass(elt)
                     self.addObject(myObject)
                     myObject.setPage(self)
@@ -141,7 +139,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
                 else:
                     myObject= XMLDSObjectClass()
                     myObject.setNode(elt)
-                    myObject.setName(elt.name)
+                    myObject.setName(elt.tag)
                     self.addObject(myObject)
                     myObject.setPage(self)
                     myObject.fromDom(elt)
