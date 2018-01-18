@@ -972,9 +972,9 @@ class Component:
 				sRpt += " All %s%6s%6s%6s\n"%(self.formatPRF(fP, fR, fF), sumNOk, sumNErr, sumNMiss)
 			
 			#MACRO
-			ma_cnt, ma_avg_prec	, ma_sdv_prec   = self.av_stddev_f(map(lambda x:x[0], lPRF))
-			ma_cnt, ma_avg_recall  , ma_sdv_recall = self.av_stddev_f(map(lambda x:x[1], lPRF))
-			ma_cnt, ma_avg_F1	  , ma_sdv_F1	 = self.av_stddev_f(map(lambda x:x[2], lPRF))
+			ma_cnt, ma_avg_prec	, ma_sdv_prec   = self.av_stddev_f(list(map(lambda x:x[0], lPRF)))
+			ma_cnt, ma_avg_recall  , ma_sdv_recall = self.av_stddev_f(list(map(lambda x:x[1], lPRF)))
+			ma_cnt, ma_avg_F1	  , ma_sdv_F1	 = self.av_stddev_f(list(map(lambda x:x[2], lPRF)))
 			sRpt += "\n"
 	#		sRpt += "- macro-average:\n"
 	#		sRpt += "%s\n"%(self.formatPRF(ma_avg_prec, ma_avg_recall, ma_avg_F1))
