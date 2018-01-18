@@ -4,8 +4,9 @@ A class that reflect a decoration to be made on certain XML node using WX
 """
 
 import types, os
-import cStringIO
-import libxml2, wx
+from lxml import etree
+#import cStringIO
+import wx
 
 
 sEncoding = "utf-8"
@@ -94,7 +95,10 @@ class Deco:
         print "---   xpath=%s" % xpExpr
         print "---   Python Exception=%s" % str(eExcpt)
         if sMsg: print "---   Info: %s" % sMsg
-        sNode = node.serialize()
+        try:
+            sNode = etree.tostring(node)
+        except:
+            sNode = str(node)
         if len(sNode) > iMaxLen: sNode = sNode[:iMaxLen] + "..."
         print "--- XML node = %s" % sNode
         print "-"*60
@@ -115,9 +119,15 @@ class Deco:
 #            s = node.xpathEval(xpExpr)
             self.xpCtxt.setContextNode(node)
             s = self.xpCtxt.xpathEval(xpExpr)
-            if type(s) == types.ListType: s = s[0].getContent() #get the content of the first node
+            if type(s) == types.ListType: 
+                try:
+                    s = s[0].text
+                except AttributeError:
+                    s = s[0]    #should be an attribute value
             return Deco.toInt(s)
         except Exception, e:
+            print "kkk ", repr(node)
+            print xpExpr
             if bShowError: self.xpathError(node, xpExpr, e, "xpathToInt return %d as default value"%iDefault)
         return iDefault
     
@@ -130,8 +140,12 @@ class Deco:
 #            s = node.xpathEval(xpExpr)
             self.xpCtxt.setContextNode(node)
             s = self.xpCtxt.xpathEval(xpExpr)
-            if type(s) == types.ListType: s = s[0].getContent() #get the content of the first node
-            return unicode(s, sEncoding)
+            if type(s) == types.ListType: 
+                try:
+                    s = s[0].text
+                except AttributeError:
+                    s = s[0]
+            return s
         except Exception, e:
             if bShowError: self.xpathError(node, xpExpr, e, "xpathToStr return %s as default value"%sDefault)
         return sDefault
@@ -797,7 +811,7 @@ class DecoClickableRectangleJump(DecoBBXYWH):
         bbHighlight = None
         sToId = self.xpathToStr(node, self.xpAttrToId , None)
         if sToId:
-            ln = self.xpathEval(node.doc.getRootElement(), '//*[@id="%s"]'%sToId.strip())
+            ln = self.xpathEval(node.doc.getroot(), '//*[@id="%s"]'%sToId.strip())
             if ln:
                 #find the page number
                 ndTo = nd = ln[0]
