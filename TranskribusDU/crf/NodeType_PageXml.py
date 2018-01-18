@@ -164,9 +164,7 @@ class NodeType_PageXml(NodeType):
             classIndex = 0   #is computed later on
 
             #and create a Block
-            assert ndBlock
             blk = Block(page, (x1, y1, x2-x1, y2-y1), sText, orientation, classIndex, self, ndBlock, domid=domid)
-            assert blk.node
             
             if TEST_getPageXmlBlock:
                 #dump a modified XML to view the rectangles

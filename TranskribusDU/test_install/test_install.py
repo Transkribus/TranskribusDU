@@ -35,24 +35,11 @@ except ImportError:
 from common.trace import traceln
 from tasks import  _checkFindColDir
 
+from crf.Graph import Graph
 from crf.Graph_MultiPageXml import Graph_MultiPageXml
 from crf.NodeType_PageXml   import NodeType_PageXml
 
 from tasks.DU_CRF_Task import DU_CRF_Task
-
-# ===============================================================================================================
-#DEFINING THE CLASS OF GRAPH WE USE
-DU_GRAPH = Graph_MultiPageXml
-nt = NodeType_PageXml("TR"                   #some short prefix because labels below are prefixed with it
-                      , ['catch-word', 'header', 'heading', 'marginalia', 'page-number']   #EXACTLY as in GT data!!!!
-                      , []      #no ignored label/ One of those above or nothing, otherwise Exception!!
-                      , True    #no label means OTHER
-                      )
-nt.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
-                  , "./pc:TextEquiv")       #how to get their text
-               )
-DU_GRAPH.addNodeType(nt)
-# ===============================================================================================================
 
  
 class DU_Test(DU_CRF_Task):
@@ -61,13 +48,27 @@ class DU_Test(DU_CRF_Task):
     , working on a MultiPageXMl document at TextRegion level
     , with the below labels 
     """
-
+    @classmethod
+    def getConfiguredGraphClass(cls):
+        Graph.resetNodeTypes()
+        
+        DU_GRAPH = Graph_MultiPageXml
+        nt = NodeType_PageXml("TR"                   #some short prefix because labels below are prefixed with it
+                          , ['catch-word', 'header', 'heading', 'marginalia', 'page-number']   #EXACTLY as in GT data!!!!
+                          , []      #no ignored label/ One of those above or nothing, otherwise Exception!!
+                          , True    #no label means OTHER
+                          )
+        nt.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
+                      , "./pc:TextEquiv")       #how to get their text
+                   )
+        DU_GRAPH.addNodeType(nt)        
+        return DU_GRAPH
+    
     #=== CONFIGURATION ====================================================================
     def __init__(self, sModelName, sModelDir, sComment=None): 
         
         DU_CRF_Task.__init__(self
                              , sModelName, sModelDir
-                             , DU_GRAPH
                              , dFeatureConfig = {
                                     'n_tfidf_node'    : 10
                                   , 't_ngrams_node'   : (2,2)
@@ -83,7 +84,7 @@ class DU_Test(DU_CRF_Task):
                                  , 'tol'              : .1
                                  , 'save_every'       : 5     #save every 50 iterations,for warm start
                                  #, 'max_iter'         : 1000
-                                 , 'max_iter'         : 8
+                                 , 'max_iter'         : 2
                                  }
                              , sComment=sComment
                              )
@@ -104,8 +105,6 @@ def test_main():
     traceln("Working in temp dir: %s"%sModelDir)
 
     sTranskribusTestDir = os.path.join(os.path.dirname(__file__), "trnskrbs_3820")
-
-    traceln("- classes: ", DU_GRAPH.getLabelNameList())
 
     #We train, test, predict on the same document(s)
     lDir = _checkFindColDir( [sTranskribusTestDir])

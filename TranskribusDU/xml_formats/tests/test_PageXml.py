@@ -6,6 +6,8 @@ Created on 23 Nov 2016
 @author: meunier
 '''
 import pytest
+from lxml import etree
+from io import BytesIO
 
 from xml_formats.PageXml import PageXml, PageXmlException
 
@@ -54,14 +56,13 @@ def test_malformed_custom():
     assert PageXml.parseCustomAttr("  a b   {   x y : 1  2  }") == {'a b': {'x y': '1  2'}}
     
 def test_getsetCustomAttr():
-    import libxml2
-    sXml = """
+    sXml = b"""
             <TextRegion type="page-number" id="p1_region_1471502505726_2" custom="readingOrder {index:9;} structure {type:page-number;}">
                 <Coords points="972,43 1039,43 1039,104 972,104"/>
             </TextRegion>
             """
-    doc = libxml2.parseMemory(sXml, len(sXml))
-    nd = doc.getRootElement()
+    doc = etree.parse(BytesIO(sXml))
+    nd = doc.getroot()
     assert PageXml.getCustomAttr(nd, "readingOrder", "index") == '9'
     assert PageXml.setCustomAttr(nd, "readingOrder", "index", 99) == 99
     assert PageXml.getCustomAttr(nd, "readingOrder", "index") == '99'
@@ -76,7 +77,7 @@ def test_getsetCustomAttr():
     
 def getMetadataTestDOM():
     import libxml2
-    sXml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    sXml = b"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd">
             <Metadata>
                 <Creator>Tilla</Creator>
@@ -102,12 +103,12 @@ def getMetadataTestDOM():
                 </ReadingOrder>
             </Page>
         </PcGts>"""
-    doc = libxml2.parseMemory(sXml, len(sXml))
+    doc = etree.parse(BytesIO(sXml))
     return doc
 
 def test_getMetadata():
     doc = getMetadataTestDOM()
-    nd = doc.getRootElement()
+    nd = doc.getroot()
     
     md = PageXml.getMetadata(doc)
     assert md.Creator == "Tilla"
@@ -115,7 +116,7 @@ def test_getMetadata():
     assert md.LastChange == "2016-12-01T09:53:39.610+01:00"
     assert md.Comments == None
    
-    md = PageXml.getMetadata(None, nd.firstElementChild())
+    md = PageXml.getMetadata(None, nd[0])
     assert md.Creator == "Tilla"
     assert md.Created == "2016-08-18T13:35:08.252+07:00"
     assert md.LastChange == "2016-12-01T09:53:39.610+01:00"
@@ -124,7 +125,7 @@ def test_setMetadata():
     import datetime
     doc = getMetadataTestDOM()
 
-    nd = doc.getRootElement()
+    nd = doc.getroot()
     sutc = datetime.datetime.utcnow().isoformat()
     PageXml.setMetadata(doc, None, "Tigrette")
     
@@ -138,7 +139,7 @@ def test_setMetadata():
    
     sutc = datetime.datetime.utcnow().isoformat()
     PageXml.setMetadata(doc, None, "Bijoux", "Le chat de Martine")
-    md = PageXml.getMetadata(None, nd.firstElementChild())
+    md = PageXml.getMetadata(None, nd[0])
     assert md.Creator == "Bijoux"
     assert md.Created == "2016-08-18T13:35:08.252+07:00"
     assert md.LastChange.startswith(sutc[:15])
@@ -150,5 +151,5 @@ def test_CreationPageXmlDocument():
     print doc
     
 if __name__ == "__main__":
-#     test_setMetadata()
+    test_setMetadata()
     test_CreationPageXmlDocument()

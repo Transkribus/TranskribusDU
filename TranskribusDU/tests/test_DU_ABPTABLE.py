@@ -13,10 +13,13 @@ from __future__ import absolute_import, print_function
 import sys
 import os.path
 
+
 # deal with file locations and PYTHONPATH
 sTESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 sDATA_DIR = os.path.join(sTESTS_DIR, "data")
 sys.path.append(os.path.dirname(sTESTS_DIR))
+
+import crf.Graph
 
 import tasks.DU_ABPTable
 
@@ -44,27 +47,28 @@ class FakeOption:
         self.applyY = None
         
 def test_ABPTable_train():
+    crf.Graph.Graph.resetNodeTypes()
     
     sModelDir = os.path.join(sTESTS_DIR, "models")
     sModelName = "test_ABPTable_train"
     sDataDir = os.path.join(sDATA_DIR, "abp_TABLE_9142_mpxml")
     
-    options = FakeOption()
-    options.rm = True                       
-    # remove any pre-existing model
-    tasks.DU_ABPTable.main(sModelDir, sModelName, options)
-     
-    options = FakeOption()
-    options.lTrn = [sDataDir]                       
-    tasks.DU_ABPTable.main(sModelDir, sModelName, options)
-     
-    options = FakeOption()
-    options.lTst = [sDataDir]                       
-    tasks.DU_ABPTable.main(sModelDir, sModelName, options)
-
 #     options = FakeOption()
-#     options.lRun = [sDataDir]                       
+#     options.rm = True                       
+#     # remove any pre-existing model
 #     tasks.DU_ABPTable.main(sModelDir, sModelName, options)
+#      
+#     options = FakeOption()
+#     options.lTrn = [sDataDir]                       
+#     tasks.DU_ABPTable.main(sModelDir, sModelName, options)
+#      
+#     options = FakeOption()
+#     options.lTst = [sDataDir]                       
+#     tasks.DU_ABPTable.main(sModelDir, sModelName, options)
+
+    options = FakeOption()
+    options.lRun = [sDataDir]                       
+    tasks.DU_ABPTable.main(sModelDir, sModelName, options)
     
 if __name__ == "__main__":
     test_ABPTable_train()

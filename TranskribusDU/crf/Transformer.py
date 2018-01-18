@@ -74,8 +74,11 @@ class EmptySafe_StandardScaler(StandardScaler):
     Same as its super class apart that it  does not crash when th einput array is empty
     """
     def transform(self, X, y=None, copy=None):
+        assert y == None
+        assert copy == None
         try:
-            return StandardScaler.transform(self, X, y, copy)
+            #return StandardScaler.transform(self, X, y, copy)
+            return StandardScaler.transform(self, X)
         except ValueError as e:
             if X.shape[0] == 0:
                 return X #just do not crash
