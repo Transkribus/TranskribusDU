@@ -24,7 +24,7 @@
     under grant agreement No 674943.
     
 """
-import libxml2
+from lxml import etree
 
 from Graph_MultiPageXml import Graph_MultiPageXml
 from common.trace import traceln
@@ -75,7 +75,7 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
         """
     
         lGraph=[]
-        doc = libxml2.parseFile(sFilename)
+        doc = etree.parse(sFilename)
 
         for pnum, page, domNdPage in cls._iter_Page_DomNode(doc):
             g = cls()
@@ -129,23 +129,17 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
             page-num (int), page object, page dom node
         
         """
-        #--- XPATH contexts
-        ctxt = doc.xpathNewContext()
-        for ns, nsurl in Graph_MultiSinglePageXml.dNS.items(): ctxt.xpathRegisterNs(ns, nsurl)
-        
         assert Graph_MultiSinglePageXml.sxpPage, "CONFIG ERROR: need an xpath expression to enumerate PAGE elements"
-        lNdPage = ctxt.xpathEval(Graph_MultiSinglePageXml.sxpPage)   #all pages
+        lNdPage = doc.xpath(Graph_MultiSinglePageXml.sxpPage, namespaces=Graph_MultiSinglePageXml.dNS)   #all pages
         pnum = 0
         pagecnt = len(lNdPage)
         for ndPage in lNdPage:
             pnum += 1
-            iPageWidth  = int( ndPage.prop("imageWidth") )
-            iPageHeight = int( ndPage.prop("imageHeight") )
-            page = Page(pnum, pagecnt, iPageWidth, iPageHeight, cls=None, domnode=ndPage, domid=ndPage.prop("id"))
+            iPageWidth  = int( ndPage.get("imageWidth") )
+            iPageHeight = int( ndPage.get("imageHeight") )
+            page = Page(pnum, pagecnt, iPageWidth, iPageHeight, cls=None, domnode=ndPage, domid=ndPage.get("id"))
             yield (pnum, page, ndPage)
             
-        ctxt.xpathFreeContext()       
-        
         raise StopIteration()        
                
         

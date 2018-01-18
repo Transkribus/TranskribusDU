@@ -62,6 +62,7 @@ class Block:
         """
         Erase any pointer to the DOM so that we can free it.
         """
+        self.node.clear()
         self.node = None
         self.page.node = None
     

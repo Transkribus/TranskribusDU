@@ -38,9 +38,11 @@ from tasks import _checkFindColDir, _exit
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from DU_CRF_Task import DU_CRF_Task
-from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
+#from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
+from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
 
 
+ 
 class DU_ABPTable(DU_CRF_Task):
     """
     We will do a CRF model for a DU task
@@ -48,16 +50,18 @@ class DU_ABPTable(DU_CRF_Task):
     """
     sXmlFilenamePattern = "*.mpxml"
     
+    #sLabeledXmlFilenamePattern = "*.a_mpxml"
     sLabeledXmlFilenamePattern = "*.mpxml"
 
     sLabeledXmlFilenameEXT = ".mpxml"
 
 
     #=== CONFIGURATION ====================================================================
-    def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
-
-        # ===============================================================================================================
-        
+    @classmethod
+    def getConfiguredGraphClass(cls):
+        """
+        In this class method, we must return a configured graph class
+        """
         lLabels = ['RB', 'RI', 'RE', 'RS','RO']
         
         lIgnoredLabels = None
@@ -81,7 +85,6 @@ class DU_ABPTable(DU_CRF_Task):
                               , lIgnoredLabels
                               , False    #no label means OTHER
                               , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
-                              
                               )
         # ntA = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
         #                       , lLabels
@@ -96,15 +99,14 @@ class DU_ABPTable(DU_CRF_Task):
         # ntA.setXpathExpr( (".//pc:TextLine | .//pc:TextRegion"        #how to find the nodes
         #                   , "./pc:TextEquiv")       #how to get their text
         #                 )
-        
         DU_GRAPH.addNodeType(nt)
         
-        # ===============================================================================================================
-
+        return DU_GRAPH
         
+    def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
+
         DU_CRF_Task.__init__(self
                      , sModelName, sModelDir
-                     , DU_GRAPH
                      , dFeatureConfig = {  }
                      , dLearnerConfig = {
                                    'C'                : .1   if C               is None else C
@@ -116,9 +118,11 @@ class DU_ABPTable(DU_CRF_Task):
                                  , 'max_iter'         : 1000 if max_iter        is None else max_iter
                          }
                      , sComment=sComment
-                     ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
+                     #,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
+                     ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
                      )
         
+        #self.setNbClass(3)     #so that we check if all classes are represented in the training set
         
         self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
     #=== END OF CONFIGURATION =============================================================
@@ -131,24 +135,17 @@ class DU_ABPTable(DU_CRF_Task):
         self.sXmlFilenamePattern = "*.mpxml"
         return DU_CRF_Task.predict(self, lsColDir)
         
+    def runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges=False):
+        """
+        Return the list of produced files
+        """
+        self.sXmlFilenamePattern = "*.mpxml"
+        return DU_CRF_Task.runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges)
               
-    
-if __name__ == "__main__":
 
-    version = "v.01"
-    usage, description, parser = DU_CRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
-#     parser.add_option("--annotate", dest='bAnnotate',  action="store_true",default=False,  help="Annotate the textlines with BIES labels")    
-    # --- 
-    #parse the command line
-    (options, args) = parser.parse_args()
-    
-    # --- 
-    try:
-        sModelDir, sModelName = args
-    except Exception as e:
-        traceln("Specify a model folder and a model name!")
-        _exit(usage, 1, e)
-        
+# ----------------------------------------------------------------------------
+
+def main(sModelDir, sModelName, options):
     doer = DU_ABPTable(sModelName, sModelDir,
                       C                 = options.crf_C,
                       tol               = options.crf_tol,
@@ -156,11 +153,9 @@ if __name__ == "__main__":
                       max_iter          = options.crf_max_iter,
                       inference_cache   = options.crf_inference_cache)
     
-    
-    
     if options.rm:
         doer.rm()
-        sys.exit(0)
+        return
 
     lTrn, lTst, lRun, lFold = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun, options.lFold]] 
 #     if options.bAnnotate:
@@ -210,11 +205,46 @@ if __name__ == "__main__":
         traceln(doer.getModel().getModelInfo())
     elif lTst:
         doer.load()
-        tstReport = doer.test(lTst, options.pkl)
+        tstReport = doer.test(lTst)
         traceln(tstReport)
+#         if True:
+#             import crf.Model
+#             #In case we want to store the Ys
+#             for sfn, o in [("l_Y_GT.pkl", tstReport.l_Y), ("l_Y_pred.pkl", tstReport.l_Y_pred)]:
+#                 traceln("STORING in %s"%sfn)
+#                 crf.Model.Model.gzip_cPickle_dump(sfn, o)
     
     if lRun:
-        doer.load()
-        lsOutputFilename = doer.predict(lRun)
+        if options.storeX or options.applyY:
+            try: doer.load() 
+            except: pass    #we only need the transformer
+            lsOutputFilename = doer.runForExternalMLMethod(lRun, options.storeX, options.applyY, options.bRevertEdges)
+        else:
+            doer.load()
+            lsOutputFilename = doer.predict(lRun)
+            
         traceln("Done, see in:\n  %s"%lsOutputFilename)
     
+        
+# ----------------------------------------------------------------------------
+if __name__ == "__main__":
+
+    version = "v.01"
+    usage, description, parser = DU_CRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
+#     parser.add_option("--annotate", dest='bAnnotate',  action="store_true",default=False,  help="Annotate the textlines with BIES labels")    
+
+    #FOR GCN
+    parser.add_option("--revertEdges", dest='bRevertEdges',  action="store_true", help="Revert the direction of the edges") 
+            
+    # --- 
+    #parse the command line
+    (options, args) = parser.parse_args()
+    
+    # --- 
+    try:
+        sModelDir, sModelName = args
+    except Exception as e:
+        traceln("Specify a model folder and a model name!")
+        _exit(usage, 1, e)
+        
+    main(sModelDir, sModelName, options)

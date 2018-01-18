@@ -28,8 +28,6 @@
 from Graph import Graph
 from Page import Page
 
-from xml_formats.PageXml import PageXml
-
 class Graph_DSXml(Graph):
     '''
     Computing the graph for a MultiPageXml document

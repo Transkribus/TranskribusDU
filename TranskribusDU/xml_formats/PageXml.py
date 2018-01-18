@@ -363,14 +363,9 @@ class PageXml:
         try:
             lsPair = data.split(' ')
         except:
-#             ctxt = data.doc.xpathNewContext()
-#             ctxt.xpathRegisterNs("pc", cls.NS_PAGE_XML)  
-#             ctxt.setContextNode(data)
-#             lndPoints = ctxt.xpathEval("(.//@points)[1]")  #no need to collect all @points below!
-            lndPoints = data.findall("(.//@points)[1]")
+            lndPoints = data.xpath("(.//@points)[1]")
             sPoints = lndPoints[0] #.getContent()
             lsPair = sPoints.split(' ')
-#             ctxt.xpathFreeContext()
         lXY = list()
         for sPair in lsPair:
             (sx,sy) = sPair.split(',')

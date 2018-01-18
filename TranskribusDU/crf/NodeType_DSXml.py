@@ -26,11 +26,7 @@
 """
 TEST_getPageXmlBlock = False
 
-from common.trace import traceln
-
 from NodeType import NodeType
-from xml_formats.PageXml import PageXml
-from util.Polygon import Polygon
 from Block import Block
 
 
@@ -60,9 +56,9 @@ class NodeType_DS(NodeType):
         sLabel = self.sDefaultLabel
         
         sXmlLabel = None
-        if domnode.prop("title_oracle_best"):
+        if domnode.get("title_oracle_best"):
             sXmlLabel = "title"
-        elif domnode.prop("pnum_oracle"):
+        elif domnode.get("pnum_oracle"):
             sXmlLabel = "pnum"
         if sXmlLabel:
             try:
@@ -85,7 +81,7 @@ class NodeType_DS(NodeType):
         Set the DOM node label in the format-dependent way
         """
         if sLabel != self.sDefaultLabel:
-            domnode.setProp(sLabel, "yes")
+            domnode.set(sLabel, "yes")
         return sLabel
 
 
@@ -96,31 +92,26 @@ class NodeType_DS(NodeType):
 
         iterator on the DOM, that returns nodes  (of class Block)
         """    
-        #--- XPATH contexts
-        ctxt = doc.xpathNewContext()
-        for ns, nsurl in self.dNS.items(): ctxt.xpathRegisterNs(ns, nsurl)
         assert self.sxpNode, "CONFIG ERROR: need an xpath expression to enumerate elements corresponding to graph nodes"
-        ctxt.setContextNode(domNdPage)
-        lNdBlock = ctxt.xpathEval(self.sxpNode) #all relevant nodes of the page
+        lNdBlock = domNdPage.xpath(self.sxpNode, namespaces=self.dNS) #all relevant nodes of the page
 
         for ndBlock in lNdBlock:
-            ctxt.setContextNode(ndBlock)
-            domid = ndBlock.prop("id")
+            domid = ndBlock.get("id")
             
             #TODO
             orientation = self.getAttributeInDepth(ndBlock, "orientation")
             classIndex = 0   #is computed later on
 
-            x1 = float(ndBlock.prop("x"))
-            y1 = float(ndBlock.prop("y"))
-            w, h = float(ndBlock.prop("width")), float(ndBlock.prop("height"))
+            x1 = float(ndBlock.get("x"))
+            y1 = float(ndBlock.get("y"))
+            w, h = float(ndBlock.get("width")), float(ndBlock.get("height"))
             
             #get the textual content
             if ndBlock.name == 'TOKEN':
-                sText = ndBlock.get_content().decode('utf-8')
+                sText = ndBlock.text
             else:
-                lnTok = ctxt.xpathEval('.//TOKEN')
-                sText = " ".join([nd.get_content().decode('utf-8') for nd in lnTok])
+                lnTok = ndBlock.xpath('.//TOKEN', namespaces=self.dNS)
+                sText = " ".join([nd.text for nd in lnTok])
                 
             #and create a Block
             assert ndBlock
@@ -129,8 +120,6 @@ class NodeType_DS(NodeType):
             
             yield blk
             
-        ctxt.xpathFreeContext()       
-        
         raise StopIteration()        
         
     def getAttributeInDepth(self, nd, attr):
@@ -139,17 +128,17 @@ class NodeType_DS(NodeType):
         into BLOCK LINE TEXT TOKEN
         return a string
         """
-        value = nd.prop(attr)
+        value = nd.get(attr)
         if not value:                         #ok, not yet stored
             try:
-                nd = nd.children
-                value = nd.prop(attr)
+                nd = nd[0]
+                value = nd.get(attr)
                 if not value:
-                    nd = nd.children
-                    value = nd.prop(attr) 
+                    nd = nd[0]
+                    value = nd.get(attr) 
                 if not value:
-                    nd = nd.children
-                    value = nd.prop(attr) 
+                    nd = nd[0]
+                    value = nd.get(attr) 
             except IndexError:
                 pass
             except AttributeError: # when no children (strange BTW)
