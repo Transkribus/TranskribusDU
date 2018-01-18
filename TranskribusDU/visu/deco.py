@@ -736,21 +736,21 @@ class DecoClickableRectangleSetAttr(DecoBBXYWH):
             except KeyError:
                 initialValue = node.prop(sAttrName) #first time
                 self.dInitialValue[node] = initialValue
-            if node.prop(sAttrName) == sAttrValue:
+            if node.get(sAttrName) == sAttrValue:
                 #back to previous value
                 if initialValue == None or initialValue == sAttrValue:
                     #very special case: when an attr was set, then saved, re-clicking on it wil remove it.
-                    node.unsetProp(sAttrName)
+                    del node.attrib[sAttrName]
                     s = "Removal of @%s"%sAttrName
                 else:
-                    node.setProp(sAttrName, initialValue)
+                    node.set(sAttrName, initialValue)
                     s = '@%s := "%s"'%(sAttrName,initialValue)
             else:
                 if not sAttrValue:
-                    node.unsetProp(sAttrName)
+                    del node.attrib[sAttrName]
                     s = "Removal of @%s"%sAttrName
                 else:
-                    node.setProp(sAttrName, sAttrValue)
+                    node.set(sAttrName, sAttrValue)
                     s = '@%s := "%s"'%(sAttrName,sAttrValue)
         return s            
         
