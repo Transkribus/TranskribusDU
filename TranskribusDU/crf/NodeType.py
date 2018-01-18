@@ -63,7 +63,8 @@ class NodeType:
         
         self.lsXmlLabel        = lsLabel
         self.lsXmlIgnoredLabel = lsIgnoredLabel
-            
+        self.bOther = bOther
+        
         self.lsLabel        = [self.getInternalLabelName(s) for s in lsLabel]
 
         self.dXmlLabel2Label = { sXml :s    for sXml, s in zip(self.lsXmlLabel, self.lsLabel) }

@@ -24,13 +24,14 @@
     under grant agreement No 674943.
     
 """
+
 TEST_getPageXmlBlock = False
 import types
 
 from common.trace import traceln
 
 from NodeType import NodeType
-from xml_formats.PageXml import PageXml
+from xml_formats.PageXml import PageXml, PageXmlException
 from util.Polygon import Polygon
 from Block import Block
 
@@ -80,7 +81,13 @@ class NodeType_PageXml(NodeType):
         """
         sLabel = self.sDefaultLabel
         try:
-            sXmlLabel = PageXml.getCustomAttr(domnode, self.sCustAttr_STRUCTURE, self.sCustAttr2_TYPE)
+            try:
+                sXmlLabel = PageXml.getCustomAttr(domnode, self.sCustAttr_STRUCTURE, self.sCustAttr2_TYPE)
+            except PageXmlException as e:
+                if self.bOther:
+                    return self.sDefaultLabel  #absence of label but bOther was True (I guess)
+                else:
+                    raise e
             try:
                 sLabel = self.dXmlLabel2Label[sXmlLabel]
             except KeyError:
@@ -114,15 +121,12 @@ class NodeType_PageXml(NodeType):
         iterator on the DOM, that returns nodes  (of class Block)
         """    
         #--- XPATH contexts
-        ctxt = doc.xpathNewContext()
-        for ns, nsurl in self.dNS.items(): ctxt.xpathRegisterNs(ns, nsurl)
         assert self.sxpNode, "CONFIG ERROR: need an xpath expression to enumerate elements corresponding to graph nodes"
-        ctxt.setContextNode(domNdPage)
-        lNdBlock = ctxt.xpathEval(self.sxpNode) #all relevant nodes of the page
+        lNdBlock = domNdPage.xpath(self.sxpNode, namespaces=self.dNS) #all relevant nodes of the page
 
         for ndBlock in lNdBlock:
-            domid = ndBlock.prop("id")
-            sText = self._get_GraphNodeText(doc, domNdPage, ndBlock, ctxt)
+            domid = ndBlock.get("id")
+            sText = self._get_GraphNodeText(doc, domNdPage, ndBlock)
             if sText == None:
                 sText = ""
                 traceln("Warning: no text in node %s"%domid) 
@@ -168,24 +172,23 @@ class NodeType_PageXml(NodeType):
                 #dump a modified XML to view the rectangles
                 import util.xml_utils
                 ndTextLine = util.xml_utils.addElement(doc, ndBlock, "PARAGRAPH")
-                ndTextLine.setProp("id", ndBlock.prop("id")+"_tl")
-                ndTextLine.setProp("x", str(x1))
-                ndTextLine.setProp("y", str(y1))
-                ndTextLine.setProp("width", str(x2-x1))
-                ndTextLine.setProp("height", str(y2-y1))
-                ndTextLine.setContent(sText)
+                ndTextLine.set("id", ndBlock.get("id")+"_tl")
+                ndTextLine.set("x", str(x1))
+                ndTextLine.set("y", str(y1))
+                ndTextLine.set("width", str(x2-x1))
+                ndTextLine.set("height", str(y2-y1))
+                ndTextLine.text = sText
                 ndCoord = util.xml_utils.addElement(doc, ndTextLine, "Coords")
                 PageXml.setPoints(ndCoord, PageXml.getPointsFromBB(x1,y1,x2,y2))
             yield blk
             
-        ctxt.xpathFreeContext()       
         if TEST_getPageXmlBlock:
             import util.xml_utils
             util.xml_utils.toFile(doc, "TEST_getPageXmlBlock.mpxml", True)
         
         raise StopIteration()        
         
-    def _get_GraphNodeText(self, doc, domNdPage, ndBlock, ctxt=None):
+    def _get_GraphNodeText(self, doc, domNdPage, ndBlock):
         """
         Extract the text of a DOM node
         
@@ -193,8 +196,7 @@ class NodeType_PageXml(NodeType):
 
         return a unicode string
         """    
-        ctxt.setContextNode(ndBlock)
-        lNdText = ctxt.xpathEval(self.sxpTextual)
+        lNdText = ndBlock.xpath(self.sxpTextual, namespaces=self.dNS)
         if len(lNdText) != 1:
             if len(lNdText) <= 0:
                 raise ValueError("I found no useful TextEquiv below this node... \n%s"%str(ndBlock))
@@ -230,7 +232,7 @@ class NodeType_PageXml_type(NodeType_PageXml):
         """
         sLabel = self.sDefaultLabel
         
-        sXmlLabel = domnode.prop(self.sLabelAttr)
+        sXmlLabel = domnode.get(self.sLabelAttr)
         try:
             sLabel = self.dXmlLabel2Label[sXmlLabel]
         except KeyError:
@@ -249,7 +251,7 @@ class NodeType_PageXml_type(NodeType_PageXml):
         Set the DOM node label in the format-dependent way
         """
         if sLabel != self.sDefaultLabel:
-            domnode.setProp(self.sLabelAttr, self.dLabel2XmlLabel[sLabel])
+            domnode.set(self.sLabelAttr, self.dLabel2XmlLabel[sLabel])
         return sLabel
 
 class NodeType_PageXml_type_woText(NodeType_PageXml_type):
@@ -277,48 +279,68 @@ class NodeType_PageXml_type_NestedText(NodeType_PageXml_type):
 
         return a unicode string
         """    
-        ctxt.setContextNode(ndBlock)
-        lNdText = ctxt.xpathEval(self.sxpTextual)
+        lNdText = ndBlock.xpath(self.sxpTextual, namespaces=self.dNS)
         if len(lNdText) != 1:
             if len(lNdText) > 1: raise ValueError("More than 1 textual content for this node: %s"%str(ndBlock))
             
             #let's try to get th etext of the words, and concatenate...
             # traceln("Warning: no text in node %s => looking at words!"%ndBlock.prop("id")) 
-            lsText = [ntext.content.decode('utf-8').strip() for ntext in ctxt.xpathEval('.//pc:Word/pc:TextEquiv//text()')] #if we have both PlainText and UnicodeText in XML, :-/
+            # lsText = [ntext.content.decode('utf-8').strip() for ntext in ctxt.xpathEval('.//pc:Word/pc:TextEquiv//text()')] #if we have both PlainText and UnicodeText in XML, :-/
+            lsText = [_nd.text.strip() for _nd in ctxt.xpathEval('.//pc:Word/pc:TextEquiv')] #if we have both PlainText and UnicodeText in XML, :-/
             return " ".join(lsText)
         
         return PageXml.makeText(lNdText[0])
 
 # --- AUTO-TESTS --------------------------------------------------------------------------------------------
 def test_getset():
-    import libxml2
-    sXml = """
-            <TextRegion type="page-number" id="p1_region_1471502505726_2" custom="readingOrder {index:9;} structure {type:page-number;}">
+    from lxml import etree
+    from io import BytesIO
+    
+    sXml = b"""
+            <TextRegion  id="p1_region_1471502505726_2" custom="readingOrder {index:9;} structure {type:page-number;}">
                 <Coords points="972,43 1039,43 1039,104 972,104"/>
             </TextRegion>
             """
-    doc = libxml2.parseMemory(sXml, len(sXml))
-    nd = doc.getRootElement()
-    obj = NodeType_PageXml()
-    assert obj.parseDomNodeLabel(nd) == 'page-number'
-    assert obj.parseDomNodeLabel(nd, "toto") == 'page-number'
-    assert obj.setDomNodeLabel(nd, "index") == 'index'
-    assert obj.parseDomNodeLabel(nd, "toto") == 'index'
-    doc.freeDoc()
+    doc = etree.parse(BytesIO(sXml))
+    nd = doc.getroot()
+    obj = NodeType_PageXml("foo", ["page-number", "index"])
+    assert obj.parseDomNodeLabel(nd) == 'foo_page-number', obj.parseDomNodeLabel(nd)
+    assert obj.parseDomNodeLabel(nd, "toto") == 'foo_page-number'
+    assert obj.setDomNodeLabel(nd, "foo_index") == 'foo_index'
+    assert obj.parseDomNodeLabel(nd) == 'foo_index'
 
-def test_getset_default():
-    import libxml2
-    sXml = """
+def test_getset2():
+    from lxml import etree
+    from io import BytesIO
+    
+    sXml = b"""
             <TextRegion type="page-number" id="p1_region_1471502505726_2" custom="readingOrder {index:9;} ">
                 <Coords points="972,43 1039,43 1039,104 972,104"/>
             </TextRegion>
             """
-    doc = libxml2.parseMemory(sXml, len(sXml))
-    nd = doc.getRootElement()
-    obj = NodeType_PageXml()
-    assert obj.parseDomNodeLabel(nd) == None
-    assert obj.parseDomNodeLabel(nd, "toto") == 'toto'
-    assert obj.setDomNodeLabel(nd, "index") == 'index'
-    assert obj.parseDomNodeLabel(nd, "toto") == 'index'
-    doc.freeDoc()
-
+    doc = etree.parse(BytesIO(sXml))
+    nd = doc.getroot()
+    obj = NodeType_PageXml("foo", ["page-number", "index"], [""])
+    assert obj.parseDomNodeLabel(nd) == 'foo_OTHER'
+    assert obj.setDomNodeLabel(nd, "foo_index") == 'foo_index'
+    assert obj.parseDomNodeLabel(nd) == 'foo_index'
+    
+    
+def test_getset3():
+    import pytest
+    from lxml import etree
+    from io import BytesIO
+    from xml_formats.PageXml import PageXmlException
+    
+    sXml = b"""
+            <TextRegion type="page-number" id="p1_region_1471502505726_2" custom="readingOrder {index:9;} ">
+                <Coords points="972,43 1039,43 1039,104 972,104"/>
+            </TextRegion>
+            """
+    doc = etree.parse(BytesIO(sXml))
+    nd = doc.getroot()
+    obj = NodeType_PageXml("foo", ["page-number", "index"], [""], bOther=False)
+    with pytest.raises(PageXmlException):
+        assert obj.parseDomNodeLabel(nd) == 'foo_OTHER'
+    assert obj.setDomNodeLabel(nd, "foo_index") == 'foo_index'
+    assert obj.parseDomNodeLabel(nd) == 'foo_index'

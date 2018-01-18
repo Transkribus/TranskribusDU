@@ -76,7 +76,9 @@ See DU_StAZH_b.py
 
     """
     
-    cModelClass          = None                                     #depends on the number of node types!
+    cModelClass      = None     #depends on the number of node types!
+    cGraphClass      = None     #class of graph in use 
+    
     cFeatureDefinition   = FeatureDefinition_PageXml_StandardOnes   #I keep this for backward compa
     
     sMetadata_Creator = "XRCE Document Understanding Typed CRF-based - v0.3"
@@ -88,15 +90,41 @@ See DU_StAZH_b.py
     
     sXmlFilenamePattern = "*[0-9]"+MultiPageXml.sEXT    #how to find the Xml files
 
-    def __init__(self, sModelName, sModelDir, cGraphClass, dLearnerConfig={}, sComment=None
+    @classmethod
+    def configureGraphClass(cls, configuredClass=None):
+        """
+        class method to set the graph class ONCE (subsequent calls are ignored)
+        """
+        if cls.cGraphClass is None: #OK, let's set the class attribute!
+            
+            #if nothing in parameter, or we call the class method
+            if configuredClass is None:
+                configuredClass = cls.getConfiguredGraphClass()
+                assert configuredClass is not None, "getConfiguredGraphClass returned None"
+                
+            cls.cGraphClass = configuredClass
+
+        assert cls.cGraphClass is not None
+        return cls.cGraphClass
+
+    @classmethod
+    def getConfiguredGraphClass(cls):
+        """
+        In this class method, we must return a configured graph class
+        """
+        raise Exception("class method getConfiguredGraphClass must be specialized")
+    
+    
+    def __init__(self, sModelName, sModelDir, dLearnerConfig={}, sComment=None
                  , cFeatureDefinition=None, dFeatureConfig={}
                  ): 
         """
         
         """
-        self.sModelName     = sModelName
-        self.sModelDir      = sModelDir
-        self.cGraphClass    = cGraphClass
+        self.configureGraphClass()
+        self.sModelName    = sModelName
+        self.sModelDir     = sModelDir
+        
         #Because of the way of dealing with the command line, we may get singleton instead of scalar. We fix this here
         self.config_learner_kwargs      = {k:v[0] if type(v)==types.ListType and len(v)==1 else v for k,v in dLearnerConfig.items()}
         if sComment: self.sMetadata_Comments    = sComment
