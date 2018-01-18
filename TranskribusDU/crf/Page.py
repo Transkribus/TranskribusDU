@@ -33,6 +33,7 @@ class Page:
         """
         Erase any pointer to the DOM so that we can free it.
         """
+        self.node.clear()
         self.node = None
     
     ##Bounding box methods: getter/setter + geometrical stuff

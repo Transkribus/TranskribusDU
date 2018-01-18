@@ -26,7 +26,7 @@
 """
 import numpy as np
 
-import libxml2
+from  lxml import etree
 
 from common.trace import traceln
 
@@ -63,24 +63,19 @@ class Graph_MultiPageXml(Graph):
             page-num (int), page object, page dom node
         
         """
-        #--- XPATH contexts
-        ctxt = doc.xpathNewContext()
-        for ns, nsurl in self.dNS.items(): ctxt.xpathRegisterNs(ns, nsurl)
-
         assert self.sxpPage, "CONFIG ERROR: need an xpath expression to enumerate PAGE elements"
-        lNdPage = ctxt.xpathEval(self.sxpPage)   #all pages
+        
+        lNdPage = doc.xpath(self.sxpPage, namespaces=self.dNS)   #all pages
         
         pnum = 0
         pagecnt = len(lNdPage)
         for ndPage in lNdPage:
             pnum += 1
-            iPageWidth  = int( ndPage.prop("imageWidth") )
-            iPageHeight = int( ndPage.prop("imageHeight") )
-            page = Page(pnum, pagecnt, iPageWidth, iPageHeight, cls=None, domnode=ndPage, domid=ndPage.prop("id"))
+            iPageWidth  = int( ndPage.get("imageWidth") )
+            iPageHeight = int( ndPage.get("imageHeight") )
+            page = Page(pnum, pagecnt, iPageWidth, iPageHeight, cls=None, domnode=ndPage, domid=ndPage.get("id"))
             yield (pnum, page, ndPage)
             
-        ctxt.xpathFreeContext()       
-        
         raise StopIteration()        
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
@@ -126,7 +121,7 @@ class FactorialGraph_MultiPageXml(Graph_MultiPageXml):
         for nd in self.lNode:
             try:
                 lcls = [self._dClsByLabel[nodeType.parseDomNodeLabel(nd.node)] for nodeType in self.getNodeTypeList()]
-            except KeyError as e:
+            except KeyError:
                 raise ValueError("Page %d, unknown label in %s (Known labels are %s)"%(nd.pnum, str(nd.node), self._dClsByLabel))
             nd.cls = lcls
             for cls in lcls:
@@ -161,7 +156,7 @@ class FactorialGraph_MultiPageXml(Graph_MultiPageXml):
         We parse the XML for one of the node types
         That enough to get the list of nodes and edges. We can then have a virtually layered graph, one layer per node type
         """
-        self.doc = libxml2.parseFile(sFilename)
+        self.doc = etree.parse(sFilename)
         self.lNode, self.lEdge = list(), list()
         #load the block of each page, keeping the list of blocks of previous page
         lPrevPageNode = None
@@ -227,7 +222,7 @@ class FactorialGraph_MultiPageXml(Graph_MultiPageXml):
         (NF, E, EF) = Graph_MultiPageXml._buildNodeEdgeMatrices_S(self, node_transformer, edge_transformer)
                                                                   
         #The NF per type are all the same
-        lNF = [NF for nodeType in self.getNodeTypeList()]
+        lNF = [NF for _nodeType in self.getNodeTypeList()]
         
         #The Edge definitions and edge features
         # edge within a layer are all the same (but between the node replcias for the layer)
@@ -247,7 +242,7 @@ class FactorialGraph_MultiPageXml(Graph_MultiPageXml):
             lE.append (E)
             lEF.append(EF)
             #top-right part give the links between node replicas accross layers
-            for typ2 in range(typ1+1, nbType): 
+            for _typ2 in range(typ1+1, nbType): 
                 lE.append (E_replicas)
                 lEF.append(EF_ones_replicas)
 
@@ -290,9 +285,9 @@ class ContinousPage:
         
         if lPrevPageEdgeBlk and lPageBlk:
             #empty pages lead to empty return!
-            p0, p1 = lPrevPageEdgeBlk[0].getPage(), lPageBlk[0].getPage()
-            w0, h0 = p0.getWidthHeight()
-            w1, h1 = p1.getWidthHeight()
+            p0, p1  = lPrevPageEdgeBlk[0].getPage(), lPageBlk[0].getPage()
+            _w0, h0 = p0.getWidthHeight()
+            w1, h1  = p1.getWidthHeight()
             
             p0_vertical_middle, p1_vertical_middle = h0/2.0 , h1/2.0
             
@@ -343,7 +338,7 @@ class Graph_MultiContinousPageXml(Graph_MultiPageXml, ContinousPage):
         Return a CRF Graph object
         """
     
-        self.doc = libxml2.parseFile(sFilename)
+        self.doc = etree.parse(sFilename)
         self.lNode, self.lEdge = list(), list()
         #load the block of each page, keeping the list of blocks of previous page
         lPrevPageNode = None
@@ -400,7 +395,7 @@ class FactorialGraph_MultiContinuousPageXml(FactorialGraph_MultiPageXml, Contino
         Return a CRF Graph object
         """
     
-        self.doc = libxml2.parseFile(sFilename)
+        self.doc = etree.parse(sFilename)
         self.lNode, self.lEdge = list(), list()
         #load the block of each page, keeping the list of blocks of previous page
         lPrevPageNode = None
