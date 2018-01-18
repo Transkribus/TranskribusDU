@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    Testing the Python numpy, pystruct, AD3, libxml2, cvxopt installation - takes about 30 seconds
+    Testing the Python numpy, pystruct, AD3, cvxopt installation - takes about 30 seconds
     
     Copyright Xerox(C) 2016 JL. Meunier
 

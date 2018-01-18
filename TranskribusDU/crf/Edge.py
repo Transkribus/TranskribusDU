@@ -10,8 +10,11 @@ March 3rd, 2016
 Copyright Xerox 2016
 
 '''
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-import Block
+from . import Block
 
 DEBUG=0
 #DEBUG=1
@@ -75,9 +78,9 @@ class Edge:
             ndA = e.A.node
             sPolyLine = "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f"%(xA,yA,xB,yB,xA,yA)
             if ndA.hasProp(sAttr):
-                ndA.setProp(sAttr, ndA.prop(sAttr) + "," + sPolyLine)
+                ndA.set(sAttr, ndA.prop(sAttr) + "," + sPolyLine)
             else:
-                ndA.setProp(sAttr,                         sPolyLine)
+                ndA.set(sAttr,                         sPolyLine)
         return
     dbgStorePolyLine = classmethod(dbgStorePolyLine)
 
