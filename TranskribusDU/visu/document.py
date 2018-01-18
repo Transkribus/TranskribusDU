@@ -3,14 +3,31 @@
 $author: Jerome Fuselier
 $since: October 2005
 """
- 
-import libxml2
-
+import gc
+from lxml import etree
 
    
+class XpathContext:
+    """
+    XPath context
+    """
+    def __init__(self, nd=None, dNS={}):
+        self.nd = nd
+        self.dNS = dNS
+        
+    def xpathEval(self, sXpathExpr):
+        return self.nd.xpath(sXpathExpr, namespaces=self.dNS)
+    
+    def setContextNode(self, nd):
+        self.nd = nd
+        
+    def xpathFreeContext(self):
+        self.nd = None
+        self.dNS = None
+        
 class Document:
     """The class for the document that is displayed in the interface"""
-    
+        
     def __init__(self, path, config):
         """Default constructor.
         @param path: the path of the file to load
@@ -19,17 +36,19 @@ class Document:
         print "Loading..."
         self.filename = path 
 
-        self.tree_dom = libxml2.parseFile(self.filename)
-        self.root_dom = self.tree_dom.getRootElement()
-        
-        #create a context for our XPath queries
-        self.ctxt = self.tree_dom.xpathNewContext()
-        self.config = config
+        self.tree_dom = etree.parse(self.filename)
+        self.root_dom = self.tree_dom.getroot()
         
         #register any namespace
+        dNS = {}
         for sName, sURI in config.getNamespaceList():
             print "Document: XPath namespace: %s=%s"%(sName, sURI)
-            self.ctxt.xpathRegisterNs(sName, sURI)
+            dNS[sName] = sURI
+ 
+        #create a context for our XPath queries
+        self.ctxt = XpathContext(self.root_dom, dNS) # context node, Namespaces
+        self.config = config
+        
         config.setXPathContext(self.ctxt)   #in order to propagate this context to the decoration objects
         
         self.lPage = []      #list of page elements in document order
@@ -42,10 +61,10 @@ class Document:
             self.lPage.append(n)
             self.ctxt.setContextNode(n)
             try:
-              pagenum = self.ctxt.xpathEval(page_num_attr)[0].getContent()
+                pagenum = self.ctxt.xpathEval(page_num_attr)[0]
             except IndexError:
-              print "WARNING: no number attribute on page"
-              pagenum = i+1
+                print "WARNING: no number attribute on page"
+                pagenum = i+1
             print pagenum, " ",
             #.page_num_attr
             #self.dNum2PageIndex[n.prop('number')] = i
@@ -63,18 +82,17 @@ class Document:
         self.root_dom = None
         del self.lPage
         del self.dNum2PageIndex
-        self.tree_dom.freeDoc()
         self.tree_dom = None
+        gc.collect()
         
     def saveXML(self, filename):
         try:
-            f = open(filename, "w")
-            bIndent = False
-            if bIndent:
-                self.tree_dom.saveFormatFile(f, bIndent)
-            else: 
-                self.tree_dom.dump(f)
-            f.close()
+            self.tree_dom.write(filename,
+                          xml_declaration=True,
+                          encoding="utf-8",
+                          pretty_print=False
+                          #compression=0,  #0 to 9 
+                          )
             print "XML SAVED INTO", filename
             return True
         except:
@@ -117,7 +135,7 @@ class Document:
         """return the page @number of the Ith page, as a string"""
         #return self.lPage[i].prop("number")
         self.ctxt.setContextNode(self.lPage[i])
-        return self.ctxt.xpathEval(self.config.getPageNumberAttr())[0].getContent()
+        return self.ctxt.xpathEval(self.config.getPageNumberAttr())[0]
         
     def getPageIndexByNumber(self, num):
         """return the page having num as @number"""
