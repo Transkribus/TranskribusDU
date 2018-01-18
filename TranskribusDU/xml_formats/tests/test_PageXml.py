@@ -76,7 +76,6 @@ def test_getsetCustomAttr():
     with pytest.raises(PageXmlException): PageXml.getCustomAttr(nd, "axiste_pas_non_plus", "axiste_pas")
     
 def getMetadataTestDOM():
-    import libxml2
     sXml = b"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd">
             <Metadata>
