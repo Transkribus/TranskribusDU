@@ -517,6 +517,14 @@ class MultiPageXml(PageXml):
         return doc
     makeMultiPageXml = classmethod(makeMultiPageXml)
 
+
+    @classmethod
+    def getNBPages(cls, doc):
+        """
+            return the number of pages of doc
+        """
+        return len(list(cls._iter_splitMultiPageXml(doc, bInPlace=False)))
+        
     def splitMultiPageXml(cls, doc, sToDir, sFilenamePattern, bIndent=False, bInPlace=True):
         """
         Split a multipage PageXml into multiple PageXml files
