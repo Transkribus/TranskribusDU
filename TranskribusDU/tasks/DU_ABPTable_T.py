@@ -38,7 +38,7 @@ from tasks import _checkFindColDir, _exit
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from DU_CRF_Task import DU_CRF_Task
-from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_T_PageXml_StandardOnes_noText
+from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_T_PageXml_StandardOnes_noText_v2
 
 
 
@@ -54,6 +54,13 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
     sLabeledXmlFilenamePattern = "*.mpxml"
 
     sLabeledXmlFilenameEXT = ".mpxml"
+
+    #=== CONFIGURATION ====================================================================
+    @classmethod
+    def getConfiguredGraphClass(cls):
+        """
+        In this class method, we must return a configured graph class
+        """
 
     # ===============================================================================================================
     #DEFINING THE CLASS OF GRAPH WE USE
@@ -96,9 +103,14 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
                    )
     DU_GRAPH.addNodeType(nt2)    
 
+
     #=== CONFIGURATION ====================================================================
     def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
         
+        #another way to specify the graph class
+        # defining a  getConfiguredGraphClass is preferred
+        self.configureGraphClass(self.DU_GRAPH)
+
         DU_CRF_Task.__init__(self
                      , sModelName, sModelDir
                      , self.DU_GRAPH
@@ -112,7 +124,7 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
                                  , 'max_iter'         : 1000 if max_iter        is None else max_iter
                          }
                      , sComment=sComment
-                     , cFeatureDefinition=FeatureDefinition_T_PageXml_StandardOnes_noText
+                     , cFeatureDefinition=FeatureDefinition_T_PageXml_StandardOnes_noText_v2
                      , dFeatureConfig = {
                          #config for the extractor of nodes of each type
                          "text": None,    
@@ -128,7 +140,7 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
         traceln("- classes: ", self.DU_GRAPH.getLabelNameList())
 
         self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
-        
+    
     #=== END OF CONFIGURATION =============================================================
 
   
@@ -140,23 +152,8 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
         return DU_CRF_Task.predict(self, lsColDir,sDocId)
 
            
-    
-if __name__ == "__main__":
-
-    version = "v.01"
-    usage, description, parser = DU_CRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
-    parser.add_option("--docid", dest='docid',  action="store",default=None,  help="only process docid")    
-    # --- 
-    #parse the command line
-    (options, args) = parser.parse_args()
-    
-    # --- 
-    try:
-        sModelDir, sModelName = args
-    except Exception as e:
-        traceln("Specify a model folder and a model name!")
-        _exit(usage, 1, e)
-        
+# ----------------------------------------------------------------------------
+def main(sModelDir, sModelName, options):
     doer = DU_ABPTable_TypedCRF(sModelName, sModelDir,
                       C                 = options.crf_C,
                       tol               = options.crf_tol,
@@ -171,7 +168,7 @@ if __name__ == "__main__":
         sDocId=None
     if options.rm:
         doer.rm()
-        sys.exit(0)
+        return
 
     lTrn, lTst, lRun, lFold = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun, options.lFold]] 
 #     if options.bAnnotate:
@@ -225,3 +222,23 @@ if __name__ == "__main__":
         doer.load()
         lsOutputFilename = doer.predict(lRun,sDocId)
         traceln("Done, see in:\n  %s"%lsOutputFilename)
+    
+
+# ----------------------------------------------------------------------------
+if __name__ == "__main__":
+
+    version = "v.01"
+    usage, description, parser = DU_CRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
+    parser.add_option("--docid", dest='docid',  action="store",default=None,  help="only process docid")    
+    # --- 
+    #parse the command line
+    (options, args) = parser.parse_args()
+    
+    # --- 
+    try:
+        sModelDir, sModelName = args
+    except Exception as e:
+        traceln("Specify a model folder and a model name!")
+        _exit(usage, 1, e)
+    
+    main(sModelDir, sModelName, options)

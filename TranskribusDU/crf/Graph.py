@@ -25,10 +25,10 @@
     
 """
 import collections
-import itertools
+#import gc
 
 import numpy as np
-import libxml2
+from lxml import etree
 
 from common.trace import traceln
 from xml_formats.PageXml import PageXmlException
@@ -85,24 +85,25 @@ class Graph:
         #NOTE: the cls integer value encompasses all types, from 0 to N-1 where N is the cumulative number of classes over node types
         return the new whole list of labels
         """
-        #list of labels
-        lsNewLabel = nodeType.getLabelNameList()
-        lsAllLabel = cls.getLabelNameList()
-        
-        for sNewLabel in lsNewLabel:
-            if sNewLabel in lsAllLabel: 
-                raise ValueError("A label must be globally unique (within and across LabelSet(s)): '%s'"%sNewLabel)
-            lsAllLabel.append(sNewLabel)
+        if nodeType not in cls._lNodeType:  #make it idempotent
+            #list of labels
+            lsNewLabel = nodeType.getLabelNameList()
+            lsAllLabel = cls.getLabelNameList()
             
-        cls._lNodeType.append(nodeType)
-        assert lsAllLabel == cls.getLabelNameList(), "Internal error"
-        cls._nbLabelTot = len(lsAllLabel)
-        
-        #and make convenience data structures
-        cls._dLabelByCls = { i:sLabel for i,sLabel in enumerate(lsAllLabel) }         
-        cls._dClsByLabel = { sLabel:i for i,sLabel in enumerate(lsAllLabel) } 
-        
-        cls._bMultitype = (len(cls._lNodeType) >1) 
+            for sNewLabel in lsNewLabel:
+                if sNewLabel in lsAllLabel: 
+                    raise ValueError("A label must be globally unique (within and across LabelSet(s)): '%s'"%sNewLabel)
+                lsAllLabel.append(sNewLabel)
+                
+            cls._lNodeType.append(nodeType)
+            assert lsAllLabel == cls.getLabelNameList(), "Internal error"
+            cls._nbLabelTot = len(lsAllLabel)
+            
+            #and make convenience data structures
+            cls._dLabelByCls = { i:sLabel for i,sLabel in enumerate(lsAllLabel) }         
+            cls._dClsByLabel = { sLabel:i for i,sLabel in enumerate(lsAllLabel) } 
+            
+            cls._bMultitype = (len(cls._lNodeType) >1) 
         
         return lsAllLabel
     
@@ -213,7 +214,7 @@ class Graph:
         Return a CRF Graph object
         """
     
-        self.doc = libxml2.parseFile(sFilename)
+        self.doc = etree.parse(sFilename)
         self.lNode, self.lEdge = list(), list()
         #load the block of each page, keeping the list of blocks of previous page
         lPrevPageNode = None
@@ -316,9 +317,9 @@ class Graph:
         """
         if self.doc != None:
             for nd in self.lNode: nd.detachFromDOM()
-            self.doc.freeDoc()
             self.doc = None
-
+        #gc.collect()
+        
     def revertEdges(self):
         """
         revert the direction of each edge of the graph
@@ -434,7 +435,7 @@ class Graph:
         n_type_2 = n_type * n_type
         
         #list nodes per type
-        lNodeByType =[ list() for i in range(n_type)]
+        lNodeByType =[ list() for _i in range(n_type)]
         _a_node_count_by_type = np.zeros((n_type,), dtype=np.int) 
         for nd in self.lNode:
             type_index = nd.type._index
