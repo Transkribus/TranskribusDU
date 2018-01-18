@@ -295,7 +295,9 @@ class Model:
         if self._lMdlBaseline:
             X_flat =self._get_X_flat(lX)
             Y_flat = np.hstack(lY)
-            with open("XY_flat.pkl", "wb") as fd: cPickle.dump((X_flat, Y_flat), fd)
+            if False:
+                with open("XY_flat.pkl", "wb") as fd: 
+                    cPickle.dump((X_flat, Y_flat), fd)
             for mdlBaseline in self._lMdlBaseline:
                 chronoOn()
                 traceln("\t - training baseline model: %s"%str(mdlBaseline))
