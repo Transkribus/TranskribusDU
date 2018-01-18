@@ -402,9 +402,9 @@ class Component:
 # 		libxml2.keepBlanksDefault(False)
 # 		doc =  libxml2.parseFile(filename)
 
-		parser = etree.XMLParser(encoding='UTF-8')
-		doc = etree.parse(filename, parser)
-# 		doc = etree.parse(filename)
+# 		parser = etree.XMLParser(encoding='UTF-8')
+# 		doc = etree.parse(filename, parser)
+		doc = etree.parse(filename)
 		if bGraphic:
 			res = doc.xinclude()
 		self.doc= doc
