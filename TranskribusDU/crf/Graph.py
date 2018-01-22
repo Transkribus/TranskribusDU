@@ -107,6 +107,18 @@ class Graph:
         
         return lsAllLabel
     
+    @classmethod
+    def resetNodeTypes(cls):
+        """
+        When consecutive different models are created, e;g. from pytest, there
+        is the need to reset the node types declared at the class-level
+        """
+        cls._lNodeType       = []       #the list of node types for this class of graph
+        cls._bMultitype      = False    # equivalent to len(_lNodeType) > 1
+        cls._dLabelByCls     = None     #dictionary across node types
+        cls._dClsByLabel     = None     #dictionary across node types
+        cls._nbLabelTot      = 0        #total number of labels
+    
     # --- Labels ----------------------------------------------------------
     @classmethod
     def getLabelNameList(cls):

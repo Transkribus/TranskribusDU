@@ -160,7 +160,9 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
         if self._lMdlBaseline:
             for itype in range(self.nbType):
                 X_flat, Y_flat = self._getXY_forType(lX, lY, itype)
-                with open("XY_flat_Type%d.pkl"%(itype), "wb") as fd: cPickle.dump((X_flat, Y_flat), fd)
+                if False:
+                    with open("XY_flat_Type%d.pkl"%(itype), "wb") as fd: 
+                        cPickle.dump((X_flat, Y_flat), fd)
                 for mdlBaseline in self._lMdlBaseline:
                     chronoOn()
                     traceln("\t - training baseline model: %s"%str(mdlBaseline))

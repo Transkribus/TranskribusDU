@@ -8,19 +8,26 @@ Created on 1 Dec 2016
 
 @author: meunier
 '''
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 import os
 
-import libxml2
+from lxml import etree
 
 import crf.Graph_MultiPageXml as Graph_MultiPageXml
 from crf.NodeType_PageXml   import NodeType_PageXml
 
 import crf.Edge as Edge
-import xml_formats.PageXml as PageXml
+
+import crf.Graph
 
 
 def test_RectangleFitting():
-    
+    crf.Graph.Graph.resetNodeTypes()
+
+
     nt = NodeType_PageXml("TR"                   #some short prefix because labels below are prefixed with it
                               , ['catch-word', 'header', 'heading', 'marginalia', 'page-number']   #EXACTLY as in GT data!!!!
                               , []      #no ignored label/ One of those above or nothing, otherwise Exception!!
@@ -31,12 +38,12 @@ def test_RectangleFitting():
                        )
     Graph_MultiPageXml.Graph_MultiPageXml.addNodeType(nt)
         
-    print "- classes: ", Graph_MultiPageXml.Graph_MultiPageXml.getLabelNameList()
+    print("- classes: ", Graph_MultiPageXml.Graph_MultiPageXml.getLabelNameList())
 
     obj = Graph_MultiPageXml.Graph_MultiPageXml()
 
     filename = os.path.join(os.path.dirname(__file__), "7749.mpxml")
-    doc = libxml2.parseFile(filename)
+    doc = etree.parse(filename)
     
     #load the block of each page, keeping the list of blocks of previous page
     lPrevPageNode = None
@@ -54,15 +61,15 @@ def test_RectangleFitting():
         lPageEdge = Edge.Edge.computeEdges(lPrevPageNode, lPageNode)
         
         obj.lEdge.extend(lPageEdge)
-        print "\tPage %5d    %6d nodes    %7d edges" %(pnum, len(lPageNode), len(lPageEdge))
+        print("\tPage %5d    %6d nodes    %7d edges" %(pnum, len(lPageNode), len(lPageEdge)))
         
         nc = 20
         fmt = "%%s p%%s %%%ss  --->  p%%s %%%ss"%(nc, nc)
         for edge in lPageEdge:
             sa, sb = edge.A.text, edge.B.text
             sa, sb = sa[:min(len(sa), nc)], sb[:min(len(sb), nc)]
-            assert edge.A.node.prop("id") != edge.B.node.prop("id")
-            print fmt%(edge.__class__.__name__[0], edge.A.pnum, sa, edge.B.pnum, sb)
+            assert edge.A.node.get("id") != edge.B.node.get("id")
+            print(fmt%(edge.__class__.__name__[0], edge.A.pnum, sa, edge.B.pnum, sb))
         lPrevPageNode = lPageNode
     
 #     sOut = "TEST_getPageXmlBlock.mpxml"
