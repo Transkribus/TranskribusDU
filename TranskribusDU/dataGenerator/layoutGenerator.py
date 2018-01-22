@@ -34,6 +34,9 @@ from __future__ import  print_function
 from __future__ import unicode_literals
 from  lxml import etree
 
+try:basestring
+except NameError:basestring = str
+
 from .generator import Generator 
 from .numericalGenerator import numericalGenerator
 
@@ -145,7 +148,7 @@ class layoutZoneGenerator(Generator):
         self._GT=[]
         for obj in self._generation:
             if obj:
-                if type(obj._generation) == unicode:
+                if isinstance(obj._generation,basestring):
                     self._GT.append((obj._generation,obj.getLabel()))
                 elif type(obj._generation) in [int,float]:
                     self._GT.append((obj._generation,obj.getLabel()))
@@ -160,7 +163,7 @@ class layoutZoneGenerator(Generator):
 
             
     def serialize(self):
-        raise Exception, 'must be instantiated'     
+        raise Exception( 'must be instantiated')
     
 
     
@@ -168,11 +171,12 @@ class layoutZoneGenerator(Generator):
 if __name__ == '__main__':
     TH=30
     myZone= layoutZoneGenerator(numericalGenerator(5,TH),numericalGenerator(30,TH),numericalGenerator(20,TH),numericalGenerator(100,TH))
+    myZone.instantiate()
     myZone.generate()
     print(myZone._generation)
     
-    myZone.setName('TEXT')
-    print(myZone.exportAnnotatedData()) 
+    myZone.setLabel('TEXT')
+    print(myZone.exportAnnotatedData([])) 
     
     
     

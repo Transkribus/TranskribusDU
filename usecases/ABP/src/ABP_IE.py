@@ -6,8 +6,9 @@
 
      H. Déjean
     
-
     copyright Xerox 2017
+    copyright Naver Labs Europe 2017,2018
+
     READ project 
 
     This program is free software: you can redistribute it and/or modify
@@ -28,14 +29,14 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import absolute_import
+from __future__ import  print_function
 from __future__ import unicode_literals
-from __future__ import print_function
+from io import open
 
 import sys, os.path
-import codecs
-import libxml2
-# from lxml import etree
-sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'src')
+from lxml import etree
+sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'TranskribusDU')
 
 
 import common.Component as Component
@@ -45,7 +46,7 @@ from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
 from ObjectModel.treeTemplateClass import treeTemplateClass
 from ObjectModel.XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
 from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
-from ObjectModel.XMLDSRowClass import XMLDSTABLEROWClass
+from ObjectModel.XMLDSTableRowClass import XMLDSTABLEROWClass
 from ObjectModel.XMLDSCELLClass import XMLDSTABLECELLClass
 
 from spm.spmTableRow import tableRowMiner
@@ -93,23 +94,24 @@ class IETest(Component.Component):
         Here, we set our internal attribute according to a possibly specified value (otherwise it stays at its default value)
         """
         Component.Component.setParams(self, dParams)
-        if dParams.has_key("coldir"): 
+        if "coldir" in dParams: 
             self.colname = dParams["coldir"]
-        if dParams.has_key("docid"):         
+            
+        if "docid" in dParams:         
             self.docid = dParams["docid"]
 
-        if dParams.has_key("htrid"):         
+        if "htrid" in dParams:         
             self.htrModelID = dParams["htrid"]
 
-        if dParams.has_key("template"):         
+        if "template" in dParams:         
             self.sTemplate = dParams["template"]
 
-        if dParams.has_key("UseStoredTemplate"):         
+        if "UseStoredTemplate" in dParams:         
             self.BuseStoredTemplate = dParams["UseStoredTemplate"]            
             
-        if dParams.has_key('modelName'):
+        if 'modelName' in dParams:
             self.sModelName = dParams['modelName']
-        if dParams.has_key('modelDir'):
+        if 'modelDir' in dParams:
             self.sModelDir = dParams['modelDir']            
             
         
@@ -152,7 +154,7 @@ class IETest(Component.Component):
         #tag fields with template
         for cell in table.getCells():
             if cell.getFields() != []:
-                if self.bDebug:print(table.getPage(),cell.getIndex(), cell.getFields(), cell.getContent().encode('utf-8'))
+                if self.bDebug:print(table.getPage(),cell.getIndex(), cell.getFields(), cell.getContent())
             for field in cell.getFields():
                 if field is not None:
                     res = field.applyTaggers(cell)
@@ -160,7 +162,7 @@ class IETest(Component.Component):
                     extractedValues = field.extractLabel(res)
                     if extractedValues != []:
 #                         extractedValues = map(lambda offset,value,label,score:(value,score),extractedValues)
-                        extractedValues = map(lambda x:(x[1],x[3]),extractedValues)
+                        extractedValues = list(map(lambda x:(x[1],x[3]),extractedValues))
 
                         field.setValue(extractedValues)
                         if self.bDebug: print ('found:',field, field.getValue())
@@ -375,17 +377,16 @@ class IETest(Component.Component):
   </PAGE>            
             
         """
-        self.evalData = libxml2.newDoc('1.0')
-        root = libxml2.newNode('DOCUMENT')
-        self.evalData.setRootElement(root)
+        root = etree.Element('DOCUMENT')
+        self.evalData = etree.ElementTree(root)
         for page in lPages:
             
-            domp=libxml2.newNode('PAGE')
-            domp.setProp('number',page.getAttribute('number'))
-            domp.setProp('pagenum',os.path.basename(page.getAttribute('imageFilename'))[:-4])
-            root.addChild(domp)
-            domp.setProp('template',page.getNode().prop('template'))
-            domp.setProp('reftemplate',page.getNode().prop('reftemplate'))
+            domp=etree.Elemen('PAGE')
+            domp.set('number',page.getAttribute('number'))
+            domp.set('pagenum',os.path.basename(page.getAttribute('imageFilename'))[:-4])
+            root.append(domp)
+            domp.set('template',page.getNode().prop('template'))
+            domp.set('reftemplate',page.getNode().prop('reftemplate'))
         
         return self.evalData
         
@@ -403,68 +404,56 @@ class IETest(Component.Component):
 #         srefData = srefData.decode('utf-8')
         #.strip("\n")
         
-        RefData = libxml2.parseMemory(srefData.strip("\n").encode('utf-8'), len(srefData.strip("\n").encode('utf-8')))
-        RunData = libxml2.parseMemory(srunData.strip("\n").encode('utf-8'), len(srunData.strip("\n").encode('utf-8')))
-         
+        RefData = etree.XML(srefData.strip("\n").encode('utf-8'))
+        RunData = etree.XML(srunData.strip("\n").encode('utf-8'))            
          
         lRef = []
-        ctxt = RefData.xpathNewContext()
-        lPages = ctxt.xpathEval('//%s' % ('PAGE[@number]'))
+        lPages = RefData.xpath('//%s' % ('PAGE[@number]'))
 
         lRefKeys={}
         for page in lPages:
-            pnum=page.prop('number')
-            key= page.prop('pagenum')
+            pnum=page.get('number')
+            key= page.get('pagenum')
             lRefKeys[key]=1
             xpath = "./%s" % ("RECORD")
-            ctxt.setContextNode(page)
-            lrecord = ctxt.xpathEval(xpath)
+            lrecord = page.xpath(xpath)
             if len(lrecord)==0:
                 lRef.append([])
             else:
                 for record in lrecord:
                     xpath = "./%s" % ("./@firstname")
-                    ctxt.setContextNode(record)
-                    lf=  ctxt.xpathEval(xpath)
+                    lf=  record.xpath(xpath)
                     xpath = "./%s" % ("./@lastname")
-                    ctxt.setContextNode(record)
-                    ln= ctxt.xpathEval(xpath)
+                    ln= record.xpath(xpath)
                     if len(lf) > 0:
-                        lRef.append((pnum,key,lf[0].getContent().decode('utf-8'),ln[0].getContent().decode('utf-8')))
+                        lRef.append((pnum,key,lf[0],ln[0]))
 
-        ctxt.xpathFreeContext()           
         
         lPageMapping={}
         lRunKeys={}
         lRun = []
         if RunData:
-            ctxt = RunData.xpathNewContext()
-            lpages = ctxt.xpathEval('//%s' % ('PAGE[@number]'))
+            lpages = RunData.xpath('//%s' % ('PAGE[@number]'))
             for page in lpages:
-                pnum=page.prop('number')
-                key= page.prop('pagenum')
+                pnum=page.get('number')
+                key= page.get('pagenum')
                 if key in lRefKeys:
                     lPageMapping[key]=pnum
                     #record level!
                     xpath = "./%s" % ("RECORD[@firstname and @lastname]")
-                    ctxt.setContextNode(page)
-                    lrecord = ctxt.xpathEval(xpath)            
+                    lrecord = page.xpath(xpath)            
                     if len(lrecord)==0:
                         pass
                     else:
                         for record in lrecord:
                             xpath = "./%s" % ("./@firstname")
-                            ctxt.setContextNode(record)
-                            lf=  ctxt.xpathEval(xpath)
+                            lf=  record.xpath(xpath)
                             xpath = "./%s" % ("./@lastname")
-                            ctxt.setContextNode(record)
-                            ln= ctxt.xpathEval(xpath)
+                            ln= record.xpath(xpath)
                             if len(lf) > 0: # and lf[0].getContent() != ln[0].getContent():
     #                             lRun.append((pnum,lf[0].getContent().decode('utf-8').encode('utf-8'),ln[0].getContent().decode('utf-8').encode('utf-8')))
-                                lRun.append((pnum,key,lf[0].getContent().decode('utf-8'),ln[0].getContent().decode('utf-8')))
+                                lRun.append((pnum,key,lf[0],ln[0]))
                                 
-        ctxt.xpathFreeContext()
-
         
         runLen = len(lRun)
         refLen = len(lRef)
@@ -519,56 +508,50 @@ class IETest(Component.Component):
 #         srefData = srefData.decode('utf-8')
         #.strip("\n")
         
-        RefData = libxml2.parseMemory(srefData.strip("\n").encode('utf-8'), len(srefData.strip("\n").encode('utf-8')))
-        RunData = libxml2.parseMemory(srunData.strip("\n").encode('utf-8'), len(srunData.strip("\n").encode('utf-8')))
+        RefData = etree.XML(srefData.strip("\n").encode('utf-8'))
+        RunData = etree.XML(srunData.strip("\n").encode('utf-8'))
+
         
         lPageMapping={}
         lRef = []
-        ctxt = RefData.xpathNewContext()
-#         lPages = ctxt.xpathEval('//%s' % ('PAGE[@pagenum <152]'))
-        lPages = ctxt.xpathEval('//%s' % ('PAGE[@number]'))
+        lPages = RefData.xpath('//%s' % ('PAGE[@number]'))
         lRefKeys={}
         for page in lPages:
-            pnum=page.prop('number')
-            key=page.prop('pagenum')
+            pnum=page.get('number')
+            key=page.get('pagenum')
             lRefKeys[key]=1
             xpath = "./%s" % ("RECORD")
-            ctxt.setContextNode(page)
-            lrecord = ctxt.xpathEval(xpath)
+            lrecord = page.xpath(xpath)
             if len(lrecord)==0:
                 lRef.append([])
             else:
                 for record in lrecord:
                     xpath = "./%s" % ("./@%s"%fieldName)
-                    ctxt.setContextNode(record)
-                    ln= ctxt.xpathEval(xpath)
-                    if len(ln[0].content)>0:
-                        lRef.append((pnum,key,ln[0].getContent().decode('utf-8')))
+                    ln= record.xpath(xpath)
+                    if len(ln[0])>0:
+                        lRef.append((pnum,key,ln[0]))
                         
         
         lRun = []
         if RunData:
-            ctxt = RunData.xpathNewContext()
-            lpages = ctxt.xpathEval('//%s' % ('PAGE[@number]'))
+            lpages = RunData.xpath('//%s' % ('PAGE[@number]'))
             for page in lpages:
-                pnum=page.prop('number')
-                key=page.prop('pagenum')
+                pnum=page.get('number')
+                key=page.get('pagenum')
                 if key in lRefKeys:
                     #record level!
                     lPageMapping[key]=pnum
                     xpath = "./%s" % ("RECORD[@%s]"%fieldName)
-                    ctxt.setContextNode(page)
-                    lrecord = ctxt.xpathEval(xpath)            
+                    lrecord = page.xpath(xpath)            
                     if len(lrecord)==0:
                         pass
     #                     lRun.append([])
                     else:
                         for record in lrecord:
                             xpath = "./%s" % ("./@%s"%fieldName)
-                            ctxt.setContextNode(record)
-                            lf= ctxt.xpathEval(xpath)
-                            if len(lf[0].content)>0:
-                                lRun.append((pnum,key,lf[0].getContent().decode('utf-8')))
+                            lf= record.xpath(xpath)
+                            if len(lf[0])>0:
+                                lRun.append((pnum,key,lf[0]))
 
         ctxt.xpathFreeContext()
 
@@ -681,7 +664,7 @@ class IETest(Component.Component):
         record.setProp('lastname','Riedinger')
         record.setProp('firstname','Theresia')
         
-        print (self.evalData.serialize('utf-8',1))
+        print(etree.tostring(self.evalData,encoding='unicode',pretty_print=True))
         return self.evalData        
         
     def testRun(self, filename, outFile=None):
@@ -697,7 +680,7 @@ class IETest(Component.Component):
 #         self.createFakeData()
         if outFile: self.writeDom(doc)
         # return unicode
-        return self.evalData.serialize('utf-8',1).decode('utf-8')
+        return  etree.tostring(self.evalData,encoding='unicode', pretty_print=True)
     
     def testCompare(self, srefData, srunData, bVisual=False):
         """
@@ -708,7 +691,7 @@ class IETest(Component.Component):
         dicTestByTask = dict()
         dicTestByTask['Names']= self.testFirstNameLastNameRecord(srefData, srunData,bVisual)
 #         dicTestByTask['occupation']= self.testRecordField('occupation',srefData, srunData,bVisual)
-        dicTestByTask['location']= self.testRecordField('location',srefData, srunData,bVisual)
+#         dicTestByTask['location']= self.testRecordField('location',srefData, srunData,bVisual)
 
 #         dicTestByTask['Year']= self.testYear(srefData, srunData,bVisual)
     
@@ -732,7 +715,7 @@ class IETest(Component.Component):
         sViewBaseUrl = "http://" #+ sHttpHost 
         
         
-        fHtml = codecs.open(self.getHtmRunFileName(filename), "w",'utf-8')
+        fHtml = open(self.getHtmRunFileName(filename), "w",encoding='utf-8')
         
         sCss = """
 <style type="text/css">
@@ -772,7 +755,7 @@ color: orange;
     </tr>
 """        % taskName
             fHtml.write(sRpt)
-            ipnum_prev = None
+            ipnum_prev = -1
 
             for (key,ipnum, sRef, sRun, bErr, bMiss) in ltisRefsRunbErrbMiss:
                 if bErr and bMiss:
@@ -785,20 +768,8 @@ color: orange;
                     else:
                         sRptType = "OK"
                     
-                if ipnum:    
-                    sPfFile = sCollec + "/" + sFile + "/" + "pf%06d"%ipnum
-                else:
-                    sPfFile = sCollec + "/" + sFile #may not work!!
-                    ipnum = ""
+                sPfFile = sCollec + "/" + sFile + "/" + "pf%06d"%ipnum
                     
-#                 lViews = [
-#                             ('pdf', "/v/" + sCollec + "/" + sFile + "/" + str(ipnum))  #this page deals with generating the real filename
-#                           , ('dat',  "/dat" + "/" + sPfFile)
-#                           , ('ocr',  "/ocr" + "/" + sPfFile)
-#                           , ('xml',  "/xml" + "/" + sPfFile)
-#                           ]
-#                 lsViews = [ '<a target="dla_%s" href="%s">%s</a>'%(name, url, name) for (name, url) in lViews ]
-                
                 srefenc= " ".join(x for x in sRef[2:])
                 srun = " ".join(x for x in sRun[2:])
                 if ipnum > ipnum_prev: #a new page
@@ -852,7 +823,9 @@ if __name__ == "__main__":
     doc = iec.loadDom()
     iec.run(doc)
     if iec.evalData is not None:
-        iec.writeEval(iec.evalData.serialize('utf-8',True), os.path.join(iec.colname,'run',iec.docid+'.run'), True)
+#         iec.writeEval( etree.tostring(iec.evalData,xml_declaration=True,encoding='utf-8',pretty_print=True), os.path.join(iec.colname,'run',iec.docid+'.run'), True)
+        iec.evalData.write( os.path.join(iec.colname,'run',iec.docid+'.run'),
+                            xml_declaration=True,encoding='utf-8',pretty_print=True)
         
 #     if iec.getOutputFileName() != '-':
 #         iec.writeDom(doc, bIndent=True) 

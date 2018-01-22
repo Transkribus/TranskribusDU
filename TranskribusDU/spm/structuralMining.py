@@ -37,7 +37,7 @@ from operator import itemgetter
 
 import numpy as np
 from  .feature import featureObject, multiValueFeatureObject   
-
+from .spm2 import PrefixSpan
 
 class sequenceMiner(Component.Component):
     
@@ -350,37 +350,51 @@ class sequenceMiner(Component.Component):
             
             
     
-    
-    def beginMiningSequences(self,sequences,lFeatures,lMIS):
-        """
-            for all possible sequences of length 1. max
-                minf them
-                if kleene: generate new sets of sequences
-        """
-        from .msps import msps
-        
-        myMiner=msps()
-        myMiner.bDEBUG = self.bDebug
-        myMiner.setFeatures(lFeatures)
-        myMiner.setMIS(lMIS)
-        myMiner.setSDC(self.getSDC())
-        lPatterns = myMiner.begin_msps(sequences)
-
-        if lPatterns is None:
-            return None
-        # frequency correction:     
-        ## sort them for rule detection
-        lPatterns = list(filter(lambda ps:len(ps[0]) >= self.getMinSequenceLength() and len(ps[0]) <= self.getMaxSequenceLength(),lPatterns))
-
-        for p,s in lPatterns:
-            for i in p:
-                i.sort(key=lambda x:x.getValue())
-                
-        # s= None !!!?? how
-        lPatterns =  list(filter(lambda ps:ps[1] is not None,lPatterns))
-        lPatterns= list(map(lambda ps: (ps[0], round(1.0*len(p)*s/self.getMaxSequenceLength())),lPatterns))    
-
+    def miningSequencePrefixScan(self,lSeq):
+        model = PrefixSpan.train(lSeq, minSupport = 0.1, maxPatternLength = 10)
+        result = model.freqSequences().collect()
+        result.sort(key=lambda x:x.freq)
+        lPatterns=[]
+        for fs in result:
+            if fs.freq > 1:
+#                         print('{}, {}'.format(fs.sequence,fs.freq))
+                for i in fs.sequence:
+                    i.sort(key=lambda x:x.getValue())
+                lPatterns.append((fs.sequence,fs.freq))
+        lPatterns = list(filter(lambda p_s:len(p_s[0]) >= self.getMinSequenceLength() and len(p_s[0]) <= self.getMaxSequenceLength(),lPatterns))        
+        if lPatterns == []: return None
         return lPatterns
+        
+#     def beginMiningSequences(self,sequences,lFeatures,lMIS):
+#         """
+#             for all possible sequences of length 1. max
+#                 minf them
+#                 if kleene: generate new sets of sequences
+#         """
+#         from .msps import msps
+#         
+#         myMiner=msps()
+#         myMiner.bDEBUG = self.bDebug
+#         myMiner.setFeatures(lFeatures)
+#         myMiner.setMIS(lMIS)
+#         myMiner.setSDC(self.getSDC())
+#         lPatterns = myMiner.begin_msps(sequences)
+# 
+#         if lPatterns is None:
+#             return None
+#         # frequency correction:     
+#         ## sort them for rule detection
+#         lPatterns = list(filter(lambda ps:len(ps[0]) >= self.getMinSequenceLength() and len(ps[0]) <= self.getMaxSequenceLength(),lPatterns))
+# 
+#         for p,s in lPatterns:
+#             for i in p:
+#                 i.sort(key=lambda x:x.getValue())
+#                 
+#         # s= None !!!?? how
+#         lPatterns =  list(filter(lambda ps:ps[1] is not None,lPatterns))
+#         lPatterns= list(map(lambda ps: (ps[0], round(1.0*len(p)*s/self.getMaxSequenceLength())),lPatterns))    
+# 
+#         return lPatterns
         
 
     def featureGeneration(self, lList, TH=2,featureType =featureObject) :

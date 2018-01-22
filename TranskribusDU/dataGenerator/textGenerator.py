@@ -33,7 +33,11 @@ from __future__ import absolute_import
 from __future__ import  print_function
 from __future__ import unicode_literals
 
-import cPickle
+#PY2 PY 3
+try:import cPickle as pickle
+except ImportError: import pickle
+
+from builtins import str
 import gzip
 import numpy as np
 import locale
@@ -78,13 +82,13 @@ class textGenerator(Generator):
         for mylist in lLists:
             self._lresources.extend(mylist)
         if self.totalW is None:
-            self.totalW = 1.0 * sum(map(lambda (_,y):y, self._lresources))
+            self.totalW = 1.0 * sum(list(map(lambda xy:xy[1], self._lresources)))
         if self.totalW != len(self._lresources):
             self.isWeighted = True
         if self._prob is None:
-            self._prob = map(lambda (_,y):y / self.totalW,self._lresources)           
+            self._prob = list(map(lambda  xy:xy[1] / self.totalW,self._lresources))           
         if self._flatlr is None:
-            self._flatlr = map(lambda (x,_):x,self._lresources)
+            self._flatlr = list(map(lambda  xy:xy[0],self._lresources))
         # generate many (100000) at one ! otherwise too slow
         self._lweightedIndex  = list(np.random.choice(self._flatlr,100000,p=self._prob))
 
@@ -98,16 +102,16 @@ class textGenerator(Generator):
         """
         self._lresources =[]
         for filename in lfilenames:
-            res = cPickle.load(gzip.open(filename,'r'))
+            res = pickle.load(gzip.open(filename,'r'))
             self._lresources.extend(res)
         if self.totalW is None:
-            self.totalW = 1.0 * sum(map(lambda (_,y):y, self._lresources))
+            self.totalW = 1.0 * sum(list(map(lambda  xy:xy[1], self._lresources)))
         if self.totalW != len(self._lresources):
             self.isWeighted = True
         if self._prob is None:
-            self._prob = map(lambda (_,y):y / self.totalW,self._lresources)           
+            self._prob = list(map(lambda  xy:xy[1] / self.totalW,self._lresources))           
         if self._flatlr is None:
-            self._flatlr = map(lambda (x,_):x,self._lresources)
+            self._flatlr = list(map(lambda  xy:xy[0],self._lresources))
         # generate many (100000) at one ! otherwise too slow
         self._lweightedIndex  = list(np.random.choice(self._flatlr,100000,p=self._prob))
 
@@ -132,8 +136,9 @@ class textGenerator(Generator):
             this generate is for terminal elements (otherwise use Generator.generate() )
         """
         # 11/14/2017: 
+        
         self._generation = self.getRandomElt(self._value)
-        while len(unicode(self._generation).strip()) == 0:
+        while len(self._generation.strip()) == 0:
             self._generation = self.getRandomElt(self._value)
         
         # create the noiseGenerrator?
@@ -216,7 +221,7 @@ class textGenerator(Generator):
             E -> IM,E
               
         """
-        maxY = max(map(lambda (x,y):len(y),lList))
+        maxY = max(list(map(lambda xy:len(xy[1]),lList)))
         lTranspose =  [[0 for x in range(len(lList))] for y in range(maxY)] 
         for pos in range(len(lList)):
             _, ltags= lList[pos]
@@ -280,7 +285,7 @@ class textGenerator(Generator):
         # duplicate labels for multitoken
         for token,label in gtdata:
             # should be replace by self.tokenizer(token)
-            if type(token) == unicode:
+            if isinstance(token, str) : #type(token) == unicode:
                 ltoken= token.split(" ")
             elif type(token) in [float,int ]:
                 ltoken= [token]
@@ -292,6 +297,7 @@ class textGenerator(Generator):
                     lnewGT.append((tok,label[:]))
     
         # compute BIES
+        assert lnewGT != []
         lnewGT = self.hierarchicalBIES(lnewGT)
         
         # noise  here?
@@ -302,7 +308,7 @@ class textGenerator(Generator):
             uLabels  = '\t'.join(labels)
             uString = "%s\t%s" % (token,uLabels)
             print(uString)
-        print ("EOS".encode('utf-8'))
+        print ("EOS")
             
     def exportAnnotatedData(self,lLabels):
         # export (generated value, label) for terminal 
@@ -310,13 +316,13 @@ class textGenerator(Generator):
 
         lLabels.append(self.getName())
         
-        if type(self._generation) == unicode:
+        if isinstance(self._generation, str) : #type(self._generation) == unicode:
             self._GT.append((self._generation,lLabels[:]))
         elif type(self._generation) == int:
             self._GT.append((self._generation,lLabels[:]))
         else:
             for _,obj  in enumerate(self._generation):
-                if type(obj) == unicode:
+                if isinstance(obj,str) : #type(obj) == unicode:
                     self._GT.append((obj._generation,lLabels[:]))
                 elif type(obj) == int:
                     self._GT.append((obj._generation,lLabels[:]))      
@@ -329,13 +335,13 @@ class textGenerator(Generator):
         self._serialization  = ""
         
         #terminal
-        if type(self._generation) == unicode:
+        if isinstance(self._generation, str) : #type(self._generation) == unicode:
             self._serialization +=  self._generation
         elif type(self._generation) == int:
             self._serialization += "%d" % (self._generation)            
         else:
             for i,obj  in enumerate(self._generation):
-                if type(obj) == unicode:
+                if isinstance(obj,str) :#type(obj) == unicode:
                     self._serialization +=  obj
                 elif type(obj) == int:
                     self._serialization +=  "%d" % (self._generation)                         

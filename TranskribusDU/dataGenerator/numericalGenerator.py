@@ -77,9 +77,9 @@ class numericalGenerator(Generator):
     def generate(self):
         self._generation = random.gauss(self._mean,self._std)
         return self
-    def GTtokenize(self):return unicode(self._generation)
+    def GTtokenize(self):return self._generation
     def serialize(self):
-        return unicode(self._generation)
+        return str(self._generation)
 
 class positiveNumericalGenerator(numericalGenerator):
     def generate(self):
@@ -98,7 +98,14 @@ class positiveIntegerGenerator(numericalGenerator):
 class integerGenerator(numericalGenerator):
     def generate(self):
         self._generation = int(round(random.gauss(self._mean,self._std)))
-    
+  
+  
+def test_integerGenerator():
+    for  i in range(10):
+        numGen= integerGenerator(1000,1000)
+        numGen.generate()
+        print(numGen.exportAnnotatedData([]))
+          
 if __name__ == "__main__":
     for  i in range(10):
         numGen= integerGenerator(1000,1000)

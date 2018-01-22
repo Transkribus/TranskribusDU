@@ -12,7 +12,7 @@
 import sys, os.path
 sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'src')
 
-import  libxml2
+# import  libxml2
 
 import common.Component as Component
 import config.ds_xml_def as ds_xml

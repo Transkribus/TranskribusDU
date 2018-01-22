@@ -200,7 +200,7 @@ class RowDetection(Component.Component):
             traceln("page: %d" %  page.getNumber())
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
             for table in lTables:
-                rowscuts = map(lambda r:r.getY(),table.getRows())
+                rowscuts = list(map(lambda r:r.getY(),table.getRows()))
                 self.tagCells(table)
                 self.processRows(table,rowscuts)        
     def run(self,doc):
@@ -348,7 +348,8 @@ class RowDetection(Component.Component):
                     row.fromDom(row._domNode)
                     row.setIndex(row.getAttribute('id'))
                     lRun.append((pnum,row))            
-
+        print (lRun)
+        
         lRef = []
         lPages = RefData.xpath('//%s' % ('PAGE'))
         for page in lPages:
@@ -361,8 +362,6 @@ class RowDetection(Component.Component):
                 lRef.append((pnum,row))  
 
 
-#         print map(lambda x:(x.getY()),lRun)
-#         print map(lambda (x,a):(x.getY()),lRef)
         refLen = len(lRef)
 #         bVisual = True
         ltisRefsRunbErrbMiss= list()

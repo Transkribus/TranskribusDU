@@ -29,12 +29,15 @@
 from __future__ import absolute_import
 from __future__ import  print_function
 from __future__ import unicode_literals
+import sys,os
 
-import cPickle
-# import regex
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
+
+try:import cPickle as pickle
+except ImportError: import pickle
 import gzip
-#from keras.models import load_model
-from contentProcessing.taggerTrainKeras2 import DeepTagger
+
+from contentProcessing.taggerTrainKeras import DeepTagger
 
 
 class recordClass(object):
@@ -63,7 +66,7 @@ class recordClass(object):
         """
             same fields and same values
         """
-        return self.getName() == o.getName() and map(lambda x:x.getName(),self.getFields()) == map(lambda x:x.getName(),o.getFields()) 
+        return self.getName() == o.getName() and list(map(lambda x:x.getName(),self.getFields())) == list(map(lambda x:x.getName(),o.getFields())) 
         
     def getName(self): return self._name
     def setName(self,s): self._name =s
@@ -177,10 +180,10 @@ class recordClass(object):
         for cand in self.getCandidates():
             # currently cell
             if len(cand.getContent()) > 5:
-                print (cand.getContent().encode('utf-8'))
+                print (cand.getContent())
                 for field in cand.getFields():
                     if field.getBestValue() is not None:
-                        print ("f:",field.getName().encode('utf-8'), field.getBestValue().encode('utf-8'), field.isMandatory())
+                        print ("f:",field.getName(), field.getBestValue(), field.isMandatory())
             
         
     def generateOutput(self):
@@ -254,7 +257,7 @@ class fieldClass(object):
             
             
         """
-        return filter(lambda (offset,value,label,score):label in self._lMapping,lres)
+        return list(filter(lambda offsetvaluelabelscore:offsetvaluelabelscore[2] in self._lMapping,lres))
     
     def getBestValue(self):
         # old (u'List', (2, 0, 0), u'Ritt', 987)
@@ -262,7 +265,6 @@ class fieldClass(object):
         if self.getValue() is not None:
             # score = list! take max
             self.getValue().sort(key = lambda x:max(x[1]),reverse=True)
-            ## onlt content, not score
             return self.getValue()[0][0]
             
     
@@ -278,8 +280,9 @@ class fieldClass(object):
         for t in self.getTaggers():
             res= t.runMe(o)
             ## assume one sample!  (.proedict assume  a  list of content)
-            if res:
-                lres.extend(res[0])
+            if res != []:
+                try:lres.extend(res[0])
+                except IndexError: print(res)
         return lres
     
     def cloneMe(self):
@@ -377,6 +380,8 @@ class KerasTagger(taggerClass):
 #         res = self.myTagger.predict([documentObject.getContent()])
 #         return res
     
+        if documentObject.getContent() is None:
+            return []
         if self.myTagger.bMultiType:
             res = self.myTagger.predict_multiptype([documentObject.getContent()])
         else:
@@ -399,8 +404,8 @@ class CRFTagger(taggerClass):
         """
         
         model, trans= lfilenames
-        self.model = cPickle.load(gzip.open(model, 'rb'))
-        self.trans = cPickle.load(gzip.open(trans, 'rb'))
+        self.model = pickle.load(gzip.open(model, 'rb'))
+        self.trans = pickle.load(gzip.open(trans, 'rb'))
        
     def runMe(self,documentObject): 
         txt = documentObject.getContent()
@@ -423,7 +428,7 @@ class RETaggerClass(taggerClass):
         
         self._lresources=[]
         for filename in lfilenames:
-            lre,ln=cPickle.load(open(filename,'r'))
+            lre,ln=pickle.load(open(filename,'r'))
             self._lresources.append((filename,lre,ln))
         
         return self._lresources

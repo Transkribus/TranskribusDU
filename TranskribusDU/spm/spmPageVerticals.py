@@ -33,7 +33,7 @@ from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
 from ObjectModel.XMLDSTOKENClass import XMLDSTOKENClass
 from ObjectModel.XMLDSPageClass import XMLDSPageClass
 from ObjectModel.treeTemplateClass import treeTemplateClass
-from spm.spm2 import PrefixSpan
+# from spm.spm2 import PrefixSpan
 
 class pageVerticalMiner(Component.Component):
     """
@@ -165,7 +165,8 @@ class pageVerticalMiner(Component.Component):
             # mis very small since: space is small; some specific pages can be 
             ## replace by PrefiwScan
             lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.002)
-            lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
+            lPatterns = seqGen.miningSequencePrefixScan(lSeq)
+#             lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
             if lPatterns is None:
                 return [lPages]
             
@@ -1124,24 +1125,26 @@ class pageVerticalMiner(Component.Component):
     #         lFSortedFeatures = self.factorizeHighlyFrequentItems()
             
             if True:
-                model = PrefixSpan.train(lSeq, minSupport = 0.1, maxPatternLength = 10)
-                result = model.freqSequences().collect()
-                result.sort(key=lambda x:x.freq)
-                lPatterns=[]
-                for fs in result:
-                    if fs.freq > 1:
-#                         print('{}, {}'.format(fs.sequence,fs.freq))
-                        for i in fs.sequence:
-                            i.sort(key=lambda x:x.getValue())
-                        lPatterns.append((fs.sequence,fs.freq))
-                lPatterns = list(filter(lambda p_s:len(p_s[0]) >= seqGen.getMinSequenceLength() and len(p_s[0]) <= seqGen.getMaxSequenceLength(),lPatterns))
+                lPatterns = seqGen.miningSequencePrefixScan(lSeq)
+#                 model = PrefixSpan.train(lSeq, minSupport = 0.1, maxPatternLength = 10)
+#                 result = model.freqSequences().collect()
+#                 result.sort(key=lambda x:x.freq)
+#                 lPatterns=[]
+#                 for fs in result:
+#                     if fs.freq > 1:
+# #                         print('{}, {}'.format(fs.sequence,fs.freq))
+#                         for i in fs.sequence:
+#                             i.sort(key=lambda x:x.getValue())
+#                         lPatterns.append((fs.sequence,fs.freq))
+#                 lPatterns = list(filter(lambda p_s:len(p_s[0]) >= seqGen.getMinSequenceLength() and len(p_s[0]) <= seqGen.getMaxSequenceLength(),lPatterns))
             
-            else:
-                ## sdc: support difference constraint 
-                seqGen.setSDC(0.8) # before 0.6
-                lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
-                if lPatterns is None:
-                    return None, None, -1
+#             else:
+#                 ## sdc: support difference constraint 
+#                 seqGen.setSDC(0.8) # before 0.6
+#                 lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
+            
+            if lPatterns is None:
+                return None, None, -1
                 
 #             lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
             print( "chronoTraining", chronoOff())

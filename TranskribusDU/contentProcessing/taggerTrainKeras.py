@@ -30,15 +30,15 @@
     under grant agreement No 674943.
 """
 from __future__ import unicode_literals
-  
+from __future__ import print_function
+from __future__ import absolute_import
+
 import sys,os
-import codecs
+from io import open
 from optparse import OptionParser
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
-# import common.Component as Component
-from common.trace import traceln
 
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.feature_extraction.text import CountVectorizer
@@ -51,7 +51,8 @@ from keras.layers.core import Dense, Masking
 from keras.regularizers import L1L2
 import numpy as np
 
-import cPickle
+try: import cPickle 
+except ImportError:import _pickle as cPickle
 import gzip
 
 class Transformer(BaseEstimator, TransformerMixin):
@@ -179,7 +180,7 @@ class DeepTagger():
 
         lTmp=[]               
         for fname in lFName:
-            f=codecs.open(fname,encoding='utf-8')
+            f=open(fname,encoding='utf-8')
             x=[]
             for l in f:
                 l = l.strip()
@@ -249,7 +250,7 @@ class DeepTagger():
 
         lTmp=[]               
         for fname in lFName:
-            f=codecs.open(fname,encoding='utf-8')
+            f=open(fname,encoding='utf-8')
             x=[]
             for l in f:
                 l = l.strip()
@@ -311,7 +312,7 @@ class DeepTagger():
         
         lTmp=[]
         for fname in lFName:
-            f=codecs.open(fname,encoding='utf-8')
+            f=open(fname,encoding='utf-8')
             x=[]
             for l in f:
                 l = l.strip()
@@ -352,7 +353,7 @@ class DeepTagger():
         
         lTmp=[]
         for fname in lFName:
-            f=codecs.open(fname,encoding='utf-8')
+            f=open(fname,encoding='utf-8')
             x=[]
             for l in f:
                 l = l.strip()
@@ -438,7 +439,7 @@ class DeepTagger():
         #keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-08, decay=0.0)
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop',metrics=['categorical_accuracy']  )
         print (model.summary())
-        _ = model.fit(lX, lY, epochs = self.nbEpochs,batch_size = self.batch_size, verbose = 1,validation_split = 0.1, shuffle=True)
+        _ = model.fit(lX, lY, epochs = self.nbEpochs,batch_size = self.batch_size, verbose = 1,validation_split = 0.33, shuffle=True)
         
         del lX,lY
         
@@ -838,7 +839,7 @@ class DeepTagger():
 if __name__ == '__main__':
     
     cmp = DeepTagger()
-    cmp.parser = OptionParser(usage="", version="1.0")
+    cmp.parser = OptionParser(usage="", version="0.1")
     cmp.parser.description = "BiLSTM approach for NER"
     cmp.parser.add_option("--name", dest="name",  action="store", type="string", help="model name")
     cmp.parser.add_option("--dir", dest="dirname",  action="store", type="string", help="directory to store model")

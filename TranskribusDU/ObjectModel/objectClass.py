@@ -159,7 +159,7 @@ class  objectClass(sequenceAPI):
         return field
 
     def getFieldByName(self,name):
-        lName = filter(lambda x:x.getName() == name,self.getFields())
+        lName = list(filter(lambda x:x.getName() == name,self.getFields()))
         if lName == []:
             return None
         else:
