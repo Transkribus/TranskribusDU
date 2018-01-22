@@ -465,8 +465,13 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                 
                 MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
                 sDUFilename = sFilename[:-len(MultiPageXml.sEXT)]+du_postfix
-                doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
-                doc.freeDoc()
+                doc.write(sDUFilename,
+                          xml_declaration=True,
+                          encoding="utf-8",
+                          pretty_print=True
+                          #compression=0,  #0 to 9 
+                          )
+
                 lsOutputFilename.append(sDUFilename)
             else:
                 self.traceln("\t- no prediction to do for: %s"%sFilename)

@@ -138,13 +138,8 @@ class DU_BAR_Convert:
 
         iterator on the DOM, that returns nodes
         """    
-        #--- XPATH contexts
-        ctxt = domNdPage.doc.xpathNewContext()
-        for ns, nsurl in self.dNS.items(): ctxt.xpathRegisterNs(ns, nsurl)
-
         assert self.sxpNode, "CONFIG ERROR: need an xpath expression to enumerate elements corresponding to graph nodes"
-        ctxt.setContextNode(domNdPage)
-        lNdBlock = ctxt.xpathEval(self.sxpNode) #all relevant nodes of the page
+        lNdBlock = domNdPage.xpath(self.sxpNode, namespaces=self.dNS)
 
         #order blocks from top to bottom of page
         lOrderedNdBlock = list()
@@ -163,8 +158,6 @@ class DU_BAR_Convert:
         
         for _, ndBlock in lOrderedNdBlock: yield ndBlock
             
-        ctxt.xpathFreeContext()       
-        
         raise StopIteration()        
 
 

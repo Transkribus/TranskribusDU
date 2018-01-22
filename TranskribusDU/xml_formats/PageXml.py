@@ -113,7 +113,7 @@ class PageXml:
         return Metadata(ndCreator.text
                         , ndCreated.text
                         , ndLastChange.text
-                        , None if not ndComments else ndComments.text)
+                        , ndComments.text if ndComments is not None else None)
     getMetadata = classmethod(getMetadata)
 
     def setMetadata(cls, doc, domNd, Creator, Comments=None):
@@ -152,7 +152,8 @@ class PageXml:
             Example: lNd = PageXMl.getChildByName(elt, "Baseline")
         return a DOM node
         """
-        return elt.findall(".//{%s}:%s"%(cls.NS_PAGE_XML,sChildName))
+        #return elt.findall(".//{%s}:%s"%(cls.NS_PAGE_XML,sChildName))
+        return elt.xpath(".//pc:%s"%sChildName, namespaces={"pc":cls.NS_PAGE_XML})
 #         ctxt = elt.doc.xpathNewContext()
 #         ctxt.xpathRegisterNs("pc", cls.NS_PAGE_XML)  
 #         ctxt.setContextNode(elt)
@@ -262,19 +263,11 @@ class PageXml:
     def makeText(cls, nd, ctxt=None):
         """
         build the text of a sub-tree by considering that textual nodes are tokens to be concatenated, with a space as separator
-        return None if no textual node found
+        NO! (JLM 2018)return None if no textual node found
+        
+        return empty string if no text node found
         """
-        try:
-#             ctxt.setContextNode(nd)
-            lsText = [ntext.text for ntext in nd.itertext()]
-        except AttributeError:
-#             ctxt = nd.doc.xpathNewContext()
-#             ctxt.setContextNode(nd)
-#             lsText = [ntext.content.decode('utf-8') for ntext in ctxt.xpathEval('.//text()')]
-            lsText = [ntext.text for ntext in nd.itertext()]
-#             ctxt.xpathFreeContext()
-
-        return " ".join(lsText)
+        return " ".join(nd.itertext())
     makeText = classmethod(makeText)
 
 
@@ -331,24 +324,26 @@ class PageXml:
         return a 4-tuple:
             DOM nodes of Metadata, Creator, Created, Last_Change, Comments (or None if no COmments)
         """
-        assert bool(doc) != bool(domNd), "Internal error: pass either a DOM or a Metadata node"  #XOR
+        assert doc is None or domNd is None, "Internal error: pass either a DOM or a Metadata node"  #XOR
         if doc:
             lNd = cls.getChildByName(doc.getroot(), cls.sMETADATA_ELT)
             if len(lNd) != 1: raise ValueError("PageXml should have exactly one %s node"%cls.sMETADATA_ELT)
             domNd = lNd[0]
-            assert domNd.tag == cls.sMETADATA_ELT
+            assert etree.QName(domNd.tag).localname == cls.sMETADATA_ELT
 #         nd1 = domNd.firstElementChild()
-        nd1 = list(domNd)[0]
+        nd1 = domNd[0]
 
-        if nd1.tag != cls.sCREATOR_ELT: raise ValueError("PageXMl mal-formed Metadata: Creator element must be 1st element")
+        if etree.QName(nd1.tag).localname != cls.sCREATOR_ELT: raise ValueError("PageXMl mal-formed Metadata: Creator element must be 1st element")
         
         nd2 = nd1.getnext()
-        if nd2.tag != cls.sCREATED_ELT: raise ValueError("PageXMl mal-formed Metadata: Created element must be 2nd element")
+        if etree.QName(nd2.tag).localname != cls.sCREATED_ELT: raise ValueError("PageXMl mal-formed Metadata: Created element must be 2nd element")
+        
         nd3 = nd2.getnext()
-        if nd3.tag != cls.sLAST_CHANGE_ELT: raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
+        if etree.QName(nd3.tag).localname != cls.sLAST_CHANGE_ELT: raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
+        
         nd4 = nd3.getnext()
-        if nd4:
-            if nd4.tag != cls.sCOMMENTS_ELT: raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
+        if nd4 is not None:
+            if etree.QName(nd4.tag).localname != cls.sCOMMENTS_ELT: raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
         return domNd, nd1, nd2, nd3, nd4
     _getMetadataNodes = classmethod(_getMetadataNodes)
 
@@ -381,7 +376,7 @@ class PageXml:
         return the content of the @points attribute
         """
         sPairs = " ".join( ["%d,%d"%(int(x), int(y)) for x,y in lXY] )
-        if nd: nd.setProp("points", sPairs)
+        if nd: nd.set("points", sPairs)
         return sPairs
     setPoints = classmethod(setPoints)
 
@@ -468,12 +463,11 @@ class MultiPageXml(PageXml):
             _rootNd = _doc.getroot()
             assert etree.QName(_rootNd.tag).localname == "PcGts", "Data error: expected a root element named 'PcGts' in %d th dom" %pnum
 
-            ndChild = _rootNd.children
             sPagePrefix = "p%d_"%pnum
             for ndChild in _rootNd:
 #                 if ndChild.type == "element": 
                 cls.addPrefix(sPagePrefix, ndChild, "id")
-                rootNd.append(ndChild.copyNode(1))  #1=recursive copy (properties, namespaces and children when applicable)
+                rootNd.append(deepcopy(ndChild))  #1=recursive copy (properties, namespaces and children when applicable)
 #                 ndChild = ndChild.next 
             
 #             _doc.freeDoc()

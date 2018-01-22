@@ -56,23 +56,18 @@ class Graph_DSXml(Graph):
             page-num (int), page object, page dom node
         
         """
-        #--- XPATH contexts
-        ctxt = doc.xpathNewContext()
-        for ns, nsurl in self.dNS.items(): ctxt.xpathRegisterNs(ns, nsurl)
-
         assert self.sxpPage, "CONFIG ERROR: need an xpath expression to enumerate PAGE elements"
-        lNdPage = ctxt.xpathEval(self.sxpPage)   #all pages
+        lNdPage = doc.getroot().xpath(self.sxpPage,
+                                      namespaces=self.dNS)   #all pages
         
         pnum = 0
         pagecnt = len(lNdPage)
         for ndPage in lNdPage:
             pnum += 1
-            iPageWidth  = int( float(ndPage.prop("width")) )   #note: float in XML!!
-            iPageHeight = int( float(ndPage.prop("height")) )  #note: float in XML!!
-            page = Page(pnum, pagecnt, iPageWidth, iPageHeight, cls=None, domnode=ndPage, domid=ndPage.prop("id"))
+            iPageWidth  = int( float(ndPage.get("width")) )   #note: float in XML!!
+            iPageHeight = int( float(ndPage.get("height")) )  #note: float in XML!!
+            page = Page(pnum, pagecnt, iPageWidth, iPageHeight, cls=None, domnode=ndPage, domid=ndPage.fet("id"))
             yield (pnum, page, ndPage)
             
-        ctxt.xpathFreeContext()       
-        
         raise StopIteration()        
         

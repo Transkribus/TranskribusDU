@@ -25,7 +25,6 @@
     
 """
 
-TEST_getPageXmlBlock = False
 import types
 
 from common.trace import traceln
@@ -164,28 +163,10 @@ class NodeType_PageXml(NodeType):
             classIndex = 0   #is computed later on
 
             #and create a Block
-            assert ndBlock
             blk = Block(page, (x1, y1, x2-x1, y2-y1), sText, orientation, classIndex, self, ndBlock, domid=domid)
-            assert blk.node
             
-            if TEST_getPageXmlBlock:
-                #dump a modified XML to view the rectangles
-                import util.xml_utils
-                ndTextLine = util.xml_utils.addElement(doc, ndBlock, "PARAGRAPH")
-                ndTextLine.set("id", ndBlock.get("id")+"_tl")
-                ndTextLine.set("x", str(x1))
-                ndTextLine.set("y", str(y1))
-                ndTextLine.set("width", str(x2-x1))
-                ndTextLine.set("height", str(y2-y1))
-                ndTextLine.text = sText
-                ndCoord = util.xml_utils.addElement(doc, ndTextLine, "Coords")
-                PageXml.setPoints(ndCoord, PageXml.getPointsFromBB(x1,y1,x2,y2))
             yield blk
             
-        if TEST_getPageXmlBlock:
-            import util.xml_utils
-            util.xml_utils.toFile(doc, "TEST_getPageXmlBlock.mpxml", True)
-        
         raise StopIteration()        
         
     def _get_GraphNodeText(self, doc, domNdPage, ndBlock):

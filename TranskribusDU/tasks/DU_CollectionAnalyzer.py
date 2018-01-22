@@ -29,8 +29,10 @@
     under grant agreement No 674943.
     
 """
-import sys, os, collections, pickle, glob, libxml2
+import sys, os, collections, pickle, glob
+from lxml import etree
 import re
+import gc
 from optparse import OptionParser
 
 try: #to ease the use without proper Python installation
@@ -215,6 +217,9 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
     """
     Annalyse a collection of PageXmlDocuments
     """
+    
+    dNS = {"pg":"http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"}
+    
     def __init__(self, sDocPattern, sPagePattern, lTag, sCustom=None):
         """
         sRootDir is the root directory of the collection
@@ -249,16 +254,11 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
             self.seenDocPageCount(docdir, len(lPageFile))
             for sPageFile in lPageFile: 
                 print ".",
-                doc = libxml2.parseFile(os.path.join(sRootDir, docdir, sPageFile))
-                ctxt = doc.xpathNewContext()
-                ctxt.xpathRegisterNs("pg", "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15")
-                ctxt.setContextNode(doc.getRootElement())
-
-                self.parsePage(doc, ctxt, docdir)
-                
-                ctxt.xpathFreeContext()
-                doc.freeDoc()
-            print
+                doc = etree.parse(os.path.join(sRootDir, docdir, sPageFile))
+                self.parsePage(doc, doc.getroot(), docdir)
+                doc = None
+                gc.collect()
+            print()
             sys.stdout.flush()
             
     def runMultiPageXml(self, sRootDir):
@@ -271,21 +271,19 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
         
         for docFile in lDocFile:
             print "Document ", docFile
-            doc = libxml2.parseFile(os.path.join(sRootDir, docFile))
-            ctxt = doc.xpathNewContext()
-            ctxt.xpathRegisterNs("pg", "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15")
-            lNdPage = ctxt.xpathEval("//pg:Page")
+            doc = etree.parse(os.path.join(sRootDir, docFile))
+            lNdPage = doc.getroot().xpath("//pg:Page",
+                                          namespaces=self.dNS)
             self.seenDocPageCount(docFile, len(lNdPage))
             for ndPage in lNdPage:
                 print ".",
-                ctxt.setContextNode(ndPage)
-                self.parsePage(doc, ctxt, docFile)
+                self.parsePage(doc, ndPage, docFile)
             print
             sys.stdout.flush()
 
-    def parsePage(self, doc, ctxt, name):
+    def parsePage(self, doc, ctxtNd, name):
         for tag in self.lTag:
-            lNdTag = ctxt.xpathEval(".//pg:%s"%tag)
+            lNdTag = ctxtNd.xpath(".//pg:%s"%tag, namespaces=self.dNS)
             for nd in lNdTag:
                 self.seenDocTag(name, tag)
                 if self.sCustom != None:
@@ -295,16 +293,36 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
                         except:
                             lbl = ''
                     else:
-                        lbl = nd.prop(self.sCustom)
+                        lbl = nd.get(self.sCustom)
                 else:
-                    lbl = nd.prop("type")
+                    lbl = nd.get("type")
                     
                 if lbl:
                     for cre, sRepl in self.ltCRES: lbl = cre.sub(sRepl, lbl)    #pattern processing 
                     self.seenTagLabel(tag, lbl)
         
-        
+
+def test_simple():
+    sTESTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                              "tests")
+    
+    sDATA_DIR = os.path.join(sTESTS_DIR, "data")
+    
+    doer = PageXmlCollectionAnalyzer("*.mpxml", 
+                                     None,
+                                     ["Page", "TextRegion", "TextLine"],
+                                     #["type"],
+                                      sCustom="")
+    doer.start()
+    doer.runMultiPageXml(os.path.join(sDATA_DIR, "abp_TABLE_9142_mpxml", "col"))
+    doer.end()
+    sReport = doer.report()
+    print sReport
+    
 if __name__ == "__main__":
+
+    if False:
+        test_simple()
 
     #prepare for the parsing of the command line
     parser = OptionParser()
