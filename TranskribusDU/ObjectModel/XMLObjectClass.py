@@ -316,13 +316,22 @@ if __name__ == "__main__":
     comment = etree.Comment("my comment")
     root.append(comment)
     
-    for x in root.xpath('.//@*'): print (x)
-        
+    ## retrun None
+    print(root.get("ddd"))
+    # return text of this attribute
+    for x in root.xpath('.//@*'):print (x)
+    for x in root.xpath('.//*'): print ('txt:',x.text)
+    for x in root.xpath('.//*/text()'): print("text(): ",x) 
+    
     for p in root.findall('.//*[@first]'):
         p.set('first',"4")
 
     for x in root:
         if x.tag  != etree.Comment:
+            print (x.tag)
+            print (etree.QName(x.tag).localname)
+            print (etree.QName(x.tag).namespace)
+
             print(etree.QName(x.tag))
     ss=elem.text
     elem2.text=elem.tail

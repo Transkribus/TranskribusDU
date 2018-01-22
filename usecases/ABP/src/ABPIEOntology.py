@@ -27,15 +27,16 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import absolute_import
+from __future__ import  print_function
 from __future__ import unicode_literals
-from __future__ import print_function
 
 import sys, os.path
-sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'src')
+sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'Transkribus')
 from ObjectModel.recordClass import recordClass,fieldClass,KerasTagger, RETaggerClass #, dateRETaggerClass
 from ObjectModel.documentClass import documentObject
 
-import libxml2
+from lxml import etree
 
 class deathRecord(recordClass):
     sName = 'deathrecord' 
@@ -125,11 +126,10 @@ class deathRecord(recordClass):
   </PAGE>            
         """
         if outDom is None:
-            outDom = libxml2.newDoc('1.0')
-            root = libxml2.newNode('DOCUMENT')
-            outDom.setRootElement(root)
+            root = etree.Element('DOCUMENT')
+            outDom= etree.ElementTree(root)
         else:
-            root = outDom.getRootElement()
+            root = outDom.getroot()
         ## group cand by page
         ## store all with score; evaluation uses scoresTH
         lPages={}
@@ -140,30 +140,30 @@ class deathRecord(recordClass):
 
         for page in sorted(lPages):
             # page node
-            domp=libxml2.newNode('PAGE')
-            domp.setProp('number',str(page.getNumber()))
+            domp=etree.Element('PAGE')
+            domp.set('number',str(page.getNumber()))
             #in ref :Seebach_006_03_0030
             key=os.path.basename(page.getAttribute('imageFilename'))[:-4]
             key=key.replace('-','_')
             key=key[2:]
-            domp.setProp('pagenum',key)
+            domp.set('pagenum',key)
 
-            domp.setProp('years','NA')
-            root.addChild(domp)         
+            domp.set('years','NA')
+            root.append(domp)         
             sortedRows = lPages[page]
             sortedRows.sort(key=lambda x:int(x.getIndex()))   
             for cand in sortedRows:
                 #record
-                record = libxml2.newNode('RECORD')
+                record = etree.Element('RECORD')
                 # record fields
                 nbRecords = 0
                 for field in cand.getAllFields():
                     if field.getName() is not None and field.getBestValue() is not None:
-                        record.setProp(field.getName(),field.getBestValue().encode('utf-8'))
+                        record.set(field.getName(),field.getBestValue())
                         nbRecords+=1
                 if nbRecords > 0:
-                    domp.addChild(record)
-                domp.setProp('nbrecords',str(nbRecords))
+                    domp.append(record)
+                domp.set('nbrecords',str(nbRecords))
         return outDom    
 
 

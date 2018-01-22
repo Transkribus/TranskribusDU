@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 """
 
 
@@ -101,6 +101,7 @@ class Generator(object):
         else:
             ii =random.randint(0,len(mylist)-1)
             return mylist[ii]
+        
     def getWeightedRandomElt(self,myList):
         """
             weight the drawing with element weight (frequency)
@@ -114,11 +115,11 @@ class Generator(object):
         except IndexError:
             self._lweightedIndex  = list(np.random.choice(self._flatlr,100000,p=self._prob))
             ind= self._lweightedIndex.pop()
-        return unicode(ind)
+        return ind
     
         ret = np.random.choice(self._flatlr,1,p=self._prob)[0]  
         if type(ret) ==  np.unicode_:
-            ret = unicode(ret)
+            ret = ret
         return ret     
 
     def reportMe(self):
@@ -134,7 +135,7 @@ class Generator(object):
                 DSXML for DSdocument,...
             
         """
-        raise Exception, 'must be instantiated'
+        raise Exception('must be instantiated')
     
     def exportAnnotatedData(self,foo=[]):
         """
@@ -142,7 +143,7 @@ class Generator(object):
             build a full version of self._generation: integration of the subparts (subobjects)
 
         """
-        raise Exception, 'must be instantiated'
+        raise Exception( 'must be instantiated')
     
     
     def instantiate(self):
@@ -150,7 +151,7 @@ class Generator(object):
             select using proba stuff the final realisation in terms of structure: no generation
         """
         if self._structure is None:
-            self._instance = self
+            self._instance = (self,)
         else:
             self._instance  = []
             structproba = self.getRandomElt(self._structure)
@@ -163,6 +164,7 @@ class Generator(object):
                         generateProb = 1.0 * random.uniform(1,100)
                         if generateProb < proba:
                             self._instance.append(obj.instantiate())
+        assert  self._instance != [], (self,struct,proba)
         return self        
         
     
@@ -181,7 +183,7 @@ class Generator(object):
         """
             element is not generated
         """
-        raise Exception, 'must be instantiated'
+        raise Exception('must be instantiated')
     
     def noiseMerge(self):
         """
@@ -194,7 +196,7 @@ class Generator(object):
             How to select elements?: (merge of lines from several columns)
                 what is 'physically' near may not be near form a structural view point
         """
-        raise Exception, 'must be instantiated'
+        raise Exception('must be instantiated')
     
     def noiseSplit(self):
         """
@@ -202,11 +204,9 @@ class Generator(object):
             if split: select two consecutive elements and merge them: 
             annotation: add Split1, SplitN in label?
         """
-        raise Exception, 'must be instantiated'
+        raise Exception('must be instantiated')
     
 if __name__ == "__main__":
 
     g= Generator()
-    g.loadResources(['resources/profession.pkl'])
-    g.generate()
     print(g)

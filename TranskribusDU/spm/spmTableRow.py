@@ -3,11 +3,10 @@
 
      H. Déjean
 
+    component to mine table to find out  horizontal cuts (hence rows)
     copyright Xerox 2017
     READ project 
 
-    mine table text to identify  rows
-    
 """
 from __future__ import absolute_import
 from __future__ import  print_function
@@ -17,12 +16,9 @@ import sys, os.path
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
-#import libxml2
 from lxml import etree
 import numpy as np
 
-import warnings
-warnings.filterwarnings('ignore')
 
 import common.Component as Component
  
@@ -240,8 +236,9 @@ class tableRowMiner(Component.Component):
         lmaxSequence = seqGen.generateItemsets(lCurList)
         seqGen.bDebug = False
         
-        lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.01)
-        lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
+        lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.01)
+        lPatterns = seqGen.miningSequencePrefixScan(lSeq)
+#         lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
         if lPatterns is None:
             return lCurList, lTerminalTemplates
                     

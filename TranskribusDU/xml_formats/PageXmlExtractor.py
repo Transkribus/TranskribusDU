@@ -165,8 +165,7 @@ class PageXmlExtractor:
         
         print( "   Generating %s"%(sToFile))
         doc = PageXml.MultiPageXml.makeMultiPageXml([sFilename for (cnt, docID, n, sFilename) in ltOrigin] )
-        doc.saveFormatFileEnc(sToFile, "utf-8", bIndent)
-        doc.freeDoc()
+        doc.write(sToFile, xml_declaration='UTF-8',encoding="utf-8", pretty_print=bIndent)
         
         return cnt, ltOrigin
         

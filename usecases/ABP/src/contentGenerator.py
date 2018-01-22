@@ -29,18 +29,20 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import absolute_import
 from __future__ import unicode_literals
 from __future__ import print_function
 
 import sys, os.path
 import random
 import datetime
-from dateutil.relativedelta import *
+# from dateutil.relativedelta import *
 
 import platform
-import cPickle
+# import cPickle
 
-sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'src')
+sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'TranskribusDU')
+
 
 from dataGenerator.generator import Generator
 from dataGenerator.textGenerator import textGenerator 
@@ -100,7 +102,7 @@ class AgeGenerator(textGenerator):
                 
         self._structure = [
                 ( (self.measure,1,100), (self.unit,1,100),100),
-                ( (self.measure,1,100), (self.unit,1,100),(self.measure,1,100), (self.unit,1,100),100)
+                ( (self.measure,1,100), (self.unit,1,100),(self.measure,1,100), (self.unit,1,100),100),
                 ( (self.measure,1,100), (self.unit,1,100),(self.measure,1,100), (self.unit,1,100),(self.measure,1,100), (self.unit,1,100),100)
              ]
     def generate(self):
@@ -140,7 +142,7 @@ class deathreasonGenerator(textGenerator):
         textGenerator.__init__(self,lang=None)
         self._name  = 'deathreason'
         self._lpath=[os.path.abspath('../resources/deathreason.pkl')]
-        self._value = map(lambda x:x[0],self.loadResources(self._lpath))
+        self._value = list(map(lambda x:x[0],self.loadResources(self._lpath)))
         
         self._lenRes= len(self._lresources)
     
@@ -173,7 +175,7 @@ class locationGenerator(textGenerator):
         textGenerator.__init__(self,lang=None)
         self._name  = 'location'
         self._lpath=[os.path.abspath('../resources/location.pkl')]
-        self._value = map(lambda x:x[0],self.loadResources(self._lpath))
+        self._value = list(map(lambda x:x[0],self.loadResources(self._lpath)))
         self._lenRes= len(self._lresources)
     
 
@@ -191,7 +193,7 @@ class professionGenerator(textGenerator):
         textGenerator.__init__(self,lang=None)
         self._name  = 'profession'
         self._lpath=[os.path.abspath('../resources/profession.pkl')]
-        self._value = map(lambda x:x[0],self.loadResources(self._lpath))
+        self._value = list(map(lambda x:x[0],self.loadResources(self._lpath)))
         self._lenRes= len(self._lresources)
     
 
@@ -200,9 +202,7 @@ class firstNameGenerator(textGenerator):
         textGenerator.__init__(self,lang=None)
         self._name  = 'firstName'
         self._lpath=[os.path.abspath('../resources/firstname.pkl')]
-#         self._value = map(lambda x:x[0],self.loadResources(self._lpath))
-#         self._value = self.loadResources(self._lpath)
-        self._value = map(lambda x:x[0],self.loadResources(self._lpath))
+        self._value = list(map(lambda x:x[0],self.loadResources(self._lpath)))
         self._lenRes= len(self._lresources)
     
 
@@ -211,7 +211,7 @@ class lastNameGenerator(textGenerator):
         textGenerator.__init__(self,lang=None)
         self._name  = 'firstName'
         self._lpath=[os.path.abspath('../resources/lastname.pkl')]
-        self._value = map(lambda x:x[0],self.loadResources(self._lpath))
+        self._value = list(map(lambda x:x[0],self.loadResources(self._lpath)))
         
         self._lenRes= len(self._lresources)
     
@@ -234,10 +234,11 @@ class PersonName2(textGenerator):
         textGenerator.__init__(self,lang=None)
         
         self._structure = [
-                ( (firstNameGenerator(),1,100), (lastNameGenerator(),1,100),(religionGenerator(),1,20),(legitimGenerator(),1,10),100)
-                ,( (lastNameGenerator(),1,100), (firstNameGenerator(),1,100),(religionGenerator(),1,20),(legitimGenerator(),1,10),100)
-                # noisy one 
-                ,( (lastNameGenerator(),1,50), (firstNameGenerator(),1,50),(CUMSACRGenerator(lang),1,25),100)
+                 ( (firstNameGenerator(),1,100), (lastNameGenerator(),1,100), (religionGenerator(),1,20),(legitimGenerator(),1,10),100)
+                ,( (lastNameGenerator(),1,100),  (firstNameGenerator(),1,100),(religionGenerator(),1,20),(legitimGenerator(),1,10),100)
+                #noisy ones ?
+                ,(    (firstNameGenerator(),1,100), (CUMSACRGenerator(lang),1,25),100)
+                ,(    (lastNameGenerator(),1,100), (CUMSACRGenerator(lang),1,25),100)
 
              ]
     
@@ -299,7 +300,10 @@ class MonthDateGenerator(textGenerator):
         self._value = [d.month]
     
     def generate(self):
-        self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization)).decode('latin-1')
+        # P3 or P2
+        try:self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization))
+        except UnicodeDecodeError: self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization)).decode('latin-1')
+
         return self
 
 class MonthDayDateGenerator(textGenerator):
@@ -313,7 +317,8 @@ class MonthDayDateGenerator(textGenerator):
         self._value = [d.day]
 
     def generate(self):
-        self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization)).decode('latin-1')
+        try: self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization))
+        except UnicodeDecodeError: self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization)).decode('latin-1')
         return self
 
 class weekDayDateGenerator(textGenerator):
@@ -333,16 +338,25 @@ class weekDayDateGenerator(textGenerator):
         self._value = [d.weekday()]
         
     def generate(self):
-        self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization)).decode('latin-1')
+        try: self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization))
+        except UnicodeDecodeError :self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization)).decode('latin-1')
         return self
         
 class HourDateGenerator(textGenerator):
     def __init__(self,lang,value=None):
+        self._fulldate = None
         textGenerator.__init__(self,lang)
-        self._value = [value]      
+        self._value = [value]
+        self.realization=['H','I']      
+    
     def setValue(self,d): 
         self._fulldate= d
         self._value = [d.hour]
+    
+    def generate(self):
+        try:self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization))
+        except UnicodeDecodeError: self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization)).decode('latin-1')
+        return self        
         
 class yearGenerator(textGenerator):
     def __init__(self,lang,value=None):
@@ -362,7 +376,8 @@ class yearGenerator(textGenerator):
         self._value = [d.year]
         
     def generate(self):
-        self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization)).decode('latin-1')
+        try:self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization))
+        except UnicodeDecodeError :self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization)).decode('latin-1')
         return self   
               
 class DayPartsGenerator(textGenerator):
@@ -412,7 +427,7 @@ class DateGenerator(textGenerator):
     def defineRange(self,firstDate,lastDate):
         self.year1 = firstDate
         self.year2 = lastDate
-        self.startDate =  datetime.datetime(self.year1, 01, 01)
+        self.startDate =  datetime.datetime(self.year1, 1, 1)
     
     def getdtTime(self):
         randdays = random.uniform(1,364*100)
@@ -627,7 +642,6 @@ if __name__ == "__main__":
         lang= 'deu_deu.1252'
     else:
         lang='de-DE'        
-  
     try:
         nbX = int(sys.argv[1])
     except:nbX = 10
@@ -639,7 +653,7 @@ if __name__ == "__main__":
 #     g= deathReasonColumnGenerator('deu_deu.1252')
 #     g= numberedItems(20,10)
     
-    bGTTOK=True
+    bGTTOK=False
     
     if bGTTOK:
         g = ABPRecordGeneratorTOK()
@@ -649,12 +663,12 @@ if __name__ == "__main__":
             g.GTForTokenization()
     else:
         g = ABPRecordGenerator()
+#         g = ABPGermanDateGenerator()
+#         g.defineRange(1900, 2000)
         lReport={}
         for i in range(nbX):
             g.instantiate()
             g.generate()
-            g.exportAnnotatedData([])
-            
             try:lReport[tuple(g._instance)] +=1
             except KeyError: lReport[tuple(g._instance)] = 1
             uString= g.formatAnnotatedData(g.exportAnnotatedData([]),mode=2)

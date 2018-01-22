@@ -55,20 +55,8 @@ class listGenerator(Generator):
         for i in range(self.nbMax._generation):
             o = self.myObjectGen(*self.objParams).instantiate()
             o.setNumber(i)
-#             print "xx",o,o.getNumber()
             self._instance.append(o)
-#             print "linst:",self.getLabel(), self.nbMax._generation, o
-#         print self.getLabel(), self._instance
         return self
-    
-#     def generate(self):
-#         ss
-#         self._generation  = []
-#         for obj in self._instance:
-#             print "lsitgen", obj.getLabel()
-#             obj.generate()
-#             self._generation.append(obj)
-#         return self
     
     def exportAnnotatedData(self,foo):
 
@@ -87,6 +75,7 @@ if __name__ == "__main__":
     
     from .numericalGenerator import integerGenerator
     
-    lG =listGenerator(integerGenerator,10,100,5)
+    lG =listGenerator(integerGenerator,integerGenerator(10,0),5,4)
+    lG.instantiate()
     lG.generate()
     print(lG._generation)

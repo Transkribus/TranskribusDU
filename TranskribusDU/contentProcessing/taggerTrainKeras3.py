@@ -30,15 +30,15 @@
     under grant agreement No 674943.
 """
 from __future__ import unicode_literals
-  
+from __future__ import print_function
+from __future__ import absolute_import
+
 import sys,os
-import codecs
+from io import open
 from optparse import OptionParser
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
-# import common.Component as Component
-from common.trace import traceln
 
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.feature_extraction.text import CountVectorizer
@@ -51,8 +51,8 @@ from keras.layers.core import Dense, Masking
 from keras.regularizers import L1L2
 import numpy as np
 
-#import cPickle 
-import _pickle as cPickle
+try: import cPickle 
+except ImportError:import _pickle as cPickle
 import gzip
 
 class Transformer(BaseEstimator, TransformerMixin):
@@ -180,7 +180,7 @@ class DeepTagger():
 
         lTmp=[]               
         for fname in lFName:
-            f=codecs.open(fname,encoding='utf-8')
+            f=open(fname,encoding='utf-8')
             x=[]
             for l in f:
                 l = l.strip()
@@ -250,7 +250,7 @@ class DeepTagger():
 
         lTmp=[]               
         for fname in lFName:
-            f=codecs.open(fname,encoding='utf-8')
+            f=open(fname,encoding='utf-8')
             x=[]
             for l in f:
                 l = l.strip()
@@ -312,7 +312,7 @@ class DeepTagger():
         
         lTmp=[]
         for fname in lFName:
-            f=codecs.open(fname,encoding='utf-8')
+            f=open(fname,encoding='utf-8')
             x=[]
             for l in f:
                 l = l.strip()
@@ -353,7 +353,7 @@ class DeepTagger():
         
         lTmp=[]
         for fname in lFName:
-            f=codecs.open(fname,encoding='utf-8')
+            f=open(fname,encoding='utf-8')
             x=[]
             for l in f:
                 l = l.strip()

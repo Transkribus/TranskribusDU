@@ -26,7 +26,6 @@ import common.Component as Component
  
 from spm.structuralMining import sequenceMiner
 from spm.feature import featureObject
-from spm.spm2 import PrefixSpan 
 
 from ObjectModel.xmlDSDocumentClass import XMLDSDocument
 from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
@@ -150,18 +149,19 @@ class lineMiner(Component.Component):
         seqGen.bDebug = False
         
         lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.01)
-        model = PrefixSpan.train(lSeq, minSupport = 0.1, maxPatternLength = 10)
-        result = model.freqSequences().collect()
-        result.sort(key=lambda x:x.freq)
-        lPatterns=[]
-        for fs in result:
-            if fs.freq > 1:
-#                 for i in fs.sequence:
-#                     for x in i:
-#                         print(x,x.getValue())
-#                     i.sort(key=lambda x:x.getValue())
-                lPatterns.append((fs.sequence,fs.freq))
-        lPatterns = list(filter(lambda p_s:len(p_s[0]) >= seqGen.getMinSequenceLength() and len(p_s[0]) <= seqGen.getMaxSequenceLength(),lPatterns))
+        lPatterns = seqGen.miningSequencePrefixScan(lSeq)
+#         model = PrefixSpan.train(lSeq, minSupport = 0.1, maxPatternLength = 10)
+#         result = model.freqSequences().collect()
+#         result.sort(key=lambda x:x.freq)
+#         lPatterns=[]
+#         for fs in result:
+#             if fs.freq > 1:
+# #                 for i in fs.sequence:
+# #                     for x in i:
+# #                         print(x,x.getValue())
+# #                     i.sort(key=lambda x:x.getValue())
+#                 lPatterns.append((fs.sequence,fs.freq))
+#         lPatterns = list(filter(lambda p_s:len(p_s[0]) >= seqGen.getMinSequenceLength() and len(p_s[0]) <= seqGen.getMaxSequenceLength(),lPatterns))
             
 #         lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
         if lPatterns is None:
@@ -285,7 +285,10 @@ class lineMiner(Component.Component):
                 seqGen.bDebug = False
                 
                 lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.2)
-                lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)            
+                lPatterns  = seqGen.miningSequencePrefixScan(lSeq)
+                if lPatterns is None:
+                    return None
+#                 lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)            
                 lPatterns.sort(key=lambda xy:xy[1], reverse=True)
                 
                 print( "List of patterns and their support:")

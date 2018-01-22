@@ -33,7 +33,10 @@ from __future__ import absolute_import
 from __future__ import  print_function
 from __future__ import unicode_literals
 
-#import libxml2
+
+try:basestring
+except NameError:basestring = str
+
 from lxml import etree
 import sys, os.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))))
@@ -434,7 +437,7 @@ class marginGenerator(Generator):
          
         self._GT=[]
         for obj in self._generation:
-            if type(obj._generation) == unicode:
+            if isinstance(obj._generation,basestring):
                 self._GT.append((obj._generation,obj.getLabel()))
             elif type(obj._generation) == int:
                 self._GT.append((obj._generation,obj.getLabel()))
@@ -1082,20 +1085,22 @@ def tableDataset(nbpages):
     gt =  mydoc.exportAnnotatedData(())
 #     print gt
     docDom = mydoc.XMLDSFormatAnnotatedData(gt)
-    ## also directly generate feature.pickle
-    ##
     return docDom
 
 if __name__ == "__main__":
 
     try: outfile =sys.argv[2]
-    except IndexError as e: outfile= sys.stdout
+    except IndexError as e:
+        print("usage: layoutObjectGenerator.py #sample <FILENAME>")
+        sys.exit() 
     
     try: nbpages = int(sys.argv[1])
     except IndexError as e: nbpages = 1
+    
     dom1 = tableDataset(nbpages)
+    dom1.write(outfile,xml_declaration=True,encoding='utf-8',pretty_print=True)
 
-    dom1.write(outfile,encoding='utf-8',pretty_print=True)    
+    print("saved in %s"%outfile)    
 
 
     

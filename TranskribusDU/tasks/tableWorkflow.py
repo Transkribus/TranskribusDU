@@ -36,7 +36,6 @@ from __future__ import unicode_literals
 
 import sys, os
 import logging 
-#import json
 import glob
 from optparse import OptionParser
 
@@ -62,7 +61,6 @@ import common.Component as Component
 from TranskribusPyClient.common.trace import traceln, trace
 
 from xml_formats.PageXml import PageXml
-# from tasks.performCVLLA import LAProcessor
 from tasks.DU_ABPTable_T import DU_ABPTable_TypedCRF
 from xml_formats.PageXml import MultiPageXml
 from xml_formats.Page2DS import primaAnalysis
@@ -106,26 +104,26 @@ class TableProcessing(Component.Component):
         Here, we set our internal attribute according to a possibly specified value (otherwise it stays at its default value)
         """
         Component.Component.setParams(self, dParams)
-        if dParams.has_key("coldir"): 
+        if "coldir" in dParams: 
             self.coldir = dParams["coldir"]
-        if dParams.has_key("colid"): 
+        if "colid" in dParams: 
             self.colid = dParams["colid"]
-        if dParams.has_key("docid"):         
+        if "colid" in dParams:         
             self.docid = dParams["docid"]
-        if dParams.has_key("useExt"):         
+        if "useExt" in dParams:         
             self.useExtForMPXML  = dParams["useExt"]            
         
-        if dParams.has_key('regMPXML'):
+        if 'regMPXML' in dParams:
             self.bRegenerateMPXML=True
             
-        if dParams.has_key("rowmodelname"):         
+        if "rowmodelname" in dParams:         
             self.sRowModelName = dParams["rowmodelname"]
-        if dParams.has_key("rowmodeldir"):         
+        if "rowmodeldir" in dParams:         
             self.sRowModelDir = dParams["rowmodeldir"]
 
-        if dParams.has_key("htrmodel"): 
+        if "htrmodel" in dParams: 
             self.sHTRmodel = dParams["htrmodel"]
-        if dParams.has_key("dictname"): 
+        if "dictname" in dParams: 
             self.sDictName = dParams["dictname"]
             
             
@@ -409,9 +407,9 @@ class TableProcessing(Component.Component):
         lPageXml = DS2MPXML.run(self.ODoc.getDom())
         if lPageXml != []:
 #             if DS2MPXML.bMultiPages:
-            newDoc = MultiPageXml.makeMultiPageXmlMemory(map(lambda (x,y):x,lPageXml))
+            newDoc = MultiPageXml.makeMultiPageXmlMemory(map(lambda xy:xy[0],lPageXml))
             outputFileName = os.path.join(self.coldir, sCOL, self.docid+TableProcessing.sMPXMLExtension)
-            res= newDoc.saveFormatFileEnc(outputFileName, "UTF-8",True)
+            newDoc.write(outputFileName, xml_declaration=True,encoding="UTF-8",pretty_print=True)
 #             else:
 #                 DS2MPXML.storePageXmlSetofFiles(lPageXml)
  
@@ -476,7 +474,7 @@ class TableProcessing(Component.Component):
             what to do with the parameters provided by the command line
         """
         if self.colid is None:
-            print 'collection id missing!'
+            print('collection id missing!')
             sys.exit(1)
 
         self.bFullCol = self.docid != None
@@ -485,7 +483,7 @@ class TableProcessing(Component.Component):
             l = glob.glob(os.path.join(self.coldir,sCOL,self.docid, "*.pxml"))
             doc = MultiPageXml.makeMultiPageXml(l)
             outputFileName = os.path.join(self.coldir, sCOL, self.docid+TableProcessing.sMPXMLExtension)
-            res= doc.saveFormatFileEnc(outputFileName, "UTF-8",True)       
+            doc.write(outputFileName, xml_declaration=True,encoding="UTF-8",pretty_print=True)       
             return doc
         return None
         
