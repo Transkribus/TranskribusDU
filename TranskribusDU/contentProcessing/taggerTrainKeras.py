@@ -39,10 +39,13 @@ from optparse import OptionParser
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
-
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.base import BaseEstimator, TransformerMixin
+
+os.environ['KERAS_BACKEND'] = 'tensorflow'
+# else: os.environ['KERAS_BACKEND'] = 'tensorflow'
+
 from keras.models import Sequential, load_model, Model
 from keras.layers  import Bidirectional, Dropout, Input
 from keras.layers.wrappers import TimeDistributed
@@ -53,6 +56,9 @@ import numpy as np
 
 import pickle 
 import gzip
+
+
+from contentProcessing.attentiondecoder import AttentionDecoder
 
 class Transformer(BaseEstimator, TransformerMixin):
     def __init__(self):
@@ -401,7 +407,7 @@ class DeepTagger():
         """
             load models and aux data
         """
-        self.model = load_model(os.path.join(self.dirName,self.sModelName+'.hd5'))
+        self.model = load_model(os.path.join(self.dirName,self.sModelName+'.hd5'),custom_objects={"AttentionDecoder": AttentionDecoder})
         print('model loaded: %s/%s.hd5' % (self.dirName,self.sModelName))  
         try:
             self.bMultiType,self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses,self.tag_vector , self.node_transformer = pickle.load(gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'r'))
@@ -434,6 +440,7 @@ class DeepTagger():
         model.add(Masking(mask_value=0., input_shape=(self.max_sentence_len, self.max_features)))
         model.add(Bidirectional(LSTM(self.hiddenSize,return_sequences = True,bias_regularizer=reg))) 
         model.add(Dropout(0.5))
+        model.add(AttentionDecoder(32, 4))
         model.add(TimeDistributed(Dense(self.nbClasses, activation='softmax')))
         #keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-08, decay=0.0)
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop',metrics=['categorical_accuracy']  )

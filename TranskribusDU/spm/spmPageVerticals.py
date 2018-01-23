@@ -128,7 +128,7 @@ class pageVerticalMiner(Component.Component):
         self.THNUMERICAL = 60  # 2 cml
         
         ## initialization for iter 0
-        for i,page, in enumerate(lPages):
+        for page, in lPages:
             page.setFeatureFunction(page.getSetOfFeaturesPageSize,self.THNUMERICAL)
             page.computeSetofFeatures()
             
@@ -164,7 +164,7 @@ class pageVerticalMiner(Component.Component):
             
             # mis very small since: space is small; some specific pages can be 
             ## replace by PrefiwScan
-            lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.002)
+            lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.002)
             lPatterns = seqGen.miningSequencePrefixScan(lSeq)
 #             lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
             if lPatterns is None:
@@ -286,7 +286,7 @@ class pageVerticalMiner(Component.Component):
          
         elif len(pattern) == 2:
 #             if len(pattern[0]) != 2: return False
-            bOK =  len( pattern[0] ) == len( pattern[1] ) >= 2
+#             bOK =  len( pattern[0] ) == len( pattern[1] ) >= 2
             # same width: the longest width must be shared
             inv1 =  pattern[1][:]
             lcouple1= zip(inv1,inv1[1:])
@@ -352,7 +352,7 @@ class pageVerticalMiner(Component.Component):
         """
         lPageProfiles={}
         lPageProfiles[self.kContentSize]=[]
-        for i,page in enumerate(lPages):
+        for page in lPages:
             lElts= page.getAllNamedObjects(XMLDSTEXTClass)
             surface= sum( (x.getWidth()*x.getHeight() for x in lElts))/ (page.getWidth()*page.getHeight())
             lPageProfiles[self.kContentSize].append(surface)
@@ -666,7 +666,7 @@ class pageVerticalMiner(Component.Component):
             p.lFeatureForParsing  = p.lf_XCut 
 #             print p, p.lf_XCut
             sys.stdout.flush()
-            registeredPoints, lMissing, score = mytemplate.registration(p)
+            registeredPoints, _, score = mytemplate.registration(p)
 #             registeredPoints2, lMissing2, score2 = mytemplate2.registration(p)
 #             print i,p,registeredPoints
             # if score1 == score 2 !!
@@ -888,7 +888,7 @@ class pageVerticalMiner(Component.Component):
         """
             formalize 
         """
-        from keras.layers.embeddings import Embedding
+#         from keras.layers.embeddings import Embedding
 
         self.THNUMERICAL = 30
         for lPages in lLPages:
@@ -968,7 +968,8 @@ class pageVerticalMiner(Component.Component):
             # here segmentation of lPages if needed (put outside of this loop)
             ## if coverage low: noisy? not the right way to deal with this document??
             ###   -> reduce batch ?
-            lsubList = [lPages]
+            
+#             lsubList = [lPages]
 
             self.THNUMERICAL = self.testTH
             for p  in lPages:
@@ -1105,7 +1106,7 @@ class pageVerticalMiner(Component.Component):
         
         seqGen.bDebug = False
         lmaxSequence = seqGen.generateItemsets(lPages)
-        lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.2)
+        lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.2)
         # if one page: what to do ??
         if len(lPages)>1:
             lOneSupport  = self.testHighSupport(lSeq)
@@ -1118,7 +1119,7 @@ class pageVerticalMiner(Component.Component):
             chronoOn()
             print( "generation...")
             sys.stdout.flush()
-            lSeq, lMIS = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.1,L1Support=[])
+            lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.1,L1Support=[])
             sys.stdout.flush()
             ## if many MIS=1.0 -> table with many columns!
             ##actual supports: {'x=40.0': 0.5, 'x=473.0': 1.0, 'x=73.0': 0.75, 'x=558.0': 1.0, 'x=327.0': 1.0, 'x=145.0': 1.0, 'x=243.0': 1.0, 'x=1180.0': 0.25, 'x=726.0': 1.0, 'x=408.0': 1.0, 'x=886.0': 1.0, 'x=1027.0': 0.75, 'x=803.0': 1.0, 'x=952.0': 1.0, 'x=636.0': 1.0, 'x=1136.0': 1.0, 'x=839.0': 0.25}
@@ -1357,45 +1358,6 @@ class pageVerticalMiner(Component.Component):
             final = set(map(lambda x_y: abs(x_y[0] -x_y[1]) < self.THNUMERICAL * 2,zip(lw0,lw1)))
             return  set(final) == set([True])
     
-#     def isVZonePattern(self,pattern,iNbCol=3,iNbColMax=None):
-#         """
-#             is pattern a regular zone pattern:
-#                 one or two elements, each with the same number of cuts, at least 2
-#             return corresponding template class
-#         """
-# 
-#         if iNbColMax == None:
-#             linterval=range(iNbCol,20)
-#         else: 
-#             linterval=range(iNbCol,iNbCol+1)
-#         if len(pattern) > 2:
-#             return None
-#         # at least 3 elements
-#         if len(pattern) == 2 and pattern[0] != pattern[1] and  len(pattern[0])  == len(pattern[1])  and len(pattern[0]) > 2 and len(pattern[0]) in linterval:
-#             bitemplate=doublePageTemplateClass()
-#             bitemplate.setPattern(pattern)
-#             bitemplate.leftPage = verticalZonestemplateClass()
-#             bitemplate.leftPage.setType('leftpage')
-#             bitemplate.leftPage.setPattern(pattern[0])
-#             bitemplate.leftPage.setParent(bitemplate)
-#             
-#             bitemplate.rightPage = verticalZonestemplateClass()
-#             bitemplate.rightPage.setType('rightpage')
-#             bitemplate.rightPage.setPattern(pattern[1])
-#             bitemplate.rightPage.setParent(bitemplate)
-#             
-#             #regular grid or not: tested in verticalZonestemplateClass
-#             
-#             return bitemplate
-#         
-#         elif len(pattern) == 1 and len(pattern[0]) in linterval:
-#             template = singlePageTemplateClass()
-#             template.mainZone = verticalZonestemplateClass()
-#             template.mainZone.setPattern(pattern[0])
-#             template.mainZone.setParent(template)
-#             return template
-    
-    
     
     ##########CORRECTION STEP #################
     def correctionStep(self,lPages):
@@ -1503,7 +1465,6 @@ class pageVerticalMiner(Component.Component):
             Create (empty) REGIONS (for end-to-end; for GT: create table)
         """
         
-        x = 0
         for page in lPages:
             if page.getNode():
                 best = None
@@ -1598,7 +1559,6 @@ class pageVerticalMiner(Component.Component):
                         # sinlge: add () for comparison/evaluation
                         page.getNode().set('reftemplate',str((0,(list(map(lambda x:x.getValue(),template.getPattern()))))))
 
-                    XMinus = 1
                     prevcut = 1
                     lCuts=[prevcut]
                     lRegions=[]
@@ -2127,7 +2087,8 @@ class pageVerticalMiner(Component.Component):
 #         dicTestByTask['templateType']= self.testTemplateType(srefData, srunData,bVisual)
         return dicTestByTask
         
-        
+
+
 #--- MAIN -------------------------------------------------------------------------------------------------------------    
 #
 # In case we want to use this component from a command line
