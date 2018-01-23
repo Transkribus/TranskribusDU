@@ -24,14 +24,18 @@
     under grant agreement No 674943.
     
 """
-import types, time
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
+import time
+from functools import reduce
 
 import numpy as np
 
 
-from sklearn.metrics import classification_report
-from sklearn.metrics import confusion_matrix,accuracy_score
-from util.metrics import confusion_classification_report, confusion_list_classification_report, confusion_accuracy_score, confusion_PRFAS
+from sklearn.metrics import confusion_matrix
+from util.metrics import confusion_classification_report, confusion_list_classification_report, confusion_accuracy_score
 
 
 class TestReport:
@@ -58,7 +62,7 @@ class TestReport:
         self.nbClass       = len(self.lsClassName) if self.lsClassName else None
         self.lBaselineTestReport = []       #TestReport for baseline methods, if any
         
-        if type(l_Y_pred) == types.ListType:
+        if type(l_Y_pred) == list:
             self.l_Y_pred = l_Y_pred
             self.l_Y      = l_Y
         else:
@@ -87,7 +91,7 @@ class TestReport:
         """
         attach this testReport or list of TestReport to the current TestReport (typically the results of the baseline(s) )
         """
-        if type(loTstRpt) == types.ListType:
+        if type(loTstRpt) == list:
             self.lBaselineTestReport.extend(loTstRpt)
         else:
             self.lBaselineTestReport.append(loTstRpt)

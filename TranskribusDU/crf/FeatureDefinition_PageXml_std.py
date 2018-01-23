@@ -24,6 +24,9 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import numpy as np
 
@@ -38,7 +41,7 @@ from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformer
 from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
-from FeatureDefinition import FeatureDefinition
+from .FeatureDefinition import FeatureDefinition
 
 class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
     

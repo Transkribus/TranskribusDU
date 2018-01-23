@@ -14,11 +14,14 @@
 #Idea 1 Character Embedding
 # MSDA
 
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 from sklearn.base import BaseEstimator
 
-from sklearn.utils import (as_float_array, check_array, check_X_y, safe_sqr,safe_mask)
-from sklearn.utils.extmath import norm, safe_sparse_dot
+from sklearn.utils import (as_float_array, check_array, check_X_y)
+from sklearn.utils.extmath import safe_sparse_dot
 from sklearn.utils.validation import check_is_fitted
 from scipy.sparse import issparse
 from sklearn.preprocessing import LabelBinarizer
@@ -29,8 +32,6 @@ import numpy as np
 
 
 from sklearn.feature_selection.base import SelectorMixin
-
-import pdb
 
 def _clean_nans(scores):
     """
@@ -104,7 +105,6 @@ def mutual_information(Xbin,q,npmi_norm=False):
     (nw, nd) = Xcsr.shape
 
     nd = float(nd)
-    logN = np.log(float(nd))
     eps = 1e-8
     #Convert that as Boolean array
     #Matrix Multiplication by Chunks of 100, or parrallize
@@ -231,7 +231,7 @@ class SelectRobinBest(BaseEstimator,SelectorMixin):
         #TODO Improve this
         self.Y=Y
         self.scores_=[]
-        for i in xrange(nclasses):
+        for i in range(nclasses):
             print('Computing Scores .....')
             self.scores_.append(self.score_func(Xbin, np.squeeze(Y[:,i].T )))
 
@@ -254,19 +254,16 @@ class SelectRobinBest(BaseEstimator,SelectorMixin):
             #Select k by class
             nb_classes=self.Y.shape[1]
             n_feat =self.scores_[0].shape
-            k_by_class = self.k/nb_classes
-            #print 'nb_classes',nb_classes,k_by_class,self.k
             mask = np.zeros(n_feat, dtype=bool)
             ###################################################
             S=[]
-            for i in xrange(self.Y.shape[1]):
+            for i in range(self.Y.shape[1]):
                 scores = _clean_nans(self.scores_[i])
                 # Request a stable sort. Mergesort takes more memory (~40MB per
                 # megafeature on x86-64).
                 #mask[np.argsort(scores, kind="mergesort")[-self.k:]] = 1
                 sindx =np.argsort(scores, kind="mergesort")
                 S.append(list(sindx))
-                #mask[np.argsort(scores, kind="mergesort")[-k_by_class:]] = 1
 
 
             nb_sel=0

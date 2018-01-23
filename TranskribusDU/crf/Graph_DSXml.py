@@ -24,9 +24,12 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-from Graph import Graph
-from Page import Page
+from .Graph import Graph
+from .Page import Page
 
 class Graph_DSXml(Graph):
     '''

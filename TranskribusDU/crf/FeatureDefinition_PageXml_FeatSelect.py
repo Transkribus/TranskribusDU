@@ -24,20 +24,32 @@
     under grant agreement No 674943.
 
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import numpy as np
 
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.preprocessing import StandardScaler
-from sklearn.feature_extraction.text import TfidfVectorizer,CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 
-from crf.Transformer import SparseToDense
-from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH, NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures,NodeTransformerNeighborsAllText
-from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures,EdgeBooleanFeatures_v2, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
+from crf.Transformer_PageXml import NodeTransformerTextLen
+from crf.Transformer_PageXml import NodeTransformerXYWH
+from crf.Transformer_PageXml import NodeTransformerXYWH_v2
+from crf.Transformer_PageXml import NodeTransformerNeighbors
+from crf.Transformer_PageXml import Node1HotFeatures
+from crf.Transformer_PageXml import NodeTransformerNeighborsAllText
+from crf.Transformer_PageXml import NodeTransformerTextEnclosed
+from crf.Transformer_PageXml import Edge1HotFeatures
+from crf.Transformer_PageXml import EdgeBooleanFeatures
+from crf.Transformer_PageXml import EdgeBooleanFeatures_v2
+from crf.Transformer_PageXml import EdgeNumericalSelector
+
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 from crf.Transformer_PageXml import NodeEdgeTransformer
 
-from FeatureDefinition import FeatureDefinition
+from .FeatureDefinition import FeatureDefinition
 
 #from sklearn.feature_selection import mutual_info_classif
 from sklearn.feature_selection import SelectKBest
@@ -45,7 +57,7 @@ from sklearn.feature_selection import chi2
 #Should be able to discriminate between chi2 and mutual info, right ?
 #(X, y, discrete_features='auto', n_neighbors=3, copy=True, random_state=None)[source]
 
-from crf.FeatureSelection import pointwise_mutual_information_score,mutual_information,SelectRobinBest
+from crf.FeatureSelection import mutual_information, SelectRobinBest
 
 #feat_selector=SelectRobinBest(mutual_information
 

@@ -10,7 +10,9 @@ Dec 12th, 2016
 Copyright Xerox 2016
 
 '''
-
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 class Page:
         
@@ -39,8 +41,8 @@ class Page:
     ##Bounding box methods: getter/setter + geometrical stuff
     def getBB(self):
         return self.x1, self.y1, self.x2, self.y2
-    def setBB(self, (x1, y1, x2, y2)):
-        self.x1, self.y1, self.x2, self.y2 = x1, y1, x2, y2
+    def setBB(self, t_x1_y1_x2_y2):
+        self.x1, self.y1, self.x2, self.y2 = t_x1_y1_x2_y2
  
     def getWidthHeight(self):
         return self.w, self.h

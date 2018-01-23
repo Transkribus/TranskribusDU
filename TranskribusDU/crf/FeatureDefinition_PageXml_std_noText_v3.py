@@ -24,6 +24,9 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 from sklearn.pipeline import Pipeline, FeatureUnion
 #not robust to empty arrays, so use our robust intermediary class instead
@@ -35,7 +38,7 @@ from crf.Transformer_PageXml import NodeTransformerXYWH_v2, NodeTransformerNeigh
 from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures_v2, EdgeNumericalSelector
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
-from FeatureDefinition import FeatureDefinition
+from .FeatureDefinition import FeatureDefinition
 
 class FeatureDefinition_PageXml_StandardOnes_noText_v3(FeatureDefinition):
     
@@ -140,7 +143,7 @@ class FeatureDefinition_T_PageXml_StandardOnes_noText_v2(FeatureDefinition):
                                                          ('1hot', Node1HotFeatures())  #does the 1-hot encoding directly
                                                          ])
                                        )
-                                      ]) for i in range(nbTypes) ])
+                                      ]) for _i in range(nbTypes) ])
     
         edge_transformer = TransformerListByType([ FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                       ("1hot", Pipeline([
@@ -157,7 +160,7 @@ class FeatureDefinition_T_PageXml_StandardOnes_noText_v2(FeatureDefinition):
                                                          ('numerical', QuantileTransformer(n_quantiles=self.n_QUANTILES, copy=False))  #use in-place scaling
                                                          ])
                                         )
-                                          ] ) for i in range(nbTypes*nbTypes) ])
+                                          ] ) for _i in range(nbTypes*nbTypes) ])
           
         #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
         self._node_transformer = node_transformer

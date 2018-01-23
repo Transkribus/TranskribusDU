@@ -27,16 +27,19 @@
     under grant agreement No 674943.
     
 """
-import sys, os, types
-import gc
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
+import sys, os
 import numpy as np
 
-import cPickle
-
-from sklearn.model_selection import GridSearchCV  #0.18.1 REQUIRES NUMPY 1.12.1 or more recent
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
     
 from pystruct.utils import SaveLogger
-from pystruct.learners import OneSlackSSVM
 from pystruct.models import NodeTypeEdgeFeatureGraphCRF
 
 try: #to ease the use without proper Python installation
@@ -48,8 +51,7 @@ except ImportError:
 from common.chrono import chronoOn, chronoOff
 from crf.Model_SSVM_AD3 import Model_SSVM_AD3
 
-from Graph import Graph
-from TestReport import TestReport, TestReportConfusion
+from .TestReport import TestReport, TestReportConfusion
 
 class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
     #default values for the solver
@@ -162,7 +164,7 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
                 X_flat, Y_flat = self._getXY_forType(lX, lY, itype)
                 if False:
                     with open("XY_flat_Type%d.pkl"%(itype), "wb") as fd: 
-                        cPickle.dump((X_flat, Y_flat), fd)
+                        pickle.dump((X_flat, Y_flat), fd)
                 for mdlBaseline in self._lMdlBaseline:
                     chronoOn()
                     traceln("\t - training baseline model: %s"%str(mdlBaseline))
@@ -276,20 +278,24 @@ if __name__ == "__main__":
     try:
         sModelDir, sModelName = sys.argv[1:3]
     except:
-        print "Usage: %s <model-dir> <model-name>"%sys.argv[0]
-        print "Display some info regarding the stored model"
+        print("Usage: %s <model-dir> <model-name>"%sys.argv[0])
+        print("Display some info regarding the stored model")
         exit(1)
         
     mdl = Model_SSVM_AD3_Multitype(sModelName, sModelDir)
-    print "Loading %s"%mdl.getModelFilename()
+    print("Loading %s"%mdl.getModelFilename())
     if False:
         mdl.load()  #loads all sub-models!!
     else:
         mdl.ssvm = mdl._loadIfFresh(mdl.getModelFilename(), None, lambda x: SaveLogger(x).load())
 
-    print mdl.getModelInfo()
+    print(mdl.getModelInfo())
     
-    import matplotlib.pyplot as plt
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as e:
+        print("Please install matplotlib to get graphical display of the model convergence")
+        raise e
     plt.plot(mdl.ssvm.loss_curve_)
     plt.ylabel("Loss")
     plt.show()

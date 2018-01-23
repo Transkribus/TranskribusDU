@@ -14,8 +14,6 @@ from __future__ import absolute_import
 from __future__ import  print_function
 from __future__ import unicode_literals
 
-from . import Block
-
 DEBUG=0
 #DEBUG=1
 
@@ -50,6 +48,8 @@ class Edge:
         
         if bShortOnly, we filter intra-page edge and keep only "short" ones
         """
+        from . import Block
+
         lAllEdge = list()
         
         #--- horizontal and vertical neighbors
