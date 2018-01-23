@@ -32,6 +32,7 @@ try: #to ease the use without proper Python installation
 except ImportError:
     sys.path.append( os.path.dirname(os.path.dirname( os.path.abspath(sys.argv[0]) )) )
     import TranskribusDU_version
+    TranskribusDU_version.version
 from common.trace import traceln
 from tasks import  _checkFindColDir
 
@@ -144,4 +145,4 @@ if __name__ == "__main__":
     If no exception raised, then OK!!
     """
     test_main()
-    print "OK, test completed successfully."
+    print("OK, test completed successfully.")

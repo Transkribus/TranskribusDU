@@ -24,15 +24,18 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import types
 
 from common.trace import traceln
 
-from NodeType import NodeType
+from .NodeType import NodeType
 from xml_formats.PageXml import PageXml, PageXmlException
 from util.Polygon import Polygon
-from Block import Block
+from .Block import Block
 
 def defaultBBoxDeltaFun(w):
     """
@@ -63,9 +66,8 @@ class NodeType_PageXml(NodeType):
         self.BBoxDeltaFun = BBoxDeltaFun
         assert type(self.BBoxDeltaFun) == types.FunctionType, "Error: BBoxDeltaFun must be a function (or a lambda)"
 
-    def setXpathExpr(self, (sxpNode, sxpTextual)):
-        self.sxpNode    = sxpNode
-        self.sxpTextual = sxpTextual
+    def setXpathExpr(self, t_sxpNode_sxpTextual):
+        self.sxpNode, self.sxpTextual = t_sxpNode_sxpTextual
     
     def getXpathExpr(self):
         """
@@ -311,7 +313,6 @@ def test_getset3():
     import pytest
     from lxml import etree
     from io import BytesIO
-    from xml_formats.PageXml import PageXmlException
     
     sXml = b"""
             <TextRegion type="page-number" id="p1_region_1471502505726_2" custom="readingOrder {index:9;} ">

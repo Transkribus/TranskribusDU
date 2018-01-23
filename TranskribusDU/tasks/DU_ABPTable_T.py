@@ -24,6 +24,10 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 import sys, os
 
 try: #to ease the use without proper Python installation
@@ -37,7 +41,7 @@ from tasks import _checkFindColDir, _exit
 
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
-from DU_CRF_Task import DU_CRF_Task
+from .DU_CRF_Task import DU_CRF_Task
 from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_T_PageXml_StandardOnes_noText_v2
 
 

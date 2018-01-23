@@ -17,7 +17,8 @@ def test_DS2PageXmlConversion():
     doc = conv.loadDom(filename)
     lPageXmlDocs = conv.run(doc)
     mp = MultiPageXml()
-    newDoc = mp.makeMultiPageXmlMemory(map(lambda (x,y):x,lPageXmlDocs))
+    # newDoc = mp.makeMultiPageXmlMemory(map(lambda (x,y):x,lPageXmlDocs))
+    newDoc = mp.makeMultiPageXmlMemory([x for x,_y in lPageXmlDocs])
     newDoc.write(os.path.join(sTESTS_DIR,
                               "testDS2PageXml/RRB_MM_01_033_Jahr_1810.mpxml"),
                  xml_declaration=True,

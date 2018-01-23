@@ -13,6 +13,10 @@
 # License: BSD 3 clause
 
 #modified by JLM to use a confusion matrix instead of predicted and GT labels
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+from functools import reduce
 
 import numpy as np
 
@@ -146,7 +150,7 @@ def confusion_list_classification_report(lConfumat, labels=None, target_names=No
     last_line_heading = 'avg / total'
 
     if target_names is None:
-        target_names = ['%s' % l for l in labels]
+        target_names = list(['%s' % l for l in labels])
     name_width = max(len(cn) for cn in target_names)
     width = max(name_width, len(last_line_heading), digits)
 
@@ -262,7 +266,7 @@ if __name__ == "__main__":
     
     confumat = confusion_matrix(y_true, y_pred)
     target_names = ['class 0', 'class 1', 'class 2']
-    print confusion_classification_report(confumat, target_names=target_names)
+    print(confusion_classification_report(confumat, target_names=target_names))
 
     
     

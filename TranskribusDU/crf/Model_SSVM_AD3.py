@@ -27,9 +27,16 @@
     under grant agreement No 674943.
     
 """
-import sys, os, types
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
+import sys, os
 import gc
-import cPickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 import numpy as np
 
 from sklearn.linear_model import LogisticRegression
@@ -46,9 +53,9 @@ except ImportError:
     from common.trace import traceln
 
 from common.chrono import chronoOn, chronoOff
-from Model import Model
-from Graph import Graph
-from TestReport import TestReport
+from .Model import Model
+from .Graph import Graph
+from .TestReport import TestReport
 
 class Model_SSVM_AD3(Model):
     #default values for the solver
@@ -81,7 +88,7 @@ class Model_SSVM_AD3(Model):
         if None != save_every       : self.save_every        = save_every
         if None != max_iter         : self.max_iter          = max_iter
         
-        self.bGridSearch = types.ListType in [type(v) for v in [self.inference_cache, self.C, self.tol, self.max_iter]]
+        self.bGridSearch = list in [type(v) for v in [self.inference_cache, self.C, self.tol, self.max_iter]]
 
     # --- UTILITIES -------------------------------------------------------------
     def getEdgeBaselineFilename(self):
@@ -126,7 +133,7 @@ class Model_SSVM_AD3(Model):
         if self._EdgeBaselineModel:
             X_flat, Y_flat = self._getEdgeXEdgeY(lX, lY)
             
-            with open("edgeXedgeY_flat.pkl", "wb") as fd: cPickle.dump((X_flat, Y_flat), fd)
+            with open("edgeXedgeY_flat.pkl", "wb") as fd: pickle.dump((X_flat, Y_flat), fd)
             
             chronoOn()
             traceln("\t - training edge baseline model: %s"%str(self._EdgeBaselineModel))
@@ -220,7 +227,7 @@ class Model_SSVM_AD3(Model):
 
             except Exception as e:
                 self.ssvm = None
-                traceln("\t- Cannot warmstart: %s"%e.message)
+                traceln("\t- Cannot warmstart: %s"%e)
             #self.ssvm is either None or containing a nice ssvm model!!
         
         if not self.ssvm:
@@ -228,7 +235,7 @@ class Model_SSVM_AD3(Model):
             
             traceln("\t\t- computing class weight:")
             clsWeights = self.computeClassWeight(lY)
-            traceln("\t\t\t%s"%clsWeights)
+            traceln("\t\t\t%s"%list(["%.3f"%w for w in clsWeights]))
             
             crf = self._getCRFModel(clsWeights)
     
@@ -278,10 +285,10 @@ class Model_SSVM_AD3(Model):
         traceln("\t [%.1fs] done\n"%chronoOff())
 
         dPrm = {}
-        dPrm['C']               = self.C                if type(self.C)               == types.ListType else [self.C]
-        dPrm['tol']             = self.tol              if type(self.tol)             == types.ListType else [self.tol]
-        dPrm['inference_cache'] = self.inference_cache  if type(self.inference_cache) == types.ListType else [self.inference_cache]
-        dPrm['max_iter']        = self.max_iter         if type(self.max_iter)        == types.ListType else [self.max_iter]
+        dPrm['C']               = self.C                if type(self.C)               == list else [self.C]
+        dPrm['tol']             = self.tol              if type(self.tol)             == list else [self.tol]
+        dPrm['inference_cache'] = self.inference_cache  if type(self.inference_cache) == list else [self.inference_cache]
+        dPrm['max_iter']        = self.max_iter         if type(self.max_iter)        == list else [self.max_iter]
 
         traceln("\t- creating a SSVM-trained CRF model")
         
@@ -461,7 +468,6 @@ class Model_SSVM_AD3(Model):
         """
         lX, lY, lY_pred  = [], [], []
         lLabelName   = None
-        bConstraint  = None
         traceln("- predicting on test set")
         chronoOn("testFiles")
         for sFilename in lsFilename:
@@ -555,20 +561,24 @@ if __name__ == "__main__":
     try:
         sModelDir, sModelName = sys.argv[1:3]
     except:
-        print "Usage: %s <model-dir> <model-name>"%sys.argv[0]
-        print "Display some info regarding the stored model"
+        print("Usage: %s <model-dir> <model-name>"%sys.argv[0])
+        print("Display some info regarding the stored model")
         exit(1)
         
     mdl = Model_SSVM_AD3(sModelName, sModelDir)
-    print "Loading %s"%mdl.getModelFilename()
+    print("Loading %s"%mdl.getModelFilename())
     if False:
         mdl.load()  #loads all sub-models!!
     else:
         mdl.ssvm = mdl._loadIfFresh(mdl.getModelFilename(), None, lambda x: SaveLogger(x).load())
 
-    print mdl.getModelInfo()
+    print(mdl.getModelInfo())
     
-    import matplotlib.pyplot as plt
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as e:
+        print("Please install matplotlib to get graphical display of the model convergence")
+        raise e
     fig = plt.figure()
     fig.canvas.set_window_title("dir=%s  model=%s  "%(sModelDir, sModelName))
     plt.plot(mdl.ssvm.loss_curve_)
