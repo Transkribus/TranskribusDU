@@ -39,7 +39,6 @@ import datetime
 # from dateutil.relativedelta import *
 
 import platform
-# import cPickle
 
 sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'TranskribusDU')
 

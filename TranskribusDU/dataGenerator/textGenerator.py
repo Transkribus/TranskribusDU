@@ -33,9 +33,7 @@ from __future__ import absolute_import
 from __future__ import  print_function
 from __future__ import unicode_literals
 
-#PY2 PY 3
-try:import cPickle as pickle
-except ImportError: import pickle
+import pickle
 
 from builtins import str
 import gzip

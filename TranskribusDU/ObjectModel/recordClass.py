@@ -33,8 +33,7 @@ import sys,os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
-try:import cPickle as pickle
-except ImportError: import pickle
+import pickle
 import gzip
 
 from contentProcessing.taggerTrainKeras import DeepTagger
