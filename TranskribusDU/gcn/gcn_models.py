@@ -3,15 +3,15 @@
 @author: Stéphane Clinchant
 
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import tensorflow as tf
 import math
 import numpy as np
 import scipy.sparse as sp
 import random
-import sklearn
-import sklearn.metrics
-import time
 
 def init_glorot(shape, name=None):
     """Glorot & Bengio (AISTATS 2010) init."""
