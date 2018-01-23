@@ -14,7 +14,8 @@ from __future__ import  print_function
 from __future__ import unicode_literals
 
 import os
-import json, codecs
+from io import open
+import json
 import shutil
 import math
 
@@ -187,7 +188,11 @@ class PageXmlExtractor:
                 ltOrigin.append( (cnt, o.getDocID(True), n, sFilename) ) # new-PNum, docID, orig-PNum, orig-filename
 
         if jsonOriginFilename:
-            with codecs.open(jsonOriginFilename, "wb",'utf-8') as fd: json.dump(ltOrigin, fd, indent=True)        
+            if sys.version_info > (3,0):
+                with open(jsonOriginFilename, "wb",encoding='utf-8') as fd: json.dump(ltOrigin, fd, indent=True)
+            else:
+                with open(jsonOriginFilename, "wb") as fd: json.dump(ltOrigin, fd, indent=True)
+                        
             print( "   (see %s)"%(jsonOriginFilename))
         
         return cnt, ltOrigin
@@ -202,7 +207,7 @@ class PageXmlExtractor:
 
         trpFile = os.path.join(sDocID, 'trp.json')
         if not( os.path.exists(trpFile)): raise ValueError("Non-existing trp.json file %s" % trpFile)
-        with codecs.open(trpFile, "rb",'utf-8') as fd: 
+        with open(trpFile, "rb",'utf-8') as fd: 
             jTrp = json.load(fd)
         
             for i, page in enumerate(jTrp['pageList']['pages']):

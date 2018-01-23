@@ -370,7 +370,7 @@ class Component:
 			if self.inputFileName == "-":
 				self.inputFile = sys.stdin
 			else:
-				self.inputFile = open(self.inputFileName, opening_mode)
+				self.inputFile = open(self.inputFileName, opening_mode,encoding='utf-8')
 		return self.inputFile
 	
 	##get the output file name ("-" denotes stdout)
@@ -389,7 +389,7 @@ class Component:
 			if self.outputFileName == "-":
 				self.outputFile = sys.stdout
 			else:
-				self.outputFile = open(self.outputFileName, opening_mode)
+				self.outputFile = open(self.outputFileName, opening_mode,encoding='utf-8')
 		return self.outputFile
 
 	## Read a DOM from the input file name of the component or from the given filename
@@ -434,7 +434,7 @@ class Component:
 		if doc == None: return None
 		fout = None
 		try:
-			fout = open(f,"w")
+			fout = open(f,"w",encoding='utf-8')
 		except: 
 			traceln("impossible to open %s" %f)
 		if fout:
@@ -456,7 +456,7 @@ class Component:
 		sCost = sCost + time.strftime("\t%Y/%m/%d\t%H:%M:%S", time.localtime()) #%Z can be verbose, e.g. Romance Standard Time or empty
 		#Store the cost file
 		sCostFile = self.getOutputFileName()+".cost"
-		fd = open(sCostFile, "w")
+		fd = open(sCostFile, "w",encoding='utf-8')
 		fd.write(sCost)
 		fd.write("\n")
 		fd.close()
@@ -676,21 +676,21 @@ class Component:
 			sBaseReportFile = self.getReportFileName(self.testFolder, self._sTestFilePrefix)
 			sReportFile = sBaseReportFile + ".txt"
 			trace("\tstoring the report in ", sReportFile, "   ...")
-			f = open(sReportFile, 'w');	f.write(sRpt); f.close()
+			f = open(sReportFile, 'w',encoding='utf-8');	f.write(sRpt); f.close()
 			traceln(" done.")
 
 			#also make an HTML report
 			sHtmlReportFile = sBaseReportFile + ".htm"
 			sHtmlRpt = self.makeHTMLReport()
 			trace("\tstoring the report in ", sHtmlReportFile, "   ...")
-			f = open(sHtmlReportFile, 'w');	f.write(sHtmlRpt); f.close()
+			f = open(sHtmlReportFile, 'w',encoding='utf-8');	f.write(sHtmlRpt); f.close()
 			traceln(" done.\n")			
 			
 			if self.bTestCSV:
 				sCSV = self.makeCSVReport()
 				sCSVReportFile = sBaseReportFile + ".csv"
 				trace("\tstoring the CSV report in ", sCSVReportFile, "   ...")
-				f = open(sCSVReportFile, 'w');	f.write(sCSV); f.close()
+				f = open(sCSVReportFile, 'w',encoding='utf-8');	f.write(sCSV); f.close()
 				traceln(" done.\n")
 				
 		
@@ -1125,7 +1125,7 @@ class Component:
 		sViewBaseUrl = "http://" + sHttpHost 
 		
 		
-		fHtml = open(self.getHtmRunFileName(filename), "w")
+		fHtml = open(self.getHtmRunFileName(filename), "w",encoding='utf-8')
 		
 		sCss = """
 <style type="text/css">
