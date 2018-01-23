@@ -34,9 +34,8 @@ from __future__ import unicode_literals
 
 import os
 from optparse import OptionParser
-
+from io import open
 import csv
-import codecs
 import pickle, gzip
 
 
@@ -161,7 +160,7 @@ class ResourceGen(object):
         outFile.close()        
         
         #readable version !
-        outFile=codecs.open(os.path.join(destDir,outname+'.txt'),encoding='utf-8',mode='w')
+        outFile=open(os.path.join(destDir,outname+'.txt'),encoding='utf-8',mode='w')
         print( os.path.join(destDir,outname+".txt"))
         for x,y in sorted_db:
             outFile.write("%s\t%s\n"%(x,y))
