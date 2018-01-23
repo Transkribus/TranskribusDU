@@ -280,14 +280,11 @@ class PageXml:
         return the number of modified attributes
         """
         sAttr = sAttr.strip()
-#         ctxt = nd.doc.xpathNewContext()
-#         ctxt.setContextNode(nd)
-#         lAttrNd = ctxt.xpathEval(".//@%s"%sAttr)
-        lAttrNd = nd.findall(".//*[@%s]"%sAttr)
-        ret = len(lAttrNd)
-        for ndAttr in lAttrNd:
-            sNewValue = sPrefix+ndAttr.get(sAttr)
-            ndAttr.set(sAttr,sNewValue)
+        lNd = nd.xpath(".//*[@%s]"%sAttr)
+        ret = len(lNd)
+        for nd in lNd:
+            sNewValue = sPrefix+nd.get(sAttr)
+            nd.set(sAttr,sNewValue)
 #         ctxt.xpathFreeContext()   
         return ret
     addPrefix = classmethod(addPrefix)
@@ -303,16 +300,14 @@ class PageXml:
         sAttr = sAttr.strip()
 #         ctxt = nd.doc.xpathNewContext()
 #         ctxt.setContextNode(nd)
-        lAttrNd = nd.findall(".//*[@%s]"%sAttr)
+        lNd = nd.findall(".//*[@%s]"%sAttr)
         n = len(sPrefix)
-        ret = len(lAttrNd)
-        for ndAttr in lAttrNd:
-#             sValue = ndAttr.getContent().decode('utf-8')
-            sValue = ndAttr.get(sAttr)
+        ret = len(lNd)
+        for nd in lNd:
+            sValue = nd.get(sAttr)
             assert sValue.startswith(sPrefix), "Prefix '%s' from attribute '@%s=%s' is missing"%(sPrefix, sAttr, sValue)
             sNewValue = sValue[n:]
-#             ndAttr.setContent(sNewValue.encode('utf-8)'))
-            ndAttr.set(sAttr,sNewValue)
+            nd.set(sAttr,sNewValue)
 
 #         ctxt.xpathFreeContext()   
         return ret
@@ -616,7 +611,7 @@ class MultiPageXml(PageXml):
 #         ctxt.setContextNode(rootNd)
         
 #         lMetadataNd = ctxt.xpathEval("/a:PcGts/a:Metadata")
-        lMetadataNd = rootNd.findall("/{%s}:PcGts/{%s}:Metadata"%(cls.NS_PAGE_XML,cls.NS_PAGE_XML))
+        lMetadataNd = rootNd.xpath("/x:PcGts/x:Metadata", namespaces={"x":cls.NS_PAGE_XML})
         if not lMetadataNd: raise ValueError("Input multi-page PageXml should have at least one page and therefore one Metadata element")
         
         lDocToBeFreed = []
@@ -643,13 +638,12 @@ class MultiPageXml(PageXml):
             
 #             #jump to the PAGE sibling node
 #             node = metadataNd.next
-            while node:
+            while node is not None:
 #                 if node.type == "element": break
 #                 node = node.next
                 if node.tag != etree.Comment: break
                 node = node.getnext()
-
-            if node.tag != "Page": raise ValueError("Input multi-page PageXml for page %d should have a PAGE node after the METADATA node."%pnum)
+            if etree.QName(node.tag).localname != "Page": raise ValueError("Input multi-page PageXml for page %d should have a PAGE node after the METADATA node."%pnum)
             
             #Add a copy of the PAGE node and sub-tree
             if bInPlace:
