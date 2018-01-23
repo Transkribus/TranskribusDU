@@ -8,7 +8,6 @@ import numpy as np
 PY3 = sys.version_info[0] == 3
 import gzip
 import scipy.sparse as sp
-import pdb
 
 class GCNDataset(object):
     '''
@@ -446,6 +445,7 @@ class GCNDataset(object):
                 graph.compute_NodeEdgeMat()
             return gcn_list
 
+    @staticmethod
     def load_transkribus_reverse_arcs_pickle(pickle_fname,pickle_ra_fname, is_zipped=True,format_reverse='lxly'):
         '''
         Loas existing pickle file used with CRF in the Transkribus project

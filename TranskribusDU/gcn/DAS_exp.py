@@ -4,22 +4,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import sys, os
-
-import numpy as np
 import tensorflow as tf
 
-from sklearn.metrics import confusion_matrix
-import os
 import pickle
 import os.path
-from sklearn.metrics import classification_report
 import random
-import gcn_models
-from gcn_datasets import GCNDataset
+import gcn.gcn_models as gcn_models
+from gcn.gcn_datasets import GCNDataset
 
-import sklearn.metrics
-import time
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -30,7 +22,6 @@ tf.app.flags.DEFINE_integer('configid', 0, 'Parameters')
 # Details of the training configuration.
 
 import errno
-import os
 
 
 def mkdir_p(path):

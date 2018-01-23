@@ -4,21 +4,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import sys, os
 
 import numpy as np
 import tensorflow as tf
 
-from sklearn.metrics import confusion_matrix
-import os
 import pickle
 import os.path
-from sklearn.metrics import classification_report
 import random
-import gcn_models
-from gcn_datasets import GCNDataset
+import gcn.gcn_models as gcn_models
+from gcn.gcn_datasets import GCNDataset
 
-import sklearn.metrics
 import time
 
 FLAGS = tf.app.flags.FLAGS
@@ -657,40 +652,19 @@ def run_model(gcn_graph, config_params, gcn_graph_test,eval_iter=10):
         edge_dim = gcn_graph[0].E.shape[1] - 2.0
         nb_class = gcn_graph[0].Y.shape[1]
 
-
-        if 'snake' in config_params:
-            gcn_model = gcn_models.EdgeSnake(node_dim, edge_dim, nb_class,
-                                                     num_layers=config_params['num_layers'],
-                                                     learning_rate=config_params['lr'],
-                                                     mu=config_params['mu'],
-                                                     node_indim=config_params['node_indim'],
-                                                     nconv_edge=config_params['nconv_edge'],
-                                                     residual_connection=config_params[
-                                                         'residual_connection'] if 'residual_connection' in config_params else False,
-                                                     shared_We=config_params[
-                                                         'shared_We'] if 'shared_We' in config_params else False,
-                                                     dropout_rate=config_params[
-                                                         'dropout_rate'] if 'dropout_rate' in config_params else 0.0,
-                                                     dropout_mode=config_params[
-                                                         'dropout_mode'] if 'dropout_mode' in config_params else 0,
-                                                     )
-        else:
-
-
-
-            gcn_model = gcn_models.EdgeConvNet(node_dim, edge_dim, nb_class,
-                                                     num_layers=config_params['num_layers'],
-                                                     learning_rate=config_params['lr'],
-                                                     mu=config_params['mu'],
-                                                     node_indim=config_params['node_indim'],
-                                                     nconv_edge=config_params['nconv_edge'],
-                                                     residual_connection=config_params[
-                                                         'residual_connection'] if 'residual_connection' in config_params else False,
-                                                     shared_We=config_params[
-                                                         'shared_We'] if 'shared_We'  in config_params else False,
-                                                     dropout_rate=config_params['dropout_rate'] if 'dropout_rate' in config_params else 0.0,
-                                                     dropout_mode=config_params['dropout_mode'] if 'dropout_mode' in config_params else 0,
-                                                     )
+        gcn_model = gcn_models.EdgeConvNet(node_dim, edge_dim, nb_class,
+                                                 num_layers=config_params['num_layers'],
+                                                 learning_rate=config_params['lr'],
+                                                 mu=config_params['mu'],
+                                                 node_indim=config_params['node_indim'],
+                                                 nconv_edge=config_params['nconv_edge'],
+                                                 residual_connection=config_params[
+                                                     'residual_connection'] if 'residual_connection' in config_params else False,
+                                                 shared_We=config_params[
+                                                     'shared_We'] if 'shared_We'  in config_params else False,
+                                                 dropout_rate=config_params['dropout_rate'] if 'dropout_rate' in config_params else 0.0,
+                                                 dropout_mode=config_params['dropout_mode'] if 'dropout_mode' in config_params else 0,
+                                                 )
         if 'activation' in config_params:
             gcn_model.activation=config_params['activation']
 
