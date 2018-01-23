@@ -9,6 +9,10 @@ March 21st, 2016
 
 Copyright Xerox 2016
 '''
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 
 class PageNumberSimpleSequenciality:
     """

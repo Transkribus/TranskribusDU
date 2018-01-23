@@ -24,6 +24,10 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 import sys, os
 
 try: #to ease the use without proper Python installation
@@ -37,7 +41,7 @@ from tasks import _checkFindColDir, _exit
 
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
-from DU_CRF_Task import DU_CRF_Task
+from .DU_CRF_Task import DU_CRF_Task
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
 
@@ -72,11 +76,11 @@ class DU_ABPTable(DU_CRF_Task):
         
         lActuallySeen = None
         if lActuallySeen:
-            print "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING"
+            print( "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING")
             lIgnoredLabels  = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
             lLabels         = [lLabels[i] for i in lActuallySeen ]
-            print len(lLabels)          , lLabels
-            print len(lIgnoredLabels)   , lIgnoredLabels
+            print( len(lLabels)          , lLabels)
+            print( len(lIgnoredLabels)   , lIgnoredLabels)
         
         #DEFINING THE CLASS OF GRAPH WE USE
         DU_GRAPH = Graph_MultiSinglePageXml

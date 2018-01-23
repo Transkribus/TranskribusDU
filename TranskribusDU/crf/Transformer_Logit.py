@@ -24,13 +24,13 @@
     under grant agreement No 674943.
     
 """
-import sys
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import numpy as np
 
 from sklearn.pipeline import Pipeline
-from sklearn.feature_selection import SelectKBest
-from sklearn.feature_selection import chi2
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from sklearn.linear_model import LogisticRegression
@@ -39,10 +39,8 @@ from sklearn.model_selection import GridSearchCV  #0.18.1 REQUIRES NUMPY 1.12.1 
     
 from common.trace import traceln
     
-from Transformer import Transformer
-from Transformer_PageXml import  NodeTransformerTextEnclosed
-
-from TestReport import TestReport, TestReportConfusion
+from .Transformer import Transformer
+from .Transformer_PageXml import  NodeTransformerTextEnclosed
 
 dGridSearch_CONF = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for Logit training
 dGridSearch_CONF = {'C':[0.01, 0.1, 1.0, 2.0] }  #Grid search parameters for Logit training
@@ -116,7 +114,7 @@ class NodeTransformerLogit(Transformer):
         self.mdl_main = GridSearchCV(lr , self.dGridSearch_LR_conf, refit=True, n_jobs=self.n_jobs)        
         self.mdl_main.fit(x, y)
         del y
-        if DEBUG: print self.mdl_main
+        if DEBUG: print(self.mdl_main)
         
         #now fit a multiclass multilabel logit to predict if a node is neighbor with at least one node of a certain class, for each class
         #Shape = (nb_tot_nodes x nb_tot_labels)
@@ -129,7 +127,7 @@ class NodeTransformerLogit(Transformer):
         self.mdl_neighbor.fit(x, y)
 
         del x, y
-        if DEBUG: print self.mdl_neighbor
+        if DEBUG: print(self.mdl_neighbor)
 
         return self
         
@@ -145,7 +143,7 @@ class NodeTransformerLogit(Transformer):
         a[...,  self.nbClass:3*self.nbClass]    = self.mdl_neighbor .predict_proba(x)
 #         for i, nd in enumerate(lNode):
 #             print i, nd, a[i]
-        if DEBUG: print a
+        if DEBUG: print(a)
         return a
 
 #     def testEco(self,lX, lY):

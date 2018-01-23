@@ -25,19 +25,21 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 from sklearn.pipeline import Pipeline, FeatureUnion
 #not robust to empty arrays, so use our robust intermediary class instead
 #from sklearn.preprocessing import StandardScaler
 from crf.Transformer import EmptySafe_QuantileTransformer as QuantileTransformer
 
-from crf.Transformer import TransformerListByType
 from crf.Transformer_PageXml import Node1ConstantFeature
 from crf.Transformer_PageXml import NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures
 from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures_v2, EdgeNumericalSelector, EdgeTypeFeature_HV
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
-from FeatureDefinition import FeatureDefinition
+from .FeatureDefinition import FeatureDefinition
 
 class FeatureDefinition_PageXml_NoNodeFeat_v3(FeatureDefinition):
     

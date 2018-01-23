@@ -24,10 +24,14 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 TEST_getPageXmlBlock = False
 
-from NodeType import NodeType
-from Block import Block
+from .NodeType import NodeType
+from .Block import Block
 
 
 class NodeType_DS(NodeType):

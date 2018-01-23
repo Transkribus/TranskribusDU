@@ -1,10 +1,10 @@
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-
-from Model import Model,ModelException
+from .Model import Model
 from common.trace import traceln
-import types
-import numpy as np
-from TestReport import TestReport
+from .TestReport import TestReport
 
 
 class BaselineModel(Model):
@@ -20,7 +20,7 @@ class BaselineModel(Model):
         They will be trained with the node features, from all nodes of all training graphs
         """
         #the baseline model(s) if any
-        if type(mdlBaselines) in [types.ListType, types.TupleType]:
+        if type(mdlBaselines) in [list, tuple]:
             raise Exception('Baseline Model can only use a single Model')
         else:
             self._lMdlBaseline = [mdlBaselines]
@@ -65,9 +65,8 @@ class BaselineModel(Model):
 
         Return a Report object
         """
-        lX, lY, lY_pred,lY_pred_bl  = [], [], [],[]
+        lX, lY, lY_pred  = [], [], []
         lLabelName   = None
-        bConstraint  = None
         traceln("\t- predicting on test set")
 
         for sFilename in lsFilename:

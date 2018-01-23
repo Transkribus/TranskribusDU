@@ -24,8 +24,11 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 import sys, os, glob, datetime
-import types
 from optparse import OptionParser
 
 import numpy as np
@@ -126,7 +129,7 @@ See DU_StAZH_b.py
         self.sModelDir     = sModelDir
         
         #Because of the way of dealing with the command line, we may get singleton instead of scalar. We fix this here
-        self.config_learner_kwargs      = {k:v[0] if type(v)==types.ListType and len(v)==1 else v for k,v in dLearnerConfig.items()}
+        self.config_learner_kwargs      = {k:v[0] if type(v) is list and len(v)==1 else v for k,v in dLearnerConfig.items()}
         if sComment: self.sMetadata_Comments    = sComment
         
         self._mdl = None
@@ -196,7 +199,6 @@ See DU_StAZH_b.py
     Otherwise pystruct will complain about the number of states differeing from the number of weights
     """
     def setNbClass(self, useless_stuff):    #DEPRECATED - DO NOT CALL!! Number of class computed automatically
-        print   " *** setNbClass is deprecated - update your code (but it should work fine!)"
         traceln(" *** setNbClass is deprecated - update your code (but it should work fine!)")
         
     def getNbClass(self, lNbClass): #OK
@@ -819,7 +821,10 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         for sDir in lsDir:
             lsFilename = sorted(glob.iglob(os.path.join(sDir, sPattern)))  
             lFn.extend(lsFilename)
-            if lsFilename: ts = max(ts, max([os.path.getmtime(sFilename) for sFilename in lsFilename]))
+            if lsFilename:
+                ts_max =  max([os.path.getmtime(sFilename) for sFilename in lsFilename])
+                ts = ts_max if ts is None else max(ts, ts_max)
+                ts = max(ts, ts_max)
         return ts, lFn
     listMaxTimestampFile = classmethod(listMaxTimestampFile)
     
@@ -836,7 +841,7 @@ class DU_FactorialCRF_Task(DU_CRF_Task):
         self.sModelDir      = sModelDir
         self.cGraphClass    = cGraphClass
         #Because of the way of dealing with the command line, we may get singleton instead of scalar. We fix this here
-        self.config_learner_kwargs      = {k:v[0] if type(v)==types.ListType and len(v)==1 else v for k,v in dLearnerConfig.items()}
+        self.config_learner_kwargs      = {k:v[0] if type(v) is list and len(v)==1 else v for k,v in dLearnerConfig.items()}
         if sComment: self.sMetadata_Comments    = sComment
         
         self._mdl = None

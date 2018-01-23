@@ -35,23 +35,22 @@
     under grant agreement No 674943.
     
 """
-
-import numpy as np
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 from sklearn.pipeline import Pipeline, FeatureUnion
 #not robust to empty arrays, so use our robust intermediary class instead
 #from sklearn.preprocessing import StandardScaler
 from crf.Transformer import RobustStandardScaler as StandardScaler
-from sklearn.feature_extraction.text import TfidfVectorizer
 
-from crf.Transformer import SparseToDense
-from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH, NodeTransformerNeighbors, Node1HotFeatures
-from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
+from crf.Transformer_PageXml import NodeTransformerTextLen, NodeTransformerXYWH, NodeTransformerNeighbors, Node1HotFeatures
+from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
-from FeatureDefinition import FeatureDefinition
+from .FeatureDefinition import FeatureDefinition
 
-from Transformer_Logit import NodeTransformerLogit, EdgeTransformerLogit
+from .Transformer_Logit import NodeTransformerLogit, EdgeTransformerLogit
 
 class FeatureDefinition_PageXml_LogitExtractor(FeatureDefinition):
 
@@ -190,7 +189,7 @@ TypeError: can't pickle PyCapsule objects
         JL
         """
         #TODO
-        print "TODO: cleanTransformers"
+        print("TODO: cleanTransformers")
 #         self._node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
 #         for i in [2, 3, 4, 5, 6, 7]:
 #             self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....

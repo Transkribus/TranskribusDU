@@ -5,7 +5,6 @@
 #  Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#ssl-warnings  InsecureRequestWarning)
 
 import sys, os
-import types
 
 DEBUG=0
 
@@ -25,7 +24,7 @@ def _checkFindColDir(lsDir, sColName=sCOL):
     or raise an exception
     """
     if lsDir == None: return list()
-    if type(lsDir) != types.ListType: lsDir = [lsDir]
+    if type(lsDir) != list: lsDir = [lsDir]
     lsColDir = list()
     for sDir in lsDir:  
         if not(sDir.endswith(sColName) or sDir.endswith(sColName+os.path.sep)): 
