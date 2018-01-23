@@ -422,7 +422,7 @@ class sequenceMiner(Component.Component):
             
                 
 #         sortedItems = map(lambda x: (x, len(lFeatures[x])), lFeatures)
-        sortedItems = list([(x, len(lFeatures[x])) for x in lFeatures])
+        sortedItems = [(x, len(lFeatures[x])) for x in lFeatures]
         sortedItems.sort(key=itemgetter(1), reverse=True)    
         
         
@@ -450,7 +450,7 @@ class sequenceMiner(Component.Component):
                                 lMergedFeatures[f].append(ff2)
                                 lCovered.append(ff2)
                                 
-        sortedItems = list([ (x, len(lMergedFeatures[x])) for x in lMergedFeatures])
+        sortedItems = [ (x, len(lMergedFeatures[x])) for x in lMergedFeatures]
 #         sortedItems = map(lambda x: (x, len(lMergedFeatures[x])), lMergedFeatures)
         
         sortedItems.sort(key=itemgetter(1), reverse=True)

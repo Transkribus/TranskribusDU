@@ -51,8 +51,7 @@ from keras.layers.core import Dense, Masking
 from keras.regularizers import L1L2
 import numpy as np
 
-try: import cPickle 
-except ImportError:import _pickle as cPickle
+import pickle 
 import gzip
 
 class Transformer(BaseEstimator, TransformerMixin):
@@ -395,7 +394,7 @@ class DeepTagger():
         print('model dumped  in %s/%s.hd5' % (self.dirName,self.sModelName))        
         
         #max_features,max_sentence_len, self.nbClasses,self.tag_vector , node_transformer
-        cPickle.dump((self.bMultiType,self.maxngram,self.max_features,self.max_sentence_len,self.nbClasses,self.tag_vector,self.node_transformer),gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'wb'))
+        pickle.dump((self.bMultiType,self.maxngram,self.max_features,self.max_sentence_len,self.nbClasses,self.tag_vector,self.node_transformer),gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'wb'))
         print('aux data dumped in %s/%s.%s' % (self.dirName,self.sModelName,self.sAux))        
         
     def loadModels(self):
@@ -405,9 +404,9 @@ class DeepTagger():
         self.model = load_model(os.path.join(self.dirName,self.sModelName+'.hd5'))
         print('model loaded: %s/%s.hd5' % (self.dirName,self.sModelName))  
         try:
-            self.bMultiType,self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses,self.tag_vector , self.node_transformer = cPickle.load(gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'r'))
+            self.bMultiType,self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses,self.tag_vector , self.node_transformer = pickle.load(gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'r'))
         except:
-            self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses,self.tag_vector , self.node_transformer = cPickle.load(gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'r'))
+            self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses,self.tag_vector , self.node_transformer = pickle.load(gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'r'))
             self.bMultiType = False
         print('aux data loaded: %s/%s.%s' % (self.dirName,self.sModelName,self.sAux))        
         print("ngram: %s\tmaxfea=%s\tpadding=%s\tnbclasses=%s" % (self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses))

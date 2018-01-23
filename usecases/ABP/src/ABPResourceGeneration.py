@@ -28,6 +28,8 @@
     from the European Union�s Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import absolute_import
+from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
@@ -35,7 +37,7 @@ from optparse import OptionParser
 
 import csv
 import codecs
-import cPickle, gzip
+import pickle, gzip
 
 
 class ResourceGen(object):
@@ -154,13 +156,13 @@ class ResourceGen(object):
         sorted_db = sorted_db[:self.firstN]
         # where to store them
         outFile=gzip.open(os.path.join(destDir,outname+'.pkl'),'w')
-        print os.path.join(destDir,outname+".pkl")
-        cPickle.dump(sorted_db, outFile)
+        print(os.path.join(destDir,outname+".pkl"))
+        pickle.dump(sorted_db, outFile)
         outFile.close()        
         
         #readable version !
         outFile=codecs.open(os.path.join(destDir,outname+'.txt'),encoding='utf-8',mode='w')
-        print os.path.join(destDir,outname+".txt")
+        print( os.path.join(destDir,outname+".txt"))
         for x,y in sorted_db:
             outFile.write("%s\t%s\n"%(x,y))
         outFile.close()                 
@@ -173,13 +175,13 @@ class ResourceGen(object):
             take just (Value,freq)
         """
         self._lresources =[]
-        res = cPickle.load(gzip.open(filename,'r'))
+        res = pickle.load(gzip.open(filename,'r'))
         return res
         
     def run(self):
-        print self.lFileRes,self.lOutNames,self.lDelimitor
+        print (self.lFileRes,self.lOutNames,self.lDelimitor)
         for filename,outname ,sep in zip(self.lFileRes,self.lOutNames,self.lDelimitor):
-            print filename,outname,sep
+            print (filename,outname,sep)
             mydict = self.createResource(self.outputDir, filename,outname,sDelimiter=sep,nbEntries=-1)
 #             print self.loadResources(os.path.join(self.outputDir,outname+'.pkl'))
 
