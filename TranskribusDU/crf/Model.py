@@ -24,10 +24,19 @@
     under grant agreement No 674943.
     
 """
-import os
-import cPickle, gzip, json
-import types
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+from io import open
 
+import os
+import sys
+import gzip, json
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+    
 import numpy as np
 
 from sklearn.utils.class_weight import compute_class_weight
@@ -35,7 +44,7 @@ from sklearn.utils.class_weight import compute_class_weight
 from common.trace import  traceln
 from common.chrono import chronoOn, chronoOff
 
-from TestReport import TestReport, TestReportConfusion
+from .TestReport import TestReport, TestReportConfusion
 
 import scipy.sparse as sp
 class ModelException(Exception):
@@ -148,7 +157,7 @@ class Model:
         dat = None
         if os.path.exists(sFilename):
             traceln("\t\t file found on disk: %s"%sFilename)
-            if os.path.getmtime(sFilename) > expiration_timestamp:
+            if expiration_timestamp is None or os.path.getmtime(sFilename) > expiration_timestamp:
                 #OK, it is fresh
                 traceln("\t\t file is fresh")
                 dat = loadFun(sFilename)
@@ -162,21 +171,22 @@ class Model:
     
     def gzip_cPickle_dump(cls, sFilename, dat):
         with gzip.open(sFilename, "wb") as zfd:
-                cPickle.dump( dat, zfd, protocol=2)
+                pickle.dump( dat, zfd, protocol=2)
     gzip_cPickle_dump = classmethod(gzip_cPickle_dump)
 
     def gzip_cPickle_load(cls, sFilename):
         with gzip.open(sFilename, "rb") as zfd:
-                return cPickle.load(zfd)        
+                return pickle.load(zfd)        
     gzip_cPickle_load = classmethod(gzip_cPickle_load)
     
     # --- TRANSFORMERS ---------------------------------------------------
-    def setTranformers(self, (node_transformer, edge_transformer)):
+    def setTranformers(self, t_node_transformer_edge_transformer):
         """
         Set the type of transformers 
+        takes as input a tuple: (node_transformer, edge_transformer)
         return True 
         """
-        self._node_transformer, self._edge_transformer = node_transformer, edge_transformer        
+        self._node_transformer, self._edge_transformer = t_node_transformer_edge_transformer        
         return True
 
     def getTransformers(self):
@@ -238,8 +248,12 @@ class Model:
         return the filename
         """
         sConfigFile = self.getConfigurationFilename()
-        with open(sConfigFile, "wb") as fd:
-            json.dump(config_data, fd, indent=4, sort_keys=True)
+        if sys.version_info >= (3,0): #boring problem...
+            with open(sConfigFile, "w") as fd:
+                json.dump(config_data, fd, indent=4, sort_keys=True)
+        else: 
+            with open(sConfigFile, "wb") as fd:
+                json.dump(config_data, fd, indent=4, sort_keys=True)
         return sConfigFile
         
     # --- TRAIN / TEST / PREDICT BASELINE MODELS ------------------------------------------------
@@ -253,7 +267,7 @@ class Model:
         They will be trained with the node features, from all nodes of all training graphs
         """
         #the baseline model(s) if any
-        if type(mdlBaselines) in [types.ListType, types.TupleType]:
+        if type(mdlBaselines) in [list, tuple]:
             self._lMdlBaseline = mdlBaselines
         else:
             self._lMdlBaseline = list(mdlBaselines) if mdlBaselines else []  #singleton or None
@@ -297,7 +311,7 @@ class Model:
             Y_flat = np.hstack(lY)
             if False:
                 with open("XY_flat.pkl", "wb") as fd: 
-                    cPickle.dump((X_flat, Y_flat), fd)
+                    pickle.dump((X_flat, Y_flat), fd)
             for mdlBaseline in self._lMdlBaseline:
                 chronoOn()
                 traceln("\t - training baseline model: %s"%str(mdlBaseline))

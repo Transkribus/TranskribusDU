@@ -25,7 +25,9 @@
     under grant agreement No 674943.
     
 """
-
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 class Polygon:
     
@@ -33,8 +35,8 @@ class Polygon:
         assert lXY, "ERROR: empty list of points"
         self.lXY = [(x,y) for x,y in lXY]
     
-    def lX(self): return [x for x,y in self.lXY]
-    def lY(self): return [y for x,y in self.lXY]
+    def lX(self): return [x for x,_y in self.lXY]
+    def lY(self): return [y for _x,y in self.lXY]
     
     def getBoundingBox(self):
         """
@@ -114,7 +116,7 @@ class Polygon:
         
         fA, (fXg, fYg) = self.getArea_and_CenterOfMass()
         
-        x1,y1, x2,y2 = self.getBoundingBox()
+        x1,_y1, x2,_y2 = self.getBoundingBox()
         #build a rectangle with same "width" as the polygon...    is-it good enough??
         w = x2 - x1
         
@@ -131,19 +133,19 @@ class Polygon:
         
 
 def test_trigo():    
-    print [(3673, 1721), (3744, 1742), (3944, 1729), (3946, 1764), (3740, 1777), (3664, 1755)]
+    print([(3673, 1721), (3744, 1742), (3944, 1729), (3946, 1764), (3740, 1777), (3664, 1755)])
     p = Polygon([(3673, 1721), (3744, 1742), (3944, 1729), (3946, 1764), (3740, 1777), (3664, 1755)])
     fA, (xg, yg) =p.getArea_and_CenterOfMass()
     assert fA and xg > 0 and yg >0
     ## trigo   
     
-    print [(253, 129), (356, 108), (363, 142), (260, 163)]
+    print( [(253, 129), (356, 108), (363, 142), (260, 163)])
     p = Polygon([(253, 129), (356, 108), (363, 142), (260, 163)])
     fA, (xg, yg) =p.getArea_and_CenterOfMass()
     assert fA and xg > 0 and yg >0
     
     #non trigo
-    print [(4140, 2771), (4140, 3400), (4340, 3400), (4340, 2771)]
+    print([(4140, 2771), (4140, 3400), (4340, 3400), (4340, 2771)])
     p = Polygon([(4140, 2771), (4140, 3400), (4340, 3400), (4340, 2771)])
     fA, (xg, yg) =  p.getArea_and_CenterOfMass()
     assert fA and xg > 0 and yg >0        

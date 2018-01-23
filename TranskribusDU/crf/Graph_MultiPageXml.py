@@ -24,17 +24,21 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 import numpy as np
 
 from  lxml import etree
 
 from common.trace import traceln
 
-from Graph import Graph
-from Transformer_PageXml import  EdgeTransformerClassShifter
-from Block import Block, BlockShallowCopy
-from Edge import Edge, HorizontalEdge, VerticalEdge, CrossPageEdge, CrossMirrorContinuousPageVerticalEdge
-from Page import Page
+from .Graph import Graph
+from .Transformer_PageXml import  EdgeTransformerClassShifter
+from .Block import Block, BlockShallowCopy
+from .Edge import Edge, HorizontalEdge, VerticalEdge, CrossPageEdge, CrossMirrorContinuousPageVerticalEdge
+from .Page import Page
 from xml_formats.PageXml import PageXml
 
 class Graph_MultiPageXml(Graph):
@@ -314,8 +318,8 @@ class ContinousPage:
                             for edge in lEdge if edge.A.pnum != edge.B.pnum]
             
                 if False and lAllEdge:
-                    print "---Page ", lAllEdge[0].A.pnum
-                    for edge in lAllEdge: print edge.A.node.prop("id"), " -->  ", edge.B.node.prop("id")
+                    print("---Page ", lAllEdge[0].A.pnum)
+                    for edge in lAllEdge: print(edge.A.node.prop("id"), " -->  ", edge.B.node.prop("id"))
                    
         return lAllEdge
 

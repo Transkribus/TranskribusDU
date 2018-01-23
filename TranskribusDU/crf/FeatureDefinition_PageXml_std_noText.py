@@ -24,21 +24,21 @@
     under grant agreement No 674943.
     
 """
-
-import numpy as np
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 from sklearn.pipeline import Pipeline, FeatureUnion
 #not robust to empty arrays, so use our robust intermediary class instead
 #from sklearn.preprocessing import StandardScaler
 from crf.Transformer import RobustStandardScaler as StandardScaler
-from sklearn.feature_extraction.text import TfidfVectorizer
 
 from crf.Transformer import TransformerListByType
-from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures
-from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures_v2, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
+from crf.Transformer_PageXml import NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures
+from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures_v2, EdgeNumericalSelector
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
-from FeatureDefinition import FeatureDefinition
+from .FeatureDefinition import FeatureDefinition
 
 class FeatureDefinition_PageXml_StandardOnes_noText(FeatureDefinition):
     
@@ -135,7 +135,7 @@ class FeatureDefinition_T_PageXml_StandardOnes_noText(FeatureDefinition):
                                                          ('1hot', Node1HotFeatures())  #does the 1-hot encoding directly
                                                          ])
                                        )
-                                      ]) for i in range(nbTypes) ])
+                                      ]) for _i in range(nbTypes) ])
     
         edge_transformer = TransformerListByType([ FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                       ("1hot", Pipeline([
@@ -151,7 +151,7 @@ class FeatureDefinition_T_PageXml_StandardOnes_noText(FeatureDefinition):
                                                          ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
                                                          ])
                                         )
-                                          ] ) for i in range(nbTypes*nbTypes) ])
+                                          ] ) for _i in range(nbTypes*nbTypes) ])
           
         #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
         self._node_transformer = node_transformer

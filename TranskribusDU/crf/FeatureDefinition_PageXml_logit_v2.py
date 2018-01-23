@@ -35,7 +35,9 @@
     under grant agreement No 674943.
     
 """
-import sys
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 from sklearn.pipeline import Pipeline, FeatureUnion
 #not robust to empty arrays, so use our robust intermediary class instead
@@ -45,9 +47,9 @@ from crf.Transformer_PageXml import NodeTransformerTextLen, NodeTransformerXYWH_
 from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures_v2, EdgeNumericalSelector
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
-from FeatureDefinition import FeatureDefinition
+from .FeatureDefinition import FeatureDefinition
 
-from Transformer_Logit import NodeTransformerLogit, EdgeTransformerLogit
+from .Transformer_Logit import NodeTransformerLogit, EdgeTransformerLogit
 
 class FeatureDefinition_PageXml_LogitExtractorV2(FeatureDefinition):
 
@@ -190,7 +192,7 @@ RuntimeError: maximum recursion depth exceeded
         JL
         """
         #TODO
-        print "TODO: cleanTransformers"
+        print("TODO: cleanTransformers")
 #         self._node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
 #         for i in [2, 3, 4, 5, 6, 7]:
 #             self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....

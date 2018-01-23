@@ -24,6 +24,10 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 import collections
 #import gc
 
@@ -33,7 +37,7 @@ from lxml import etree
 from common.trace import traceln
 from xml_formats.PageXml import PageXmlException
 
-import Edge
+from . import Edge
 from crf.Edge import SamePageEdge
 
 class Graph:

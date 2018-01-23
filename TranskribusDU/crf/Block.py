@@ -11,12 +11,15 @@ Copyright Xerox 2016
 
 '''
 
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
-import collections, types
+from past.builtins import cmp
 
-from common.trace import traceln
+import collections
 
-import Edge
+from . import Edge
 # from Edge import CrossPageEdge, HorizontalEdge, VerticalEdge
 
 DEBUG=0
@@ -25,12 +28,13 @@ DEBUG=1
 
 class Block:
         
-    def __init__(self, page, (x, y, w, h), text, orientation, cls, nodeType, domnode=None, domid=None):
+    def __init__(self, page, tXYWH, text, orientation, cls, nodeType, domnode=None, domid=None):
         """
         pnum is an int
         orientation is an int, usually in [0-3]
         cls is the node label, is an int in N+
         """
+        (x, y, w, h) = tXYWH
         self.page = page
         self.pnum = int(page.pnum)
         self.setBB(self.xywhtoxyxy(x, y, w, h))
@@ -77,8 +81,8 @@ class Block:
     ##Bounding box methods: getter/setter + geometrical stuff
     def getBB(self):
         return self.x1, self.y1, self.x2, self.y2
-    def setBB(self, (x1, y1, x2, y2)):
-        self.x1, self.y1, self.x2, self.y2 = x1, y1, x2, y2
+    def setBB(self, t_x1_y1_x2_y2):
+        self.x1, self.y1, self.x2, self.y2 = t_x1_y1_x2_y2
  
     def getWidthHeight(self):
         return self.x2-self.x1, self.y2-self.y1
@@ -205,10 +209,11 @@ class Block:
         else:
             return 0.0       
 
-    def fitIn(self, (x1, y1, x2, y2)):
+    def fitIn(self, t_x1_y1_x2_y2):
         """
         return true if this object fits in the given bounding box
         """
+        (x1, y1, x2, y2) = t_x1_y1_x2_y2
         return self.x1>=x1 and self.x2<=x2 and self.y1>=y1 and self.y2<=y2
 
 
@@ -362,8 +367,11 @@ class Block:
         return int(round(f / epsilon, 0)*epsilon)
     epsilonRound = classmethod(epsilonRound)
     
-    def XXOverlap(cls, (Ax1,Ax2), (Bx1, Bx2)): #overlap if the max is smaller than the min
+    def XXOverlap(cls, tAx1_Ax2, tBx1_Bx2): #overlap if the max is smaller than the min
+        Ax1, Ax2 = tAx1_Ax2
+        Bx1, Bx2 = tBx1_Bx2
         return max(Ax1, Bx1), min(Ax2, Bx2)
+
     XXOverlap = classmethod(XXOverlap)
 
     def _findVerticalNeighborEdges(cls, lBlk, EdgeClass, bShortOnly=False, epsilon = 2):
@@ -375,7 +383,7 @@ class Block:
         return a list of pair of block
         
         """
-        assert type(epsilon) == types.IntType
+        assert type(epsilon) is int
         
         if not lBlk: return []
         
@@ -393,7 +401,7 @@ class Block:
             setY2.add(ry2)
         
         #lY1 and lY2 are sorted list of unique values
-        lY1 = dBlk_Y1.keys(); lY1.sort(); n1 = len(lY1)
+        lY1 = list(dBlk_Y1.keys()); lY1.sort(); n1 = len(lY1)
         lY2 = list(setY2) 
         lY2.sort(); 
                 

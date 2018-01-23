@@ -125,7 +125,7 @@ def test_setMetadata():
     doc = getMetadataTestDOM()
 
     nd = doc.getroot()
-    sutc = datetime.datetime.utcnow().isoformat()
+    _sutc = datetime.datetime.utcnow().isoformat()
     PageXml.setMetadata(doc, None, "Tigrette")
     
     sutc = datetime.datetime.utcnow().isoformat()
@@ -134,7 +134,7 @@ def test_setMetadata():
     assert md.Created == "2016-08-18T13:35:08.252+07:00"
     assert md.LastChange.startswith(sutc[:15])
     assert md.Comments == None
-    print doc
+    print(doc)
    
     sutc = datetime.datetime.utcnow().isoformat()
     PageXml.setMetadata(doc, None, "Bijoux", "Le chat de Martine")
@@ -143,11 +143,11 @@ def test_setMetadata():
     assert md.Created == "2016-08-18T13:35:08.252+07:00"
     assert md.LastChange.startswith(sutc[:15])
     assert md.Comments == "Le chat de Martine"
-    print doc
+    print(doc)
     
 def test_CreationPageXmlDocument():
     doc= PageXml.createPageXmlDocument(creatorName='HerveforTest', filename='hervefortest.jpg', imgW=100, imgH=100)
-    print doc
+    print(doc)
     
 if __name__ == "__main__":
     test_setMetadata()

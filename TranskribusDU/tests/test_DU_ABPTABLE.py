@@ -53,18 +53,18 @@ def test_ABPTable_train():
     sModelName = "test_ABPTable_train"
     sDataDir = os.path.join(sDATA_DIR, "abp_TABLE_9142_mpxml")
     
-#     options = FakeOption()
-#     options.rm = True                       
-#     # remove any pre-existing model
-#     tasks.DU_ABPTable.main(sModelDir, sModelName, options)
-#      
-#     options = FakeOption()
-#     options.lTrn = [sDataDir]                       
-#     tasks.DU_ABPTable.main(sModelDir, sModelName, options)
-#      
-#     options = FakeOption()
-#     options.lTst = [sDataDir]                       
-#     tasks.DU_ABPTable.main(sModelDir, sModelName, options)
+    options = FakeOption()
+    options.rm = True                       
+    # remove any pre-existing model
+    tasks.DU_ABPTable.main(sModelDir, sModelName, options)
+      
+    options = FakeOption()
+    options.lTrn = [sDataDir]                       
+    tasks.DU_ABPTable.main(sModelDir, sModelName, options)
+      
+    options = FakeOption()
+    options.lTst = [sDataDir]                       
+    tasks.DU_ABPTable.main(sModelDir, sModelName, options)
 
     options = FakeOption()
     options.lRun = [sDataDir]                       

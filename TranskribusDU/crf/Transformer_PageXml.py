@@ -26,12 +26,15 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 import numpy as np
 
-from Transformer import Transformer
+from .Transformer import Transformer
 
-import string
-from Edge import HorizontalEdge, VerticalEdge, SamePageEdge, CrossPageEdge, CrossMirrorPageEdge
+from .Edge import HorizontalEdge, VerticalEdge, SamePageEdge, CrossPageEdge, CrossMirrorPageEdge
 
 fEPSILON = 10
 
@@ -166,7 +169,7 @@ class NodeTransformerNeighborsAllText(Transformer):
     def transform(self, lNode):
         txt_list=[]
         #print('Node Text',lNode.text)
-        for i,blk in enumerate(lNode):
+        for _i,blk in enumerate(lNode):
             txt_block=[]
             #print [" ".join([nd2.text for nd2 in blk.lHNeighbor])]
 
@@ -191,7 +194,7 @@ class NodeTransformerNeighborsAllText(Transformer):
             for b in blk.lCPNeighbor:
                 txt_list.append(b.text)
             '''
-            txt_list.append(string.join(txt_block,' '))
+            txt_list.append(' '.join(txt_block))
         #print('TEXT List',txt_list)
         print('LEN TEXT LIST',len(txt_list))
 
@@ -424,7 +427,7 @@ class EdgeBooleanFeatures_v2(EdgeTransformerClassShifter):
             
             A,B = edge.A, edge.B        
             thH = fEPSILON_v2 * (A.page.w+B.page.w) / 2.0
-            thV = fEPSILON_v2 * (A.page.h+B.page.h) / 2.0            
+            # thV = fEPSILON_v2 * (A.page.h+B.page.h) / 2.0            
 
             a[i,z:z+self.nbFEAT] = ( A.x1 + A.x2 - (B.x1 + B.x2) <= thH, # centering
                                      A.y1 + A.y2 - (B.y1 + B.y2) <= thH, 
@@ -512,9 +515,9 @@ class EdgeTypeFeature_HV(Transformer):
 # -----------------------------------------------------------------------------------------------------------------------------    
 def _debug(lO, a):
     for i,o in enumerate(lO):
-        print o
-        print a[i]
-        print
+        print(o)
+        print(a[i])
+        print()
                 
 def lcs_length(a,na, b,nb):
     """
@@ -553,7 +556,7 @@ class NodeEdgeTransformer(Transformer):
 
     def transform(self,lNode):
         x_all=[]
-        for i, blk in enumerate(lNode):
+        for _i, blk in enumerate(lNode):
             x_edge_node = self.edge_list_transformer.transform(blk.edgeList)
             if self.agg_func=='sum':
                 x_node=x_edge_node.sum(axis=0)
