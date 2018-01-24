@@ -19,7 +19,6 @@ Detailed instructions available on the READ wiki:  https://read02.uibk.ac.at/wik
 ### Usage
  * see use-cases
 
-#### See also
 Related discussion: <https://read02.uibk.ac.at/wiki/index.php/Document_Understanding>
 
 ### Contacts:
@@ -27,6 +26,6 @@ Related discussion: <https://read02.uibk.ac.at/wiki/index.php/Document_Understan
  * Jean-Luc Meunier, jean-luc.meunier@naverlabs.com
 
 ### Useful Links
-[Python]: <https://www.python.org>
-[Anaconda]: https://anaconda.org/anaconda/python
-[Windows Python lib]: <http://www.lfd.uci.edu/%7Egohlke/pythonlibs>
+* Python: <https://www.python.org>
+* Anaconda: https://anaconda.org/anaconda/python
+* Windows Python lib: <http://www.lfd.uci.edu/%7Egohlke/pythonlibs>
