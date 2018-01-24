@@ -13,8 +13,8 @@ Detailed instructions available on the READ wiki:  https://read02.uibk.ac.at/wik
 ### Installation
 
 * Install AD3 from https://github.com/Transkribus/AD3  (python setup.py install)
-* Install PyStruct from https://github.com/jlmeunier/pystruct   (python setup.py install)
 * Install cython pytest nose future numpy scipy scikit-learn cvxopt
+* Install PyStruct from https://github.com/jlmeunier/pystruct   (python setup.py install)
 
 ### Usage
  * see use-cases
