@@ -44,7 +44,6 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.base import BaseEstimator, TransformerMixin
 
 os.environ['KERAS_BACKEND'] = 'tensorflow'
-# else: os.environ['KERAS_BACKEND'] = 'tensorflow'
 
 from keras.models import Sequential, load_model, Model
 from keras.layers  import Bidirectional, Dropout, Input
