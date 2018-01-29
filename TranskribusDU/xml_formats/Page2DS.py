@@ -206,7 +206,7 @@ class primaAnalysis(Component.Component):
                 sp = lPoints[0].replace(' ',',')
 
                 try:
-                    scaledP =  map(lambda x: 72.0* float(x) / self.dpi,sp.split(','))
+                    scaledP =  list(map(lambda x: 72.0* float(x) / self.dpi,sp.split(',')))
                     scaledP = str(scaledP)[1:-1].replace(' ','')
                     node.set('blpoints',scaledP)
                     dsNode.append(node)
@@ -453,7 +453,7 @@ class primaAnalysis(Component.Component):
 #         xpath  = "//a:%s" % ("Page")
 #         lPages = ctxt.xpathEval(xpath)
 #         ctxt.xpathFreeContext()
-        lPages = dsroot.findall(".//{%s}%s"%(self.xmlns,'Page'))
+        lPages = mprimedoc.findall(".//{%s}%s"%(self.xmlns,'Page'))
         for ipageNumber,ipage in enumerate(lPages):
             page = etree.Element(ds_xml.sPAGE)
             dsroot.append(page)            
