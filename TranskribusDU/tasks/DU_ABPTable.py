@@ -41,7 +41,7 @@ from tasks import _checkFindColDir, _exit
 
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
-from .DU_CRF_Task import DU_CRF_Task
+from tasks.DU_CRF_Task import DU_CRF_Task
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
 
