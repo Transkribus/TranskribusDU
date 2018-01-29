@@ -217,8 +217,8 @@ class primaAnalysis(Component.Component):
 #             ctxt.xpathRegisterNs("a", self.xmlns)
 #             xpath  = "./a:TextEquiv/a:Unicode"
 #             ctxt.setContextNode(line)
-            txt =line.find("./TextEquiv/Unicode")
-#             ctxt.xpathFreeContext()
+            txt =line.xpath("./x:TextEquiv/x:Unicode",namespaces={'x':self.xmlns})
+            ## assume just one Unicode tag
             if txt is not None:
                 node.text = txt[0].text
             
