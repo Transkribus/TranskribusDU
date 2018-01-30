@@ -439,7 +439,7 @@ class DeepTagger():
         model.add(Masking(mask_value=0., input_shape=(self.max_sentence_len, self.max_features)))
         model.add(Bidirectional(LSTM(self.hiddenSize,return_sequences = True,bias_regularizer=reg))) 
         model.add(Dropout(0.5))
-        model.add(AttentionDecoder(32, 4))
+        model.add(AttentionDecoder(self.max_sentence_len, self.nbClasses))
         model.add(TimeDistributed(Dense(self.nbClasses, activation='softmax')))
         #keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-08, decay=0.0)
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop',metrics=['categorical_accuracy']  )
