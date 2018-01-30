@@ -112,6 +112,7 @@ class DeepTagger():
         self.lTest  = []
         self.lPredict= []
 
+        self.bAttentionLayer= False
         self.bMultiType = False
         # mapping vector
         self.tag_vector={}
@@ -156,6 +157,9 @@ class DeepTagger():
         if dParams.predict:
             self._sent =dParams.predict #.decode('latin-1')
             self.bPredict=True 
+        
+        if dParams.attention:
+            self.bAttentionLayer=True
         
         
     def initTransformeur(self):
@@ -439,8 +443,10 @@ class DeepTagger():
         model.add(Masking(mask_value=0., input_shape=(self.max_sentence_len, self.max_features)))
         model.add(Bidirectional(LSTM(self.hiddenSize,return_sequences = True,bias_regularizer=reg))) 
         model.add(Dropout(0.5))
-        model.add(AttentionDecoder(self.max_sentence_len, self.nbClasses))
-        model.add(TimeDistributed(Dense(self.nbClasses, activation='softmax')))
+        if self.bAttentionLayer:
+            model.add(AttentionDecoder(self.max_sentence_len, self.nbClasses))
+        else:
+            model.add(TimeDistributed(Dense(self.nbClasses, activation='softmax')))
         #keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-08, decay=0.0)
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop',metrics=['categorical_accuracy']  )
         print (model.summary())
@@ -861,6 +867,7 @@ if __name__ == '__main__':
 
     cmp.parser.add_option("--testing", dest="testing",  action="append", type="string", help="test data")    
     cmp.parser.add_option("--run", dest="predict",  action="store", type="string", help="string to be categorized")    
+    cmp.parser.add_option("--att", dest="attention",  action="store_true", default=False, help="add attention layer")    
 
     (options, args) = cmp.parser.parse_args()
     #Now we are back to the normal programmatic mode, we set the component parameters
