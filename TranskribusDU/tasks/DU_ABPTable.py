@@ -128,7 +128,8 @@ class DU_ABPTable(DU_CRF_Task):
         
         #self.setNbClass(3)     #so that we check if all classes are represented in the training set
         
-        self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
+        if options.bBaseline:
+            self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
     #=== END OF CONFIGURATION =============================================================
 
   
@@ -211,6 +212,8 @@ def main(sModelDir, sModelName, options):
         doer.load()
         tstReport = doer.test(lTst)
         traceln(tstReport)
+        if options.bDetailedReport:
+            traceln(tstReport.getDetailledReport())
 #         if True:
 #             import crf.Model
 #             #In case we want to store the Ys
@@ -239,6 +242,8 @@ if __name__ == "__main__":
 
     #FOR GCN
     parser.add_option("--revertEdges", dest='bRevertEdges',  action="store_true", help="Revert the direction of the edges") 
+    parser.add_option("--detail", dest='bDetailedReport',  action="store_true", default=False,help="Display detailled reporting (score per document)") 
+    parser.add_option("--baseline", dest='bBaseline',  action="store_true", default=False, help="report baseline method") 
             
     # --- 
     #parse the command line
