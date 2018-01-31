@@ -457,7 +457,7 @@ class Model_SSVM_AD3(Model):
         
         return tstRpt
 
-    def testFiles(self, lsFilename, loadFun):
+    def testFiles(self, lsFilename, loadFun,bBaseLine=False):
         """
         Test the model using those files. The corresponding graphs are loaded using the loadFun function (which must return a singleton list).
         It reports results on stderr
@@ -500,9 +500,10 @@ class Model_SSVM_AD3(Model):
         traceln("[%.1fs] done\n"%chronoOff("testFiles"))
 
         tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsFilename)
-        
-        lBaselineTestReport = self._testBaselinesEco(lX, lY, lLabelName, lsDocName=lsFilename)
-        tstRpt.attach(lBaselineTestReport)
+
+        if bBaseLine:
+            lBaselineTestReport = self._testBaselinesEco(lX, lY, lLabelName, lsDocName=lsFilename)
+            tstRpt.attach(lBaselineTestReport)
         
 #         if True:
 #             #experimental code, not so interesting...
