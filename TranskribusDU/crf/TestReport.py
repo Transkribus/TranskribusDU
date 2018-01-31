@@ -29,6 +29,7 @@ from __future__ import  print_function
 from __future__ import unicode_literals
 
 import time
+import os
 from functools import reduce
 
 import numpy as np
@@ -134,6 +135,25 @@ class TestReport:
         
         return fScore, sClassificationReport
 
+    def getDetailledReport(self):
+        """
+            return Precision, Recall, F1 per label for each docucment
+            0 5577_001.mpxml [ 0.882  0.922  0.976  1.     0.   ] [ 0.904  0.981  0.988  0.771  0.   ] [ 0.893  0.951  0.982  0.871  0.   ]
+            1 5577_007.mpxml [ 0.969  0.952  0.992  1.     0.   ] [ 0.969  0.981  0.969  1.     0.   ] [ 0.969  0.967  0.981  1.     0.   ]
+            
+        """
+        sReport = "\n Detailed Reporting \n" + "-"*20 +"\n"
+        lConfMat = self.getConfusionMatrixByDocument()
+        eps=1e-8
+        # numpy bug!!
+        np.set_printoptions(precision = 3, suppress = True)
+        for i,conf in enumerate(lConfMat):
+            p   = np.diag(conf)/(eps+conf.sum(axis=0))
+            r   = np.diag(conf)/(eps+conf.sum(axis=1))
+            f1  = 2*p*r/(eps+p+r)
+            sReport += "%d\t%s\t%s %s %s\n"%(i,os.path.basename(self.getDocNameList()[i]),p,r,f1)
+            
+        return sReport
     # ------------------------------------------------------------------------------------------------------------------
     def toString(self, bShowBaseline=True, bBaseline=False):
         """
