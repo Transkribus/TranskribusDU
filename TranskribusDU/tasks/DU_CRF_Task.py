@@ -407,7 +407,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         
         try:
             #should work fine
-            oReport = self._mdl.testFiles(lFilename_tst, lambda fn: DU_GraphClass.loadGraphs([fn], bDetach=True, bLabelled=True, iVerbose=1))
+            oReport = self._mdl.testFiles(lFilename_tst, lambda fn: DU_GraphClass.loadGraphs([fn], bDetach=True, bLabelled=True, iVerbose=1),self.getBaselineList() != [])
         except:
             self.traceln("- loading test graphs")
             lGraph_tst = DU_GraphClass.loadGraphs(lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
