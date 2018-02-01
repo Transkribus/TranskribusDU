@@ -68,6 +68,9 @@ class  XMLDSPageClass(XMLDSObjectClass):
         
         
     
+    def __lt__(self,other): return self.getNumber() < other.getNumber()
+    def __gt__(self,other): return self.getNumber() > other.getNumber()
+    
     def __repr__(self):
         return "%s %s %d" % (self.getName(),self.getNumber(), len(self.getObjects()))
     def __str__(self):
