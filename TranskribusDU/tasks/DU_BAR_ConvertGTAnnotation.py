@@ -31,16 +31,19 @@
     under grant agreement No 674943.
     
 """
-import sys, os, re
-import libxml2
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
+import sys, os, re
+
+from lxml import etree
 try: #to ease the use without proper Python installation
     import TranskribusDU_version
 except ImportError:
     sys.path.append( os.path.dirname(os.path.dirname( os.path.abspath(sys.argv[0]) )) )
     import TranskribusDU_version
 
-from common.trace import traceln
 
 from xml_formats.PageXml import PageXml, MultiPageXml, PageXmlException 
 from crf.Graph_MultiPageXml import Graph_MultiPageXml
@@ -98,7 +101,7 @@ class DU_BAR_Convert:
         
         g = Graph_MultiPageXml()
         
-        doc = libxml2.parseFile(sFilename)
+        doc = etree.parse(sFilename, encodingg='utf-8')
 
         #the Heigh/Ho annotation runs over consecutive pages, so we keep those values accross pages
         self._initSegmentationLabel()
@@ -112,8 +115,10 @@ class DU_BAR_Convert:
         assert sFilename.endswith(self.sXml_HumanAnnotation_Extension)
         
         sDUFilename = sFilename[:-len(self.sXml_HumanAnnotation_Extension)] + self.sXml_MachineAnnotation_Extension
-        doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
-        doc.freeDoc()     
+        doc.save(sDUFilename,encoding='utf-8',pretty_print=True)
+        
+#         doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
+#         doc.freeDoc()     
         
         return sDUFilename
            
@@ -175,8 +180,8 @@ class DU_BAR_Convert:
             try:
                 lbl = PageXml.getCustomAttr(nd, "structure", "type")
             except PageXmlException:
-                nd.setProp(self.sSemAttr, self.sOther)
-                nd.setProp(self.sSgmAttr, self.sOther)
+                nd.set(self.sSemAttr, self.sOther)
+                nd.set(self.sSgmAttr, self.sOther)
                 continue    #this node has no annotation whatsoever
             
             if lbl in ["heading", "header", "page-number", "marginalia"]:
@@ -206,14 +211,14 @@ class DU_BAR_Convert:
             #always have a semantic label                
             sNewSemLbl = self.dAnnotMapping[semLabel]
             assert sNewSemLbl
-            nd.setProp(self.sSemAttr, sNewSemLbl)       #DU annotation
+            nd.set(self.sSemAttr, sNewSemLbl)       #DU annotation
             
             #resolution parts also have a segmentation label and a resolution number
             assert sgmLabel
-            nd.setProp(self.sSgmAttr, sgmLabel)     #DU annotation
+            nd.set(self.sSgmAttr, sgmLabel)     #DU annotation
             
             if sResoNum:
-                nd.setProp(self.sNumAttr, sResoNum)
+                nd.set(self.sNumAttr, sResoNum)
 
 class DU_BAR_Convert_v2(DU_BAR_Convert):
     """
@@ -290,10 +295,10 @@ class DU_BAR_Convert_v2(DU_BAR_Convert):
                 semLabel = self.sOther
                 sgmLabel = self._getCurrentSegmentationLabel()
                  
-            nd.setProp(self.sSemAttr, semLabel)
-            nd.setProp(self.sSgmAttr, sgmLabel)
+            nd.set(self.sSemAttr, semLabel)
+            nd.set(self.sSgmAttr, sgmLabel)
             if sResoNum:
-                nd.setProp(self.sNumAttr, sResoNum) #only when the number is part of the humanannotation!
+                nd.set(self.sNumAttr, sResoNum) #only when the number is part of the humanannotation!
 
 
 class DU_BAR_Convert_BIES(DU_BAR_Convert):
@@ -362,36 +367,36 @@ class DU_BAR_Convert_BIES(DU_BAR_Convert):
                  
             #Now tagging!!
             #Semantic (easy)
-            nd.setProp(self.sSemAttr, semLabel)
+            nd.set(self.sSemAttr, semLabel)
 
             # BIES, tough... 
             if bCurrentIsAStart:
                 if self._prevIsB:
                     #make previous a singleton!
-                    if self._prevNd: self._prevNd.setProp(self.sSgmAttr, self.S)
+                    if self._prevNd: self._prevNd.set(self.sSgmAttr, self.S)
                 else:
                     #make previous a End
-                    if self._prevNd: self._prevNd.setProp(self.sSgmAttr, self.E)
+                    if self._prevNd: self._prevNd.set(self.sSgmAttr, self.E)
                 self._prevIsB = True #for next cycle!
             else:
                 if self._prevIsB:
                     #confirm previous a a B
-                    if self._prevNd: self._prevNd.setProp(self.sSgmAttr, self.B)
+                    if self._prevNd: self._prevNd.set(self.sSgmAttr, self.B)
                 else:
                     #confirm previous as a I
-                    if self._prevNd: self._prevNd.setProp(self.sSgmAttr, self.I)
+                    if self._prevNd: self._prevNd.set(self.sSgmAttr, self.I)
                 self._prevIsB = False #for next cycle!
 
-            if sResoNum: nd.setProp(self.sNumAttr, sResoNum) #only when the number is part of the humanannotation!
+            if sResoNum: nd.set(self.sNumAttr, sResoNum) #only when the number is part of the humanannotation!
             self._prevNd  = nd #for next cycle!
         # end for
         
         if self._prevIsB:
             #make previous a singleton!
-            if self._prevNd: self._prevNd.setProp(self.sSgmAttr, self.S)
+            if self._prevNd: self._prevNd.set(self.sSgmAttr, self.S)
         else:
             #make previous a End
-            if self._prevNd: self._prevNd.setProp(self.sSgmAttr, self.E)
+            if self._prevNd: self._prevNd.set(self.sSgmAttr, self.E)
         return
         
 
@@ -441,9 +446,9 @@ if __name__ == "__main__":
     #doer = DU_BAR_Convert_v2()
     doer = DU_BAR_Convert_BIES()
     for sFilename in args:
-        print "- Processing %s" % sFilename
+        print ("- Processing %s" % sFilename)
         sOutputFilename = doer.convertDoc(sFilename)
-        print "   done --> %s" %  sOutputFilename
+        print ("   done --> %s" %  sOutputFilename)
         
-    print "DONE."
+    print ("DONE.")
         
