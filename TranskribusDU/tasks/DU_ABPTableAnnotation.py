@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    Example DU task for ABP Table
+    Generate trainingset from PageXml annotated with table and textlines
     
     Copyright Xerox(C) 2017 H. Déjean
 
@@ -24,6 +24,10 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 import sys, os
 
 try: #to ease the use without proper Python installation
@@ -38,7 +42,7 @@ from tasks import _checkFindColDir, _exit
 from xml_formats.PageXml import MultiPageXml 
 from crf.Graph_MultiPageXml import Graph_MultiPageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
-from DU_CRF_Task import DU_CRF_Task
+from .DU_CRF_Task import DU_CRF_Task
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 
 # ===============================================================================================================
@@ -55,11 +59,11 @@ if you play with a toy collection, which does not have all expected classes, you
 
 lActuallySeen = None
 if lActuallySeen:
-    print "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING"
+    print ("REDUCING THE CLASSES TO THOSE SEEN IN TRAINING")
     lIgnoredLabels  = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
     lLabels         = [lLabels[i] for i in lActuallySeen ]
-    print len(lLabels)          , lLabels
-    print len(lIgnoredLabels)   , lIgnoredLabels
+    print (len(lLabels)          , lLabels)
+    print (len(lIgnoredLabels)   , lIgnoredLabels)
     nbClass = len(lLabels) + 1  #because the ignored labels will become OTHER
 
 #DEFINING THE CLASS OF GRAPH WE USE
@@ -238,7 +242,7 @@ class DU_ABPTableAnnotator(DU_CRF_Task):
             MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
             # save mpxml as mpxml.orig
             sDUFilename = lFilename_trn[i][:-len(MultiPageXml.sEXT)]+  self.sLabeledXmlFilenameEXT
-            print sDUFilename
+            print (sDUFilename)
             doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
             doc.freeDoc()
                     
