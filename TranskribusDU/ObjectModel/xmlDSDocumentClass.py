@@ -30,7 +30,7 @@ class  XMLDSDocument(XMLDocument):
     def __init__(self,domDoc=None):
         self._type = "XMLDSDocument"
         self._dom = domDoc
-        self._rootObject = None
+#         self._rootObject = None
         self.lPages = []
         self.currentlPages = []
         self.nbTotalPages = 0
@@ -46,12 +46,8 @@ class  XMLDSDocument(XMLDocument):
         """
             load PAGE elements
         """
-        ldomPages = domdocRoot.findall('.//%s'% (myTAG))
+        ldomPages = domdocRoot.xpath('.//%s'% (myTAG))
         
-#         ctxt = self._dom.xpathNewContext()
-#         ctxt.setContextNode(domdocRoot)
-#         ldomPages = ctxt.xpathEval('.//%s'% (myTAG))
-#         ctxt.xpathFreeContext()
         self.nbTotalPages =  len(ldomPages)
         if lPages == []:
             lPages = range(1,self.nbTotalPages+1)
@@ -75,7 +71,7 @@ class  XMLDSDocument(XMLDocument):
         if docDom:
             self.setDom(docDom)
         if self.getDom():
-            self._rootObject = XMLDSObjectClass()
+#             self._rootObject = XMLDSObjectClass()
             # get pages:
             self.loadPages(self.getDom().getroot(),ds_xml.sPAGE,listPages)
         else:
