@@ -169,7 +169,7 @@ class primaAnalysis(Component.Component):
 #         ctxt.xpathRegisterNs("a", self.xmlns)
 #         xpath  = "./{%s}:%s" % (self.xmlns,"TextLine")
 #         ctxt.setContextNode(curNode)
-        lLines = curNode.findall("./{%s}%s" % (self.xmlns,"TextLine"))
+        lLines = curNode.xpath("./x:%s" % ("TextLine"),namespaces={'x':self.xmlns})
 #         ctxt.xpathFreeContext()
         for line in lLines:
             node = etree.Element('TEXT')
@@ -185,6 +185,10 @@ class primaAnalysis(Component.Component):
             if line.get('type'):     
                 node.set("type", line.get('type'))            
             
+            if line.get('custom'):     
+                node.set("custom", line.get('custom'))
+                
+                                  
             sp = self.getPoints(line)
             # polylines
             node.set('points',sp)
@@ -223,18 +227,13 @@ class primaAnalysis(Component.Component):
                 node.text = txt[0].text
             
             
-            # BB
-#             ctxt = curNode.doc.xpathNewContext()
-#             ctxt.xpathRegisterNs("a", self.xmlns)
-#             xpath  = "./a:Coords/@%s" % ("points")
-#             ctxt.setContextNode(line)
-            lPoints = curNode.xpath("./x:Coords/@%s" % ("points"),namespaces={'x':self.xmlns})
+            lPoints = line.xpath("./x:Coords/@%s" % ("points"),namespaces={'x':self.xmlns})
             if lPoints != [] and lPoints[0] !="":
                 if self.bCanonicalLine and scaledP is not None:
                     [xp,yp,hp,wp] = self.baselineCanon(scaledP)
                 else: 
                     [x,y,h,w] = self.regionBoundingBox(lPoints[0])                
-                    xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w))
+                    xp,yp,hp,wp  = list(map(lambda x: 72.0* x / self.dpi,(x,y,h,w)))
                 node.set(ds_xml.sX,str(xp))
                 node.set(ds_xml.sY,str(yp))
                 node.set(ds_xml.sHeight,str(hp))
@@ -320,7 +319,7 @@ class primaAnalysis(Component.Component):
 #         ctxt.xpathRegisterNs("a", self.xmlns)
 #         xpath  = "./a:%s" % ("TableCell")
 #         ctxt.setContextNode(tableNode)
-        lCells = tableNode.findall("./{%s}%s" % (self.xmlns,"TableCell"))
+        lCells = tableNode.xpath("./a:%s" % ("TableCell"),namespaces={"a":self.xmlns})
         for cell in lCells:
             cellNode = etree.Element(ds_xml.sCELL)
             dstable.append(cellNode)
