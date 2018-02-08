@@ -126,8 +126,6 @@ class Deco:
                     s = s[0]    #should be an attribute value
             return Deco.toInt(s)
         except Exception, e:
-            print "kkk ", repr(node)
-            print xpExpr
             if bShowError: self.xpathError(node, xpExpr, e, "xpathToInt return %d as default value"%iDefault)
         return iDefault
     
