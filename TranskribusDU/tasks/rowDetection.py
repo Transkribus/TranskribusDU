@@ -2,12 +2,12 @@
 """
 
 
-    IE module: for test
+    Build Rows for a BIESO model
 
      H. Déjean
     
 
-    copyright Xerox 2017
+    copyright Xerox 2017, Naver 2017, 2018
     READ project 
 
     This program is free software: you can redistribute it and/or modify
@@ -51,15 +51,13 @@ from xml_formats.DS2PageXml import DS2PageXMLConvertor
 
 class RowDetection(Component.Component):
     """
-        
-            row detection once
-                column detection done
-                BIES tagging done for text elements
+        row detection
+        @precondition: column detection done, BIES tagging done for text elements
                 
     """
     usage = "" 
-    version = "v.01"
-    description = "description: test"
+    version = "v.1.0"
+    description = "description: rowDetection"
 
     #--- INIT -------------------------------------------------------------------------------------------------------------    
     def __init__(self):
@@ -95,11 +93,12 @@ class RowDetection(Component.Component):
     
     
     
-    def tagCells(self, table):
+    def createCells(self, table):
         """
-            cells are 'fake' cells from template tool:
-            type RI  RB RI RE RO
-            group text according
+            create new cells using BIESO tags
+            @input: tableObeject with old cells
+            @return: tableObject with BIES cells
+            @precondition: requires columns
             
         """
         for col in table.getColumns():
@@ -182,7 +181,7 @@ class RowDetection(Component.Component):
             find row in this table
         """
         rowscuts = map(lambda r:r.getY(),table.getRows())
-        self.tagCells(table)
+        self.createCells(table)
         self.processRows(table,rowscuts)
         
 
@@ -201,7 +200,7 @@ class RowDetection(Component.Component):
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
             for table in lTables:
                 rowscuts = list(map(lambda r:r.getY(),table.getRows()))
-                self.tagCells(table)
+                self.createCells(table)
                 self.processRows(table,rowscuts)        
     def run(self,doc):
         """
