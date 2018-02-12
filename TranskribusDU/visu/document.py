@@ -16,7 +16,11 @@ class XpathContext:
         self.dNS = dNS
         
     def xpathEval(self, sXpathExpr):
-        return self.nd.xpath(sXpathExpr, namespaces=self.dNS)
+        try:
+            return self.nd.xpath(sXpathExpr, namespaces=self.dNS)
+        except etree.XPathEvalError as e:
+            print "Xpath error on %s"%sXpathExpr
+            raise e
     
     def setContextNode(self, nd):
         self.nd = nd
