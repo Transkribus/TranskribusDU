@@ -581,8 +581,8 @@ class DeepTagger():
         test_x, _ = testdata
         
         y_pred = self.model.predict(lX)
-        cm = confusion_matrix(lY, y_pred)
-        print (cm)
+#         cm = confusion_matrix(lY, y_pred)
+#         print (cm)
         for i,_ in enumerate(lX): 
             pred_seq = y_pred[i]
             pred_tags = []
