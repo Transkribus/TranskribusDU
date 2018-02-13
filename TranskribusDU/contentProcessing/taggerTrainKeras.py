@@ -43,6 +43,8 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.base import BaseEstimator, TransformerMixin
 
+from sklearn.metrics import confusion_matrix
+
 os.environ['KERAS_BACKEND'] = 'tensorflow'
 
 from keras.models import Sequential, load_model, Model
@@ -410,7 +412,11 @@ class DeepTagger():
         """
             load models and aux data
         """
-        self.model = load_model(os.path.join(self.dirName,self.sModelName+'.hd5'),custom_objects={"AttentionDecoder": AttentionDecoder})
+        if self.bAttentionLayer:
+            self.model = load_model(os.path.join(self.dirName,self.sModelName+'.hd5'),custom_objects={"AttentionDecoder": AttentionDecoder})
+        else:
+            self.model = load_model(os.path.join(self.dirName,self.sModelName+'.hd5'))
+
         print('model loaded: %s/%s.hd5' % (self.dirName,self.sModelName))  
         try:
             self.bMultiType,self.maxngram,self.max_features,self.max_sentence_len, self.nbClasses,self.tag_vector , self.node_transformer = pickle.load(gzip.open('%s/%s.%s'%(self.dirName,self.sModelName,self.sAux),'r'))
@@ -575,6 +581,8 @@ class DeepTagger():
         test_x, _ = testdata
         
         y_pred = self.model.predict(lX)
+        cm = confusion_matrix(lY, y_pred)
+        print (cm)
         for i,_ in enumerate(lX): 
             pred_seq = y_pred[i]
             pred_tags = []
