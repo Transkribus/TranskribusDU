@@ -36,6 +36,9 @@ from io import open
 
 import sys, os.path
 from lxml import etree
+from scipy.optimize import linear_sum_assignment
+import numpy as np
+
 sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'TranskribusDU')
 
 
@@ -49,6 +52,7 @@ from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
 from ObjectModel.XMLDSTableRowClass import XMLDSTABLEROWClass
 from ObjectModel.XMLDSCELLClass import XMLDSTABLECELLClass
 
+from xml_formats.Page2DS import primaAnalysis
 from spm.spmTableRow import tableRowMiner
 
 from ObjectModel.tableTemplateClass import tableTemplateClass
@@ -85,6 +89,8 @@ class IETest(Component.Component):
         self.sModelDir = None
         self.sModelName = None
         
+        self.lcsTH = 75
+        self.page2DS =False
         # for --test
         self.evalData = None
         
@@ -112,8 +118,12 @@ class IETest(Component.Component):
         if 'modelName' in dParams:
             self.sModelName = dParams['modelName']
         if 'modelDir' in dParams:
-            self.sModelDir = dParams['modelDir']            
+            self.sModelDir = dParams['modelDir']           
+        if "2DS" in dParams:
+            self.page2DS = dParams['2DS']     
             
+        if "LCSTH" in dParams:
+            self.lcsTH = dParams['LCSTH']                
         
     def labelTable(self,table):
         """
@@ -142,7 +152,7 @@ class IETest(Component.Component):
               
             
         """
-        self.bDebug = True
+        self.bDebug = False
         table.buildNDARRAY()
         if lTemplate is not None:
             # convert string to tableTemplateObject
@@ -235,19 +245,6 @@ class IETest(Component.Component):
 
 
 
-    def learnTemplate(self):
-        """
-            for handwritten template: categorize a set of columns
-            using lstm? -> which GT?  introduce variation, which noise??
-            always some differences to be expected!
-            htr a large scale of pages from different docs
-            assuming some templates: assign columns correctly?
-        """
-    def loadTemplates(self):
-        """
-            in ABPIEOntology
-        """
-
     def htrWithTemplate(self,table,template,htrModelId):
         """
             perform an HTR with dictionaries specific to each column
@@ -262,7 +259,14 @@ class IETest(Component.Component):
             for id in lCellsID: print(id)
             
         
-        
+    
+    def mineTable(self,tabel,dr):
+        """
+            from the current HTR: find the categories in each column (once NER applied)
+            
+        """
+    
+    
     def selectTemplat(self,lTemplates):
         """
          if a list of templates is available: 
@@ -275,19 +279,6 @@ class IETest(Component.Component):
         """
         # selection of the dictionaries per columns
         # template 5,10: first col = numbering
-#         lTemplateHTR = [  
-#              ((slice(1,None),slice(0,1))  ,[ 'abp_names', 'names_aux','numbering'])
-#             , ((slice(1,None),slice(1,2)) ,[ 'abp_profession','religion' ])
-#             , ((slice(1,None),slice(2,3)) ,[ 'abp_location' ]) 
-#             , ((slice(1,None),slice(3,4)) ,[ 'abp_family' ])
-#              ,((slice(1,None),slice(4,5)) ,[ 'deathreason','artz'])  
-#             , ((slice(1,None),slice(5,6)) ,[ 'abp_dates' ])
-#             , ((slice(1,None),slice(6,7)) ,[ 'abp_dates','abp_location' ])
-#             , ((slice(1,None),slice(7,8)) ,[ 'abp_age'])
-# #            , ((slice(1,None),slice(8,9)) ,[ dr.getFieldByName('priester')])
-# #            , ((slice(1,None),slice(9,10)),[ dr.getFieldByName('notes')])
-#            ]
-        
         lTemplateIE2 = [
              ((slice(1,None),slice(0,1))  ,[ 'numbering'],[ dr.getFieldByName('numbering') ])
             , ((slice(1,None),slice(1,2))  ,[ 'abp_names', 'names_aux','numbering','religion'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname'),dr.getFieldByName('religion')  ])
@@ -318,15 +309,23 @@ class IETest(Component.Component):
            ]
         
         
-        lTemplate = lTemplateIE
-#         lTemplate = lTemplateIE2
+        
+#         lTemplate = lTemplateIE
+        if table.getNbColumns() == 12:
+            lTemplate = lTemplateIE2
+        else:
+            lTemplate = lTemplateIE
         
 #         if self.htrModelID is not None: self.htrWithTemplate(table, lTemplate, self.htrModelID)
         
         self.extractData(table,dr,lTemplate)
+        
         # select best solutions
         # store inthe proper final format
         return dr 
+    
+
+
     
     def run(self,doc):
         """
@@ -336,12 +335,15 @@ class IETest(Component.Component):
         """
 #         self.firstPage = 9
 #         self.lastPage= 9
-        self.doc= doc
+        
+        if self.page2DS:
+            dsconv = primaAnalysis()
+            self.doc=  dsconv.convert2DS(doc,self.docid)
+        else: self.doc= doc
         self.ODoc = XMLDSDocument()
         self.ODoc.loadFromDom(self.doc,listPages = range(self.firstPage,self.lastPage+1))        
-
-        self.lPages = self.ODoc.getPages()   
         
+        self.lPages = self.ODoc.getPages()   
         dr = deathRecord(self.sModelName,self.sModelDir)     
         
         ## selection of the templates first with X tables
@@ -357,6 +359,8 @@ class IETest(Component.Component):
             for table in lTables:
                 if self.BuseStoredTemplate:
                     self.processWithTemplate(table, dr)
+                else:
+                    self.mineTable(table,dr)
         
         self.evalData = dr.generateOutput(self.evalData)
 #         print self.evalData.serialize('utf-8',True)
@@ -430,18 +434,19 @@ class IETest(Component.Component):
 
         
         lPageMapping={}
-        lRunKeys={}
         lRun = []
-        if RunData:
+        if RunData is not None:
             lpages = RunData.xpath('//%s' % ('PAGE[@number]'))
             for page in lpages:
                 pnum=page.get('number')
                 key= page.get('pagenum')
-                if key in lRefKeys:
+#                 key= page.get('number')
+                if key in lRefKeys.keys():
                     lPageMapping[key]=pnum
+                    
                     #record level!
                     xpath = "./%s" % ("RECORD[@firstname and @lastname]")
-                    lrecord = page.xpath(xpath)            
+                    lrecord = page.xpath(xpath)
                     if len(lrecord)==0:
                         pass
                     else:
@@ -451,59 +456,113 @@ class IETest(Component.Component):
                             xpath = "./%s" % ("./@lastname")
                             ln= record.xpath(xpath)
                             if len(lf) > 0: # and lf[0].getContent() != ln[0].getContent():
-    #                             lRun.append((pnum,lf[0].getContent().decode('utf-8').encode('utf-8'),ln[0].getContent().decode('utf-8').encode('utf-8')))
                                 lRun.append((pnum,key,lf[0],ln[0]))
-                                
         
-        runLen = len(lRun)
-        refLen = len(lRef)
-#         bVisual = True
         ltisRefsRunbErrbMiss= list()
-        lRefCovered = []
-        for i in range(0,len(lRun)):
-            iRef =  0
-            bFound = False
-            bErr , bMiss= False, False
-            runElt = lRun[i]
-#             print '\t\t===',runElt
-            while not bFound and iRef <= refLen - 1:  
-                curRef = lRef[iRef]
-                if runElt and curRef not in lRefCovered and self.testCompareRecordFirstNameLastName(curRef,runElt):
-                    bFound = True
-                    lRefCovered.append(curRef)
-                iRef+=1
-            if bFound:
-                if bVisual:print("FOUND:", runElt, ' -- ', lRefCovered[-1])
-                cntOk += 1
-            else:
-                curRef=''
-                cntErr += 1
-                bErr = True
-                if bVisual:print("ERROR:", runElt)
-            if bFound or bErr:
-                ltisRefsRunbErrbMiss.append( (runElt[1],int(runElt[0]), curRef, runElt,bErr, bMiss) )
-        for i,curRef in enumerate(lRef):
-            if curRef not in lRefCovered:
-                if bVisual:print("MISSED:", curRef)
-#                 ltisRefsRunbErrbMiss.append( (curRef[1],int(curRef[0]), curRef, '',False, True) )
-                ltisRefsRunbErrbMiss.append( (curRef[1],int(lPageMapping[curRef[1]]), curRef, '',False, True) )
-                
+        for key in  lRunPerPage:
+#         for key in ['Neuoetting_009_05_0150']:       
+            lRun= lRunPerPage[key]
+            lRef = lRefKeys[key]
+            runLen = len(lRunPerPage[key])
+            refLen = len(lRefKeys[key])
+            
+            bT=False
+            if refLen <= runLen:
+                rows=lRef;cols=lRun
+            else: 
+                rows=lRun;cols=lRef
+                bT=True        
+            cost_matrix=np.zeros((len(rows),len(cols)),dtype=float)
+            for a,i in enumerate(rows):
+                curRef=i
+                for b,j in enumerate(cols):
+                    runElt=j
+                    ret,val = self.testCompareRecordField(curRef,runElt)
+                    val /=100
+                    if val == 0:
+                        dist = 10
+                    else:dist = 1/val
+                    cost_matrix[a,b]=dist
+            m = linear_sum_assignment(cost_matrix)
+            r1,r2 = m
+#             print (bT,r1,r2)
+#             print (list(x[2] for x in  rows))
+#             print (list(x[2] for x in cols))
+            lcsTH = self.lcsTH / 100
+            lCovered=[]
+            for a,i in enumerate(r2):
+#                 print (key,a,r1[a],i,rows[r1[a]][2],cols[i][2], 1/cost_matrix[r1[a],i])
+                if 1 / cost_matrix[r1[a,],i] > lcsTH:
+                    cntOk += 1
+                    if bT:
+                        ltisRefsRunbErrbMiss.append( (runElt[1],int(runElt[0]), cols[i], rows[r1[a]],False, False) )
+                    else:
+                        ltisRefsRunbErrbMiss.append( (runElt[1],int(runElt[0]), rows[r1[a]], cols[i],False, False) )
+                else:
+                    #too distant: false
+                    if bT:
+                        lCovered.append(i)
+                        ltisRefsRunbErrbMiss.append( (runElt[1],int(runElt[0]), "", rows[r1[a]],True, False) )
+                    else:                    
+                        lCovered.append(r1[a])
+                        ltisRefsRunbErrbMiss.append( (runElt[1],int(runElt[0]), "", cols[i],True, False) )
+ 
+                    cntErr+=1
+            for iref in r1:
+                if iref not in r2:
+                    ltisRefsRunbErrbMiss.append( (runElt[1],int(runElt[0]), lRef[iref], '',False, True) )
+                    cntMissed+=1
+            for iref in lCovered:
+                ltisRefsRunbErrbMiss.append( (runElt[1],int(runElt[0]), lRef[iref], '',False, True) )
                 cntMissed+=1
-                
-        #sorting
-#         ltisRefsRunbErrbMiss.sort(key=lambda k,x,y,z,t,u:k)
-        ltisRefsRunbErrbMiss.sort(key=lambda x:x[0])
+        ltisRefsRunbErrbMiss.sort(key=lambda x:x[0])                        
+        
+#         runLen = len(lRun)
+#         refLen = len(lRef)
+# #         bVisual = True
+#         ltisRefsRunbErrbMiss= list()
+#         lRefCovered = []
+#         for i in range(0,len(lRun)):
+#             iRef =  0
+#             bFound = False
+#             bErr , bMiss= False, False
+#             runElt = lRun[i]
+# #             print '\t\t===',runElt
+#             while not bFound and iRef <= refLen - 1:  
+#                 curRef = lRef[iRef]
+#                 if runElt and curRef not in lRefCovered and self.testCompareRecordFirstNameLastName(curRef,runElt):
+#                     bFound = True
+#                     lRefCovered.append(curRef)
+#                 iRef+=1
+#             if bFound:
+#                 if bVisual:print("FOUND:", runElt, ' -- ', lRefCovered[-1])
+#                 cntOk += 1
+#             else:
+#                 curRef=''
+#                 cntErr += 1
+#                 bErr = True
+#                 if bVisual:print("ERROR:", runElt)
+#             if bFound or bErr:
+#                 ltisRefsRunbErrbMiss.append( (runElt[1],int(runElt[0]), curRef, runElt,bErr, bMiss) )
+#         for i,curRef in enumerate(lRef):
+#             if curRef not in lRefCovered:
+#                 if bVisual:print("MISSED:", curRef)
+#                 ltisRefsRunbErrbMiss.append( (curRef[1],int(lPageMapping[curRef[1]]), curRef, '',False, True) )
+#                 cntMissed+=1
+#                 
+#         ltisRefsRunbErrbMiss.sort(key=lambda x:x[0])
 
         return (cntOk, cntErr, cntMissed,ltisRefsRunbErrbMiss)              
     
-    def testRecordField(self,fieldName,srefData,srunData, bVisual):
+    def testRecordField(self,lfieldName,lfieldInRef,srefData,srunData, bVisual):
         """
-            test firstname in record
+            test fieldName in record
             
-            group by page
-                
         """
-
+        assert len(lfieldName) == len((lfieldInRef))
+        
+        for i,f in enumerate(lfieldName):
+            if lfieldInRef[i] is None: lfieldInRef[i] = f
         cntOk = cntErr = cntMissed = 0
 #         srefData = srefData.decode('utf-8')
         #.strip("\n")
@@ -512,97 +571,132 @@ class IETest(Component.Component):
         RunData = etree.XML(srunData.strip("\n").encode('utf-8'))
 
         
-        lPageMapping={}
-        lRef = []
         lPages = RefData.xpath('//%s' % ('PAGE[@number]'))
         lRefKeys={}
         for page in lPages:
             pnum=page.get('number')
             key=page.get('pagenum')
-            lRefKeys[key]=1
             xpath = "./%s" % ("RECORD")
             lrecord = page.xpath(xpath)
             if len(lrecord)==0:
                 lRef.append([])
             else:
                 for record in lrecord:
-                    xpath = "./%s" % ("./@%s"%fieldName)
-                    ln= record.xpath(xpath)
-                    if len(ln[0])>0:
-                        lRef.append((pnum,key,ln[0]))
+                    lf =[]
+                    for fieldInRef in lfieldInRef:
+                        xpath = "./%s" % ("./@%s"%fieldInRef)
+                        ln = record.xpath(xpath)
+                        if ln and len(ln[0])>0:
+                            lf.append(ln[0])
                         
-        
-        lRun = []
+                    if lf !=[]:
+                        try:
+    #                         if (pnum,key,lf) in lRefKeys[key]:
+    #                             print ('duplicated',(pnum,key,lf))
+    #                         else:
+    #                             lRefKeys[key].append((pnum,key,lf))
+                            lRefKeys[key].append((pnum,key,lf))
+                        except KeyError:lRefKeys[key] = [(pnum,key,lf)]
+            
+        lRunPerPage={}
+        lPageMapping={}
         if RunData:
             lpages = RunData.xpath('//%s' % ('PAGE[@number]'))
             for page in lpages:
                 pnum=page.get('number')
                 key=page.get('pagenum')
+                lPageMapping[key]=pnum
                 if key in lRefKeys:
                     #record level!
-                    lPageMapping[key]=pnum
-                    xpath = "./%s" % ("RECORD[@%s]"%fieldName)
+                    xpath = "./%s" % ("RECORD")
                     lrecord = page.xpath(xpath)            
                     if len(lrecord)==0:
                         pass
     #                     lRun.append([])
                     else:
                         for record in lrecord:
-                            xpath = "./%s" % ("./@%s"%fieldName)
-                            lf= record.xpath(xpath)
-                            if len(lf[0])>0:
-                                lRun.append((pnum,key,lf[0]))
+                            lf =[]
+                            for fieldName in lfieldName:
+                                xpath = "./%s" % ("./@%s"%fieldName)
+                                ln= record.xpath(xpath)
+                                if len(ln) >0 and len(ln[0])>0:
+                                    lf.append(ln[0])
+                            if len(lf) ==len(lfieldName) :
+                                try:lRunPerPage[key].append((pnum,key,lf))
+                                except KeyError:lRunPerPage[key] = [(pnum,key,lf)]
 
-        ctxt.xpathFreeContext()
 
-        runLen = len(lRun)
-        refLen = len(lRef)
-#         bVisual = True
         ltisRefsRunbErrbMiss= list()
-        lRefCovered = []
-        for i in range(0,len(lRun)):
-            iRef =  0
-            bFound = False
-            bErr , bMiss= False, False
-            runElt = lRun[i]
-#             print '\t\t===',runElt
-            while not bFound and iRef <= refLen - 1:  
-                curRef = lRef[iRef]
-                if runElt and curRef not in lRefCovered and self.testCompareRecordField(curRef,runElt):
-                    bFound = True
-                    lRefCovered.append(curRef)
-                iRef+=1
-            if bFound:
-                if bVisual:print("FOUND:", runElt, ' -- ', lRefCovered[-1])
-                cntOk += 1
-            else:
-                curRef=''
-                cntErr += 1
-                bErr = True
-                if bVisual:print("ERROR:", runElt)
-            if bFound or bErr:
-                ltisRefsRunbErrbMiss.append( (runElt[1],int(runElt[0]), curRef, runElt,bErr, bMiss) )
-        for i,curRef in enumerate(lRef):
-            if curRef not in lRefCovered:
-                if bVisual:print("MISSED:", curRef)
-#                 ltisRefsRunbErrbMiss.append( (curRef[1],int(curRef[0]), curRef, '',False, True) )
-                ltisRefsRunbErrbMiss.append( (curRef[1],int(lPageMapping[curRef[1]]), curRef, '',False, True) )
+        for key in  lRunPerPage:
+#         for key in ['Neuoetting_008_03_0032']:       
+            lRun= lRunPerPage[key]
+            lRef = lRefKeys[key]
+            runLen = len(lRunPerPage[key])
+            refLen = len(lRefKeys[key])
 
-                cntMissed+=1
+            bT=False
+            if refLen <= runLen:
+                rows=lRef;cols=lRun
+            else: 
+                rows=lRun;cols=lRef
+                bT=True        
+            cost_matrix=np.zeros((len(rows),len(cols)),dtype=float)
+            for a,i in enumerate(rows):
+                curRef=i
+                for b,j in enumerate(cols):
+                    runElt=j
+                    ret,val = self.testCompareRecordField(curRef,runElt)
+                    dist = 100-val
+                    cost_matrix[a,b]=dist
+#                     print (curRef,runElt,val,dist)
+            m = linear_sum_assignment(cost_matrix)
+            r1,r2 = m
+            if False:
+                print (len(lRef),lRef)
+                print (len(lRun),lRun)
+                print (bT,r1,r2)
+            lcsTH = self.lcsTH 
+            lCovered=[]
+            lMatched=[]
+            for a,i in enumerate(r2):
+#                 print (key,a,r1[a],i,rows[r1[a]][2],cols[i][2], 100-cost_matrix[r1[a],i])
+                if  100-cost_matrix[r1[a,],i] > lcsTH:
+                    cntOk += 1
+                    if bT:
+                        ltisRefsRunbErrbMiss.append( (rows[r1[a]][1],int(rows[r1[a]][0]), cols[i][2], rows[r1[a]][2],False, False) )
+                        lMatched.append(i)
+                    else:
+                        ltisRefsRunbErrbMiss.append( (cols[i][1],int(cols[i][0]), rows[r1[a]][2], cols[i][2],False, False) )
+                        lMatched.append(r1[a])
+                else:
+                    #too distant: false
+                    if bT:
+                        lCovered.append(i)
+                        ltisRefsRunbErrbMiss.append( (rows[r1[a]][1],int(rows[r1[a]][0]), "", rows[r1[a]][2],True, False) )
+                    else:                    
+                        lCovered.append(r1[a])
+                        ltisRefsRunbErrbMiss.append( (cols[i][1],int(cols[i][0]), "", cols[i][2],True, False) )
+ 
+                    cntErr+=1
+#             print ('matched',lMatched)
+            for i,iref in enumerate(lRef):
+                if i not in lMatched: 
+#                     print ('not mathced',i,iref)
+                    ltisRefsRunbErrbMiss.append( (lRef[i][1],int(lPageMapping[lRef[i][1]]), lRef[i][2], '',False, True) )
+                    cntMissed+=1
+#                 else:print('machtg!',i,lRef[i])
+
         ltisRefsRunbErrbMiss.sort(key=lambda x:x[0])
-
+        
+        for x in ltisRefsRunbErrbMiss:
+            print (x)
+        
         return (cntOk, cntErr, cntMissed,ltisRefsRunbErrbMiss)  
     
-    def testCompareRecordFirstName(self, refdata, rundata, bVisual=False):
-        return refdata[0] == rundata[0] and refdata[1].lower() == rundata[1].lower()
     
     def testCompareRecordFirstNameLastName(self, refdata, rundata, bVisual=False):
-        # same page !!
-        # N same key !
-#         print  refdata[1],rundata[1]
         if refdata[1] != rundata[1]: return False
         
-        TH = 75 #(len(refdata[2])-2.0)/len(refdata[2])*100
         refall= refdata[2].lower()+refdata[3].lower()
         reflen= len(refdata[2])+len(refdata[3])
         runall= rundata[2].lower()+rundata[3].lower()
@@ -610,19 +704,20 @@ class IETest(Component.Component):
         runall.replace('n̄','nn') 
         runall.replace('m̄','mm')
          
-#         res2, val = matchLCS(TH,(refdata[2].lower(),len(refdata[2])), (rundata[2].lower(),len(rundata[2])) )
-        res1, val = matchLCS(TH,(refall,reflen), (runall,runlen) )
+        return  matchLCS(0,(refall,reflen), (runall,runlen) )
 
-        return res1 # and res2
 
     def testCompareRecordField(self, refdata, rundata, bVisual=False):
         # same page !!
-        if refdata[1] != rundata[1]: return False
-        
-        TH = 80
+        if refdata[1] != rundata[1]: return False,0
+        if rundata[2] == []: return False,0
+        if refdata[2] == []: return False,0
+        runall = " ".join(rundata[2]).strip().lower()
+        refall = " ".join(refdata[2]).strip().lower()
          
-        res, val = matchLCS(TH,(refdata[2].lower(),len(refdata[2])), (rundata[2].lower(),len(rundata[2])) )
-        return res 
+        return matchLCS(0,(refall,len(refall)), (runall,len(runall)) )
+
+        return res,val 
     
     def testCompareFullRecord(self, refdata, rundata, bVisual=False):
         bOK=True
@@ -689,9 +784,16 @@ class IETest(Component.Component):
         If we want to compute the error differently, we must define out own testInit testRecord, testReport
         """
         dicTestByTask = dict()
-        dicTestByTask['Names']= self.testFirstNameLastNameRecord(srefData, srunData,bVisual)
-#         dicTestByTask['occupation']= self.testRecordField('occupation',srefData, srunData,bVisual)
-#         dicTestByTask['location']= self.testRecordField('location',srefData, srunData,bVisual)
+#         dicTestByTask['Names']= self.testFirstNameLastNameRecord(srefData, srunData,bVisual)
+        dicTestByTask['lastname']= self.testRecordField(['lastname'],[None],srefData, srunData,bVisual)
+        dicTestByTask['firstname']= self.testRecordField(['firstname'],[None],srefData, srunData,bVisual)
+        dicTestByTask['occupation']= self.testRecordField(['occupation'],[None],srefData, srunData,bVisual)
+        dicTestByTask['location']= self.testRecordField(['location'],[None],srefData, srunData,bVisual)
+        dicTestByTask['deathreason']= self.testRecordField(['deathreason'],[None],srefData, srunData,bVisual)
+        dicTestByTask['names']= self.testRecordField(['firstname','lastname'],[None,None],srefData, srunData,bVisual)
+        dicTestByTask['namedeathlocationoccupation']= self.testRecordField(['firstname','lastname','deathreason','location','occupation'],[None,None,None,None,None],srefData, srunData,bVisual)
+
+#         dicTestByTask['situation']= self.testRecordField('situation','family',srefData, srunData,bVisual)
 
 #         dicTestByTask['Year']= self.testYear(srefData, srunData,bVisual)
     
@@ -756,7 +858,7 @@ color: orange;
 """        % taskName
             fHtml.write(sRpt)
             ipnum_prev = -1
-
+            key_prev=-1
             for (key,ipnum, sRef, sRun, bErr, bMiss) in ltisRefsRunbErrbMiss:
                 if bErr and bMiss:
                     sRptType = "Error+Miss"
@@ -770,9 +872,10 @@ color: orange;
                     
                 sPfFile = sCollec + "/" + sFile + "/" + "pf%06d"%ipnum
                     
-                srefenc= " ".join(x for x in sRef[2:])
-                srun = " ".join(x for x in sRun[2:])
-                if ipnum > ipnum_prev: #a new page
+                srefenc= " ".join(x for x in sRef)
+                srun = " ".join(x for x in sRun)
+#                 if ipnum > ipnum_prev: #a new page
+                if key != key_prev:
                     fHtml.write('<tr ><td>%s (%s)</td></tr>' % (key,ipnum))
                     fHtml.write('<tr class="%s"><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n' % (sRptType, sRptType
                                 , "" #ipnum
@@ -788,6 +891,7 @@ color: orange;
                                 , ""
                                 ))
                 ipnum_prev = ipnum
+                key_prev=key
                 
             fHtml.write('</table>')
             fHtml.write('<p/>')
@@ -814,19 +918,20 @@ if __name__ == "__main__":
     iec.add_option('-l',"--last", dest="last", action="store", type="int", help="last page to be processed")
     iec.add_option("--modelName", dest="modelName", action="store", type="string", help="model to be used")
     iec.add_option("--modelDir", dest="modelDir", action="store", type="string", help="model folder")
+    iec.add_option("--2DS", dest="2DS", action="store_true", default=False, help="convert to DS format")
+    iec.add_option("--LCSTH", dest="LCSTH", action="store", type = int , default=75, help="longest commun substring (lcs) threshold")
 
     #parse the command line
     dParams, args = iec.parseCommandLine()
-    
+
     #Now we are back to the normal programmatic mode, we set the componenet parameters
     iec.setParams(dParams)
     doc = iec.loadDom()
     iec.run(doc)
     if iec.evalData is not None:
-#         iec.writeEval( etree.tostring(iec.evalData,xml_declaration=True,encoding='utf-8',pretty_print=True), os.path.join(iec.colname,'run',iec.docid+'.run'), True)
         iec.evalData.write( os.path.join(iec.colname,'run',iec.docid+'.run'),
                             xml_declaration=True,encoding='utf-8',pretty_print=True)
         
-#     if iec.getOutputFileName() != '-':
-#         iec.writeDom(doc, bIndent=True) 
+    if iec.getOutputFileName() != '-':
+        iec.writeDom(doc, bIndent=True) 
     
