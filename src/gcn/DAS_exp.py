@@ -27,6 +27,8 @@ tf.app.flags.DEFINE_string('dpath', 'data', "directory where data is supposed to
 tf.app.flags.DEFINE_integer('fold', '1', "FilePath for the pickle")
 tf.app.flags.DEFINE_string('out_dir', 'out_das', "outdirectory for saving the results")
 tf.app.flags.DEFINE_integer('configid', 0, 'Parameters')
+tf.app.flags.DEFINE_bool('das_predict_workflow', False, 'Prediction Experiment for the DAS paper')
+tf.app.flags.DEFINE_string('outname', 'default', "default name for saving the results")
 # Details of the training configuration.
 
 import errno
@@ -43,19 +45,18 @@ def mkdir_p(path):
             raise
 
 
-
 def get_config(config_id=0):
     config = {}
 
     if config_id == 0:
-        config['model'] ='logit'
+        config['model'] = 'logit'
         config['nb_iter'] = 1000
         config['lr'] = 0.001
         config['mu'] = 0.1
         config['num_layers'] = 1
         config['node_indim'] = -1
 
-    elif config_id ==1:
+    elif config_id == 1:
         config['name'] = 'Logit-1Conv'
         config['nb_iter'] = 1000
         config['lr'] = 0.001
@@ -64,9 +65,9 @@ def get_config(config_id=0):
         config['num_layers'] = 1
         config['node_indim'] = -1
         config['nconv_edge'] = 1
-        config['train_Wn0']=False
+        config['train_Wn0'] = False
 
-    elif config_id==5:
+    elif config_id == 5:
         config['name'] = '3Layers-10conv-stack'
         config['nb_iter'] = 2000
         config['lr'] = 0.001
@@ -76,8 +77,93 @@ def get_config(config_id=0):
         config['node_indim'] = -1  # INDIM =2 not working here
         config['nconv_edge'] = 10
         config['fast_convolve'] = True
+        # Not Sure the test part is correct ...
+        config['dropout_rate_edge'] = 0.0
+        config['dropout_rate_edge_feat'] = 0.0
+        config['dropout_rate_node'] = 0.0
+        # config['conv_weighted_avg']=True
 
-    elif config_id==33:
+    elif config_id == 7:
+        config['name'] = '3Layers-10conv-stack'
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.0
+        config['num_layers'] = 3
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 10
+        config['fast_convolve'] = True
+        # Not Sure the test part is correct ...
+        config['dropout_rate_edge'] = 0.2
+        config['dropout_rate_edge_feat'] = 0.2
+        config['dropout_rate_node'] = 0.2
+        config['activation'] = tf.nn.tanh
+
+    elif config_id == 8:
+        config['name'] = '3Layers-10conv-stack'
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.0
+        config['num_layers'] = 3
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 10
+        config['fast_convolve'] = True
+        # Not Sure the test part is correct ...
+        config['dropout_rate_edge'] = 0.0
+        config['dropout_rate_edge_feat'] = 0.2
+        config['dropout_rate_node'] = 0.0
+        config['activation'] = tf.nn.tanh
+
+    elif config_id == 9:
+        config['name'] = '3Layers-10conv-stack'
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.0
+        config['num_layers'] = 3
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 10
+        config['fast_convolve'] = True
+        # Not Sure the test part is correct ...
+        config['dropout_rate_edge'] = 0.0
+        config['dropout_rate_edge_feat'] = 0.0
+        config['dropout_rate_node'] = 0.2
+        config['activation'] = tf.nn.tanh
+
+    elif config_id == 10:
+        config['name'] = '3Layers-10conv-stack'
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = True
+        config['mu'] = 0.0
+        config['num_layers'] = 3
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 10
+        config['fast_convolve'] = True
+        # Not Sure the test part is correct ...
+        config['dropout_rate_edge'] = 0.2
+        config['dropout_rate_edge_feat'] = 0.0
+        config['dropout_rate_node'] = 0.0
+        config['activation'] = tf.nn.tanh
+
+
+    elif config_id == 28:
+        config['nb_iter'] = 2000
+        config['lr'] = 0.001
+        config['stack_instead_add'] = False
+        config['mu'] = 0.0
+        config['num_layers'] = 8
+        config['node_indim'] = -1  # INDIM =2 not working here
+        config['nconv_edge'] = 10
+        config['fast_convolve'] = True
+        # Not Sure the test part is correct ...
+        config['dropout_rate_edge'] = 0.125
+        config['dropout_rate_edge_feat'] = 0.0
+        config['dropout_rate_node'] = 0.1
+
+
+    elif config_id == 33:
         config['name'] = '8Layers-1conv'
         config['nb_iter'] = 2000
         config['lr'] = 0.001
@@ -88,8 +174,8 @@ def get_config(config_id=0):
         config['nconv_edge'] = 1
         config['fast_convolve'] = True
 
-    elif config_id==44:
-        config['model'] ='gcn'
+    elif config_id == 44:
+        config['model'] = 'gcn'
         config['nb_iter'] = 2000
         config['lr'] = 0.001
         config['mu'] = 0.0
@@ -148,6 +234,9 @@ def run_model_train_val_test(gcn_graph,
 
             gcn_model.stack_instead_add = config_params['stack_instead_add']
 
+            if 'activation' in config_params:
+                gcn_model.activation = config_params['activation']
+
             if 'fast_convolve' in config_params:
                 gcn_model.fast_convolve = config_params['fast_convolve']
 
@@ -156,6 +245,23 @@ def run_model_train_val_test(gcn_graph,
 
             if 'train_Wn0' in config_params:
                 gcn_model.train_Wn0 = config_params['train_Wn0']
+
+            if 'dropout_rate_edge' in config_params:
+                gcn_model.dropout_rate_edge = config_params['dropout_rate_edge']
+                print('Dropout Edge', gcn_model.dropout_rate_edge)
+
+            if 'dropout_rate_edge_feat' in config_params:
+                gcn_model.dropout_rate_edge_feat = config_params['dropout_rate_edge_feat']
+                print('Dropout Edge', gcn_model.dropout_rate_edge_feat)
+
+            if 'dropout_rate_node' in config_params:
+                gcn_model.dropout_rate_node = config_params['dropout_rate_node']
+                print('Dropout Node', gcn_model.dropout_rate_node)
+
+            if 'conv_weighted_avg' in config_params:
+                gcn_model.use_conv_weighted_avg = config_params['conv_weighted_avg']
+
+            gcn_model.use_edge_mlp = False
 
         gcn_model.create_model()
 
@@ -181,35 +287,70 @@ def run_model_train_val_test(gcn_graph,
             f.close()
 
 
-
 def main(_):
-        config = get_config(FLAGS.configid)
-        print(config)
+    config = get_config(FLAGS.configid)
+    print(config)
 
-        #Pickle for Logit are sufficient
-        pickle_train = os.path.join(FLAGS.dpath,'abp_CV_fold_' + str(FLAGS.fold) + '_tlXlY_trn.pkl')
-        pickle_test = os.path.join(FLAGS.dpath,'abp_CV_fold_' + str(FLAGS.fold) + '_tlXlY_tst.pkl')
+    mkdir_p(FLAGS.out_dir)
 
-        # Baseline Models do not need reverse arc features
-        if 'model' in config:
-            train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
-            test_graph = GCNDataset.load_transkribus_pickle(pickle_test)
-            print('Loaded Test Graphs:',len(test_graph))
+    # Pickle for Logit are sufficient
+    pickle_train = os.path.join(FLAGS.dpath, 'abp_CV_fold_' + str(FLAGS.fold) + '_tlXlY_trn.pkl')
+    pickle_test = os.path.join(FLAGS.dpath, 'abp_CV_fold_' + str(FLAGS.fold) + '_tlXlY_tst.pkl')
 
+    # Baseline Models do not need reverse arc features
+    if 'model' in config:
+        train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
+        test_graph = GCNDataset.load_transkribus_pickle(pickle_test)
+        print('Loaded Test Graphs:', len(test_graph))
+
+        if FLAGS.outname == 'default':
+            outpicklefname = os.path.join(FLAGS.out_dir,
+                                          'table_F' + str(FLAGS.fold) + '_C' + str(FLAGS.configid) + '.pickle')
+        else:
+            outpicklefname = os.path.join(FLAGS.out_dir, FLAGS.outname)
+
+
+    else:
+
+        if FLAGS.das_predict_workflow is True:
+            print('Doing Experiment on Predict Workflow ....')
+            pickle_train = '/nfs/project/read/testJL/TABLE/das_abp_models/abp_full_tlXlY_trn.pkl'
+            pickle_train_ra = '/nfs/project/read/testJL/TABLE/abp_DAS_CRF_Xr.pkl'
+            print(pickle_train_ra, pickle_train)
+            # train_graph = GCNDataset.load_transkribus_pickle(pickle_train)
+            train_graph = GCNDataset.load_transkribus_reverse_arcs_pickle(pickle_train, pickle_train_ra,
+                                                                          format_reverse='lx')
+
+            fX_col9142 = '../../usecases/ABP/resources/DAS_2018/abp_DAS_col9142_CRF_X.pkl'
+            fXr_col9142 = '../../usecases/ABP/resources/DAS_2018/abp_DAS_col9142_CRF_Xr.pkl'
+            fY_col9142 = '../../usecases/ABP/resources/DAS_2018/DAS_col9142_l_Y_GT.pkl'
+
+            test_graph = GCNDataset.load_transkribus_list_X_Xr_Y(fX_col9142, fXr_col9142, fY_col9142)
+
+            if FLAGS.outname == 'default':
+                outpicklefname = os.path.join(FLAGS.out_dir,
+                                              'col9142_C' + str(FLAGS.configid) + '.pickle')
+            else:
+                outpicklefname = os.path.join(FLAGS.out_dir, FLAGS.outname)
 
         else:
             pickle_train_ra = os.path.join(FLAGS.dpath, 'abp_CV_fold_' + str(FLAGS.fold) + '_tlXrlY_trn.pkl')
             pickle_test_ra = os.path.join(FLAGS.dpath, 'abp_CV_fold_' + str(FLAGS.fold) + '_tlXrlY_tst.pkl')
-            train_graph = GCNDataset.load_transkribus_reverse_arcs_pickle(pickle_train, pickle_train_ra)
-            print('Loaded Trained Graphs:', len(train_graph))
+            train_graph = GCNDataset.load_transkribus_reverse_arcs_pickle(pickle_train, pickle_train_ra,
+                                                                          attach_edge_label=True)
             test_graph = GCNDataset.load_transkribus_reverse_arcs_pickle(pickle_test, pickle_test_ra)
-            print('Loaded Test Graphs:', len(test_graph))
 
+            if FLAGS.outname == 'default':
+                outpicklefname = os.path.join(FLAGS.out_dir,
+                                              'table_F' + str(FLAGS.fold) + '_C' + str(FLAGS.configid) + '.pickle')
+            else:
+                outpicklefname = os.path.join(FLAGS.out_dir, FLAGS.outname)
 
-        mkdir_p(FLAGS.out_dir)
-        outpicklefname = os.path.join(FLAGS.out_dir,
-                                      'table_F' + str(FLAGS.fold) + '_C' + str(FLAGS.configid) + '.pickle')
-        run_model_train_val_test(train_graph, config, outpicklefname, gcn_graph_test=test_graph)
+        print('Loaded Trained Graphs:', len(train_graph))
+        print('Loaded Test Graphs:', len(test_graph))
+
+    run_model_train_val_test(train_graph, config, outpicklefname, gcn_graph_test=test_graph)
+
 
 if __name__ == '__main__':
     tf.app.run()

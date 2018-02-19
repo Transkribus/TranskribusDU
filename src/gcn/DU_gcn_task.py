@@ -657,42 +657,6 @@ def get_config(config_id=0):
         #config['dropout_rate_edge_feat'] = 0.0
         #config['dropout_rate_node'] = 0.2
 
-    elif config_id == 49:
-        # Same as 28 but with fast convolve
-        config['nb_iter'] = 2000
-        config['lr'] = 0.001
-        config['stack_instead_add'] = False
-        config['mu'] = 0.000
-        config['num_layers'] = 2
-        config['node_indim'] = -1  # INDIM =2 not working here
-        config['nconv_edge'] = 4
-        config['fast_convolve'] = True
-        config['logit_convolve'] = False
-
-    elif config_id == 50:
-        # Same as 28 but with fast convolve
-        config['nb_iter'] = 2000
-        config['lr'] = 0.001
-        config['stack_instead_add'] = False
-        config['mu'] = 0.000
-        config['num_layers'] = 8
-        config['node_indim'] = -1  # INDIM =2 not working here
-        config['nconv_edge'] = 1
-        config['fast_convolve'] = True
-        config['logit_convolve'] = False
-
-    elif config_id == 51:
-        # Same as 28 but with fast convolve
-        config['nb_iter'] = 2000
-        config['lr'] = 0.001
-        config['stack_instead_add'] = True
-        config['mu'] = 0.000
-        config['num_layers'] = 3
-        config['node_indim'] = 50  # INDIM =2 not working here
-        config['nconv_edge'] = 4
-        config['fast_convolve'] = False
-        config['logit_convolve'] = False
-
 
     else:
         raise NotImplementedError

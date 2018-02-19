@@ -400,7 +400,69 @@ class UT_gcn(unittest.TestCase):
         #we should mask it then ...
         # Add a Yt_sum which is zero everywhere except for zero indegree node for which it is uniform
 
+    def test_wavg_conv(self):
+        pickle_fname = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
+        gcn_graph = GCNDataset.load_transkribus_pickle(pickle_fname)
 
+        gcn_graph_train = [gcn_graph[8], gcn_graph[18], gcn_graph[29]]
+        node_dim = gcn_graph[0].X.shape[1]
+        edge_dim = gcn_graph[0].E.shape[1] - 2.0
+        nb_class = gcn_graph[0].Y.shape[1]
+
+        gcn_model = EdgeConvNet(node_dim, edge_dim, nb_class, num_layers=3, learning_rate=0.01, mu=0.0,
+                                node_indim=-1, nconv_edge=10)
+        # gcn_model =EdgeConvNet(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
+        gcn_model.fast_convolve = True
+        gcn_model.use_conv_weighted_avg=True
+
+        gcn_model.create_model()
+
+        # pdb.set_trace()
+
+        nb_iter = 50
+        with tf.Session() as session:
+            session.run([gcn_model.init])
+            # Sample each graph
+            # random
+            for i in range(nb_iter):
+                gcn_model.train_lG(session, gcn_graph_train)
+
+            # Get the Test Prediction
+            g_acc, node_acc = gcn_model.test_lG(session, gcn_graph_train)
+            print('Mean Accuracy', g_acc, node_acc)
+            # Get the Test Prediction
+
+    def test_edge_mlp(self):
+        pickle_fname = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
+        gcn_graph = GCNDataset.load_transkribus_pickle(pickle_fname)
+
+        gcn_graph_train = [gcn_graph[8], gcn_graph[18], gcn_graph[29]]
+        node_dim = gcn_graph[0].X.shape[1]
+        edge_dim = gcn_graph[0].E.shape[1] - 2.0
+        nb_class = gcn_graph[0].Y.shape[1]
+
+        gcn_model = EdgeConvNet(node_dim, edge_dim, nb_class, num_layers=3, learning_rate=0.01, mu=0.0,
+                                node_indim=-1, nconv_edge=10)
+        # gcn_model =EdgeConvNet(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
+        gcn_model.fast_convolve = True
+        gcn_model.use_edge_mlp=True
+
+        gcn_model.create_model()
+
+        # pdb.set_trace()
+
+        nb_iter = 50
+        with tf.Session() as session:
+            session.run([gcn_model.init])
+            # Sample each graph
+            # random
+            for i in range(nb_iter):
+                gcn_model.train_lG(session, gcn_graph_train)
+
+            # Get the Test Prediction
+            g_acc, node_acc = gcn_model.test_lG(session, gcn_graph_train)
+            print('Mean Accuracy', g_acc, node_acc)
+            # Get the Test Prediction
 
 
 
