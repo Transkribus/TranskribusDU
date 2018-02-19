@@ -27,15 +27,16 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
+from __future__ import absolute_import
+from __future__ import  print_function
 from __future__ import unicode_literals
 
-
 import sys, os.path
-sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'src')
+sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'Transkribus')
 from ObjectModel.recordClass import recordClass,fieldClass,KerasTagger, RETaggerClass #, dateRETaggerClass
 from ObjectModel.documentClass import documentObject
 
-import libxml2
+from lxml import etree
 
 class deathRecord(recordClass):
     sName = 'deathrecord' 
@@ -57,6 +58,12 @@ class deathRecord(recordClass):
         nfield.setMandatory()
         self.addField(nfield)
 
+        
+        rfield=religionField()
+        rfield.addTagger(myTagger)
+        rfield.setLabelMapping(['religionGenerator'])
+        self.addField(rfield)
+        
         lfield= locationField()
         lfield.addTagger(myTagger)
         lfield.setLabelMapping(['locationGenerator'])
@@ -76,15 +83,19 @@ class deathRecord(recordClass):
         dDate.addTagger(myTagger)
 #         dDate.setLabelMapping(['weekDayDateGenerator','MonthDayDateGenerator','MonthDateGenerator'])         
         dDate.setLabelMapping(['MonthDateGenerator'])         
-
         self.addField(dDate)
         
         bDate= burialDate()
         bDate.addTagger(myTagger)
 #         bDate.setLabelMapping(['weekDayDateGenerator','MonthDayDateGenerator','MonthDateGenerator'])         
         bDate.setLabelMapping(['MonthDateGenerator'])         
-
         self.addField(bDate)         
+
+
+        agefield=age()
+        agefield.addTagger(myTagger)
+        agefield.setLabelMapping(['ageValueGenerator'])
+        self.addField(agefield)        
 
         blfield= burialLocation()
         blfield.addTagger(myTagger)
@@ -96,6 +107,10 @@ class deathRecord(recordClass):
         reasonField.setLabelMapping(['deathreasonGenerator'])
         self.addField(reasonField)        
 
+        drField = doktorField()
+        drField.addTagger(myTagger)
+        drField.setLabelMapping(['lastNameGenerator'])  #lastNameGenerator
+        self.addField(drField)  
     
     def generateOutput(self,outDom):
         """
@@ -111,39 +126,44 @@ class deathRecord(recordClass):
   </PAGE>            
         """
         if outDom is None:
-            outDom = libxml2.newDoc('1.0')
-            root = libxml2.newNode('DOCUMENT')
-            outDom.setRootElement(root)
+            root = etree.Element('DOCUMENT')
+            outDom= etree.ElementTree(root)
         else:
-            root = outDom.getRootElement()
+            root = outDom.getroot()
         ## group cand by page
         ## store all with score; evaluation uses scoresTH
         lPages={}
         for cand in self.getCandidates():
-            print cand, cand.getPage(), cand.getAllFields()
+#             print cand, cand.getPage(), cand.getAllFields()
             try:lPages[cand.getPage()].append(cand)
             except:lPages[cand.getPage()]=[cand]
 
         for page in sorted(lPages):
             # page node
-            domp=libxml2.newNode('PAGE')
-            domp.setProp('number',str(page.getNumber()))
-            domp.setProp('years','NA')
-            root.addChild(domp)         
+            domp=etree.Element('PAGE')
+            domp.set('number',str(page.getNumber()))
+            #in ref :Seebach_006_03_0030
+            key=os.path.basename(page.getAttribute('imageFilename'))[:-4]
+            key=key.replace('-','_')
+            key=key[2:]
+            domp.set('pagenum',key)
+
+            domp.set('years','NA')
+            root.append(domp)         
             sortedRows = lPages[page]
             sortedRows.sort(key=lambda x:int(x.getIndex()))   
             for cand in sortedRows:
                 #record
-                record = libxml2.newNode('RECORD')
+                record = etree.Element('RECORD')
                 # record fields
                 nbRecords = 0
                 for field in cand.getAllFields():
                     if field.getName() is not None and field.getBestValue() is not None:
-                        record.setProp(field.getName(),field.getBestValue().encode('utf-8'))
+                        record.set(field.getName(),field.getBestValue())
                         nbRecords+=1
                 if nbRecords > 0:
-                    domp.addChild(record)
-                domp.setProp('nbrecords',str(nbRecords))
+                    domp.append(record)
+                domp.set('nbrecords',str(nbRecords))
         return outDom    
 
 
@@ -172,6 +192,11 @@ class burialLocation(fieldClass):
     def __init__(self):
         fieldClass.__init__(self, burialLocation.sName)
                     
+class age(fieldClass):
+    sName='age'
+    def __init__(self):
+        fieldClass.__init__(self, age.sName)
+        
 class firstNameField(fieldClass):
     sName = 'firstname'
     def __init__(self):
@@ -187,6 +212,11 @@ class situationField(fieldClass):
     sName='situation'
     def __init__(self):
         fieldClass.__init__(self, situationField.sName)    
+
+class doktorField(fieldClass):
+    sName='doktor'
+    def __init__(self):
+        fieldClass.__init__(self, doktorField.sName) 
 
 class religionField(fieldClass):
     sName='religion'
@@ -268,6 +298,6 @@ if __name__ == "__main__":
     for field in dr.getFields():
         lParsingRes = field.applyTaggers(mydocO)
         foo = field.extractLabel(lParsingRes)
-        print field.getName(),lParsingRes
-        print foo
+        print(field.getName(),lParsingRes)
+        print(foo)
 
