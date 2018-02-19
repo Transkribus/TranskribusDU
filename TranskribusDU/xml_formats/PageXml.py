@@ -72,10 +72,10 @@ class PageXml:
 #             del buff , prsrCtxt
 
 #         res = cls.cachedValidationContext.schemaValidateDoc(doc)
-        res = cls.cachedValidationContext.validate(doc)
+        bValid = cls.cachedValidationContext.validate(doc)
         log = cls.cachedValidationContext.error_log
-        print(log)
-        return res
+        if not bValid: print(log)
+        return bValid
          
     validate = classmethod(validate)
 
