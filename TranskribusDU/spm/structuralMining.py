@@ -309,8 +309,8 @@ class sequenceMiner(Component.Component):
             
             
     
-    def miningSequencePrefixScan(self,lSeq):
-        model = PrefixSpan.train(lSeq, minSupport = 0.1, maxPatternLength = 10)
+    def miningSequencePrefixScan(self,lSeq, minSupport=0.1,maxPatternLength=10):
+        model = PrefixSpan.train(lSeq, minSupport, maxPatternLength)
         result = model.freqSequences().collect()
         result.sort(key=lambda x:x.freq)
         lPatterns=[]
