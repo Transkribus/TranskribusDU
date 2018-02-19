@@ -3,7 +3,7 @@ import sys
 Graph Convolution Network Datasets
 '''
 import pickle
-from sklearn.preprocessing import LabelBinarizer,Normalizer
+from sklearn.preprocessing import LabelBinarizer,Normalizer,LabelEncoder
 import numpy as np
 PY3 = sys.version_info[0] == 3
 import gzip
@@ -491,7 +491,7 @@ class GCNDataset(object):
                 graph.compute_NodeEdgeMat()
             return gcn_list
 
-    def load_transkribus_reverse_arcs_pickle(pickle_fname,pickle_ra_fname, is_zipped=True,format_reverse='lxly'):
+    def load_transkribus_reverse_arcs_pickle(pickle_fname,pickle_ra_fname, is_zipped=True,format_reverse='lxly',attach_edge_label=False):
         '''
         Loas existing pickle file used with CRF in the Transkribus project
         :param pickle_fname:
@@ -537,6 +537,37 @@ class GCNDataset(object):
 
         lb.fit(lys)
 
+        lb_edge =LabelEncoder()
+        lb_edge_bin = LabelBinarizer()
+
+        if attach_edge_label:
+            #I should pickle the edge label transformer to predict the cut
+            # Majority voting. should be contrained no ??, does the algo garantees ..
+
+            label_edge_list=[]
+            for lx, ly, lxr in zip(lX, lY, lX_reversed):
+
+                edge = lx[1]
+                y_source =ly[edge[:, 0]]
+                y_target =ly[edge[:, 1]]
+
+
+                for ys,yt in zip(y_source,y_target):
+                    label_edge_list.append(str(ys)+'_'+str(yt))
+
+                edger = lxr[1]
+                yr_source = ly[edger[:, 0]]
+                yr_target = ly[edger[:, 1]]
+
+                #for ys, yt in zip(yr_source, yr_target):
+                #    label_edge_list.append(str(ys) + '_' + str(yt))
+
+            lb_edge.fit(label_edge_list)
+            print('Edge Classses',list(lb_edge.classes_))
+            yedge =lb_edge.transform(label_edge_list)
+            lb_edge_bin.fit(yedge)
+            print('Edge Classes Histogram',np.bincount(yedge))
+
         #pdb.set_trace()
         print('LEN X,Xr',len(lX),len(lX_reversed))
         for lx, ly ,lxr in zip(lX, lY,lX_reversed):
@@ -575,6 +606,128 @@ class GCNDataset(object):
             E0 = np.hstack([edge, ef])  # check order
             E1 = np.hstack([edger, efr])  # check order
 
+
+            graph.E = np.vstack([E0, E1])  # check order
+
+
+            graph.compute_NA()
+            # graph.normalize()
+            graph.compute_NodeEdgeMat()
+
+            if attach_edge_label:
+                graph_edge_label_list=[]
+                y_source = ly[edge[:, 0]]
+                y_target = ly[edge[:, 1]]
+
+                for ys, yt in zip(y_source, y_target):
+                    graph_edge_label_list.append(str(ys) + '_' + str(yt))
+
+                edger = lxr[1]
+                yr_source = ly[edger[:, 0]]
+                yr_target = ly[edger[:, 1]]
+
+                #for ys, yt in zip(yr_source, yr_target):
+                #    graph_edge_label_list.append(str(ys) + '_' + str(yt))
+
+                Ye = lb_edge.transform(graph_edge_label_list)
+                graph.Yedge=lb_edge_bin.transform(Ye)
+
+
+                nb_edge_total =graph.F.shape[0]
+                print(nb_edge_total/2)
+                graph.EC = graph.F[int(nb_edge_total/2):,:]
+
+                assert (Ye.shape[0] == graph.EC.shape[0])
+
+            gcn_list.append(graph)
+
+
+
+        f.close()
+        g.close()
+        return gcn_list
+
+    @staticmethod
+    def load_transkribus_list_X_Xr_Y(X_pickle_fname,Xr_pickle_ra_fname,Y_pickle_fname):
+        '''
+                Loas existing pickle file used with CRF in the Transkribus project
+                :param pickle_fname:
+                :param is_zipped:
+                :param sym_edge:
+                :return:
+                '''
+        gcn_list = []
+
+
+        f = gzip.open(X_pickle_fname, 'rb')
+        g = gzip.open(Xr_pickle_ra_fname, 'rb')
+        h =gzip.open(Y_pickle_fname, 'rb')
+
+        if PY3:
+            Z  = pickle.load(f, encoding='latin1')
+            Zr = pickle.load(g, encoding='latin1')
+            Y  = pickle.load(h, encoding='latin1')
+        else:
+            raise EnvironmentError('Use Python 3')
+
+        lX = Z
+        lY = Y
+
+        lX_reversed = Zr
+
+        graph_id = 0
+
+        lb = LabelBinarizer()
+        lys = []
+
+        for _, ly in zip(lX, lY):
+            lys.extend(list(ly))
+
+        lb.fit(lys)
+
+        #pdb.set_trace()
+
+        # pdb.set_trace()
+        #TODO Refactor this
+        print('LEN X,Xr,Y', len(lX), len(lX_reversed),len(Y))
+        for lx, ly, lxr in zip(lX, lY, lX_reversed):
+            nf = lx[0]
+            edge = lx[1]
+            ef = lx[2]
+
+            nfr = lxr[0]
+            edger = lxr[1]
+            efr = lxr[2]
+
+            #print('Number of Node',nf.shape[0],nfr.shape[0],ly.shape)
+            assert(nf.shape[0]==ly.shape[0])
+
+
+            # diff_node_features = (nf-nfr).sum()
+            # assert(diff_node_features<1e-5)
+
+            # assert edge swap on node source -target
+            # edge_test1 = np.sum(edge[:,1] ==edger[:,0]) == ef.shape[0]
+            # edge_test2 = np.sum( edge[:, 0] == edger[:, 1]) == ef.shape[0]
+
+            # assert(edge_test1)
+            # assert(edge_test2)
+            graph = GCNDataset(str(graph_id))
+            graph.X = nf
+            graph.Y = lb.transform(ly)
+            # We are making the adacency matrix here
+            nb_node = nf.shape[0]
+            # print(edger)
+            A1 = sp.coo_matrix((np.ones(edge.shape[0]), (edge[:, 0], edge[:, 1])), shape=(nb_node, nb_node))
+            A2 = sp.coo_matrix((np.ones(edger.shape[0]), (edger[:, 0], edger[:, 1])), shape=(nb_node, nb_node))
+            graph.A = A1 + A2
+
+            edge_normalizer = Normalizer()
+            # Normalize EA
+            efn = edge_normalizer.fit_transform(ef)
+
+            E0 = np.hstack([edge, ef])  # check order
+            E1 = np.hstack([edger, efr])  # check order
 
             graph.E = np.vstack([E0, E1])  # check order
 
