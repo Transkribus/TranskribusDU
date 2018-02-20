@@ -181,6 +181,15 @@ class DS2PageXMLConvertor(Component):
             
         
         # collect content and generate a textequiv
+        #  <TextEquiv> <Unicode>des</Unicode>        </TextEquiv>
+        if DSObject.getContent() is not None:
+            TextEquivDom =etree.Element('{%s}TextEquiv'%(self.pageXmlNS))
+            unicodeDom= etree.Element('{%s}Unicode'%(self.pageXmlNS))
+            unicodeDom.text = DSObject.getContent()
+            TextEquivDom.append(unicodeDom)   
+            domNode.append(TextEquivDom)                
+               
+            
         
         ## specific attributes for cell
         ###  row="0" col="2" colSpan="1
