@@ -56,6 +56,8 @@ from crf.FeatureDefinition_PageXml_std import FeatureDefinition_PageXml_Standard
 
 from crf.TestReport import TestReportConfusion
 
+from gcn.DU_Model_ECN import DU_Model_ECN
+
 class DU_CRF_Task:
     """
 Document Understanding class that relies on CRF (learning with SSVM and inference with AD3, thru the pystruct library
@@ -873,6 +875,23 @@ class DU_FactorialCRF_Task(DU_CRF_Task):
         
         
 # ------------------------------------------------------------------------------------------------------------------------------
+class DU_ECN_Task(DU_CRF_Task):
+
+    def __init__(self, sModelName, sModelDir, dLearnerConfig={}, sComment=None
+                 , cFeatureDefinition=None, dFeatureConfig={}
+                 ):
+        super(DU_ECN_Task, self).__init__(sModelName,sModelDir,dLearnerConfig,sComment,cFeatureDefinition,dFeatureConfig)
+
+        self.cModelClass = DU_Model_ECN
+        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
+
+    def isTypedCRF(self):
+        """
+        if this a classical CRF or a Typed CRF?
+        """
+        return False
+
+
 if __name__ == "__main__":
 
     version = "v.01"
