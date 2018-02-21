@@ -401,7 +401,7 @@ class Model:
         self.gzip_cPickle_dump(sBaselineFile, self.getBaselineModelList())
         return sBaselineFile
     
-    def test(self, lGraph):
+    def test(self, lGraph,lsDocName=None):
         """
         Test the model using those graphs and report results on stderr
         
