@@ -41,9 +41,14 @@ from tasks import _checkFindColDir, _exit
 
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
-from tasks.DU_CRF_Task import DU_CRF_Task
+from tasks.DU_CRF_Task import DU_CRF_Task, DU_ECN_Task
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
+
+try:
+    import tensorflow as tf
+except:
+    print('Could not load tensorflow. ECN models will not work')
 
 
  
@@ -146,17 +151,112 @@ class DU_ABPTable(DU_CRF_Task):
         """
         self.sXmlFilenamePattern = "*.mpxml"
         return DU_CRF_Task.runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges)
-              
+
+
+class DU_ABPTable_ECN(DU_ECN_Task):
+        """
+        ECN Models
+        """
+        sXmlFilenamePattern = "*.mpxml"
+
+        # sLabeledXmlFilenamePattern = "*.a_mpxml"
+        sLabeledXmlFilenamePattern = "*.mpxml"
+
+        sLabeledXmlFilenameEXT = ".mpxml"
+
+        dLearnerConfig = {'nb_iter': 200,
+                          'lr': 0.001,
+                          'num_layers': 3,
+                          'nconv_edge': 10,
+                          'stack_convolutions': True,
+                          'node_indim': -1,
+                          'mu': 0.0,
+                          'dropout_rate_edge': 0.0,
+                          'dropout_rate_edge_feat': 0.0,
+                          'dropout_rate_node': 0.0,
+                          'ratio_train_val': 0.15,
+                          #'activation': tf.nn.tanh, Problem I can not serialize function HERE
+           }
+        # === CONFIGURATION ====================================================================
+        @classmethod
+        def getConfiguredGraphClass(cls):
+            """
+            In this class method, we must return a configured graph class
+            """
+            lLabels = ['RB', 'RI', 'RE', 'RS', 'RO']
+
+            lIgnoredLabels = None
+
+            """
+            if you play with a toy collection, which does not have all expected classes, you can reduce those.
+            """
+
+            lActuallySeen = None
+            if lActuallySeen:
+                print("REDUCING THE CLASSES TO THOSE SEEN IN TRAINING")
+                lIgnoredLabels = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
+                lLabels = [lLabels[i] for i in lActuallySeen]
+                print(len(lLabels), lLabels)
+                print(len(lIgnoredLabels), lIgnoredLabels)
+
+            # DEFINING THE CLASS OF GRAPH WE USE
+            DU_GRAPH = Graph_MultiSinglePageXml
+            nt = NodeType_PageXml_type_woText("abp"  # some short prefix because labels below are prefixed with it
+                                              , lLabels
+                                              , lIgnoredLabels
+                                              , False  # no label means OTHER
+                                              , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v / 3))
+                                              # we reduce overlap in this way
+                                              )
+            nt.setXpathExpr((".//pc:TextLine"  # how to find the nodes
+                             , "./pc:TextEquiv")  # how to get their text
+                            )
+            DU_GRAPH.addNodeType(nt)
+
+            return DU_GRAPH
+
+        def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None,
+                     inference_cache=None):
+
+            DU_ECN_Task.__init__(self
+                                 , sModelName, sModelDir
+                                 , dFeatureConfig={}
+                                 , dLearnerConfig=self.dLearnerConfig
+                                 , sComment=sComment
+                                 , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
+                                 )
+
+            # self.setNbClass(3)     #so that we check if all classes are represented in the training set
+
+            if options.bBaseline:
+                self.bsln_mdl = self.addBaseline_LogisticRegression()  # use a LR model trained by GridSearch as baseline
+
+        # === END OF CONFIGURATION =============================================================
+
+
+        def predict(self, lsColDir):
+            """
+            Return the list of produced files
+            """
+            self.sXmlFilenamePattern = "*.mpxml"
+            return DU_ECN_Task.predict(self, lsColDir)
+
+
 
 # ----------------------------------------------------------------------------
 
 def main(sModelDir, sModelName, options):
-    doer = DU_ABPTable(sModelName, sModelDir,
-                      C                 = options.crf_C,
-                      tol               = options.crf_tol,
-                      njobs             = options.crf_njobs,
-                      max_iter          = options.crf_max_iter,
-                      inference_cache   = options.crf_inference_cache)
+    if options.use_ecn:
+
+        doer = DU_ABPTable_ECN(sModelName, sModelDir)
+
+    else:
+        doer = DU_ABPTable(sModelName, sModelDir,
+                          C                 = options.crf_C,
+                          tol               = options.crf_tol,
+                          njobs             = options.crf_njobs,
+                          max_iter          = options.crf_max_iter,
+                          inference_cache   = options.crf_inference_cache)
     
     if options.rm:
         doer.rm()
@@ -243,7 +343,8 @@ if __name__ == "__main__":
     #FOR GCN
     parser.add_option("--revertEdges", dest='bRevertEdges',  action="store_true", help="Revert the direction of the edges") 
     parser.add_option("--detail", dest='bDetailedReport',  action="store_true", default=False,help="Display detailled reporting (score per document)") 
-    parser.add_option("--baseline", dest='bBaseline',  action="store_true", default=False, help="report baseline method") 
+    parser.add_option("--baseline", dest='bBaseline',  action="store_true", default=False, help="report baseline method")
+    parser.add_option("--ecn",dest='use_ecn',action="store_true", default=False, help="wether to use ECN Models")
             
     # --- 
     #parse the command line

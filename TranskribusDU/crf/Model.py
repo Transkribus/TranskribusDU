@@ -107,7 +107,7 @@ class Model:
         """
         self._nbClass = lNbClass
         
-    def getNbClass(self, nbClass):
+    def getNbClass(self):
         return self._nbClass
         
     # --- Model loading/writing -------------------------------------------------------------
@@ -371,7 +371,7 @@ class Model:
 #         return [mdl.predict(X) for mdl in self._lMdlBaseline]
 
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
-    def train(self, lGraph, bWarmStart=True, expiration_timestamp=None):
+    def train(self, lGraph, bWarmStart=True, expiration_timestamp=None,verbose=0):
         """
         Return a model trained using the given labelled graphs.
         The train method is expected to save the model into self.getModelFilename(), at least at end of training

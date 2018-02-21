@@ -993,7 +993,7 @@ class EdgeConvNet(MultiGraphNN):
                 self.dropout_p_node: self.dropout_rate_node,
                 self.dropout_p_edge: self.dropout_rate_edge,
                 self.dropout_p_edge_feat: self.dropout_rate_edge_feat,
-                self.NA_indegree:graph.NA_indegree
+                #self.NA_indegree:graph.NA_indegree
             }
 
             Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
@@ -1027,7 +1027,7 @@ class EdgeConvNet(MultiGraphNN):
             self.dropout_p_node: 0.0,
             self.dropout_p_edge: 0.0,
             self.dropout_p_edge_feat: 0.0,
-            self.NA_indegree: graph.NA_indegree
+            #self.NA_indegree: graph.NA_indegree
         }
 
         Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
@@ -1059,7 +1059,7 @@ class EdgeConvNet(MultiGraphNN):
             self.dropout_p_node: 0.0,
             self.dropout_p_edge: 0.0,
             self.dropout_p_edge_feat: 0.0,
-            self.NA_indegree: graph.NA_indegree
+            #self.NA_indegree: graph.NA_indegree
         }
         Ops = session.run([self.pred], feed_dict=feed_batch)
         if verbose:

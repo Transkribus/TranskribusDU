@@ -490,6 +490,7 @@ class GCNDataset(object):
                 graph.compute_NodeEdgeMat()
             return gcn_list
 
+    @staticmethod
     def load_transkribus_reverse_arcs_pickle(pickle_fname,pickle_ra_fname, is_zipped=True,format_reverse='lxly',attach_edge_label=False):
 
         '''
