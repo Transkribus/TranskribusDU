@@ -164,7 +164,7 @@ class DU_ABPTable_ECN(DU_ECN_Task):
 
         sLabeledXmlFilenameEXT = ".mpxml"
 
-        dLearnerConfig = {'nb_iter': 200,
+        dLearnerConfig = {'nb_iter': 50,
                           'lr': 0.001,
                           'num_layers': 3,
                           'nconv_edge': 10,
