@@ -428,23 +428,23 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         self.traceln("-"*50)
 
         if not self._mdl: raise Exception("The model must be loaded beforehand!")
-        
+
         #list files
         if docid is None:
             _     , lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
         # predict for this file only
         else:
-            try: 
+            try:
                 lFilename = [os.path.abspath(os.path.join(lsColDir[0], docid+MultiPageXml.sEXT  ))]
             except IndexError:raise Exception("a collection directory must be provided!")
-            
-        
+
+
         DU_GraphClass = self.getGraphClass()
 
         lPageConstraint = DU_GraphClass.getPageConstraint()
-        if lPageConstraint: 
+        if lPageConstraint:
             for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
-        
+
         chronoOn("predict")
         self.traceln("- loading collection as graphs, and processing each in turn. (%d files)"%len(lFilename))
         du_postfix = "_du"+MultiPageXml.sEXT
@@ -462,24 +462,24 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
                     else:
                         self.traceln("\t- prediction : %s"%sFilename)
                     Y = self._mdl.predict(g)
-                    
+
                     g.setDomLabels(Y)
                     del Y
                 del lg
-                
+
                 MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
                 sDUFilename = sFilename[:-len(MultiPageXml.sEXT)]+du_postfix
                 doc.write(sDUFilename,
                           xml_declaration=True,
                           encoding="utf-8",
                           pretty_print=True
-                          #compression=0,  #0 to 9 
+                          #compression=0,  #0 to 9
                           )
 
                 lsOutputFilename.append(sDUFilename)
             else:
                 self.traceln("\t- no prediction to do for: %s"%sFilename)
-                
+
             self.traceln("\t done [%.2fs]"%chronoOff("predict_1"))
         self.traceln(" done [%.2fs]"%chronoOff("predict"))
 
@@ -890,6 +890,75 @@ class DU_ECN_Task(DU_CRF_Task):
         if this a classical CRF or a Typed CRF?
         """
         return False
+
+    def predict(self, lsColDir, docid=None):
+        """
+        Return the list of produced files
+        """
+        self.traceln("-" * 50)
+        self.traceln("Predicting for collection(s):", lsColDir)
+        self.traceln("-" * 50)
+
+        if not self._mdl: raise Exception("The model must be loaded beforehand!")
+
+        # list files
+        if docid is None:
+            _, lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
+        # predict for this file only
+        else:
+            try:
+                lFilename = [os.path.abspath(os.path.join(lsColDir[0], docid + MultiPageXml.sEXT))]
+            except IndexError:
+                raise Exception("a collection directory must be provided!")
+
+        DU_GraphClass = self.getGraphClass()
+
+        lPageConstraint = DU_GraphClass.getPageConstraint()
+        if lPageConstraint:
+            for dat in lPageConstraint: self.traceln("\t\t%s" % str(dat))
+
+        chronoOn("predict")
+        self.traceln("- loading collection as graphs, and processing each in turn. (%d files)" % len(lFilename))
+        du_postfix = "_du" + MultiPageXml.sEXT
+
+        #Creates a tf.Session and load the model checkpoints
+        session=self._mdl.restore()
+        lsOutputFilename = []
+        for sFilename in lFilename:
+            if sFilename.endswith(du_postfix): continue  #:)
+            chronoOn("predict_1")
+            lg = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
+            # normally, we get one graph per file, but in case we load one graph per page, for instance, we have a list
+            if lg:
+                for g in lg:
+                    doc = g.doc
+                    if lPageConstraint:
+                        self.traceln("\t- prediction with logical constraints: %s" % sFilename)
+                    else:
+                        self.traceln("\t- prediction : %s" % sFilename)
+                    Y = self._mdl.predict(g,session)
+
+                    g.setDomLabels(Y)
+                    del Y
+                del lg
+
+                MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
+                sDUFilename = sFilename[:-len(MultiPageXml.sEXT)] + du_postfix
+                doc.write(sDUFilename,
+                          xml_declaration=True,
+                          encoding="utf-8",
+                          pretty_print=True
+                          # compression=0,  #0 to 9
+                          )
+
+                lsOutputFilename.append(sDUFilename)
+            else:
+                self.traceln("\t- no prediction to do for: %s" % sFilename)
+
+            self.traceln("\t done [%.2fs]" % chronoOff("predict_1"))
+        self.traceln(" done [%.2fs]" % chronoOff("predict"))
+        session.close()
+        return lsOutputFilename
 
 
 if __name__ == "__main__":

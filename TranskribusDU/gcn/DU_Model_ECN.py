@@ -459,8 +459,7 @@ class DU_Model_ECN(Model):
         return tstRpt
 
 
-    #Is this deprecated ?
-    #TODO Test This
+    #TODO Test This ;#Is this deprecated ?
     def testFiles(self, lsFilename, loadFun,bBaseLine=False):
         """
         Test the model using those files. The corresponding graphs are loaded using the loadFun function (which must return a singleton list).
@@ -491,19 +490,15 @@ class DU_Model_ECN(Model):
                     lLabelName = g.getLabelNameList()
                     traceln("\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber([g]))
                     tNF_EF = (X[0].shape[1], X[2].shape[1])
-                    traceln("\t %s" % tNF_EF)
+                    traceln("node-dim,edge-dim", tNF_EF)
                 else:
                     assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
-                lY_pred = self.gcn_model.predict_lG(session, gcn_graph_test, verbose=False)
+                lY_pred_ = self.gcn_model.predict_lG(session, gcn_graph_test, verbose=False)
 
-                # Convert to list as Python pickle does not  seem like the array while the list can be pickled
-                Y_pred = []
-                for x in lY_pred:
-                    Y_pred.append(list(x))
+                lY_pred.append(lY_pred_[0])
+                lX.append(X)
+                lY.append(Y)
 
-            lX.append(X)
-            lY.append(Y)
-            lY_pred.append(Y_pred)
             g.detachFromDOM()
             del g  # this can be very large
             gc.collect()
@@ -518,8 +513,15 @@ class DU_Model_ECN(Model):
         del lX, lY
         gc.collect()
 
-    #TODO Not Test yet
-    def predict(self, g):
+    def restore(self):
+        traceln(" start tf session; loading checkpoint")
+        session=tf.Session()
+        session.run(self.gcn_model.init)
+        self.gcn_model.restore_model(session, self.getModelFilename())
+        traceln(" ... done")
+        return session
+
+    def predict(self, g,session):
         """
         predict the class of each node of the graph
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph.
@@ -527,32 +529,18 @@ class DU_Model_ECN(Model):
         #Not Very Efficient to Predict file by file Here
         # as I need
         lLabelName = None
-        with tf.Session() as session:
-            session.run(self.gcn_model.init)
-            self.gcn_model.restore_model(session, self.getModelFilename())
 
-            [X], [Y] = self.get_lX_lY([g])
-            gcn_graph_test = self.convert_lX_lY_to_GCNDataset([X], [Y], training=False, predict=True)
-            if lLabelName == None:
-                lLabelName = g.getLabelNameList()
-                traceln("\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber([g]))
-                tNF_EF = (X[0].shape[1], X[2].shape[1])
-                traceln("\t %s" % tNF_EF)
-            else:
-                assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
-            lY_pred = self.gcn_model.predict_lG(session, gcn_graph_test, verbose=False)
-
-            # Convert to list as Python pickle does not  seem like the array while the list can be pickled
-            Y_pred = []
-            for x in lY_pred:
-                Y_pred.append(list(x))
-            print(Y_pred)
-        return Y_pred
-
-
-    def predict_lG(self,lG):
-        raise NotImplementedError
-
+        [X], [Y] = self.get_lX_lY([g])
+        gcn_graph_test = self.convert_lX_lY_to_GCNDataset([X], [Y], training=False, predict=True)
+        if lLabelName is None:
+            lLabelName = g.getLabelNameList()
+            traceln("\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber([g]))
+            tNF_EF = (X[0].shape[1], X[2].shape[1])
+            traceln("node-dim,edge-dim:", tNF_EF)
+        else:
+            assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
+        lY_pred = self.gcn_model.predict_lG(session, gcn_graph_test, verbose=False)
+        return lY_pred[0]
 
     def getModelInfo(self):
         """
