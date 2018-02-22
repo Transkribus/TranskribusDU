@@ -86,7 +86,7 @@ See DU_StAZH_b.py
     
     cFeatureDefinition   = FeatureDefinition_PageXml_StandardOnes   #I keep this for backward compa
     
-    sMetadata_Creator = "XRCE Document Understanding Typed CRF-based - v0.3"
+    sMetadata_Creator = "NLE Document Understanding Typed CRF-based - v0.3"
     sMetadata_Comments = ""
     
     #dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
