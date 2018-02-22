@@ -411,7 +411,7 @@ class Model:
         """
         raise Exception("Method must be overridden")
 
-    def testFiles(self, lsFilename, loadFun):
+    def testFiles(self, lsFilename, loadFun,bBaseLine=False):
         """
         Test the model using those files. The corresponding graphs are loaded using the loadFun function (which must return a singleton list).
         It reports results on stderr

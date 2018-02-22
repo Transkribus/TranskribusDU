@@ -202,6 +202,13 @@ class DU_Model_ECN(Model):
 
 
     def _init_model(self):
+        '''
+        Create the tensorflow graph.
+        This function assume that self.model_config contains all the appropriate variables
+        to set the model
+        This function is called in the train operation and in the load function for testing  on new documents
+        :return:
+        '''
         self.gcn_model = gcn_models.EdgeConvNet(self.model_config['node_dim'], self.model_config['edge_dim'], self.model_config['nb_class'],
                                                 num_layers=self.model_config['num_layers'],
                                                 learning_rate=self.model_config['lr'],
@@ -211,7 +218,7 @@ class DU_Model_ECN(Model):
                                                 )
 
         self.gcn_model.stack_instead_add = self.model_config['stack_convolutions']
-
+        #TODO Clean Constructor
         if 'activation' in self.model_config:
             self.gcn_model.activation = self.model_config['activation']
 
@@ -231,6 +238,23 @@ class DU_Model_ECN(Model):
             print('Dropout Node', self.gcn_model.dropout_rate_node)
 
         self.gcn_model.create_model()
+
+    def _cleanTmpCheckpointFiles(self):
+        '''
+        When a model is trained, tensorflow checkpoint files are created every 10 epochs
+        This functions cleans unecessary checkpoint files
+        :return: the number of files deleted
+        '''
+        dir_path = os.path.dirname(self.getTmpModelFilename())
+        modelsFiles = os.listdir(dir_path)
+        found_files = fnmatch.filter(modelsFiles, os.path.basename(self.getTmpModelFilename()) + '*')
+
+        for tmp_f in found_files:
+            os.remove(os.path.join(dir_path, tmp_f))
+
+        nb_clean=len(found_files)
+        traceln("\t- cleaning previous model : ", nb_clean, ' files deleted')
+        return nb_clean
 
 
     def train(self, lGraph, bWarmStart=True, expiration_timestamp=None,verbose=0):
@@ -261,20 +285,22 @@ class DU_Model_ECN(Model):
         self.model_config['edge_dim']=self._tNF_EF[1]
         self.model_config['nb_class']=nb_class
 
+        #This call the ECN internal constructor and defines the tensorflow graph
         self._init_model()
 
+        #This converts the lX,lY in the format necessary for GCN Models
         gcn_graph = self.convert_lX_lY_to_GCNDataset(lX,lY,training=True)
 
         #Save the label Binarizer for prediction usage
         fd_lb =open(self.getlabelBinarizerFilename(),'wb')
         pickle.dump(self.labelBinarizer,fd_lb)
         fd_lb.close()
-        #Save the model config
+        #Save the model config in order to restore the model later
         fd_mc = open(self.getModelConfigFilename(), 'wb')
         pickle.dump(self.model_config, fd_mc)
         fd_mc.close()
 
-
+        #Get a validation set from the training set
         split_idx = int(self.model_config['ratio_train_val'] * len(gcn_graph))
         random.shuffle(gcn_graph)
         gcn_graph_train = []
@@ -283,19 +309,8 @@ class DU_Model_ECN(Model):
         gcn_graph_val.extend(gcn_graph[:split_idx])
         gcn_graph_train.extend(gcn_graph[split_idx:])
 
-        #TODO Fix the checkpoints files with keep best
-        #and keep this mode as a debug options
+        self._cleanTmpCheckpointFiles()
 
-        #clean tmp files
-        #Prior Tmp Files
-        dir_path=os.path.dirname(self.getTmpModelFilename())
-        modelsFiles =os.listdir(dir_path)
-        found_files = fnmatch.filter(modelsFiles, os.path.basename(self.getTmpModelFilename())+'*')
-        #pdb.set_trace()
-        #print(found_files)
-        for tmp_f in found_files:
-            os.remove(os.path.join(dir_path,tmp_f))
-        traceln("\t- cleaning previous model : ",len(found_files), ' files deleted')
         with tf.Session() as session:
             session.run([self.gcn_model.init])
 
@@ -308,7 +323,7 @@ class DU_Model_ECN(Model):
 
         #This save the model
         self._getBestModelVal()
-        #TODO I should save the node_dim,edge_dim and dLearnerConfig to restore the model later
+        self._cleanTmpCheckpointFiles()
 
 
     def _getBestModelVal(self):
@@ -323,8 +338,6 @@ class DU_Model_ECN(Model):
 
         model_path = self.getTmpModelFilename()+"-"+ str(10 * epoch_index)
 
-        #print('Model_path', model_path)
-        #gcn_model.restore_model(session, model_path)
         dir_path=os.path.dirname(self.getTmpModelFilename())
         fnames =os.listdir(dir_path)
 
@@ -337,8 +350,6 @@ class DU_Model_ECN(Model):
             f_dst=self.getModelFilename()+f_suffix
             shutil.copy(f_src,f_dst)
             traceln('Copying  Final Model files ', f_src,f_dst)
-
-        #TODO Clean Temporary Files Here
 
     def _getNbFeatureAsText(self):
         """
@@ -397,8 +408,6 @@ class DU_Model_ECN(Model):
         fd_lb.close()
 
         self._init_model()
-
-
         return self
 
     def test(self, lGraph,lsDocName=None):
@@ -450,7 +459,9 @@ class DU_Model_ECN(Model):
         return tstRpt
 
 
-    def testFiles(self, lsFilename, loadFun):
+    #Is this deprecated ?
+    #TODO Test This
+    def testFiles(self, lsFilename, loadFun,bBaseLine=False):
         """
         Test the model using those files. The corresponding graphs are loaded using the loadFun function (which must return a singleton list).
         It reports results on stderr
@@ -459,18 +470,93 @@ class DU_Model_ECN(Model):
 
         Return a Report object
         """
-        raise Exception("Method must be overridden")
 
-    def predict(self, graph):
+        lX, lY, lY_pred = [], [], []
+        lLabelName = None
+        traceln("- predicting on test set")
+        chronoOn("testFiles")
+
+
+        with tf.Session() as session:
+            session.run(self.gcn_model.init)
+            self.gcn_model.restore_model(session, self.getModelFilename())
+
+
+            for sFilename in lsFilename:
+                [g] = loadFun(sFilename)  # returns a singleton list
+                [X], [Y] = self.get_lX_lY([g])
+
+                gcn_graph_test = self.convert_lX_lY_to_GCNDataset([X], [Y], training=False, test=True)
+                if lLabelName == None:
+                    lLabelName = g.getLabelNameList()
+                    traceln("\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber([g]))
+                    tNF_EF = (X[0].shape[1], X[2].shape[1])
+                    traceln("\t %s" % tNF_EF)
+                else:
+                    assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
+                lY_pred = self.gcn_model.predict_lG(session, gcn_graph_test, verbose=False)
+
+                # Convert to list as Python pickle does not  seem like the array while the list can be pickled
+                Y_pred = []
+                for x in lY_pred:
+                    Y_pred.append(list(x))
+
+            lX.append(X)
+            lY.append(Y)
+            lY_pred.append(Y_pred)
+            g.detachFromDOM()
+            del g  # this can be very large
+            gc.collect()
+        traceln("[%.1fs] done\n" % chronoOff("testFiles"))
+
+        tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsFilename)
+
+        if bBaseLine:
+            lBaselineTestReport = self._testBaselinesEco(lX, lY, lLabelName, lsDocName=lsFilename)
+            tstRpt.attach(lBaselineTestReport)
+
+        del lX, lY
+        gc.collect()
+
+    #TODO Not Test yet
+    def predict(self, g):
         """
         predict the class of each node of the graph
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph.
         """
-        raise Exception("Method must be overridden")
+        #Not Very Efficient to Predict file by file Here
+        # as I need
+        lLabelName = None
+        with tf.Session() as session:
+            session.run(self.gcn_model.init)
+            self.gcn_model.restore_model(session, self.getModelFilename())
+
+            [X], [Y] = self.get_lX_lY([g])
+            gcn_graph_test = self.convert_lX_lY_to_GCNDataset([X], [Y], training=False, predict=True)
+            if lLabelName == None:
+                lLabelName = g.getLabelNameList()
+                traceln("\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber([g]))
+                tNF_EF = (X[0].shape[1], X[2].shape[1])
+                traceln("\t %s" % tNF_EF)
+            else:
+                assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
+            lY_pred = self.gcn_model.predict_lG(session, gcn_graph_test, verbose=False)
+
+            # Convert to list as Python pickle does not  seem like the array while the list can be pickled
+            Y_pred = []
+            for x in lY_pred:
+                Y_pred.append(list(x))
+            print(Y_pred)
+        return Y_pred
+
+
+    def predict_lG(self,lG):
+        raise NotImplementedError
+
 
     def getModelInfo(self):
         """
         Get some basic model info
         Return a textual report
         """
-        return ""
+        return "ECN_Model"
