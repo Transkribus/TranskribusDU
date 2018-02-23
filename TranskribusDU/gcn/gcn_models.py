@@ -19,6 +19,7 @@ import sklearn.metrics
 import time
 #TODO Clean this
 from gcn.gcn_datasets import GCNDataset
+import warnings
 try:
     from . import gcn_datasets
 except:
@@ -193,7 +194,7 @@ class MultiGraphNN(object):
         #TODO Add the final step
         mean_acc = []
         print('Stopped Model Training after',stopped_iter)
-        print('Val Accuracies',validation_accuracies)
+        print('Validation Accuracies',['%03.2f'% sx for sx in validation_accuracies])
 
         print('Final Training Accuracy')
         _,node_train_acc=self.test_lG(session,graph_train)
@@ -374,8 +375,16 @@ class EdgeConvNet(MultiGraphNN):
     Edge-GCN Model for a graph list
     '''
 
+    #Variable ignored by the set_learning_options
+    _setter_variables={
+        "node_dim":True,"edge_dim":True,"nb_class":True,
+        "num_layers":True,"lr":True,"mu":True,
+        "node_indim":True,"nconv_edge":True,
+        "nb_iter":True,"ratio_train_val":True}
+
+
     def __init__(self,node_dim,edge_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1,node_indim=-1,nconv_edge=1,
-                 residual_connection=False,shared_We=False):
+                 ):
         self.node_dim=node_dim
         self.edge_dim=edge_dim
         self.n_classes=nb_classes
@@ -384,17 +393,15 @@ class EdgeConvNet(MultiGraphNN):
         self.activation=tf.nn.tanh
         #self.activation=tf.nn.relu
         self.mu=mu
-        self.learn_edge=True
         self.optalg = tf.train.AdamOptimizer(self.learning_rate)
         self.stack_instead_add=False
         self.nconv_edge=nconv_edge
-        self.residual_connection=residual_connection
-        self.shared_We = shared_We
+        self.residual_connection=False#deprecated
+        self.shared_We = False#deprecated
         self.optim_mode=0 #deprecated
-        self.fast_convolve=False
-        self.init_fixed=False
-        self.logit_convolve=False
-        self.train_Wn0=True
+        self.init_fixed=False #ignore --for test purpose
+        self.logit_convolve=False#ignore --for test purpose
+        self.train_Wn0=True #ignore --for test purpose
 
         self.dropout_rate_edge_feat= 0.0
         self.dropout_rate_edge = 0.0
@@ -409,6 +416,33 @@ class EdgeConvNet(MultiGraphNN):
             self.node_indim=self.node_dim
         else:
             self.node_indim=node_indim
+
+    def set_learning_options(self,dict_model_config):
+        """
+        Set all learning options that not directly accessible from the constructor
+
+        :param kwargs:
+        :return:
+        """
+        print(dict_model_config)
+        for attrname,val in dict_model_config.items():
+            #We treat the activation function differently as we can not pickle/serialiaze python function
+            if attrname=='activation_name':
+                if val=='relu':
+                    self.activation=tf.nn.relu
+                elif val=='tanh':
+                    self.activation=tf.nn.tanh
+                else:
+                    raise Exception('Invalid Activation Function')
+            if attrname=='stack_instead_add' or attrname=='stack_convolutions':
+                self.stack_instead_add=val
+            if attrname not in self._setter_variables:
+                try:
+                    print('set',attrname,val)
+                    setattr(self,attrname,val)
+                except AttributeError:
+                    warnings.warn("Ignored options for ECN"+attrname+':'+val)
+
 
 
     def fastconvolve(self,Wedge,Bedge,F,S,T,H,nconv,Sshape,nb_edge,dropout_p_edge,dropout_p_edge_feat,
@@ -433,7 +467,7 @@ class EdgeConvNet(MultiGraphNN):
         #TODO if stack is False we could simply sum,the convolutions and do S diag(sum)T
         #It would be faster
 
-        #Drop convolution individually
+        #Drop convolution individually t
         if use_dropout:
         #if False:
             conv_dropout_ind = tf.nn.dropout(tf.ones([nconv], dtype=tf.float32), 1 - dropout_p_edge_feat)
@@ -532,7 +566,7 @@ class EdgeConvNet(MultiGraphNN):
         self.F          = tf.placeholder(tf.float32,[None,None], name='F')
 
 
-        self.NA_indegree = tf.placeholder(tf.float32, name='NA_indegree')
+        #self.NA_indegree = tf.placeholder(tf.float32, name='NA_indegree')
 
 
         std_dev_in=float(1.0/ float(self.node_dim))

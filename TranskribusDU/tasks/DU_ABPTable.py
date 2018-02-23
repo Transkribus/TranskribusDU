@@ -45,6 +45,7 @@ from tasks.DU_CRF_Task import DU_CRF_Task, DU_ECN_Task
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
 
+import json
 try:
     import tensorflow as tf
 except:
@@ -215,18 +216,15 @@ class DU_ABPTable_ECN(DU_ECN_Task):
 
             return DU_GRAPH
 
-        def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None,
-                     inference_cache=None):
+        def __init__(self, sModelName, sModelDir, sComment=None,dLearnerConfigArg=None):
 
             DU_ECN_Task.__init__(self
                                  , sModelName, sModelDir
                                  , dFeatureConfig={}
-                                 , dLearnerConfig=self.dLearnerConfig
+                                 , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
                                  , sComment=sComment
                                  , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
                                  )
-
-            # self.setNbClass(3)     #so that we check if all classes are represented in the training set
 
             if options.bBaseline:
                 self.bsln_mdl = self.addBaseline_LogisticRegression()  # use a LR model trained by GridSearch as baseline
@@ -247,8 +245,16 @@ class DU_ABPTable_ECN(DU_ECN_Task):
 
 def main(sModelDir, sModelName, options):
     if options.use_ecn:
+        if options.ecn_json_config is not []:
 
-        doer = DU_ABPTable_ECN(sModelName, sModelDir)
+            f = open(options.ecn_json_config[0])
+            djson=json.loads(f.read())
+            dLearnerConfig=djson["ecn_learner_config"]
+            f.close()
+            doer = DU_ABPTable_ECN(sModelName, sModelDir,dLearnerConfigArg=dLearnerConfig)
+
+        else:
+            doer = DU_ABPTable_ECN(sModelName, sModelDir)
 
     else:
         doer = DU_ABPTable(sModelName, sModelDir,
@@ -345,7 +351,7 @@ if __name__ == "__main__":
     parser.add_option("--detail", dest='bDetailedReport',  action="store_true", default=False,help="Display detailled reporting (score per document)") 
     parser.add_option("--baseline", dest='bBaseline',  action="store_true", default=False, help="report baseline method")
     parser.add_option("--ecn",dest='use_ecn',action="store_true", default=False, help="wether to use ECN Models")
-            
+    parser.add_option("--ecn_config", dest='ecn_json_config',action="append", type="string", help="The Config files for the ECN Model")
     # --- 
     #parse the command line
     (options, args) = parser.parse_args()
