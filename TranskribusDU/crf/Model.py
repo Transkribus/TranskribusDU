@@ -107,7 +107,7 @@ class Model:
         """
         self._nbClass = lNbClass
         
-    def getNbClass(self, nbClass):
+    def getNbClass(self):
         return self._nbClass
         
     # --- Model loading/writing -------------------------------------------------------------
@@ -371,7 +371,7 @@ class Model:
 #         return [mdl.predict(X) for mdl in self._lMdlBaseline]
 
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
-    def train(self, lGraph, bWarmStart=True, expiration_timestamp=None):
+    def train(self, lGraph, bWarmStart=True, expiration_timestamp=None,verbose=0):
         """
         Return a model trained using the given labelled graphs.
         The train method is expected to save the model into self.getModelFilename(), at least at end of training
@@ -401,7 +401,7 @@ class Model:
         self.gzip_cPickle_dump(sBaselineFile, self.getBaselineModelList())
         return sBaselineFile
     
-    def test(self, lGraph):
+    def test(self, lGraph,lsDocName=None):
         """
         Test the model using those graphs and report results on stderr
         
@@ -411,7 +411,7 @@ class Model:
         """
         raise Exception("Method must be overridden")
 
-    def testFiles(self, lsFilename, loadFun):
+    def testFiles(self, lsFilename, loadFun,bBaseLine=False):
         """
         Test the model using those files. The corresponding graphs are loaded using the loadFun function (which must return a singleton list).
         It reports results on stderr
