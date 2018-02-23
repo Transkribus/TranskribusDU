@@ -142,14 +142,21 @@ class DU_Model_ECN(Model):
         return a list of X, a list of Y matrix
         """
         lX=[]
+        nb_nodes=0
+        nb_edges=0
         for g in lGraph:
             #TODO This could move in the Graph Code ...
             (node_features, edges, edge_features) = g.getX(self._node_transformer, self._edge_transformer)
+            nb_nodes+=node_features.shape[0]
             g.revertEdges()
             (node_features, edges_reverse, edge_features_reverse) = g.getX(self._node_transformer, self._edge_transformer)
             new_edges=np.vstack([edges, edges_reverse])
             new_edges_feat =np.vstack([edge_features,edge_features_reverse])
+            nb_edges += new_edges.shape[0]
             lX.append((node_features,new_edges,new_edges_feat) )
+
+
+        traceln("\t\t ECN #nodes=%d  #edges=%d " % (nb_nodes,nb_edges))
         return lX
 
     def convert_lX_lY_to_GCNDataset(self,lX, lY,training=False,test=False,predict=False):
@@ -216,7 +223,7 @@ class DU_Model_ECN(Model):
                                                 node_indim=self.model_config['node_indim'],
                                                 nconv_edge=self.model_config['nconv_edge'],
                                                 )
-
+        '''
         self.gcn_model.stack_instead_add = self.model_config['stack_convolutions']
         #TODO Clean Constructor
         if 'activation' in self.model_config:
@@ -236,7 +243,8 @@ class DU_Model_ECN(Model):
         if 'dropout_rate_node' in self.model_config:
             self.gcn_model.dropout_rate_node = self.model_config['dropout_rate_node']
             print('Dropout Node', self.gcn_model.dropout_rate_node)
-
+        '''
+        self.gcn_model.set_learning_options(self.model_config)
         self.gcn_model.create_model()
 
     def _cleanTmpCheckpointFiles(self):
@@ -332,24 +340,25 @@ class DU_Model_ECN(Model):
         f = open(val_pickle, 'rb')
         R = pickle.load(f)
         val = R['val_acc']
-        print('Validation scores', val)
+        #print('Validation scores', ['%03.2f'% sx for sx in val])
         epoch_index = np.argmax(val)
-        traceln('\t Best performance on val set: Epoch', epoch_index)
+        traceln('\t Best performance on val set: Epoch:', epoch_index)
 
         model_path = self.getTmpModelFilename()+"-"+ str(10 * epoch_index)
 
         dir_path=os.path.dirname(self.getTmpModelFilename())
         fnames =os.listdir(dir_path)
 
+        #Find all the checkpoints files for that epoch
         found_files=fnmatch.filter(fnames, os.path.basename(model_path)+'*')
-        print(found_files)
-        #Now copy the files
+        #print(found_files)
+        #Now copy the files with the final model name
         for m in found_files:
             f_src=os.path.join(dir_path,m)
             f_suffix = m[len(os.path.basename(model_path)):]
             f_dst=self.getModelFilename()+f_suffix
             shutil.copy(f_src,f_dst)
-            traceln('Copying  Final Model files ', f_src,f_dst)
+            traceln('Copying  Final Model files ', f_src,' ',f_dst)
 
     def _getNbFeatureAsText(self):
         """
@@ -498,10 +507,10 @@ class DU_Model_ECN(Model):
                 lY_pred.append(lY_pred_[0])
                 lX.append(X)
                 lY.append(Y)
+                g.detachFromDOM()
+                del g  # this can be very large
+                gc.collect()
 
-            g.detachFromDOM()
-            del g  # this can be very large
-            gc.collect()
         traceln("[%.1fs] done\n" % chronoOff("testFiles"))
 
         tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsFilename)
@@ -526,8 +535,6 @@ class DU_Model_ECN(Model):
         predict the class of each node of the graph
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph.
         """
-        #Not Very Efficient to Predict file by file Here
-        # as I need
         lLabelName = None
 
         [X], [Y] = self.get_lX_lY([g])
