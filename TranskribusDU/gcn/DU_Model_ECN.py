@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 
-import os
+import os,sys
 
 import tensorflow as tf
 
@@ -14,7 +14,7 @@ import random
 import gcn.gcn_models as gcn_models
 
 from gcn.gcn_datasets import GCNDataset
-from crf.Model import Model
+from crf.Model import Model, ModelException
 from crf.Graph import Graph
 from crf.TestReport import TestReport
 
@@ -404,7 +404,7 @@ class DU_Model_ECN(Model):
         sBaselineFile = self.getBaselineFilename()
         try:
             self._lMdlBaseline = self._loadIfFresh(sBaselineFile, expiration_timestamp, self.gzip_cPickle_load)
-        except Model.ModelException:
+        except ModelException:
             traceln('no baseline model found : %s' % (sBaselineFile))
         self.loadTransformers(expiration_timestamp)
 
