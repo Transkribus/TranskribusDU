@@ -133,7 +133,8 @@ class CSV2REF(object):
                     bandteil.append('0')
 #                 print(key, bandteil, field)
                 if field[2] =='': field[2]='0'
-                if field[3] =='': field[3]='0'                
+                if field[3] =='': field[3]='0'
+#                 try:                
                 if field[0] == key[0] and int(field[1]) == int(bandteil[0]) and int(field[2]) == int(bandteil[1]) and int(field[3]) == int(key[2]):
                     if field[4][-1] == ' ' or field[5][-1] == ' ':continue
                     keyfound=savedKey
@@ -147,6 +148,7 @@ class CSV2REF(object):
                         dPages[abpkey].append(field)
                     except KeyError: dPages[abpkey]=[field]
                     continue
+#                 except ValueError: print( 'ISSUE:',field)
                 
             
         rootNode= etree.Element("DOCUMENT")
@@ -155,8 +157,9 @@ class CSV2REF(object):
         for i,pagenum in enumerate(sorted(dPages)):
             domp=etree.Element("PAGE")
             # some pages may be missing
-            domp.set('number',str(i+1))
-#             domp.set('key',"%s_%s_%s_%s"%(field[0],field[1],field[2],field[3]))
+#             domp.set('number',str(i+1))
+            # pagenum of the first record
+            domp.set('number',dPages[pagenum][0][3])
             domp.set('pagenum',str(pagenum))
             domp.set('nbrecords',str(len( dPages[pagenum])))
             #year(s)
@@ -199,11 +202,13 @@ class CSV2REF(object):
         """
         lFinalKey=[]
         for key in lKeys:
+            if key[1] != '_':key = '_'+key
             lk = key.split('_')
             # two last elt : bandteil, (-NN), page (NNNN)
             # skip the frist one: role =S, T,..
             newkey= ["-".join(lk[1:-2])]
             newkey.extend(lk[-2:])
+#             print (newkey)
             lFinalKey.append(newkey) 
 #             if len(lk) == 5:
 #                 lFinalKey.append(['%s-%s'%(lk[1],lk[2]),lk[3],lk[4]])
@@ -214,7 +219,8 @@ class CSV2REF(object):
     def run(self):
         
         keyfile= open(self.keylist)
-        lKeys= list(map(lambda x:x[:-5].strip(),keyfile.readlines()))
+        #                           -5 
+        lKeys= list(map(lambda x:x[:-6].strip(),keyfile.readlines()))
         lKeys = self.processKey(lKeys)
         db = self.loadDB(self.inputFileName,lKeys)
         

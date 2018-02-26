@@ -261,7 +261,8 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         #delete fake cells
         for cell in self.getCells():
 #             cell.getNode().unlinkNode()
-            cell.getNode().getparent().remove(cell.getNode())
+            if cell.getNode().getparent() is not None:
+                cell.getNode().getparent().remove(cell.getNode())
             del cell
         
         #update with real cells

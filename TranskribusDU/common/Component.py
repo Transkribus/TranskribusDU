@@ -620,7 +620,7 @@ class Component:
 				#Record this compareason for the report
 				self.testRecord(fn, cmpData)
 			else:
-				traceln("*** no reference data for %s"%fn, fnRef)
+				traceln("*** no reference data for %s %s"% (fn, fnRef))
 				lMissingRefFile.append(fn)
 #		duration = self.endChrono()
 		duration = cTot.off()
