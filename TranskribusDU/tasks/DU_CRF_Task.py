@@ -831,15 +831,17 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
 # ------------------------------------------------------------------------------------------------------------------------------
 class DU_FactorialCRF_Task(DU_CRF_Task):
 
-    def __init__(self, sModelName, sModelDir, cGraphClass, dLearnerConfig={}, sComment=None
+
+    def __init__(self, sModelName, sModelDir,  dLearnerConfig={}, sComment=None
                  , cFeatureDefinition=None, dFeatureConfig={}
                  ): 
         """
         Same as DU_CRF_Task except for the cFeatureConfig
         """
+        self.configureGraphClass()
         self.sModelName     = sModelName
         self.sModelDir      = sModelDir
-        self.cGraphClass    = cGraphClass
+#         self.cGraphClass    = cGraphClass
         #Because of the way of dealing with the command line, we may get singleton instead of scalar. We fix this here
         self.config_learner_kwargs      = {k:v[0] if type(v) is list and len(v)==1 else v for k,v in dLearnerConfig.items()}
         if sComment: self.sMetadata_Comments    = sComment
