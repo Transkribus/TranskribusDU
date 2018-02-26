@@ -323,7 +323,7 @@ class DU_Model_ECN(Model):
             session.run([self.gcn_model.init])
 
             R = self.gcn_model.train_with_validation_set(session, gcn_graph_train, gcn_graph_val, self.model_config['nb_iter'],
-                                                    eval_iter=10, patience=1000,
+                                                    eval_iter=10, patience=self.model_config['patience'],
                                                     save_model_path=self.getTmpModelFilename())
             f = open(self.getValScoreFilename(), 'wb')
             pickle.dump(R, f)
