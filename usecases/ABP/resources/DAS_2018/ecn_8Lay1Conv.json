@@ -11,7 +11,9 @@
         "nconv_edge": 1,
         "node_indim": -1,
         "num_layers": 8,
-        "ratio_train_val": 0.15,
+        "ratio_train_val": 0.1,
+        "patience":50,
+        "activation_name":"tanh",
         "stack_convolutions": true
     }
 }

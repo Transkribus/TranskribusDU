@@ -41,7 +41,12 @@ from tasks import _checkFindColDir, _exit
 
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
-from tasks.DU_CRF_Task import DU_CRF_Task, DU_ECN_Task
+from tasks.DU_CRF_Task import DU_CRF_Task
+try:
+    from tasks.DU_ECN_Task import DU_ECN_Task
+except:
+    print('Could not Load ECN Model')
+
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
 
