@@ -181,6 +181,15 @@ class DS2PageXMLConvertor(Component):
             
         
         # collect content and generate a textequiv
+        #  <TextEquiv> <Unicode>des</Unicode>        </TextEquiv>
+        if DSObject.getContent() is not None:
+            TextEquivDom =etree.Element('{%s}TextEquiv'%(self.pageXmlNS))
+            unicodeDom= etree.Element('{%s}Unicode'%(self.pageXmlNS))
+            unicodeDom.text = DSObject.getContent()
+            TextEquivDom.append(unicodeDom)   
+            domNode.append(TextEquivDom)                
+               
+            
         
         ## specific attributes for cell
         ###  row="0" col="2" colSpan="1
@@ -221,8 +230,6 @@ class DS2PageXMLConvertor(Component):
             populate pageXml with OPage
         """
         from ObjectModel.XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
-#         from ObjectModel.XMLDSTEXTClass import XMLDSTEXTClass
-#         from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
 
         lElts = OPage.getObjects()
         for DSObject in lElts:
@@ -261,7 +268,7 @@ class DS2PageXMLConvertor(Component):
         """
         from xml_formats.PageXml import MultiPageXml
         mp = MultiPageXml()
-        newDoc = mp.makeMultiPageXmlMemory(map(lambda xy:xy[0],lListDocs))
+        newDoc = mp.makeMultiPageXmlMemory(list(map(lambda xy:xy[0],lListDocs)))
         if outputFileName is None:
             outputFileName = os.path.dirname(self.inputFileName) + os.sep + ".."+os.sep +"col" + os.sep + os.path.basename(self.inputFileName)[:-7] + "_du.mpxml"
         res= newDoc.write(outputFileName, encoding="UTF-8",pretty_print=True,xml_declaration=True)
@@ -284,16 +291,11 @@ class DS2PageXMLConvertor(Component):
             except:filename="fakename"
             pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='NLE', filename =filename, imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
             self.pageXmlNS = etree.QName(pageXmlDoc.getroot()).namespace
-#             print "??",self.bRegionOnly
             if self.bRegionOnly:
                 self.convertOnlyRegion(page, pageNode)
             else:
                 self.convertDSPage(page,pageNode)
-            #store pageXml
             lPageXmlDoc.append((pageXmlDoc,page.getAttribute('imageFilename')))
-#             print pageXmlDoc.serialize('UTF-8', 1)
-#             res= PageXml.validate(pageXmlDoc.doc)
-#             print "document is valid:", res 
         
         return lPageXmlDoc
     

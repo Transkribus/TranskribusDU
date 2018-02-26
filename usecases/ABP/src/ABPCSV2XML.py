@@ -5,6 +5,7 @@
     ABPCSV2XML.py
     
     convert CVS data to xml (ref format)
+    input format: 2016: ABP first collection
      H. Déjean
     
 
@@ -32,24 +33,10 @@
 """
 from optparse import OptionParser
 
-#import sys, os.path
-import libxml2
+from lxml import etree
 
 import csv
 
-def unicode_csv_reader(unicode_csv_data, dialect=csv.excel, **kwargs):
-    # csv.py doesn't do Unicode; encode temporarily as UTF-8:
-    csv_reader = csv.reader(utf_8_encoder(unicode_csv_data),
-                            dialect=dialect, **kwargs)
-    for row in csv_reader:
-        # decode UTF-8 back to Unicode, cell by cell:
-        yield [unicode(cell, 'utf-8') for cell in row]
-
-def utf_8_encoder(unicode_csv_data):
-    for line in unicode_csv_data:
-        print line 
-        print line.decode()
-        yield line.encode('utf-8')
 
 class CSV2REF(object):
     #DEFINE the version, usage and description of this particular component
@@ -93,13 +80,13 @@ class CSV2REF(object):
         Here, we set our internal attribute according to a possibly specified value (otherwise it stays at its default value)
         """
         #if some input or output was defined, they take precedence to the config
-        bInput = dParams.has_key("input")  
+        bInput = "input" in dParams.keys()  
         if bInput: self.inputFileName  = dParams["input"]
         
-        bOutput = dParams.has_key("output")
+        bOutput = "output" in dParams.keys()
         if bOutput: self.outputFileName = dParams["output"]        
         
-        if  dParams.has_key("delimiter"): self.sDelimiter=dParams['delimiter']
+        if "delimiter" in dParams.keys(): self.sDelimiter=dParams['delimiter']
     
     def loadDB(self,dbfilename):
         """
@@ -107,7 +94,7 @@ class CSV2REF(object):
         """
         
         db=[]
-        with open(dbfilename,'rb') as dbfilename:
+        with open(dbfilename,'r',encoding='ISO-8859-1') as dbfilename:
             dbreader= csv.reader(dbfilename,delimiter=self.sDelimiter )
             for lFields in dbreader:
                 db.append(lFields)
@@ -118,7 +105,9 @@ class CSV2REF(object):
         """
 MKZ    PDKZ    Pfarrei    Band    Teilband    Seite    Teilseite    Nummer    Nummer Zusatz    Recto / Verso    Rolle    Nachname    Vornamen    Ort    Beruf    Jahr    Monat    Tag    Geschätzt?    Zusatz    Alter    
 0        1        2        3        4         5        6                7        8                9              10        11            12        13    14        15      16      17        18         19        20
-            
+        
+        
+        Freyung_043_01_0001    
         """
         
         # group per page
@@ -127,46 +116,50 @@ MKZ    PDKZ    Pfarrei    Band    Teilband    Seite    Teilseite    Nummer    Nu
         for field in db:
             pagefield=field[5]
             try : 
+                if field[3] =='':
+                    abpkey = "%s_%03d_%04d"%(field[2],int(field[4]),int(field[5]))
+                else:
+                    abpkey = "%s_%03d_%02d_%04d"%(field[2],int(field[3]),int(field[4]),int(field[5]))                
                 pnum= int(pagefield)
                 try: 
-                    dPages[pnum].append(field[10:18])
-                except KeyError: dPages[pnum]=[field[10:18]]
+                    dPages[abpkey].append(field[10:18])
+                except KeyError: dPages[abpkey]=[field[10:18]]
             except ValueError:
                 pass
-            
-        refdoc= libxml2.newDoc("1.0")
-        rootNode= libxml2.newNode("DOCUMENT")
-        refdoc.setRootElement(rootNode)
+           
+        rootNode= etree.Element("DOCUMENT")
+        refdoc = etree.ElementTree(element=rootNode) 
+
         for i,pagenum in enumerate(sorted(dPages)):
-            domp=libxml2.newNode('PAGE')
-            # some pages may be missing
-            domp.setProp('number',str(i+1))
-            domp.setProp('pagenum',str(pagenum))
-            domp.setProp('nbrecords',str(len( dPages[pagenum])))
+            domp=etree.Element("PAGE")
+            domp.set('number',str(int(pagenum[-4:])))
+            domp.set('pagenum',str(pagenum))
+            domp.set('nbrecords',str(len( dPages[pagenum])))
+            
             #year(s)
             lyears = set(map(lambda x:x[5],dPages[pagenum]))
             if len(lyears)==1:
-                domp.setProp('years',list(lyears)[0].decode('ISO-8859-1').encode('UTF-8'))
+                domp.set('years',list(lyears)[0])
             else:
-                domp.setProp('years',"%s-%s"%(list(lyears)[0].decode('ISO-8859-1').encode('UTF-8'),list(lyears)[1].decode('ISO-8859-1').encode('UTF-8')))
+                domp.set('years',"%s-%s"%(list(lyears)[0],list(lyears)[1]))
 #                 print pagenum, domp.prop('years')
                 
-            rootNode.addChild(domp)         
+            rootNode.append(domp)         
             for lfields in  dPages[pagenum]:
-                record = libxml2.newNode('RECORD')
-                domp.addChild(record)
-                record.setProp('lastname',lfields[1].decode('ISO-8859-1').encode('UTF-8'))
-                record.setProp('firstname',lfields[2].decode('ISO-8859-1').encode('UTF-8'))
-                record.setProp('role',lfields[0].decode('ISO-8859-1').encode('UTF-8'))
-                record.setProp('location',lfields[3].decode('ISO-8859-1').encode('UTF-8'))                
-                record.setProp('occupation',lfields[4].decode('ISO-8859-1').encode('UTF-8'))
-                record.setProp('year',lfields[5].decode('ISO-8859-1').encode('UTF-8'))
-                record.setProp('month',lfields[6].decode('ISO-8859-1').encode('UTF-8'))
-                record.setProp('day',lfields[7].decode('ISO-8859-1').encode('UTF-8'))
+                record = etree.Element('RECORD')
+                domp.append(record)
+                record.set('lastname',lfields[1])
+                record.set('firstname',lfields[2])
+                record.set('role',lfields[0])
+                record.set('location',lfields[3])                
+                record.set('occupation',lfields[4])
+                record.set('year',lfields[5])
+                record.set('month',lfields[6])
+                record.set('day',lfields[7])
                                               
         if self.outputFileName == '-':
             self.outputFileName = self.inputFileName[:-3]+'xml'                                              
-        refdoc.saveFormatFileEnc(self.outputFileName, "UTF-8",True)
+        refdoc.write(self.outputFileName, encoding="UTF-8",xml_declaration=True,pretty_print=True)
                                 
     def run(self):
         
@@ -185,4 +178,4 @@ if __name__ == "__main__":
     #Now we are back to the normal programmatic mode, we set the componenet parameters
     cmp.setParams(dParams)
     doc = cmp.run()
-    print "conversion done"
+    print ("conversion done")

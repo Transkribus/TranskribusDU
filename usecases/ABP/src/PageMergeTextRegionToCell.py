@@ -8,11 +8,13 @@
     
 """
 
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import sys, os.path
-sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'src')
+sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'TranskribusDU')
 
-# import  libxml2
 
 import common.Component as Component
 import config.ds_xml_def as ds_xml
@@ -26,9 +28,7 @@ class region2cell(Component.Component):
     usage = " -i TEXTREGION.pxml --tabfile TABLE.pxml  -o MERGETABLETEXT.pxml"
     version = "v1.23"
     description = "description: Merge input textline with table version"
-    usage = " "
     version = "$Revision: 1.0 $"
-        
     name="region2cell"
     kDPI = "dpi"
     def __init__(self):
@@ -46,55 +46,10 @@ class region2cell(Component.Component):
         Here, we set our internal attribute according to a possibly specified value (otherwise it stays at its default value)
         """
         Component.Component.setParams(self, dParams)
-        if dParams.has_key(self.kDPI)    : self.dpi          = int(dParams[self.kDPI])
-        if dParams.has_key("tablefile")    : self.tableFile  = dParams["tablefile"]
+        if self.kDP in dParams.keys()    : self.dpi          = int(dParams[self.kDPI])
+        if "tablefile" in dParams.keys()    : self.tableFile  = dParams["tablefile"]
 
     
-#     def createTableRegion(self,pagenode,ns):
-#         """
-#             find the BB of the table
-#         """
-#         print pagenode.name
-#         ctxt = pagenode.doc.xpathNewContext()
-#         ctxt.xpathRegisterNs("a", self.xmlns)
-#         xpath  = ".//a:%s" % ("TableCell")
-#         ctxt.setContextNode(pagenode)
-#         lCells = ctxt.xpathEval(xpath)
-#         if lCells == []:
-#             return True
-#         
-#         table = PageXml.createPageXmlNode("TableRegion", ns)
-#         pagenode.addChild(table)
-#         ## get all the textlines of the cell         
-#         minx,miny,maxx,maxy = 9e9,9e9,0,0
-#         for cell in lCells:
-#             if cell.prop('id')[0] =='T':
-#                 lXY = PageXml.getPointList(cell)  #the polygon
-#                 if lXY == []:
-#                     continue
-#                 plg = Polygon(lXY)  
-#                 try:
-#                     x1,y1, x2,y2 = plg.fitRectangle()
-#                 except ZeroDivisionError:
-#                     continue
-#                 x1,y1,x2,y2 = plg.getBoundingBox()
-#                 minx = min(minx,x1)            
-#                 miny = min(miny,y1)            
-#                 maxx = max(maxx,x2)            
-#                 maxy = max(maxy,y2)
-# 
-#                 cell.unlinkNode()
-#                 table.addChild(cell)
-#         
-#         """
-#             finally: simply use the BB of the textlines + padding
-#         """
-#         coords = PageXml.createPageXmlNode("Coords", ns)
-#         coords.setProp('points',"%d,%d %d,%d %d,%d %d,%d"%(minx,miny,maxx,miny,maxx,maxy,minx,maxy))
-#         table.addChild(coords)
-#         table.setNsProp(ns, "id", 'table_1')
-            
-                 
     def mergetextRegion2Cell(self,textdoc,tabledoc):
         """
             assume the textregions were orignially tablecell converted bt tableCell2Region
@@ -103,22 +58,20 @@ class region2cell(Component.Component):
         # get list of textLines for mtextdoc
 #         ns= textdoc.getRootElement().ns() 
  
-        ctxt = textdoc.xpathNewContext()
-        ctxt.xpathRegisterNs("a", self.xmlns)
+#         ctxt = textdoc.xpathNewContext()
+#         ctxt.xpathRegisterNs("a", self.xmlns)
+
         xpath  = "//a:%s" % ("TextLine")
-        lTextLinesTR = ctxt.xpathEval(xpath)
+        lTextLinesTR = textdoc.getroot().xpath(xpath, namespaces={'a':self.xmlns})
 
         # get textlines from tablecells
-        ctxt2 = tabledoc.xpathNewContext()
-        ctxt2.xpathRegisterNs("a", self.xmlns)
         xpath  = "//a:%s" % ("TextLine")
-        lTextLinesTC = ctxt2.xpathEval(xpath)
+        lTextLinesTC = tabledoc.getroot().xpath(xpath, namespaces={'a':self.xmlns})
         for texttb in lTextLinesTC:
             xpath  = ".//a:%s" % ("Unicode")
-            ctxt2.setContextNode(texttb)
-            ltbunicode = ctxt2.xpathEval(xpath)      
+            ltbunicode = texttb.xpath(xpath, namespaces={'a':self.xmlns})      
             for texttr in lTextLinesTR:
-                if texttb.prop('id') == texttr.prop('id'):
+                if texttb.get('id') == texttr.get('id'):
                     """
                     <TextLine id="line_1501552365047_634" custom="readingOrder {index:1;}">
                     <Coords points="989,226 1341,222 1342,272 990,276"/>
@@ -127,14 +80,11 @@ class region2cell(Component.Component):
                         <Unicode></Unicode>
                     """
                     xpath  = ".//a:%s" % ("Unicode")
-                    ctxt.setContextNode(texttr)
-                    ltrunicode = ctxt.xpathEval(xpath)
-                    ltbunicode[0].setContent(ltrunicode[0].getContent())
-                    if texttr.prop('custom') is not None:
-                        texttb.setProp('custom',texttr.prop('custom') )
+                    ltrunicode = texttr.xpath(xpath, namespaces={'a':self.xmlns})
+                    ltbunicode[0].text = ltrunicode[0].text
+                    if texttr.get('custom') is not None:
+                        texttb.set('custom',texttr.get('custom') )
                     
-        ctxt.xpathFreeContext()
-        ctxt2.xpathFreeContext()
         return tabledoc
     
     def run(self):
@@ -143,7 +93,6 @@ class region2cell(Component.Component):
         tabledom=self.loadDom(filename=self.tableFile)
         tabledom =self.mergetextRegion2Cell(docdom,tabledom)
         PageXml.setMetadata( tabledom, None, 'NLE', Comments='TextRegion/TableCell Merging')
-        docdom.free()
         
         return tabledom
                 
@@ -156,7 +105,7 @@ if __name__ == "__main__":
     
     #prepare for the parsing of the command line
 #     cmp.createCommandLineParser()
-    parser = OptionParser(usage="", version=cmp.versionComponent)
+    parser = OptionParser(usage="python %prog" + cmp.usageComponent,version=cmp.versionComponent)
     parser.description = cmp.description    
     parser.add_option("-i", "--input", dest="input", default="-", action="store", type="string", help="TextRegion PageXML file", metavar="<file>")
     parser.add_option("-t","--tab", dest="tablefile", action="store", type="string", help="TableRegion PageXML file"   , metavar="<filename>")
@@ -171,7 +120,6 @@ if __name__ == "__main__":
 
     doc = cmp.run()
     cmp.writeDom(doc, True)
-    doc.free()
     traceln("Merge done for %s and %s  in %s" % (options.input,options.tablefile,options.output))
 
 

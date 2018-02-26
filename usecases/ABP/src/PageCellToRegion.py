@@ -10,12 +10,13 @@
     
     ex: 
 """
-
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import sys, os.path
-sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'src')
+sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'TranskribusDU')
 
-# import  libxml2
 
 import common.Component as Component
 import config.ds_xml_def as ds_xml
@@ -25,7 +26,7 @@ from util.Polygon import Polygon
 
 class table2TextRegion(Component.Component):
     #DEFINE the version, usage and description of this particular component
-    usage = "[-f N.N] "
+    usage = " "
     version = "v1.23"
     description = "description: PAGE XML CELL 2 TEXTREGION"
     usage = " "
@@ -41,6 +42,7 @@ class table2TextRegion(Component.Component):
         self.dpi = 300
          
         self.xmlns='http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
+        self.ns={'a':self.xmlns}
         self.id=1
         
         self.HeightTH=0.5
@@ -50,21 +52,18 @@ class table2TextRegion(Component.Component):
         Here, we set our internal attribute according to a possibly specified value (otherwise it stays at its default value)
         """
         Component.Component.setParams(self, dParams)
-        if dParams.has_key(self.kDPI)    : self.dpi          = int(dParams[self.kDPI])
+        if self.kDPI in dParams.keys()    : self.dpi          = int(dParams[self.kDPI])
 #         if dParams.has_key("HTR")    : self.HeightTH         = int(dParams["HTR"])
-        if dParams.has_key("vpadding")    : self.vpadding     = dParams["vpadding"]
-        if dParams.has_key("hpadding")    : self.hpadding     = dParams["hpadding"]
+        if "vpadding" in dParams: self.vpadding     = dParams["vpadding"]
+        if "hpadding" in dParams: self.hpadding     = dParams["hpadding"]
 
     
     def resizeCell(self,cell,ns):
         """
             replace the cell region by a BB for textlines: better for transcriber
         """
-        ctxt = cell.doc.xpathNewContext()
-        ctxt.xpathRegisterNs("a", self.xmlns)
-        xpath  = "./a:%s" % ("TextLine")
-        ctxt.setContextNode(cell)
-        lTextLines = ctxt.xpathEval(xpath)
+        xpath  = "./a:%s" % ("TextLine")     
+        lTextLines = cell.xpath(xpath, namespaces={'a':self.xmlns})
         if lTextLines == []:
             return True
         
@@ -125,9 +124,9 @@ class table2TextRegion(Component.Component):
 #         maxx = max(cellX2, maxx)
 #         print cellX2, maxx
         
-        corner = cell.children
+        corner = cell[0]
 #         print minx,miny,maxx,miny,maxx,maxy,minx,maxy
-        corner.setProp('points',"%d,%d %d,%d %d,%d %d,%d"%(minx,miny,maxx,miny,maxx,maxy,minx,maxy))            
+        corner.set('points',"%d,%d %d,%d %d,%d %d,%d"%(minx,miny,maxx,miny,maxx,maxy,minx,maxy))            
         
     def convertTableCells(self,document):
         """
@@ -142,67 +141,57 @@ class table2TextRegion(Component.Component):
         """
  
  
-        ns= document.getRootElement().ns() 
- 
-        ctxt = document.xpathNewContext()
-        ctxt.xpathRegisterNs("a", self.xmlns)
-        
         
         xpath  = "//a:%s" % ("TableRegion")
-        lTables = ctxt.xpathEval(xpath)
+        lTables = document.getroot().xpath(xpath,namespaces = self.ns)
         
         # need
         xpath  = "//a:%s" % ("ReadingOrder")
-        lRO = ctxt.xpathEval(xpath)
+        lRO = document.getroot().xpath(xpath,namespaces = self.ns)
         if lRO == []:      
-            ro = PageXml.createPageXmlNode('ReadingOrder', ns)
+            ro = PageXml.createPageXmlNode('ReadingOrder', self.xmlns)
             #addPrevSibling
         else:
             ro =lRO[0]
         
-        orderGroup = PageXml.createPageXmlNode('OrderedGroup', ns)
-            
         for table in lTables:
-            orderGroup = PageXml.createPageXmlNode('OrderedGroup', ns)
-            ro.addChild(orderGroup)
-            orderGroup.setNsProp(ns,'id',table.prop('id'))
-            orderGroup.setNsProp(ns,'caption','Cell2TextRegion')
+            orderGroup = PageXml.createPageXmlNode('OrderedGroup',self.xmlns)
+            ro.append(orderGroup)
+            orderGroup.set('{%s}id'%self.xmlns,table.get('id'))
+            orderGroup.set('{%s}caption'%self.xmlns,'Cell2TextRegion')
 
             xpath  = "./a:%s" % ("TableCell")
-            ctxt.setContextNode(table)
-            lCells = ctxt.xpathEval(xpath)
+            lCells = table.xpath(xpath,namespaces = self.ns)
             ## sort cells by rows
-#             nbRows = max(lambda x:int(x.prop('row')),lCells)
-            lCells.sort(key=lambda x:int(x.prop('row')))
+            lCells.sort(key=lambda x:int(x.get('row')))
             for i,cell in enumerate(lCells):
-                cell.unlinkNode()
+                #???
+#                 cell.unlinkNode()
 #                 print cell
-                table.parent.addChild(cell)
-                cell.setName('TextRegion')
-                cell.setProp('custom',"readingOrder {index:%d;}"%i)
+                table.getparent().append(cell)
+                cell.tag = '{%s}TextRegion'%(self.xmlns)
+                cell.set('custom',"readingOrder {index:%d;}"%i)
                 # delete cell props
                 for propname in ['row','col','rowSpan','colSpan']:
-                    cell.unsetProp(propname)
+                    del cell.attrib[propname]
                 # del leftBorderVisible, topBorderVisible,rightBorderVisible,bottomBorderVisible
                 # to do
                 #del CornerPts
                 xpath  = "./a:%s" % ("CornerPts")
-                ctxt.setContextNode(cell)
-                lCorner = ctxt.xpathEval(xpath)
+                lCorner = cell.xpath(xpath,namespaces = self.ns)
                 for c in lCorner:
-                    c.unlinkNode()
-                    c.freeNode()
-                reind = PageXml.createPageXmlNode('RegionRefIndexed', ns)
-                orderGroup.addChild(reind)
-                reind.setNsProp(ns,'index',str(i))
-                reind.setNsProp(ns,'regionRef',cell.prop('id'))
+                    c.getparent().remove(c)
+                reind = PageXml.createPageXmlNode('RegionRefIndexed', self.xmlns)
+                orderGroup.append(reind)
+                reind.set('{%s}index'%self.xmlns,str(i))
+                reind.set('{%s}regionRef'%self.xmlns,cell.get('id'))
+                
                 ## resize cell/region:
-                if self.resizeCell(cell,ns):
-                    cell.unlinkNode()
-            table.unlinkNode()
+                if self.resizeCell(cell,self.ns):
+                    cell.getparent().remove(cell)
+#             table.unlinkNode()
             del(table)
         
-        ctxt.xpathFreeContext()
         PageXml.validate(document)
         
     def run(self):
