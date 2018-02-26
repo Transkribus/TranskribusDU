@@ -83,18 +83,20 @@ Python 2.7.14
 #### Training a full model:
 > python $SRC/tasks/DU_ABPTable_Quantile.py   das_abp_models abp_full   --trn abp --crf-max_iter=1500
 
+mkdir abp_CV
+python $SRC/tasks/DU_ABPTable.py  --fold abp --fold-init 4  abp_CV  das_abp_models
 #### BIESO evaluation with the 4-folds cross-validation
-> python $SRC/tasks/DU_ABPTable_Quantile.py --fold-run 1  das_abp_models abp_CV --crf-max_iter=1500 
-> python $SRC/tasks/DU_ABPTable_Quantile.py --fold-run 2  das_abp_models abp_CV --crf-max_iter=1500 
-> python $SRC/tasks/DU_ABPTable_Quantile.py --fold-run 3  das_abp_models abp_CV --crf-max_iter=1500 
-> python $SRC/tasks/DU_ABPTable_Quantile.py --fold-run 4  das_abp_models abp_CV --crf-max_iter=1500 
-> python $SRC/tasks/DU_ABPTable_Quantile.py --fold-finish das_abp_models abp_CV  
+> python $SRC/tasks/DU_ABPTable.py --fold-run 1  das_abp_models abp_CV --crf-max_iter=1500
+> python $SRC/tasks/DU_ABPTable.py --fold-run 2  das_abp_models abp_CV --crf-max_iter=1500
+> python $SRC/tasks/DU_ABPTable.py --fold-run 3  das_abp_models abp_CV --crf-max_iter=1500
+> python $SRC/tasks/DU_ABPTable.py --fold-run 4  das_abp_models abp_CV --crf-max_iter=1500
+> python $SRC/tasks/DU_ABPTable.py --fold-finish das_abp_models abp_CV
 
 #### BIESO evaluation on test collection
-> python $SRC/tasks/DU_ABPTable_Quantile.py   das_abp_models abp_full --tst abp_DAS_col9142_CRF
+> python $SRC/tasks/DU_ABPTable.py   das_abp_models abp_full --tst abp_DAS_col9142_CRF
 
 #### Applying full model after automatic textline recognition
-> python $SRC/tasks/DU_ABPTable_Quantile.py das_abp_models abp_full --run abp_DAS_col9142_workflow
+> python $SRC/tasks/DU_ABPTable.py das_abp_models abp_full --run abp_DAS_col9142_workflow
 
 
 ### GCN, ECN and Logit-1conv
@@ -141,7 +143,6 @@ Then, our main dependencies are the following:
     C0=Logit Model; C1=Logit-1Conv ; C5=3Layers-10Conv ; C33=8Layers-1Conv
 
 ### Table Row Evaluation
-
 TODO @Hervé
 
 
