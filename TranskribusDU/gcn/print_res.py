@@ -145,6 +145,23 @@ def get_res(folder_resname):
             P[str(foldid)+':'+str(configid)]=perf
             M[str(foldid)+':'+str(configid)]=max_perf
 
+        else:
+            tok = fname.split('_')
+            foldid = tok[0]
+            configid = int(tok[1][1:])
+            F.append(foldid)
+            C.append(configid)
+
+            fn = os.path.join(folder_resname, fname)
+            perf = read_res(fn)
+            max_perf = read_max_res(fn)
+
+            print(fname, configid, perf)
+
+            P[str(foldid) + ':' + str(configid)] = perf
+            M[str(foldid) + ':' + str(configid)] = max_perf
+
+
     Fs = sorted(np.unique(F))
     Cs = sorted(np.unique(C))
 
@@ -188,6 +205,6 @@ if __name__ == '__main__':
     folder_resname=sys.argv[1]
 
     get_res(folder_resname)
-    print_conf_mat(folder_resname,configid=31)
+    #print_conf_mat(folder_resname,configid=31)
 
 
