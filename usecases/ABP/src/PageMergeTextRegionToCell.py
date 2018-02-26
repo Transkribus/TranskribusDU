@@ -81,7 +81,7 @@ class region2cell(Component.Component):
                     """
                     xpath  = ".//a:%s" % ("Unicode")
                     ltrunicode = texttr.xpath(xpath, namespaces={'a':self.xmlns})
-                    ltbunicode[0].text(ltrunicode[0].text)
+                    ltbunicode[0].text = ltrunicode[0].text
                     if texttr.get('custom') is not None:
                         texttb.set('custom',texttr.get('custom') )
                     
