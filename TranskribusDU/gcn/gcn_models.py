@@ -1412,7 +1412,7 @@ class GraphAttNet(MultiGraphNN):
                     warnings.warn("Ignored options for ECN"+attrname+':'+val)
 
 
-
+    #TODO Add self_loop, add dropout
     def simple_graph_attention_layer(self,H,W,A,S,T,Adjind,Sshape,nb_edge,
                                      dropout_attention,use_dropout=False,add_self_loop=False):
         '''
@@ -1463,13 +1463,28 @@ class GraphAttNet(MultiGraphNN):
             # Compute the attention weight for the source node, ie a . Whi if j is the target node
             att_source_node = tf.matmul(SP,Aij_backward,transpose_b=True)
 
-            #The attention values for the edge ij is the sum of attention of node i and j
-            attn_values =tf.nn.leaky_relu(tf.squeeze(att_target_node)+tf.squeeze(att_source_node) )
-            #From that we build a sparse adjacency matrix containing the correct values
+            # The attention values for the edge ij is the sum of attention of node i and j
+            attn_values = tf.nn.leaky_relu(tf.squeeze(att_target_node) + tf.squeeze(att_source_node))
+            # From that we build a sparse adjacency matrix containing the correct values
             # which we then feed to a sparse softmax
             AttAdj = tf.SparseTensor(indices=Adjind, values=attn_values, dense_shape=[Sshape[0], Sshape[0]])
             AttAdj = tf.sparse_reorder(AttAdj)
-            alphas = tf.sparse_softmax(AttAdj)
+
+
+            #Note very efficient to do this, we should add the loop in the preprocessing
+            if add_self_loop:
+                node_indices=tf.range(Sshape[0])
+                #Sparse Idendity
+                id_indices = tf.stack([node_indices, node_indices], axis=1)
+                val =tf.squeeze(tf.matmul(P,A,transpose_b=True))
+                spI = tf.SparseTensor(indices=id_indices,values=2.0*val,dense_shape=[Sshape[0], Sshape[0]])
+
+                AttAdj_I = tf.sparse_add(AttAdj,spI)
+                alphas = tf.sparse_softmax(AttAdj_I)
+
+            else:
+                alphas = tf.sparse_softmax(AttAdj)
+
 
             #We compute the features given by the attentive neighborhood
             alphasP = tf.sparse_tensor_dense_matmul(alphas,P)
@@ -1506,13 +1521,14 @@ class GraphAttNet(MultiGraphNN):
 
         self.hidden_layer=[]
         attns0 = []
-        '''
+
         for a in range(self.nb_attention):
             Wa  =init_glorot([int(self.node_dim), int(self.node_indim)], name='Wa0'+str(a))
-            va  =tf.ones([int(self.node_indim)],name='va0'+str(a) )
+            va  =tf.ones([1,int(self.node_indim)],name='va0'+str(a) )
             #elf.Ssparse, self.Tspars
-            attns0.append(self.simple_graph_attention_layer(self.node_input,Wa,va,self.Ssparse,self.Tsparse,self.Sshape,
-                                                            self.nb_edge,self.dropout_p_attn,use_dropout=False))
+            _,nH =self.simple_graph_attention_layer(self.node_input,Wa,va,self.Ssparse,self.Tsparse,self.Aind,
+                                                    self.Sshape,self.nb_edge,self.dropout_p_attn,use_dropout=False,add_self_loop=True)
+            attns0.append(nH)
 
 
         self.hidden_layer.append( tf.concat(attns0, axis=-1)) #Now dims should be indim*self.nb_attention
@@ -1520,10 +1536,10 @@ class GraphAttNet(MultiGraphNN):
             attns = []
             for a in range(self.nb_attention):
                 Wia = init_glorot([int(self.node_indim *self.nb_attention), int(self.node_indim)], name='Wa'+ str(i)+'_'+str(a))
-                via = init_glorot([int(self.node_indim)], name='va' + str(i)+'_'+str(a))
-
-                attns.append(self.simple_graph_attention_layer(self.hidden_layer[-1],Wia,via,self.Ssparse,self.Tsparse,self.Sshape,
-                                                               self.nb_edge,self.dropout_p_attn, use_dropout=False))
+                via = tf.ones([1,int(self.node_indim)], name='va' + str(i)+'_'+str(a))
+                _,nH =self.simple_graph_attention_layer(self.hidden_layer[-1],Wia,via,self.Ssparse,self.Tsparse,self.Aind,
+                                                        self.Sshape,self.nb_edge,self.dropout_p_attn, use_dropout=False,add_self_loop=True)
+                attns.append(nH)
 
             self.hidden_layer.append(tf.concat(attns, axis=-1))
 
@@ -1531,12 +1547,11 @@ class GraphAttNet(MultiGraphNN):
         for i in range(self.nb_attention):
             logits_a = init_glorot([int(self.node_indim * self.nb_attention), int(self.n_classes)],
                               name='Logita' + '_' + str(a))
-            via = init_glorot([int(self.n_classes)], name='LogitA' + '_' + str(a))
-            out.append(
-                self.simple_graph_attention_layer(self.hidden_layer[-1], logits_a, via, self.Ssparse, self.Tsparse,
-                                                  self.Sshape,self.nb_edge,self.dropout_p_attn, use_dropout=False))
+            via = tf.ones([1,int(self.n_classes)], name='LogitA' + '_' + str(a))
+            _,nL =self.simple_graph_attention_layer(self.hidden_layer[-1], logits_a, via, self.Ssparse, self.Tsparse,self.Aind,
+                                                  self.Sshape,self.nb_edge,self.dropout_p_attn, use_dropout=False,add_self_loop=True)
+            out.append(nL)
 
-        
         self.logits = tf.add_n(out) / self.nb_attention
 
         cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
@@ -1556,7 +1571,7 @@ class GraphAttNet(MultiGraphNN):
 
         print('Number of Params:')
         self.get_nb_params()
-        '''
+
 
 
     #TODO Move in MultigraphNN
@@ -1583,6 +1598,7 @@ class GraphAttNet(MultiGraphNN):
         for i in range(n_iter):
             #print('Train',X.shape,EA.shape)
             #print('DropoutEdges',self.dropout_rate_edge)
+            Aind = np.array(np.stack([graph.Sind[:, 0], graph.Tind[:, 1]], axis=-1), dtype='int64')
             feed_batch = {
 
                 self.nb_node: graph.X.shape[0],
@@ -1592,6 +1608,7 @@ class GraphAttNet(MultiGraphNN):
                 self.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
                 self.Tsparse: np.array(graph.Tind, dtype='int64'),
                 #self.F: graph.F,
+                self.Aind: Aind,
                 self.y_input: graph.Y,
                 #self.dropout_p_H: self.dropout_rate_H,
                 self.dropout_p_node: self.dropout_rate_node,
@@ -1612,7 +1629,7 @@ class GraphAttNet(MultiGraphNN):
         :param verbose:
         :return:
         '''
-
+        Aind = np.array(np.stack([graph.Sind[:, 0], graph.Tind[:, 1]], axis=-1), dtype='int64')
         feed_batch = {
 
             self.nb_node: graph.X.shape[0],
@@ -1622,7 +1639,7 @@ class GraphAttNet(MultiGraphNN):
             self.Ssparse: np.array(graph.Sind, dtype='int64'),
             self.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
             self.Tsparse: np.array(graph.Tind, dtype='int64'),
-
+            self.Aind: Aind,
             #self.F: graph.F,
             self.y_input: graph.Y,
             #self.dropout_p_H: 0.0,
@@ -1646,6 +1663,7 @@ class GraphAttNet(MultiGraphNN):
         :param verbose:
         :return:
         '''
+        Aind = np.array(np.stack([graph.Sind[:, 0], graph.Tind[:, 1]], axis=-1), dtype='int64')
         feed_batch = {
             self.nb_node: graph.X.shape[0],
             self.nb_edge: graph.F.shape[0],
@@ -1656,7 +1674,8 @@ class GraphAttNet(MultiGraphNN):
             self.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
             self.Tsparse: np.array(graph.Tind, dtype='int64'),
             # fast_gcn.T: np.asarray(graph.T.todense()).squeeze(),
-            self.F: graph.F,
+            #self.F: graph.F,
+            self.Aind: Aind,
             self.dropout_p_H: 0.0,
             self.dropout_p_node: 0.0,
             self.dropout_p_edge: 0.0,

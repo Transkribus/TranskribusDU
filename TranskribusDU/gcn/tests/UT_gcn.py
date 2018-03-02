@@ -422,6 +422,76 @@ class UT_gcn(unittest.TestCase):
             self.assertAlmostEqual(Att_dense[0, 1],1.0)
             self.assertAlmostEqual(Att_dense[2, 1],1.0)
 
+    def test_graphattnet_attnlayer_selfloop(self):
+        print('Test', os.getcwd())
+
+        gcn_graph = get_graph_test()
+        node_dim = gcn_graph.X.shape[1]
+        edge_dim = gcn_graph.E.shape[1] - 2.0
+        nb_class = gcn_graph.Y.shape[1]
+
+        gcn_model = GraphAttNet(node_dim, nb_class, num_layers=1, learning_rate=0.01, node_indim=8, nb_attention=1)
+        gcn_model.create_model()
+
+        Wa = tf.eye(node_dim)
+        va = tf.ones([1,node_dim])
+        # elf.Ssparse, self.Tspars
+        alphas,nH = gcn_model.simple_graph_attention_layer(gcn_model.node_input, Wa, va, gcn_model.Ssparse,
+                                                        gcn_model.Tsparse, gcn_model.Aind, gcn_model.Sshape,
+                                                        gcn_model.nb_edge, gcn_model.dropout_p_attn,
+                                                         add_self_loop=True)
+        alphas_shape = tf.shape(alphas)
+
+        node_indices = tf.range(gcn_model.Sshape[0])
+        # Sparse Idendity
+        # Debug
+        id_indices = tf.stack([node_indices, node_indices], axis=1)
+        val = tf.squeeze(tf.matmul(gcn_model.node_input, va, transpose_b=True))
+        spI = tf.SparseTensor(indices=id_indices,values=val,dense_shape=[gcn_model.Sshape[0], gcn_model.Sshape[0]])
+
+
+        init = tf.global_variables_initializer()
+        #AI=tf.sparse_add(alphas,spI)
+
+        graph=gcn_graph
+        with tf.Session() as session:
+            session.run([init])
+
+            print('### Graph', graph.X.shape, graph.F.shape[0])
+            # print(graph.Sind)
+            # print(graph.Tind)
+            nb_node =graph.X.shape[0]
+            Aind = np.array(np.stack([graph.Sind[:, 0], graph.Tind[:, 1]], axis=-1), dtype='int64')
+            print("Adjacency Indices:", Aind.shape, Aind)
+            feed_batch = {
+                gcn_model.nb_node: graph.X.shape[0],
+                gcn_model.nb_edge: graph.F.shape[0],
+                gcn_model.node_input: graph.X,
+                gcn_model.Ssparse: np.array(graph.Sind, dtype='int64'),
+                gcn_model.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
+                gcn_model.Tsparse: np.array(graph.Tind, dtype='int64'),
+                gcn_model.Aind: Aind,
+                # self.F: graph.F,
+                gcn_model.y_input: graph.Y,
+                # self.dropout_p_H: self.dropout_rate_H,
+                gcn_model.dropout_p_node: 0.0,
+                gcn_model.dropout_p_attn: 0.0,
+
+            }
+            [c_alphas,c_nH, c_alphas_shape,spI] = session.run([alphas,nH, alphas_shape,spI], feed_dict=feed_batch)
+            print('alphas',c_alphas,c_alphas_shape)
+            print('spI',spI)
+            #print('AI',AI)
+            sp_mat = sp.coo_matrix((c_alphas.values, (c_alphas.indices[:,0],c_alphas.indices[:,1])), shape=(nb_node, nb_node))
+            Att_dense =sp_mat.todense()
+            print(Att_dense)
+            self.assertTrue(c_alphas_shape[0]==3)
+            self.assertTrue(c_alphas_shape[1]==3)
+
+            self.assertTrue(Att_dense[0,2]==0)
+            #self.assertAlmostEqual(Att_dense[1,0], np.exp(2.5)/(np.exp(2.5)+np.exp(2)))
+            #self.assertAlmostEqual(Att_dense[0, 1],1.0)
+            #self.assertAlmostEqual(Att_dense[2, 1],1.0)
 
 
     def test_graphattnet_train(self):
@@ -434,48 +504,18 @@ class UT_gcn(unittest.TestCase):
         edge_dim = gcn_graph[0].E.shape[1] - 2.0
         nb_class = gcn_graph[0].Y.shape[1]
 
-        gcn_model = GraphAttNet(node_dim, nb_class, num_layers=1, learning_rate=0.01, node_indim=8,nb_attention=1)
+        gcn_model = GraphAttNet(node_dim, nb_class, num_layers=1, learning_rate=0.01, node_indim=-1,nb_attention=1)
         gcn_model.create_model()
 
 
-        Wa = init_glorot([int(node_dim), 8], name='Da0' )
-        va = init_glorot([1,8], name='da0')
-        # elf.Ssparse, self.Tspars
-        alphas = gcn_model.simple_graph_attention_layer(gcn_model.node_input, Wa, va, gcn_model.Ssparse, gcn_model.Tsparse,gcn_model.Aind, gcn_model.Sshape,
-                                              gcn_model.nb_edge, gcn_model.dropout_p_attn)
-
-        alphas_shape=tf.shape(alphas)
-
-        init = tf.global_variables_initializer()
-
         with tf.Session() as session:
-            session.run([init])
-
-            for graph in gcn_graph_train:
-                print('### Graph',graph.X.shape,graph.F.shape[0])
-                #print(graph.Sind)
-                #print(graph.Tind)
-                Aind =np.array(np.stack([graph.Sind[:,0],graph.Tind[:,1]],axis=-1),dtype='int64')
-                print("Adjacency Indices:",Aind.shape,Aind)
-                feed_batch = {
-                    gcn_model.nb_node: graph.X.shape[0],
-                    gcn_model.nb_edge: graph.F.shape[0],
-                    gcn_model.node_input: graph.X,
-                    gcn_model.Ssparse: np.array(graph.Sind, dtype='int64'),
-                    gcn_model.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
-                    gcn_model.Tsparse: np.array(graph.Tind, dtype='int64'),
-                    gcn_model.Aind:    Aind,
-                    # self.F: graph.F,
-                    gcn_model.y_input: graph.Y,
-                    # self.dropout_p_H: self.dropout_rate_H,
-                    gcn_model.dropout_p_node: 0.0,
-                    gcn_model.dropout_p_attn: 0.0,
-
-
-                }
-                [A,As]=session.run([alphas,alphas_shape],feed_dict=feed_batch)
-                print(A,As)
-
+            session.run([gcn_model.init])
+            # Get the Test Prediction
+            g_acc, node_acc = gcn_model.test_lG(session, gcn_graph_train)
+            print('Mean Accuracy', g_acc, node_acc)
+            gcn_model.train_lG(session,gcn_graph)
+            g_acc, node_acc = gcn_model.test_lG(session, gcn_graph_train)
+            print('Mean Accuracy', g_acc, node_acc)
 
 
 
