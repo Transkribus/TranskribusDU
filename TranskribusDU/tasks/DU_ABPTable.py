@@ -42,11 +42,7 @@ from tasks import _checkFindColDir, _exit
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from tasks.DU_CRF_Task import DU_CRF_Task
-try:
-    from tasks.DU_ECN_Task import DU_ECN_Task
-except:
-    DU_ECN_Task = None
-    print('Could not Load ECN Model')
+
 
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
@@ -154,7 +150,10 @@ class DU_ABPTable(DU_CRF_Task):
         self.sXmlFilenamePattern = "*.mpxml"
         return DU_CRF_Task.runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges)
 
-if DU_ECN_Task is not None:
+
+
+try:
+    from tasks.DU_ECN_Task import DU_ECN_Task
     class DU_ABPTable_ECN(DU_ECN_Task):
             """
             ECN Models
@@ -231,14 +230,104 @@ if DU_ECN_Task is not None:
                     self.bsln_mdl = self.addBaseline_LogisticRegression()  # use a LR model trained by GridSearch as baseline
 
             # === END OF CONFIGURATION =============================================================
-
-
             def predict(self, lsColDir):
                 """
                 Return the list of produced files
                 """
                 self.sXmlFilenamePattern = "*.mpxml"
                 return DU_ECN_Task.predict(self, lsColDir)
+except ImportError:
+        print('Could not Load ECN Model, Is TensorFlow installed ?')
+
+
+try:
+    from tasks.DU_ECN_Task import DU_ECN_Task
+    from gcn.DU_Model_ECN import DU_Model_GAT
+    class DU_ABPTable_GAT(DU_ECN_Task):
+            """
+            ECN Models
+            """
+            sXmlFilenamePattern = "*.mpxml"
+
+            # sLabeledXmlFilenamePattern = "*.a_mpxml"
+            sLabeledXmlFilenamePattern = "*.mpxml"
+
+            sLabeledXmlFilenameEXT = ".mpxml"
+
+            dLearnerConfig = {'nb_iter': 500,
+                              'lr': 0.001,
+                              'num_layers': 5,
+                              'nb_attention': 1,
+                              'stack_convolutions': True,
+                              'node_indim': -1   ,
+                              'dropout_rate_node': 0.2,
+                              'dropout_rate_attention': 0.2,
+                              'ratio_train_val': 0.15,
+                              "activation_name": 'relu',
+                              "patience":50
+                              #'activation': tf.nn.tanh, Problem I can not serialize function HERE
+               }
+            # === CONFIGURATION ====================================================================
+            @classmethod
+            def getConfiguredGraphClass(cls):
+                """
+                In this class method, we must return a configured graph class
+                """
+                lLabels = ['RB', 'RI', 'RE', 'RS', 'RO']
+
+                lIgnoredLabels = None
+
+                """
+                if you play with a toy collection, which does not have all expected classes, you can reduce those.
+                """
+
+                lActuallySeen = None
+                if lActuallySeen:
+                    print("REDUCING THE CLASSES TO THOSE SEEN IN TRAINING")
+                    lIgnoredLabels = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
+                    lLabels = [lLabels[i] for i in lActuallySeen]
+                    print(len(lLabels), lLabels)
+                    print(len(lIgnoredLabels), lIgnoredLabels)
+
+                # DEFINING THE CLASS OF GRAPH WE USE
+                DU_GRAPH = Graph_MultiSinglePageXml
+                nt = NodeType_PageXml_type_woText("abp"  # some short prefix because labels below are prefixed with it
+                                                  , lLabels
+                                                  , lIgnoredLabels
+                                                  , False  # no label means OTHER
+                                                  , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v / 3))
+                                                  # we reduce overlap in this way
+                                                  )
+                nt.setXpathExpr((".//pc:TextLine"  # how to find the nodes
+                                 , "./pc:TextEquiv")  # how to get their text
+                                )
+                DU_GRAPH.addNodeType(nt)
+
+                return DU_GRAPH
+
+            def __init__(self, sModelName, sModelDir, sComment=None,dLearnerConfigArg=None):
+
+                DU_ECN_Task.__init__(self
+                                     , sModelName, sModelDir
+                                     , dFeatureConfig={}
+                                     , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
+                                     , sComment=sComment
+                                     , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
+                                     , cModelClass=DU_Model_GAT
+                                     )
+
+                if options.bBaseline:
+                    self.bsln_mdl = self.addBaseline_LogisticRegression()  # use a LR model trained by GridSearch as baseline
+
+            # === END OF CONFIGURATION =============================================================
+            def predict(self, lsColDir):
+                """
+                Return the list of produced files
+                """
+                self.sXmlFilenamePattern = "*.mpxml"
+                return DU_ECN_Task.predict(self, lsColDir)
+except ImportError:
+        print('Could not Load GAT Model','Is tensorflow installed ?')
 
 
 
@@ -246,16 +335,28 @@ if DU_ECN_Task is not None:
 
 def main(sModelDir, sModelName, options):
     if options.use_ecn:
-        if options.ecn_json_config is not []:
-
+        if options.ecn_json_config is not None and options.ecn_json_config is not []:
             f = open(options.ecn_json_config[0])
             djson=json.loads(f.read())
             dLearnerConfig=djson["ecn_learner_config"]
             f.close()
             doer = DU_ABPTable_ECN(sModelName, sModelDir,dLearnerConfigArg=dLearnerConfig)
 
+
+
         else:
             doer = DU_ABPTable_ECN(sModelName, sModelDir)
+    elif options.use_gat:
+        if options.gat_json_config is not None and options.gat_json_config is not []:
+
+            f = open(options.gat_json_config[0])
+            djson=json.loads(f.read())
+            dLearnerConfig=djson["gat_learner_config"]
+            f.close()
+            doer = DU_ABPTable_GAT(sModelName, sModelDir,dLearnerConfigArg=dLearnerConfig)
+
+        else:
+            doer = DU_ABPTable_GAT(sModelName, sModelDir)
 
     else:
         doer = DU_ABPTable(sModelName, sModelDir,
@@ -353,6 +454,9 @@ if __name__ == "__main__":
     parser.add_option("--baseline", dest='bBaseline',  action="store_true", default=False, help="report baseline method")
     parser.add_option("--ecn",dest='use_ecn',action="store_true", default=False, help="wether to use ECN Models")
     parser.add_option("--ecn_config", dest='ecn_json_config',action="append", type="string", help="The Config files for the ECN Model")
+    parser.add_option("--gat", dest='use_gat', action="store_true", default=False, help="wether to use ECN Models")
+    parser.add_option("--gat_config", dest='gat_json_config', action="append", type="string",
+                      help="The Config files for the Gat Model")
     # --- 
     #parse the command line
     (options, args) = parser.parse_args()

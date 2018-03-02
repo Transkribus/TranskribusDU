@@ -363,7 +363,6 @@ class UT_gcn(unittest.TestCase):
             # Get the Test Prediction
 
     def test_graphattnet_attnlayer(self):
-        print('Test', os.getcwd())
 
         gcn_graph = get_graph_test()
         node_dim = gcn_graph.X.shape[1]
@@ -378,7 +377,7 @@ class UT_gcn(unittest.TestCase):
         # elf.Ssparse, self.Tspars
         alphas,nH = gcn_model.simple_graph_attention_layer(gcn_model.node_input, Wa, va, gcn_model.Ssparse,
                                                         gcn_model.Tsparse, gcn_model.Aind, gcn_model.Sshape,
-                                                        gcn_model.nb_edge, gcn_model.dropout_p_attn)
+                                                        gcn_model.nb_edge, gcn_model.dropout_p_attn,gcn_model.dropout_p_node)
         alphas_shape = tf.shape(alphas)
 
         init = tf.global_variables_initializer()
@@ -423,7 +422,6 @@ class UT_gcn(unittest.TestCase):
             self.assertAlmostEqual(Att_dense[2, 1],1.0)
 
     def test_graphattnet_attnlayer_selfloop(self):
-        print('Test', os.getcwd())
 
         gcn_graph = get_graph_test()
         node_dim = gcn_graph.X.shape[1]
@@ -438,8 +436,8 @@ class UT_gcn(unittest.TestCase):
         # elf.Ssparse, self.Tspars
         alphas,nH = gcn_model.simple_graph_attention_layer(gcn_model.node_input, Wa, va, gcn_model.Ssparse,
                                                         gcn_model.Tsparse, gcn_model.Aind, gcn_model.Sshape,
-                                                        gcn_model.nb_edge, gcn_model.dropout_p_attn,
-                                                         add_self_loop=True)
+                                                        gcn_model.nb_edge, gcn_model.dropout_p_attn,gcn_model.dropout_p_node,
+                                                        add_self_loop=True)
         alphas_shape = tf.shape(alphas)
 
         node_indices = tf.range(gcn_model.Sshape[0])
@@ -495,7 +493,7 @@ class UT_gcn(unittest.TestCase):
 
 
     def test_graphattnet_train(self):
-        print('Test',os.getcwd())
+
         pickle_fname = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
         gcn_graph = GCNDataset.load_transkribus_pickle(pickle_fname)
 
@@ -507,6 +505,28 @@ class UT_gcn(unittest.TestCase):
         gcn_model = GraphAttNet(node_dim, nb_class, num_layers=1, learning_rate=0.01, node_indim=-1,nb_attention=1)
         gcn_model.create_model()
 
+        with tf.Session() as session:
+            session.run([gcn_model.init])
+            # Get the Test Prediction
+            g_acc, node_acc = gcn_model.test_lG(session, gcn_graph_train)
+            print('Mean Accuracy', g_acc, node_acc)
+            gcn_model.train_lG(session,gcn_graph)
+            g_acc, node_acc = gcn_model.test_lG(session, gcn_graph_train)
+            print('Mean Accuracy', g_acc, node_acc)
+
+    def test_graphattnet_train_dropout(self):
+        pickle_fname = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
+        gcn_graph = GCNDataset.load_transkribus_pickle(pickle_fname)
+
+        gcn_graph_train = [gcn_graph[8], gcn_graph[18], gcn_graph[29]]
+        node_dim = gcn_graph[0].X.shape[1]
+        edge_dim = gcn_graph[0].E.shape[1] - 2.0
+        nb_class = gcn_graph[0].Y.shape[1]
+
+        gcn_model = GraphAttNet(node_dim, nb_class, num_layers=1, learning_rate=0.01, node_indim=-1,nb_attention=3)
+        gcn_model.dropout_rate_node=0.2
+        gcn_model.dropout_rate_attention = 0.2
+        gcn_model.create_model()
 
         with tf.Session() as session:
             session.run([gcn_model.init])
