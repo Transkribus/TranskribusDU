@@ -548,8 +548,8 @@ class EdgeConvNet(MultiGraphNN):
         self.nb_edge = tf.placeholder(tf.int32, (), name='nb_edge')
         self.node_input = tf.placeholder(tf.float32, [None, self.node_dim], name='X_')
         self.y_input    = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
-        self.EA_input   = tf.placeholder(tf.float32, name='EA_input')
-        self.NA_input   = tf.placeholder(tf.float32, name='NA_input')
+        #self.EA_input   = tf.placeholder(tf.float32, name='EA_input')
+        #self.NA_input   = tf.placeholder(tf.float32, name='NA_input')
         self.dropout_p_H    = tf.placeholder(tf.float32,(), name='dropout_prob_H')
         self.dropout_p_node = tf.placeholder(tf.float32, (), name='dropout_prob_N')
         self.dropout_p_edge = tf.placeholder(tf.float32, (), name='dropout_prob_edges')
@@ -1343,3 +1343,437 @@ class EdgeLogit(Logit):
         if verbose:
             print('Got Prediction for:',Ops[0].shape)
         return Ops[0]
+
+
+
+
+class GraphAttNet(MultiGraphNN):
+    '''
+    Graph Attention Network
+    '''
+
+
+    #TODO add Dropout
+    #TODO add self-loop
+
+    def __init__(self,node_dim,nb_classes,num_layers=1,learning_rate=0.1,node_indim=-1,nb_attention=3
+                 ):
+        self.node_dim=node_dim
+
+        self.n_classes=nb_classes
+        self.num_layers=num_layers
+        self.learning_rate=learning_rate
+        self.activation=tf.nn.elu
+        #self.activation=tf.nn.relu
+
+        self.optalg = tf.train.AdamOptimizer(self.learning_rate)
+        self.stack_instead_add=False
+        self.residual_connection=False#deprecated
+
+        self.dropout_rate_node = 0.0
+        self.dropout_rate_attention = 0.0
+
+        self.use_conv_weighted_avg=False
+        self.use_edge_mlp=False
+        self.edge_mlp_dim = 5
+        self.nb_attention=nb_attention
+
+
+        if node_indim==-1:
+            self.node_indim=self.node_dim
+        else:
+            self.node_indim=node_indim
+
+    #TODO GENERIC Could be move in MultigraphNN
+    def set_learning_options(self,dict_model_config):
+        """
+        Set all learning options that not directly accessible from the constructor
+
+        :param kwargs:
+        :return:
+        """
+        print(dict_model_config)
+        for attrname,val in dict_model_config.items():
+            #We treat the activation function differently as we can not pickle/serialiaze python function
+            if attrname=='activation_name':
+                if val=='relu':
+                    self.activation=tf.nn.relu
+                elif val=='tanh':
+                    self.activation=tf.nn.tanh
+                else:
+                    raise Exception('Invalid Activation Function')
+            if attrname=='stack_instead_add' or attrname=='stack_convolutions':
+                self.stack_instead_add=val
+            if attrname not in self._setter_variables:
+                try:
+                    print('set',attrname,val)
+                    setattr(self,attrname,val)
+                except AttributeError:
+                    warnings.warn("Ignored options for ECN"+attrname+':'+val)
+
+
+
+    def simple_graph_attention_layer(self,H,W,A,S,T,Adjind,Sshape,nb_edge,
+                                     dropout_attention,use_dropout=False,add_self_loop=False):
+        '''
+        :param H: The current node feature
+        :param W: The node projection for this layer
+        :param A: The attention weight vector: a
+        :param S: The source edge matrix indices
+        :param T: The target edge matrix indices
+        :param Adjind: The adjcency matrix indices
+        :param Sshape: Shape of S
+        :param nb_edge: Number of edge
+        :param dropout_attention: dropout_rate for the attention
+        :param use_dropout: wether to use dropout
+        :param add_self_loop: wether to add edge (i,i)
+        :return: alphas,nH
+            where alphas is the attention-based adjancency matrix alpha[i,j] correspond to alpha_ij
+            nH correspond to the new features for this layer ie alphas(H,W)
+        '''
+
+        with tf.name_scope('graph_att_net_attn'):
+            # This has shape (nb_node,in_dim) and correspond to the project W.h in the paper
+            P=tf.matmul(H,W)
+            #print(P.get_shape())
+
+            #This has shape #shape,(nb_edge,nb_node)
+            #This sparse tensor contains target nodes for edges.
+            #The indices are [edge_idx,node_target_index]
+            Tr = tf.SparseTensor(indices=T, values=tf.ones([nb_edge], dtype=tf.float32),
+                                 dense_shape=[Sshape[1], Sshape[0]])
+            Tr = tf.sparse_reorder(Tr) # reorder so that sparse operations work correctly
+            # This tensor has shape(nb_edge,in_dim) and contains the node target projection, ie Wh
+            TP = tf.sparse_tensor_dense_matmul(Tr, P,name='TP')
+
+            # This has shape #shape,(nb_node,nb_edge)
+            # This sparse tensor contains source nodes for edges.
+            # The indices are [node_source_index,edge_idx]
+            SD = tf.SparseTensor(indices=S, values=tf.ones([nb_edge],dtype=tf.float32), dense_shape=Sshape)
+            SD = tf.sparse_reorder(SD) #shape,(nb_edge,nb_node)
+            # This tensor has shape(nb_edge,in_dim) and contains the node source projection, ie Wh
+            SP = tf.sparse_tensor_dense_matmul(tf.sparse_transpose(SD), P,name='SP') #shape(nb_edge,in_dim)
+            #print('SP', SP.get_shape())
+
+            #A is given as vector [1,indim]; we could avoid this transpose
+            Aij_forward=A  # attention vector for forward edge and backward edge
+            Aij_backward=A # Here we assume it is the same on contrary to the paper
+            # Compute the attention weight for target node, ie a . Whj if j is the target node
+            att_target_node  =tf.matmul(TP,Aij_forward,transpose_b=True)
+            # Compute the attention weight for the source node, ie a . Whi if j is the target node
+            att_source_node = tf.matmul(SP,Aij_backward,transpose_b=True)
+
+            #The attention values for the edge ij is the sum of attention of node i and j
+            attn_values =tf.nn.leaky_relu(tf.squeeze(att_target_node)+tf.squeeze(att_source_node) )
+            #From that we build a sparse adjacency matrix containing the correct values
+            # which we then feed to a sparse softmax
+            AttAdj = tf.SparseTensor(indices=Adjind, values=attn_values, dense_shape=[Sshape[0], Sshape[0]])
+            AttAdj = tf.sparse_reorder(AttAdj)
+            alphas = tf.sparse_softmax(AttAdj)
+
+            #We compute the features given by the attentive neighborhood
+            alphasP = tf.sparse_tensor_dense_matmul(alphas,P)
+            return alphas,alphasP
+
+
+
+
+
+    def create_model(self):
+        '''
+        Create the tensorflow graph for the model
+        :return:
+        '''
+        self.nb_node    = tf.placeholder(tf.int32,(), name='nb_node')
+        self.nb_edge = tf.placeholder(tf.int32, (), name='nb_edge')
+        self.node_input = tf.placeholder(tf.float32, [None, self.node_dim], name='X_')
+        self.y_input    = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
+        #self.dropout_p_H    = tf.placeholder(tf.float32,(), name='dropout_prob_H')
+        self.dropout_p_node = tf.placeholder(tf.float32, (), name='dropout_prob_N')
+        self.dropout_p_attn = tf.placeholder(tf.float32, (), name='dropout_prob_edges')
+        self.S          = tf.placeholder(tf.float32, name='S')
+        self.Ssparse    = tf.placeholder(tf.int64, name='Ssparse') #indices
+        self.Sshape     = tf.placeholder(tf.int64, name='Sshape') #indices
+        self.Aind       =tf.placeholder(tf.int64, name='Sshape') #Adjacency indices
+        self.T          = tf.placeholder(tf.float32,[None,None], name='T')
+        self.Tsparse    = tf.placeholder(tf.int64, name='Tsparse')
+
+        #self.S_indice = tf.placeholder(tf.in, [None, None], name='S')
+        #self.F          = tf.placeholder(tf.float32,[None,None], name='F')
+
+
+        std_dev_in=float(1.0/ float(self.node_dim))
+
+        self.hidden_layer=[]
+        attns0 = []
+        '''
+        for a in range(self.nb_attention):
+            Wa  =init_glorot([int(self.node_dim), int(self.node_indim)], name='Wa0'+str(a))
+            va  =tf.ones([int(self.node_indim)],name='va0'+str(a) )
+            #elf.Ssparse, self.Tspars
+            attns0.append(self.simple_graph_attention_layer(self.node_input,Wa,va,self.Ssparse,self.Tsparse,self.Sshape,
+                                                            self.nb_edge,self.dropout_p_attn,use_dropout=False))
+
+
+        self.hidden_layer.append( tf.concat(attns0, axis=-1)) #Now dims should be indim*self.nb_attention
+        for i in range(1, self.num_layers):
+            attns = []
+            for a in range(self.nb_attention):
+                Wia = init_glorot([int(self.node_indim *self.nb_attention), int(self.node_indim)], name='Wa'+ str(i)+'_'+str(a))
+                via = init_glorot([int(self.node_indim)], name='va' + str(i)+'_'+str(a))
+
+                attns.append(self.simple_graph_attention_layer(self.hidden_layer[-1],Wia,via,self.Ssparse,self.Tsparse,self.Sshape,
+                                                               self.nb_edge,self.dropout_p_attn, use_dropout=False))
+
+            self.hidden_layer.append(tf.concat(attns, axis=-1))
+
+        out = []
+        for i in range(self.nb_attention):
+            logits_a = init_glorot([int(self.node_indim * self.nb_attention), int(self.n_classes)],
+                              name='Logita' + '_' + str(a))
+            via = init_glorot([int(self.n_classes)], name='LogitA' + '_' + str(a))
+            out.append(
+                self.simple_graph_attention_layer(self.hidden_layer[-1], logits_a, via, self.Ssparse, self.Tsparse,
+                                                  self.Sshape,self.nb_edge,self.dropout_p_attn, use_dropout=False))
+
+        
+        self.logits = tf.add_n(out) / self.nb_attention
+
+        cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
+        self.loss = tf.reduce_mean(cross_entropy_source)
+
+        self.pred = tf.argmax(tf.nn.softmax(self.logits), 1)
+        self.correct_prediction = tf.equal(self.pred, tf.argmax(self.y_input, 1))
+        self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
+
+        self.grads_and_vars = self.optalg.compute_gradients(self.loss)
+        self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
+        
+
+        # Add ops to save and restore all the variables.
+        self.init = tf.global_variables_initializer()
+        self.saver= tf.train.Saver(max_to_keep=0)
+
+        print('Number of Params:')
+        self.get_nb_params()
+        '''
+
+
+    #TODO Move in MultigraphNN
+    def save_model(self, session, model_filename):
+        print("Saving Model")
+        save_path = self.saver.save(session, model_filename)
+
+    def restore_model(self, session, model_filename):
+        self.saver.restore(session, model_filename)
+        print("Model restored.")
+
+
+
+    def train(self,session,graph,verbose=False,n_iter=1):
+        '''
+        Apply a train operation, ie sgd step for a single graph
+        :param session:
+        :param graph: a graph from GCN_Dataset
+        :param verbose:
+        :param n_iter: (default 1) number of steps to perform sgd for this graph
+        :return:
+        '''
+        #TrainEvalSet Here
+        for i in range(n_iter):
+            #print('Train',X.shape,EA.shape)
+            #print('DropoutEdges',self.dropout_rate_edge)
+            feed_batch = {
+
+                self.nb_node: graph.X.shape[0],
+                self.nb_edge: graph.F.shape[0],
+                self.node_input: graph.X,
+                self.Ssparse: np.array(graph.Sind, dtype='int64'),
+                self.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
+                self.Tsparse: np.array(graph.Tind, dtype='int64'),
+                #self.F: graph.F,
+                self.y_input: graph.Y,
+                #self.dropout_p_H: self.dropout_rate_H,
+                self.dropout_p_node: self.dropout_rate_node,
+                self.dropout_p_attn: self.dropout_rate_attention,
+            }
+
+            Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
+            if verbose:
+                print('Training Loss',Ops[1])
+
+
+
+    def test(self,session,graph,verbose=True):
+        '''
+        Test return the loss and accuracy for the graph passed as argument
+        :param session:
+        :param graph:
+        :param verbose:
+        :return:
+        '''
+
+        feed_batch = {
+
+            self.nb_node: graph.X.shape[0],
+            self.nb_edge: graph.F.shape[0],
+            self.node_input: graph.X,
+
+            self.Ssparse: np.array(graph.Sind, dtype='int64'),
+            self.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
+            self.Tsparse: np.array(graph.Tind, dtype='int64'),
+
+            #self.F: graph.F,
+            self.y_input: graph.Y,
+            #self.dropout_p_H: 0.0,
+            self.dropout_p_node: 0.0,
+            self.dropout_p_attn: 0.0,
+            #self.dropout_p_edge_feat: 0.0,
+            #self.NA_indegree: graph.NA_indegree
+        }
+
+        Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
+        if verbose:
+            print('Test Loss',Ops[0],' Test Accuracy:',Ops[1])
+        return Ops[1]
+
+
+    def predict(self,session,graph,verbose=True):
+        '''
+        Does the prediction
+        :param session:
+        :param graph:
+        :param verbose:
+        :return:
+        '''
+        feed_batch = {
+            self.nb_node: graph.X.shape[0],
+            self.nb_edge: graph.F.shape[0],
+            self.node_input: graph.X,
+            # fast_gcn.S: np.asarray(graph.S.todense()).squeeze(),
+            # fast_gcn.Ssparse: np.vstack([graph.S.row,graph.S.col]),
+            self.Ssparse: np.array(graph.Sind, dtype='int64'),
+            self.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
+            self.Tsparse: np.array(graph.Tind, dtype='int64'),
+            # fast_gcn.T: np.asarray(graph.T.todense()).squeeze(),
+            self.F: graph.F,
+            self.dropout_p_H: 0.0,
+            self.dropout_p_node: 0.0,
+            self.dropout_p_edge: 0.0,
+            self.dropout_p_edge_feat: 0.0,
+            #self.NA_indegree: graph.NA_indegree
+        }
+        Ops = session.run([self.pred], feed_dict=feed_batch)
+        if verbose:
+            print('Got Prediction for:',Ops[0].shape)
+        return Ops[0]
+
+
+    def train_All_lG(self,session,graph_train,graph_val, max_iter, eval_iter = 10, patience = 7, graph_test = None, save_model_path = None):
+        '''
+
+        Merge all the graph and train on them
+
+        :param session:
+        :param graph_train: the list of graph to train on
+        :param graph_val:   the list of graph used for validation
+        :param max_iter:  maximum number of epochs
+        :param eval_iter: evaluate every eval_iter
+        :param patience: stopped training if accuracy is not improved on the validation set after patience_value
+        :param graph_test: Optional. If a test set is provided, then accuracy on the test set is reported
+        :param save_model_path: checkpoints filename to save the model.
+        :return: A Dictionary with training accuracies, validations accuracies and test accuracies if any, and the Wedge parameters
+        '''
+        best_val_acc = 0.0
+        wait = 0
+        stop_training = False
+        stopped_iter = max_iter
+        train_accuracies = []
+        validation_accuracies = []
+        test_accuracies = []
+        conf_mat = []
+
+        start_monitoring_val_acc = False
+
+        # Not Efficient to compute this for
+
+        merged_graph = gcn_datasets.GCNDataset.merge_allgraph(graph_train)
+
+        self.train(session, merged_graph, n_iter=1)
+
+        for i in range(max_iter):
+            if stop_training:
+                break
+
+            if i % eval_iter == 0:
+                print('\nEpoch', i)
+                _, tr_acc = self.test_lG(session, graph_train, verbose=False)
+                print(' Train Acc', '%.4f' % tr_acc)
+                train_accuracies.append(tr_acc)
+
+                _, node_acc = self.test_lG(session, graph_val, verbose=False)
+                print(' Valid Acc', '%.4f' % node_acc)
+                validation_accuracies.append(node_acc)
+
+                if save_model_path:
+                    save_path = self.saver.save(session, save_model_path, global_step=i)
+
+                if graph_test:
+                    _, test_acc = self.test_lG(session, graph_test, verbose=False)
+                    print('  Test Acc', '%.4f' % test_acc)
+                    test_accuracies.append(test_acc)
+
+
+                    # Ypred = self.predict_lG(session, graph_test,verbose=False)
+                    # Y_true_flat = []
+                    # Ypred_flat = []
+                    # for graph, ypred in zip(graph_test, Ypred):
+                    #    ytrue = np.argmax(graph.Y, axis=1)
+                    #    Y_true_flat.extend(ytrue)
+                    #    Ypred_flat.extend(ypred)
+                    # cm = sklearn.metrics.confusion_matrix(Y_true_flat, Ypred_flat)
+                    # conf_mat.append(cm)
+
+                # TODO min_delta
+                # if tr_acc>0.99:
+                #    start_monitoring_val_acc=True
+
+                if node_acc > best_val_acc:
+                    best_val_acc = node_acc
+                    wait = 0
+                else:
+                    if wait >= patience:
+                        stopped_iter = i
+                        stop_training = True
+                    wait += 1
+            else:
+
+                self.train(session, merged_graph, n_iter=1)
+        # Final Save
+        # if save_model_path:
+        # save_path = self.saver.save(session, save_model_path, global_step=i)
+        # TODO Add the final step
+        mean_acc = []
+        print('Stopped Model Training after', stopped_iter)
+        print('Val Accuracies', validation_accuracies)
+
+        print('Final Training Accuracy')
+        _, node_train_acc = self.test_lG(session, graph_train)
+        print('Train Mean Accuracy', '%.4f' % node_train_acc)
+
+        print('Final Valid Acc')
+        self.test_lG(session, graph_val)
+
+        R = {}
+        R['train_acc'] = train_accuracies
+        R['val_acc'] = validation_accuracies
+        R['test_acc'] = test_accuracies
+        R['stopped_iter'] = stopped_iter
+        R['confusion_matrix'] = conf_mat
+        # R['W_edge'] =self.get_Wedge(session)
+        if graph_test:
+            _, final_test_acc = self.test_lG(session, graph_test)
+            print('Final Test Acc', '%.4f' % final_test_acc)
+            R['final_test_acc'] = final_test_acc
+
+        return R
