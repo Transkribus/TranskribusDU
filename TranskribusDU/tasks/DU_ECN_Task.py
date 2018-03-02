@@ -33,11 +33,11 @@ from tasks.DU_CRF_Task import DU_CRF_Task
 class DU_ECN_Task(DU_CRF_Task):
 
     def __init__(self, sModelName, sModelDir, dLearnerConfig={}, sComment=None
-                 , cFeatureDefinition=None, dFeatureConfig={}
+                 , cFeatureDefinition=None, dFeatureConfig={},cModelClass=DU_Model_ECN,
                  ):
         super(DU_ECN_Task, self).__init__(sModelName,sModelDir,dLearnerConfig,sComment,cFeatureDefinition,dFeatureConfig)
 
-        self.cModelClass = DU_Model_ECN
+        self.cModelClass = cModelClass
         assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
 
     def isTypedCRF(self):

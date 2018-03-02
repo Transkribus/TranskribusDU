@@ -1352,6 +1352,12 @@ class GraphAttNet(MultiGraphNN):
     Graph Attention Network
     '''
 
+    # Variable ignored by the set_learning_options
+    _setter_variables = {
+        "node_dim": True, "edge_dim": True, "nb_class": True,
+        "num_layers": True, "lr": True,
+        "node_indim": True, "nb_attention": True,
+        "nb_iter": True, "ratio_train_val": True}
 
     #TODO add Dropout
     #TODO add self-loop
@@ -1372,10 +1378,6 @@ class GraphAttNet(MultiGraphNN):
 
         self.dropout_rate_node = 0.0
         self.dropout_rate_attention = 0.0
-
-        self.use_conv_weighted_avg=False
-        self.use_edge_mlp=False
-        self.edge_mlp_dim = 5
         self.nb_attention=nb_attention
 
 
@@ -1411,10 +1413,10 @@ class GraphAttNet(MultiGraphNN):
                 except AttributeError:
                     warnings.warn("Ignored options for ECN"+attrname+':'+val)
 
-
-    #TODO Add self_loop, add dropout
+    #TODO Change the transpose of the A parameter
     def simple_graph_attention_layer(self,H,W,A,S,T,Adjind,Sshape,nb_edge,
-                                     dropout_attention,use_dropout=False,add_self_loop=False):
+                                     dropout_attention,dropout_node,
+                                     use_dropout=False,add_self_loop=False):
         '''
         :param H: The current node feature
         :param W: The node projection for this layer
@@ -1470,7 +1472,6 @@ class GraphAttNet(MultiGraphNN):
             AttAdj = tf.SparseTensor(indices=Adjind, values=attn_values, dense_shape=[Sshape[0], Sshape[0]])
             AttAdj = tf.sparse_reorder(AttAdj)
 
-
             #Note very efficient to do this, we should add the loop in the preprocessing
             if add_self_loop:
                 node_indices=tf.range(Sshape[0])
@@ -1485,10 +1486,17 @@ class GraphAttNet(MultiGraphNN):
             else:
                 alphas = tf.sparse_softmax(AttAdj)
 
-
-            #We compute the features given by the attentive neighborhood
-            alphasP = tf.sparse_tensor_dense_matmul(alphas,P)
-            return alphas,alphasP
+            #dropout is done after the softmax
+            if use_dropout:
+                print('... using dropout for attention layer')
+                alphasD = tf.SparseTensor(indices=alphas.indices,values=tf.nn.dropout(alphas.values, 1.0 - dropout_attention),dense_shape=alphas.dense_shape)
+                P_D =tf.nn.dropout(P,1.0-dropout_node)
+                alphasP = tf.sparse_tensor_dense_matmul(alphasD, P_D)
+                return alphasD, alphasP
+            else:
+                #We compute the features given by the attentive neighborhood
+                alphasP = tf.sparse_tensor_dense_matmul(alphas,P)
+                return alphas,alphasP
 
 
 
@@ -1518,38 +1526,43 @@ class GraphAttNet(MultiGraphNN):
 
 
         std_dev_in=float(1.0/ float(self.node_dim))
-
+        self.use_dropout = self.dropout_rate_attention > 0 or self.dropout_rate_node > 0
         self.hidden_layer=[]
         attns0 = []
 
+        #Define the First Layuer from the Node Input
         for a in range(self.nb_attention):
             Wa  =init_glorot([int(self.node_dim), int(self.node_indim)], name='Wa0'+str(a))
             va  =tf.ones([1,int(self.node_indim)],name='va0'+str(a) )
             #elf.Ssparse, self.Tspars
             _,nH =self.simple_graph_attention_layer(self.node_input,Wa,va,self.Ssparse,self.Tsparse,self.Aind,
-                                                    self.Sshape,self.nb_edge,self.dropout_p_attn,use_dropout=False,add_self_loop=True)
+                                                    self.Sshape,self.nb_edge,self.dropout_p_attn,self.dropout_p_node,
+                                                    use_dropout=self.use_dropout,add_self_loop=True)
             attns0.append(nH)
+        self.hidden_layer.append(self.activation( tf.concat(attns0, axis=-1) )) #Now dims should be indim*self.nb_attention
 
-
-        self.hidden_layer.append( tf.concat(attns0, axis=-1)) #Now dims should be indim*self.nb_attention
+        # Define Intermediate Layers
         for i in range(1, self.num_layers):
             attns = []
             for a in range(self.nb_attention):
                 Wia = init_glorot([int(self.node_indim *self.nb_attention), int(self.node_indim)], name='Wa'+ str(i)+'_'+str(a))
                 via = tf.ones([1,int(self.node_indim)], name='va' + str(i)+'_'+str(a))
                 _,nH =self.simple_graph_attention_layer(self.hidden_layer[-1],Wia,via,self.Ssparse,self.Tsparse,self.Aind,
-                                                        self.Sshape,self.nb_edge,self.dropout_p_attn, use_dropout=False,add_self_loop=True)
+                                                        self.Sshape,self.nb_edge,self.dropout_p_attn,self.dropout_p_node,
+                                                        use_dropout=self.use_dropout,add_self_loop=True)
                 attns.append(nH)
 
-            self.hidden_layer.append(tf.concat(attns, axis=-1))
+            self.hidden_layer.append(self.activation(tf.concat(attns, axis=-1)))
 
+        # Define Logit Layer
         out = []
         for i in range(self.nb_attention):
             logits_a = init_glorot([int(self.node_indim * self.nb_attention), int(self.n_classes)],
                               name='Logita' + '_' + str(a))
             via = tf.ones([1,int(self.n_classes)], name='LogitA' + '_' + str(a))
             _,nL =self.simple_graph_attention_layer(self.hidden_layer[-1], logits_a, via, self.Ssparse, self.Tsparse,self.Aind,
-                                                  self.Sshape,self.nb_edge,self.dropout_p_attn, use_dropout=False,add_self_loop=True)
+                                                  self.Sshape,self.nb_edge,self.dropout_p_attn,self.dropout_p_node,
+                                                    use_dropout=self.use_dropout,add_self_loop=True)
             out.append(nL)
 
         self.logits = tf.add_n(out) / self.nb_attention
@@ -1582,8 +1595,6 @@ class GraphAttNet(MultiGraphNN):
     def restore_model(self, session, model_filename):
         self.saver.restore(session, model_filename)
         print("Model restored.")
-
-
 
     def train(self,session,graph,verbose=False,n_iter=1):
         '''
@@ -1676,11 +1687,8 @@ class GraphAttNet(MultiGraphNN):
             # fast_gcn.T: np.asarray(graph.T.todense()).squeeze(),
             #self.F: graph.F,
             self.Aind: Aind,
-            self.dropout_p_H: 0.0,
             self.dropout_p_node: 0.0,
-            self.dropout_p_edge: 0.0,
-            self.dropout_p_edge_feat: 0.0,
-            #self.NA_indegree: graph.NA_indegree
+            self.dropout_p_attn: 0.0,
         }
         Ops = session.run([self.pred], feed_dict=feed_batch)
         if verbose:
@@ -1688,6 +1696,7 @@ class GraphAttNet(MultiGraphNN):
         return Ops[0]
 
 
+    #TODO Move that MultiGraphNN
     def train_All_lG(self,session,graph_train,graph_val, max_iter, eval_iter = 10, patience = 7, graph_test = None, save_model_path = None):
         '''
 
@@ -1741,17 +1750,6 @@ class GraphAttNet(MultiGraphNN):
                     _, test_acc = self.test_lG(session, graph_test, verbose=False)
                     print('  Test Acc', '%.4f' % test_acc)
                     test_accuracies.append(test_acc)
-
-
-                    # Ypred = self.predict_lG(session, graph_test,verbose=False)
-                    # Y_true_flat = []
-                    # Ypred_flat = []
-                    # for graph, ypred in zip(graph_test, Ypred):
-                    #    ytrue = np.argmax(graph.Y, axis=1)
-                    #    Y_true_flat.extend(ytrue)
-                    #    Ypred_flat.extend(ypred)
-                    # cm = sklearn.metrics.confusion_matrix(Y_true_flat, Ypred_flat)
-                    # conf_mat.append(cm)
 
                 # TODO min_delta
                 # if tr_acc>0.99:

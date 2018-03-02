@@ -555,3 +555,39 @@ class DU_Model_ECN(Model):
         Return a textual report
         """
         return "ECN_Model"
+
+
+
+
+class DU_Model_GAT(DU_Model_ECN):
+    def __init__(self, sName, sModelDir):
+        """
+        a CRF model, with a name and a folder where it will be stored or retrieved from
+        """
+        #super(ChildB, self).__init__()
+        super(DU_Model_GAT,self).__init__(sName,sModelDir)
+
+
+    def _init_model(self):
+        '''
+        Create the tensorflow graph.
+        This function assume that self.model_config contains all the appropriate variables
+        to set the model
+        This function is called in the train operation and in the load function for testing  on new documents
+        :return:
+        '''
+        self.gcn_model = gcn_models.GraphAttNet(self.model_config['node_dim'], self.model_config['nb_class'],
+                                                num_layers=self.model_config['num_layers'],
+                                                learning_rate=self.model_config['lr'],
+                                                node_indim=self.model_config['node_indim'],
+                                                nb_attention=self.model_config['nb_attention'],
+                                                )
+        self.gcn_model.set_learning_options(self.model_config)
+        self.gcn_model.create_model()
+
+    def getModelInfo(self):
+        """
+        Get some basic model info
+        Return a textual report
+        """
+        return "GAT_Model"
