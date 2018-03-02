@@ -32,7 +32,7 @@ from sklearn.preprocessing import LabelBinarizer,Normalizer
 from sklearn.linear_model import LogisticRegression
 from gcn.gcn_datasets import GCNDataset
 
-from gcn.gcn_models import DummyGCNModel, EdgeConvNet
+from gcn.gcn_models import EdgeConvNet, GraphAttNet, init_glorot
 import sklearn
 import sklearn.metrics
 
@@ -112,6 +112,19 @@ def make_fake_gcn_dataset():
     print('Dataset saved')
     embed()
 
+def get_graph_test():
+    #For graph att net
+    X=np.array([ [1.0,0.5],[0.5,0.5],[0.0,1.0] ],dtype='float32')
+    E=np.array([ [0,1,1.0],[1,0,1.0],[2,1,1.0],[1,2,1.0]],dtype='float32')
+    Y=np.array([ [1,0],[0,1],[0,1]],dtype='int32')
+
+    gcn =GCNDataset('UT_test_1')
+    gcn.X=X
+    gcn.E=E
+    gcn.Y=Y
+    gcn.compute_NodeEdgeMat()
+    return gcn
+
 
 
 class UT_gcn(unittest.TestCase):
@@ -124,131 +137,11 @@ class UT_gcn(unittest.TestCase):
         dataset.print_stats()
         return True
 
-    def test_02_createmodel(self):
-        dataset=GCNDataset('UT_iris_0')
-        dataset.load_pickle('iris_graph.pickle')
-        dataset.print_stats()
-
-        gcn_model = DummyGCNModel(dataset, num_layers=1, learning_rate=0.1)
-        #gcn_model.activation=tf.nn.softmax
-        gcn_model.activation=tf.nn.relu
-        #gcn_model.activation=tf.nn.sigmoid
-        gcn_model.create_model()
-
-        print(dataset.X)
-        print(dataset.Y)
-        logit_model = DummyGCNModel(dataset, num_layers=0, learning_rate=0.5, mu=0.0)
-        logit_model.activation=tf.nn.sigmoid
-        logit_model.create_model()
-
-        with tf.Session() as session:
-            session.run([gcn_model.init,logit_model.init])
-            gcn_model.train(session,n_iter=200)
-            print('Logit Model')
-            logit_model.train(session,n_iter=200)
-        #Bug was due to two activation function of the logit ....
-
-
-        lr=LogisticRegression()
-        lr.fit(dataset.X,np.argmax(dataset.Y,axis=1))
-        acc=lr.score(dataset.X,np.argmax(dataset.Y,axis=1))
-        print('Accuracy LR',acc)
-
-    def test_03_buildEdgeMat(self):
-        #Test of building the EdgeMatrix representation needed for learning the edge feature
-        dataset=GCNDataset('UT_iris_0')
-        dataset.load_pickle('iris_graph.pickle')
-        dataset.print_stats()
-
-        A=dataset.A
-        E=dataset.E
-        print(A.shape)
-        print(E.shape)
-        nb_node = A.shape[0]
-        edge_dim= dataset.E.shape[1]-2 #Preprocess That
-
-        EA =np.zeros((edge_dim,(nb_node*nb_node)),dtype=np.float32)
-        #edge_idx=list(zip(E[:,0],E[:,1]))
-        #edge_idx = [(int(x[0]),int(x[1])) for x in edge_idx]
-        i_list =[]
-        j_list=[]
-        for x,y in zip(E[:,0],E[:,1]):
-            i_list.append(int(x))
-            j_list.append(int(y))
-
-        for i in range(edge_dim):
-            #Build a adjecency sparse matrix for the i_dim of the edge
-            #pdb.set_trace()
-            idim_mat =sp.coo_matrix((E[:,i+2],(i_list,j_list)), shape=(nb_node, nb_node))
-
-            D= np.asarray(idim_mat.todense()).squeeze()
-            EA[i,:]=np.reshape(D,-1)
-
-        print(EA.shape)
-        print(E[0:4,:])
-
-        #Print rep of first edge
-        print('Representation of first node')
-        print(EA[:,int(E[0,1])])
-        print(EA[:,int(E[1,1])])
-        #Print rep of first edge
-        print('Representation of second node')
-        print(EA[:,nb_node+int(E[2,1])])
-        print(EA[:,nb_node+int(E[3,1])])
-
-
-        Wedge  = tf.Variable(tf.ones([1,edge_dim], dtype=np.float32, name='Wedge'))
-        tf_EA=tf.constant(EA)
-
-        Em =(tf.matmul(Wedge,tf_EA))
-        Z=tf.reshape(Em,(nb_node,nb_node))
-
-        init = tf.global_variables_initializer()
-        with tf.Session() as session:
-            session.run(init)
-            Em_=session.run(Em)
-            Z_=session.run(Z)
-            print(Em_.shape)
-            print(Z_.shape)
-            #TODO check somestuff on Z
-
-    def test_04_learn_edge(self):
-        dataset=GCNDataset('UT_iris_0')
-        dataset.load_pickle('iris_graph.pickle')
-        dataset.print_stats()
-
-        gcn_model = DummyGCNModel(dataset, num_layers=1, learning_rate=0.1)
-        #gcn_model.activation=tf.nn.softmax
-        gcn_model.activation=tf.nn.relu
-        #gcn_model.activation=tf.nn.sigmoid
-        gcn_model.create_model()
-
-
-        edge_model =DummyGCNModel(dataset, num_layers=1, learning_rate=0.1)
-        #gcn_model.activation=tf.nn.softmax
-        edge_model.activation=tf.nn.relu
-        edge_model.learn_edge=True
-        edge_model.create_model()
-
-
-        nb_iter=300
-        with tf.Session() as session:
-            session.run([gcn_model.init,edge_model.init])
-            gcn_model.train(session,n_iter=nb_iter)
-            print('Edge model')
-            edge_model.train(session,n_iter=nb_iter)
-            we =session.run(edge_model.Wedge)
-            print(we)
-        #Bug was due to two activation function of the logit ....
-
     def test_05_load_jl_pickle(self):
 
         pickle_fname='/nfs/project/read/testJL/TABLE/abp_models/abp_CV10_fold_10_tlXlY_trn.pkl'
         gcn_graph= GCNDataset.load_transkribus_pickle(pickle_fname)
         print(len(gcn_graph),'loaded graph')
-
-
-
 
 
     def test_12_merge_graph(self):
@@ -411,6 +304,11 @@ class UT_gcn(unittest.TestCase):
 
         gcn_model = EdgeConvNet(node_dim, edge_dim, nb_class, num_layers=3, learning_rate=0.01, mu=0.0,
                                 node_indim=-1, nconv_edge=10)
+
+
+
+
+
         # gcn_model =EdgeConvNet(node_dim,edge_dim,nb_class,num_layers=1,learning_rate=0.001,mu=0.0,node_indim=-1)
         gcn_model.fast_convolve = True
         gcn_model.use_conv_weighted_avg=True
@@ -463,6 +361,122 @@ class UT_gcn(unittest.TestCase):
             g_acc, node_acc = gcn_model.test_lG(session, gcn_graph_train)
             print('Mean Accuracy', g_acc, node_acc)
             # Get the Test Prediction
+
+    def test_graphattnet_attnlayer(self):
+        print('Test', os.getcwd())
+
+        gcn_graph = get_graph_test()
+        node_dim = gcn_graph.X.shape[1]
+        edge_dim = gcn_graph.E.shape[1] - 2.0
+        nb_class = gcn_graph.Y.shape[1]
+
+        gcn_model = GraphAttNet(node_dim, nb_class, num_layers=1, learning_rate=0.01, node_indim=8, nb_attention=1)
+        gcn_model.create_model()
+
+        Wa = tf.eye(node_dim)
+        va = tf.ones([1,node_dim])
+        # elf.Ssparse, self.Tspars
+        alphas,nH = gcn_model.simple_graph_attention_layer(gcn_model.node_input, Wa, va, gcn_model.Ssparse,
+                                                        gcn_model.Tsparse, gcn_model.Aind, gcn_model.Sshape,
+                                                        gcn_model.nb_edge, gcn_model.dropout_p_attn)
+        alphas_shape = tf.shape(alphas)
+
+        init = tf.global_variables_initializer()
+
+        graph=gcn_graph
+        with tf.Session() as session:
+            session.run([init])
+
+            print('### Graph', graph.X.shape, graph.F.shape[0])
+            # print(graph.Sind)
+            # print(graph.Tind)
+            nb_node =graph.X.shape[0]
+            Aind = np.array(np.stack([graph.Sind[:, 0], graph.Tind[:, 1]], axis=-1), dtype='int64')
+            print("Adjacency Indices:", Aind.shape, Aind)
+            feed_batch = {
+                gcn_model.nb_node: graph.X.shape[0],
+                gcn_model.nb_edge: graph.F.shape[0],
+                gcn_model.node_input: graph.X,
+                gcn_model.Ssparse: np.array(graph.Sind, dtype='int64'),
+                gcn_model.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
+                gcn_model.Tsparse: np.array(graph.Tind, dtype='int64'),
+                gcn_model.Aind: Aind,
+                # self.F: graph.F,
+                gcn_model.y_input: graph.Y,
+                # self.dropout_p_H: self.dropout_rate_H,
+                gcn_model.dropout_p_node: 0.0,
+                gcn_model.dropout_p_attn: 0.0,
+
+            }
+            [c_alphas,c_nH, c_alphas_shape] = session.run([alphas,nH, alphas_shape], feed_dict=feed_batch)
+            print('alphas',c_alphas,c_alphas_shape)
+
+            sp_mat = sp.coo_matrix((c_alphas.values, (c_alphas.indices[:,0],c_alphas.indices[:,1])), shape=(nb_node, nb_node))
+            Att_dense =sp_mat.todense()
+            print(Att_dense)
+            self.assertTrue(c_alphas_shape[0]==3)
+            self.assertTrue(c_alphas_shape[1]==3)
+
+            self.assertTrue(Att_dense[0,2]==0)
+            self.assertAlmostEqual(Att_dense[1,0], np.exp(2.5)/(np.exp(2.5)+np.exp(2)))
+            self.assertAlmostEqual(Att_dense[0, 1],1.0)
+            self.assertAlmostEqual(Att_dense[2, 1],1.0)
+
+
+
+    def test_graphattnet_train(self):
+        print('Test',os.getcwd())
+        pickle_fname = '/nfs/project/read/testJL/TABLE/abp_quantile_models/abp_CV_fold_1_tlXlY_trn.pkl'
+        gcn_graph = GCNDataset.load_transkribus_pickle(pickle_fname)
+
+        gcn_graph_train = [gcn_graph[8], gcn_graph[18], gcn_graph[29]]
+        node_dim = gcn_graph[0].X.shape[1]
+        edge_dim = gcn_graph[0].E.shape[1] - 2.0
+        nb_class = gcn_graph[0].Y.shape[1]
+
+        gcn_model = GraphAttNet(node_dim, nb_class, num_layers=1, learning_rate=0.01, node_indim=8,nb_attention=1)
+        gcn_model.create_model()
+
+
+        Wa = init_glorot([int(node_dim), 8], name='Da0' )
+        va = init_glorot([1,8], name='da0')
+        # elf.Ssparse, self.Tspars
+        alphas = gcn_model.simple_graph_attention_layer(gcn_model.node_input, Wa, va, gcn_model.Ssparse, gcn_model.Tsparse,gcn_model.Aind, gcn_model.Sshape,
+                                              gcn_model.nb_edge, gcn_model.dropout_p_attn)
+
+        alphas_shape=tf.shape(alphas)
+
+        init = tf.global_variables_initializer()
+
+        with tf.Session() as session:
+            session.run([init])
+
+            for graph in gcn_graph_train:
+                print('### Graph',graph.X.shape,graph.F.shape[0])
+                #print(graph.Sind)
+                #print(graph.Tind)
+                Aind =np.array(np.stack([graph.Sind[:,0],graph.Tind[:,1]],axis=-1),dtype='int64')
+                print("Adjacency Indices:",Aind.shape,Aind)
+                feed_batch = {
+                    gcn_model.nb_node: graph.X.shape[0],
+                    gcn_model.nb_edge: graph.F.shape[0],
+                    gcn_model.node_input: graph.X,
+                    gcn_model.Ssparse: np.array(graph.Sind, dtype='int64'),
+                    gcn_model.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
+                    gcn_model.Tsparse: np.array(graph.Tind, dtype='int64'),
+                    gcn_model.Aind:    Aind,
+                    # self.F: graph.F,
+                    gcn_model.y_input: graph.Y,
+                    # self.dropout_p_H: self.dropout_rate_H,
+                    gcn_model.dropout_p_node: 0.0,
+                    gcn_model.dropout_p_attn: 0.0,
+
+
+                }
+                [A,As]=session.run([alphas,alphas_shape],feed_dict=feed_batch)
+                print(A,As)
+
+
 
 
 
