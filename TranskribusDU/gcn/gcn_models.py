@@ -1348,8 +1348,10 @@ class EdgeLogit(Logit):
 
 #TODO Benchmark on Snake, GCN, ECN, graphAttNet vs Cora
 #TODO Refactorize Code
-#TODO This attention mechanism is stupid !
+#TODO This attention mechanism is stupid ?
 # Do a dot product attention or something different ...
+# Change Initialization of the attention vector
+
 class GraphAttNet(MultiGraphNN):
     '''
     Graph Attention Network
@@ -1418,7 +1420,7 @@ class GraphAttNet(MultiGraphNN):
     #TODO Change the transpose of the A parameter
     def simple_graph_attention_layer(self,H,W,A,S,T,Adjind,Sshape,nb_edge,
                                      dropout_attention,dropout_node,
-                                     use_dropout=False,add_self_loop=False,attn_mult=False):
+                                     use_dropout=False,add_self_loop=False,attn_type=0):
         '''
         :param H: The current node feature
         :param W: The node projection for this layer
@@ -1460,7 +1462,8 @@ class GraphAttNet(MultiGraphNN):
             #print('SP', SP.get_shape())
 
             #A is given as vector [1,indim]; we could avoid this transpose
-            if attn_mult:
+            if attn_type==1:
+                #Mutlitplication Attn Module
                 Aij_forward = A  # attention vector for forward edge and backward edge
                 Aij_backward = A  # Here we assume it is the same on contrary to the paper
                 # Compute the attention weight for target node, ie a . Whj if j is the target node
@@ -1471,6 +1474,12 @@ class GraphAttNet(MultiGraphNN):
                 # The attention values for the edge ij is the sum of attention of node i and j
                 # Attn( node_i, node_j) = Sum_k (a_k)^2 Hik Hjk Is this what we want ?
                 att_source_target_node = tf.reduce_sum( tf.multiply(att_source_node,att_target_node),axis=1)
+                attn_values = tf.nn.leaky_relu( att_source_target_node)
+
+            elif attn_type==2:
+                #Inspired by learning to rank approach on w(x+-x-)
+                # Attn( node_i, node_j) = Sum_k (a_k)  (Hik- Hjk) Is this what we want ?
+                att_source_target_node = tf.reduce_sum( tf.multiply(SP-TP,A[0]),axis=1)
                 attn_values = tf.nn.leaky_relu( att_source_target_node)
 
             else:
@@ -1616,7 +1625,7 @@ class GraphAttNet(MultiGraphNN):
             _, nH = self.simple_graph_attention_layer(H0, I, va, self.Ssparse, self.Tsparse, self.Aind,
                                                       self.Sshape, self.nb_edge, self.dropout_p_attn,
                                                       self.dropout_p_node,
-                                                      use_dropout=self.use_dropout, add_self_loop=False,attn_mult=True)
+                                                      use_dropout=self.use_dropout, add_self_loop=False,attn_type=2)
             attns0.append(nH)
         self.hidden_layer.append(
             self.activation(tf.concat(attns0, axis=-1)))  # Now dims should be indim*self.nb_attention
@@ -1642,12 +1651,18 @@ class GraphAttNet(MultiGraphNN):
                                                           self.Aind,
                                                           self.Sshape, self.nb_edge, self.dropout_p_attn,
                                                           self.dropout_p_node,
-                                                          use_dropout=self.use_dropout, add_self_loop=False,attn_mult=True)
+                                                          use_dropout=self.use_dropout, add_self_loop=False,attn_type=2)
                 attns.append(nH)
 
             self.hidden_layer.append(self.activation(tf.concat(attns, axis=-1)))
 
         # Define Logit Layer
+        #TODO Add Attention on Logit Layer
+        # Why does node_dim=-1 does not work .. BUG ?
+        #Investigate attention mecha with learning to rank like effect w(H_i -H_j)
+        #If x,y are indicated in the node feature then we can implicitly find the type of edges that we are using ...
+
+
         if self.num_layers>1:
             logits_a = init_glorot([int(self.node_indim * self.nb_attention+self.node_indim), int(self.n_classes)],
                                    name='Logita' + '_' + str(a))
