@@ -256,10 +256,11 @@ try:
 
             dLearnerConfig = {'nb_iter': 500,
                               'lr': 0.001,
-                              'num_layers': 3,
-                              'nb_attention': 10,
+                              'num_layers': 5,
+                              'nb_attention': 5,
                               'stack_convolutions': True,
-                              'node_indim': -1   ,
+                              #'node_indim': 50   , worked well 0.82
+                              'node_indim': -1,
                               'dropout_rate_node': 0.0,
                               'dropout_rate_attention'  : 0.0,
                               'ratio_train_val': 0.15,
