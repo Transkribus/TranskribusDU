@@ -1346,7 +1346,10 @@ class EdgeLogit(Logit):
 
 
 
-
+#TODO Benchmark on Snake, GCN, ECN, graphAttNet vs Cora
+#TODO Refactorize Code
+#TODO This attention mechanism is stupid !
+# Do a dot product attention or something different ...
 class GraphAttNet(MultiGraphNN):
     '''
     Graph Attention Network
@@ -1358,9 +1361,6 @@ class GraphAttNet(MultiGraphNN):
         "num_layers": True, "lr": True,
         "node_indim": True, "nb_attention": True,
         "nb_iter": True, "ratio_train_val": True}
-
-    #TODO add Dropout
-    #TODO add self-loop
 
     def __init__(self,node_dim,nb_classes,num_layers=1,learning_rate=0.1,node_indim=-1,nb_attention=3
                  ):
@@ -1379,6 +1379,8 @@ class GraphAttNet(MultiGraphNN):
         self.dropout_rate_node = 0.0
         self.dropout_rate_attention = 0.0
         self.nb_attention=nb_attention
+        self.distinguish_node_from_neighbor=False
+        self.original_model=False
 
 
         if node_indim==-1:
@@ -1416,7 +1418,7 @@ class GraphAttNet(MultiGraphNN):
     #TODO Change the transpose of the A parameter
     def simple_graph_attention_layer(self,H,W,A,S,T,Adjind,Sshape,nb_edge,
                                      dropout_attention,dropout_node,
-                                     use_dropout=False,add_self_loop=False):
+                                     use_dropout=False,add_self_loop=False,attn_mult=False):
         '''
         :param H: The current node feature
         :param W: The node projection for this layer
@@ -1458,15 +1460,30 @@ class GraphAttNet(MultiGraphNN):
             #print('SP', SP.get_shape())
 
             #A is given as vector [1,indim]; we could avoid this transpose
-            Aij_forward=A  # attention vector for forward edge and backward edge
-            Aij_backward=A # Here we assume it is the same on contrary to the paper
-            # Compute the attention weight for target node, ie a . Whj if j is the target node
-            att_target_node  =tf.matmul(TP,Aij_forward,transpose_b=True)
-            # Compute the attention weight for the source node, ie a . Whi if j is the target node
-            att_source_node = tf.matmul(SP,Aij_backward,transpose_b=True)
+            if attn_mult:
+                Aij_forward = A  # attention vector for forward edge and backward edge
+                Aij_backward = A  # Here we assume it is the same on contrary to the paper
+                # Compute the attention weight for target node, ie a . Whj if j is the target node
+                att_target_node = tf.multiply(TP,  Aij_forward[0])
+                # Compute the attention weight for the source node, ie a . Whi if j is the target node
+                att_source_node = tf.multiply(SP, Aij_backward[0])
 
-            # The attention values for the edge ij is the sum of attention of node i and j
-            attn_values = tf.nn.leaky_relu(tf.squeeze(att_target_node) + tf.squeeze(att_source_node))
+                # The attention values for the edge ij is the sum of attention of node i and j
+                # Attn( node_i, node_j) = Sum_k (a_k)^2 Hik Hjk Is this what we want ?
+                att_source_target_node = tf.reduce_sum( tf.multiply(att_source_node,att_target_node),axis=1)
+                attn_values = tf.nn.leaky_relu( att_source_target_node)
+
+            else:
+                Aij_forward=A  # attention vector for forward edge and backward edge
+                Aij_backward=A # Here we assume it is the same on contrary to the paper
+                # Compute the attention weight for target node, ie a . Whj if j is the target node
+                att_target_node  =tf.matmul(TP,Aij_forward,transpose_b=True)
+                # Compute the attention weight for the source node, ie a . Whi if j is the target node
+                att_source_node = tf.matmul(SP,Aij_backward,transpose_b=True)
+
+                # The attention values for the edge ij is the sum of attention of node i and j
+                attn_values = tf.nn.leaky_relu(tf.squeeze(att_target_node) + tf.squeeze(att_source_node))
+
             # From that we build a sparse adjacency matrix containing the correct values
             # which we then feed to a sparse softmax
             AttAdj = tf.SparseTensor(indices=Adjind, values=attn_values, dense_shape=[Sshape[0], Sshape[0]])
@@ -1500,6 +1517,146 @@ class GraphAttNet(MultiGraphNN):
 
 
 
+    def _create_original_model(self):
+        std_dev_in = float(1.0 / float(self.node_dim))
+        self.use_dropout = self.dropout_rate_attention > 0 or self.dropout_rate_node > 0
+        self.hidden_layer = []
+        attns0 = []
+
+        # Define the First Layer from the Node Input
+        for a in range(self.nb_attention):
+            # H0 = Maybe do a common H0 and have different attention parameters
+            # Change the attention, maybe ?
+            # Do multiplicative
+            # How to add edges here
+            # Just softmax makes a differences
+            # I could stack [current_node,representation; edge_features;] and do a dot product on that
+            Wa = init_glorot([int(self.node_dim), int(self.node_indim)], name='Wa0' + str(a))
+            va = tf.ones([1, int(self.node_indim)], name='va0' + str(a))
+
+            if self.distinguish_node_from_neighbor:
+                H0 = tf.matmul(self.node_input, Wa)
+                attns.append(H0)
+
+            _, nH = self.simple_graph_attention_layer(self.node_input, Wa, va, self.Ssparse, self.Tsparse, self.Aind,
+                                                      self.Sshape, self.nb_edge, self.dropout_p_attn,
+                                                      self.dropout_p_node,
+                                                      use_dropout=self.use_dropout, add_self_loop=True)
+            attns0.append(nH)
+        self.hidden_layer.append(
+            self.activation(tf.concat(attns0, axis=-1)))  # Now dims should be indim*self.nb_attention
+
+        # Define Intermediate Layers
+        for i in range(1, self.num_layers):
+            attns = []
+            for a in range(self.nb_attention):
+                if self.distinguish_node_from_neighbor:
+                    Wia = init_glorot(
+                        [int(self.node_indim * self.nb_attention + self.node_indim), int(self.node_indim)],
+                        name='Wa' + str(i) + '_' + str(a))
+                else:
+                    Wia = init_glorot([int(self.node_indim * self.nb_attention), int(self.node_indim)],
+                                      name='Wa' + str(i) + '_' + str(a))
+
+                via = tf.ones([1, int(self.node_indim)], name='va' + str(i) + '_' + str(a))
+                _, nH = self.simple_graph_attention_layer(self.hidden_layer[-1], Wia, via, self.Ssparse, self.Tsparse,
+                                                          self.Aind,
+                                                          self.Sshape, self.nb_edge, self.dropout_p_attn,
+                                                          self.dropout_p_node,
+                                                          use_dropout=self.use_dropout, add_self_loop=True)
+                attns.append(nH)
+
+            self.hidden_layer.append(self.activation(tf.concat(attns, axis=-1)))
+
+        # Define Logit Layer
+        out = []
+        for i in range(self.nb_attention):
+        #for i in range(1):
+            logits_a = init_glorot([int(self.node_indim * self.nb_attention), int(self.n_classes)],
+                                   name='Logita' + '_' + str(a))
+            via = tf.ones([1, int(self.n_classes)], name='LogitA' + '_' + str(a))
+            _, nL = self.simple_graph_attention_layer(self.hidden_layer[-1], logits_a, via, self.Ssparse, self.Tsparse,
+                                                      self.Aind,
+                                                      self.Sshape, self.nb_edge, self.dropout_p_attn,
+                                                      self.dropout_p_node,
+                                                      use_dropout=self.use_dropout, add_self_loop=True)
+            out.append(nL)
+
+        self.logits = tf.add_n(out) / self.nb_attention
+        #self.logits = out[0]
+
+
+    def _create_nodedistint_model(self):
+        '''
+        Create a model the separe node distinct models
+        :return:
+        '''
+
+        std_dev_in = float(1.0 / float(self.node_dim))
+        self.use_dropout = self.dropout_rate_attention > 0 or self.dropout_rate_node > 0
+        self.hidden_layer = []
+        attns0 = []
+
+        # Define the First Layer from the Node Input
+        Wa = tf.eye(int(self.node_dim), name='I0')
+        H0 = tf.matmul(self.node_input, Wa)
+        attns0.append(H0)
+
+        I = tf.Variable(tf.eye(self.node_dim), trainable=False)
+        for a in range(self.nb_attention):
+            # H0 = Maybe do a common H0 and have different attention parameters
+            # Change the attention, maybe ?
+            # Do multiplicative
+            # How to add edges here
+            # Just softmax makes a differences
+            # I could stack [current_node,representation; edge_features;] and do a dot product on that
+            va = tf.ones([1, int(self.node_dim)], name='va0' + str(a))
+
+
+            _, nH = self.simple_graph_attention_layer(H0, I, va, self.Ssparse, self.Tsparse, self.Aind,
+                                                      self.Sshape, self.nb_edge, self.dropout_p_attn,
+                                                      self.dropout_p_node,
+                                                      use_dropout=self.use_dropout, add_self_loop=False,attn_mult=True)
+            attns0.append(nH)
+        self.hidden_layer.append(
+            self.activation(tf.concat(attns0, axis=-1)))  # Now dims should be indim*self.nb_attention
+
+        # Define Intermediate Layers
+        for i in range(1, self.num_layers):
+            attns = []
+            if i == 1:
+                previous_layer_dim =int(self.node_dim * self.nb_attention + self.node_dim)
+                Wia = init_glorot([previous_layer_dim, int(self.node_indim)],
+                    name='Wa' + str(i) + '_' + str(a))
+            else:
+                previous_layer_dim = int(self.node_indim * self.nb_attention + self.node_indim)
+                Wia = init_glorot( [previous_layer_dim, int(self.node_indim)], name='Wa' + str(i) + '_' + str(a))
+
+            Hi = tf.matmul(self.hidden_layer[-1], Wia)
+            attns.append(Hi)
+            Ia = tf.Variable(tf.eye(self.node_indim), trainable=False)
+
+            for a in range(self.nb_attention):
+                via = tf.ones([1, int(self.node_indim)], name='va' + str(i) + '_' + str(a))
+                _, nH = self.simple_graph_attention_layer(Hi, Ia, via, self.Ssparse, self.Tsparse,
+                                                          self.Aind,
+                                                          self.Sshape, self.nb_edge, self.dropout_p_attn,
+                                                          self.dropout_p_node,
+                                                          use_dropout=self.use_dropout, add_self_loop=False,attn_mult=True)
+                attns.append(nH)
+
+            self.hidden_layer.append(self.activation(tf.concat(attns, axis=-1)))
+
+        # Define Logit Layer
+        if self.num_layers>1:
+            logits_a = init_glorot([int(self.node_indim * self.nb_attention+self.node_indim), int(self.n_classes)],
+                                   name='Logita' + '_' + str(a))
+        else:
+            logits_a = init_glorot([int(self.node_dim * self.nb_attention + self.node_dim), int(self.n_classes)],
+                                   name='Logita' + '_' + str(a))
+        Bc = tf.ones([int(self.n_classes)], name='LogitA' + '_' + str(a))
+        # self.logits = tf.add_n(out) / self.nb_attention
+        self.logits = tf.matmul(self.hidden_layer[-1],logits_a) +Bc
 
 
     def create_model(self):
@@ -1521,51 +1678,14 @@ class GraphAttNet(MultiGraphNN):
         self.T          = tf.placeholder(tf.float32,[None,None], name='T')
         self.Tsparse    = tf.placeholder(tf.int64, name='Tsparse')
 
+
         #self.S_indice = tf.placeholder(tf.in, [None, None], name='S')
         #self.F          = tf.placeholder(tf.float32,[None,None], name='F')
 
-
-        std_dev_in=float(1.0/ float(self.node_dim))
-        self.use_dropout = self.dropout_rate_attention > 0 or self.dropout_rate_node > 0
-        self.hidden_layer=[]
-        attns0 = []
-
-        #Define the First Layuer from the Node Input
-        for a in range(self.nb_attention):
-            Wa  =init_glorot([int(self.node_dim), int(self.node_indim)], name='Wa0'+str(a))
-            va  =tf.ones([1,int(self.node_indim)],name='va0'+str(a) )
-            #elf.Ssparse, self.Tspars
-            _,nH =self.simple_graph_attention_layer(self.node_input,Wa,va,self.Ssparse,self.Tsparse,self.Aind,
-                                                    self.Sshape,self.nb_edge,self.dropout_p_attn,self.dropout_p_node,
-                                                    use_dropout=self.use_dropout,add_self_loop=True)
-            attns0.append(nH)
-        self.hidden_layer.append(self.activation( tf.concat(attns0, axis=-1) )) #Now dims should be indim*self.nb_attention
-
-        # Define Intermediate Layers
-        for i in range(1, self.num_layers):
-            attns = []
-            for a in range(self.nb_attention):
-                Wia = init_glorot([int(self.node_indim *self.nb_attention), int(self.node_indim)], name='Wa'+ str(i)+'_'+str(a))
-                via = tf.ones([1,int(self.node_indim)], name='va' + str(i)+'_'+str(a))
-                _,nH =self.simple_graph_attention_layer(self.hidden_layer[-1],Wia,via,self.Ssparse,self.Tsparse,self.Aind,
-                                                        self.Sshape,self.nb_edge,self.dropout_p_attn,self.dropout_p_node,
-                                                        use_dropout=self.use_dropout,add_self_loop=True)
-                attns.append(nH)
-
-            self.hidden_layer.append(self.activation(tf.concat(attns, axis=-1)))
-
-        # Define Logit Layer
-        out = []
-        for i in range(self.nb_attention):
-            logits_a = init_glorot([int(self.node_indim * self.nb_attention), int(self.n_classes)],
-                              name='Logita' + '_' + str(a))
-            via = tf.ones([1,int(self.n_classes)], name='LogitA' + '_' + str(a))
-            _,nL =self.simple_graph_attention_layer(self.hidden_layer[-1], logits_a, via, self.Ssparse, self.Tsparse,self.Aind,
-                                                  self.Sshape,self.nb_edge,self.dropout_p_attn,self.dropout_p_node,
-                                                    use_dropout=self.use_dropout,add_self_loop=True)
-            out.append(nL)
-
-        self.logits = tf.add_n(out) / self.nb_attention
+        if self.original_model:
+            self._create_original_model()
+        else:
+            self._create_nodedistint_model()
 
         cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
         self.loss = tf.reduce_mean(cross_entropy_source)
