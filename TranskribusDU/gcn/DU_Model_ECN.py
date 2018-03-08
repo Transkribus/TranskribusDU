@@ -319,11 +319,12 @@ class DU_Model_ECN(Model):
 
         self._cleanTmpCheckpointFiles()
 
+        patience = self.model_config['patience'] if 'patience' in self.model_config else self.model_config['nb_iter']
         with tf.Session() as session:
             session.run([self.gcn_model.init])
 
             R = self.gcn_model.train_with_validation_set(session, gcn_graph_train, gcn_graph_val, self.model_config['nb_iter'],
-                                                    eval_iter=10, patience=self.model_config['patience'],
+                                                    eval_iter=10, patience=patience,
                                                     save_model_path=self.getTmpModelFilename())
             f = open(self.getValScoreFilename(), 'wb')
             pickle.dump(R, f)
