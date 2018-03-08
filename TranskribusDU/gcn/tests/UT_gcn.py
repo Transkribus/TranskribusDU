@@ -373,7 +373,7 @@ class UT_gcn(unittest.TestCase):
         gcn_model.create_model()
 
         Wa = tf.eye(node_dim)
-        va = tf.ones([1,node_dim])
+        va = tf.ones([2,node_dim])
         # elf.Ssparse, self.Tspars
         alphas,nH = gcn_model.simple_graph_attention_layer(gcn_model.node_input, Wa, va, gcn_model.Ssparse,
                                                         gcn_model.Tsparse, gcn_model.Aind, gcn_model.Sshape,
@@ -432,7 +432,7 @@ class UT_gcn(unittest.TestCase):
         gcn_model.create_model()
 
         Wa = tf.eye(node_dim)
-        va = tf.ones([1,node_dim])
+        va = tf.ones([2,node_dim])
         # elf.Ssparse, self.Tspars
         alphas,nH = gcn_model.simple_graph_attention_layer(gcn_model.node_input, Wa, va, gcn_model.Ssparse,
                                                         gcn_model.Tsparse, gcn_model.Aind, gcn_model.Sshape,

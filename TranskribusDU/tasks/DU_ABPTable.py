@@ -254,20 +254,41 @@ try:
 
             sLabeledXmlFilenameEXT = ".mpxml"
 
-            dLearnerConfig = {'nb_iter': 500,
+
+            dLearnerConfigOriginalGAT ={
+                'nb_iter': 500,
+                'lr': 0.001,
+                'num_layers': 2,#2 Train Acc is lower 5 overfit both reach 81% accuracy on Fold-1
+                'nb_attention': 5,
+                'stack_convolutions': True,
+                # 'node_indim': 50   , worked well 0.82
+                'node_indim': -1,
+                'dropout_rate_node': 0.0,
+                'dropout_rate_attention': 0.0,
+                'ratio_train_val': 0.15,
+                "activation_name": 'tanh',
+                "patience": 50,
+                "mu": 0.00001,
+                "original_model" : True
+
+            }
+
+            dLearnerConfigNewGAT = {'nb_iter': 500,
                               'lr': 0.001,
                               'num_layers': 5,
                               'nb_attention': 5,
                               'stack_convolutions': True,
-                              #'node_indim': 50   , worked well 0.82
                               'node_indim': -1,
                               'dropout_rate_node': 0.0,
                               'dropout_rate_attention'  : 0.0,
                               'ratio_train_val': 0.15,
                               "activation_name": 'tanh',
-                              "patience":50
-                              #'activation': tf.nn.tanh, Problem I can not serialize function HERE
+                              "patience":50,
+                              "original_model": False,
+                              "attn_type":0
                }
+            dLearnerConfig = dLearnerConfigNewGAT
+            #dLearnerConfig = dLearnerConfigOriginalGAT
             # === CONFIGURATION ====================================================================
             @classmethod
             def getConfiguredGraphClass(cls):

@@ -1348,9 +1348,22 @@ class EdgeLogit(Logit):
 
 #TODO Benchmark on Snake, GCN, ECN, graphAttNet vs Cora
 #TODO Refactorize Code
-#TODO This attention mechanism is stupid ?
+#TODO Add L2 Regularization
+#TODO Stack or Add Convolution -> Reduce the size
+# Force the attention to preserve the node information i.e alpha'= 0.8 I +0.2 alpha
+# Force doing attention only for the logit ?
+# with a two layer
+# Branching factor --> Attention
+# Logit Layer and Attention
+# There is one diff with ECN the feature for the edges are dynamically calculated
+# whereas for GAT they are conditionned on the currect Node features
+# 0.88
 # Do a dot product attention or something different ...
 # Change Initialization of the attention vector
+# with Attn vector equal  [x;0] the attention keeps the source features and do not propagate ...
+# Should reduce Nb of parameters
+# This notion of edges is completely arbritrary
+# We could at all nodes in the graph to see whether there are some depencies, no ?, interesting exp
 
 class GraphAttNet(MultiGraphNN):
     '''
@@ -1377,12 +1390,13 @@ class GraphAttNet(MultiGraphNN):
         self.optalg = tf.train.AdamOptimizer(self.learning_rate)
         self.stack_instead_add=False
         self.residual_connection=False#deprecated
-
+        self.mu=0.0
         self.dropout_rate_node = 0.0
         self.dropout_rate_attention = 0.0
         self.nb_attention=nb_attention
         self.distinguish_node_from_neighbor=False
         self.original_model=False
+        self.attn_type=0
 
 
         if node_indim==-1:
@@ -1461,7 +1475,8 @@ class GraphAttNet(MultiGraphNN):
             SP = tf.sparse_tensor_dense_matmul(tf.sparse_transpose(SD), P,name='SP') #shape(nb_edge,in_dim)
             #print('SP', SP.get_shape())
 
-            #A is given as vector [1,indim]; we could avoid this transpose
+
+            #Deprecated
             if attn_type==1:
                 #Mutlitplication Attn Module
                 Aij_forward = A  # attention vector for forward edge and backward edge
@@ -1475,7 +1490,7 @@ class GraphAttNet(MultiGraphNN):
                 # Attn( node_i, node_j) = Sum_k (a_k)^2 Hik Hjk Is this what we want ?
                 att_source_target_node = tf.reduce_sum( tf.multiply(att_source_node,att_target_node),axis=1)
                 attn_values = tf.nn.leaky_relu( att_source_target_node)
-
+            #
             elif attn_type==2:
                 #Inspired by learning to rank approach on w(x+-x-)
                 # Attn( node_i, node_j) = Sum_k (a_k)  (Hik- Hjk) Is this what we want ?
@@ -1483,12 +1498,12 @@ class GraphAttNet(MultiGraphNN):
                 attn_values = tf.nn.leaky_relu( att_source_target_node)
 
             else:
-                Aij_forward=A  # attention vector for forward edge and backward edge
-                Aij_backward=A # Here we assume it is the same on contrary to the paper
+                Aij_forward=tf.expand_dims(A[0],0)  # attention vector for forward edge and backward edge
+                Aij_backward=tf.expand_dims(A[1],0) # Here we assume it is the same on contrary to the paper
                 # Compute the attention weight for target node, ie a . Whj if j is the target node
-                att_target_node  =tf.matmul(TP,Aij_forward,transpose_b=True)
+                att_target_node  =tf.matmul(TP,Aij_backward,transpose_b=True)
                 # Compute the attention weight for the source node, ie a . Whi if j is the target node
-                att_source_node = tf.matmul(SP,Aij_backward,transpose_b=True)
+                att_source_node = tf.matmul(SP,Aij_forward,transpose_b=True)
 
                 # The attention values for the edge ij is the sum of attention of node i and j
                 attn_values = tf.nn.leaky_relu(tf.squeeze(att_target_node) + tf.squeeze(att_source_node))
@@ -1502,8 +1517,9 @@ class GraphAttNet(MultiGraphNN):
             if add_self_loop:
                 node_indices=tf.range(Sshape[0])
                 #Sparse Idendity
+                Aij_forward = tf.expand_dims(A[0], 0)
                 id_indices = tf.stack([node_indices, node_indices], axis=1)
-                val =tf.squeeze(tf.matmul(P,A,transpose_b=True))
+                val =tf.squeeze(tf.matmul(P,Aij_forward,transpose_b=True))
                 spI = tf.SparseTensor(indices=id_indices,values=2.0*val,dense_shape=[Sshape[0], Sshape[0]])
 
                 AttAdj_I = tf.sparse_add(AttAdj,spI)
@@ -1541,7 +1557,7 @@ class GraphAttNet(MultiGraphNN):
             # Just softmax makes a differences
             # I could stack [current_node,representation; edge_features;] and do a dot product on that
             Wa = init_glorot([int(self.node_dim), int(self.node_indim)], name='Wa0' + str(a))
-            va = tf.ones([1, int(self.node_indim)], name='va0' + str(a))
+            va = init_glorot([2, int(self.node_indim)], name='va0' + str(a))
 
             if self.distinguish_node_from_neighbor:
                 H0 = tf.matmul(self.node_input, Wa)
@@ -1567,7 +1583,7 @@ class GraphAttNet(MultiGraphNN):
                     Wia = init_glorot([int(self.node_indim * self.nb_attention), int(self.node_indim)],
                                       name='Wa' + str(i) + '_' + str(a))
 
-                via = tf.ones([1, int(self.node_indim)], name='va' + str(i) + '_' + str(a))
+                via = init_glorot([2, int(self.node_indim)], name='va' + str(i) + '_' + str(a))
                 _, nH = self.simple_graph_attention_layer(self.hidden_layer[-1], Wia, via, self.Ssparse, self.Tsparse,
                                                           self.Aind,
                                                           self.Sshape, self.nb_edge, self.dropout_p_attn,
@@ -1583,7 +1599,7 @@ class GraphAttNet(MultiGraphNN):
         #for i in range(1):
             logits_a = init_glorot([int(self.node_indim * self.nb_attention), int(self.n_classes)],
                                    name='Logita' + '_' + str(a))
-            via = tf.ones([1, int(self.n_classes)], name='LogitA' + '_' + str(a))
+            via = init_glorot([2, int(self.n_classes)], name='LogitA' + '_' + str(a))
             _, nL = self.simple_graph_attention_layer(self.hidden_layer[-1], logits_a, via, self.Ssparse, self.Tsparse,
                                                       self.Aind,
                                                       self.Sshape, self.nb_edge, self.dropout_p_attn,
@@ -1619,13 +1635,13 @@ class GraphAttNet(MultiGraphNN):
             # How to add edges here
             # Just softmax makes a differences
             # I could stack [current_node,representation; edge_features;] and do a dot product on that
-            va = tf.ones([1, int(self.node_dim)], name='va0' + str(a))
+            va = init_glorot([2, int(self.node_dim)], name='va0' + str(a))
 
 
             _, nH = self.simple_graph_attention_layer(H0, I, va, self.Ssparse, self.Tsparse, self.Aind,
                                                       self.Sshape, self.nb_edge, self.dropout_p_attn,
                                                       self.dropout_p_node,
-                                                      use_dropout=self.use_dropout, add_self_loop=False,attn_type=2)
+                                                      use_dropout=self.use_dropout, add_self_loop=False,attn_type=self.attn_type)
             attns0.append(nH)
         self.hidden_layer.append(
             self.activation(tf.concat(attns0, axis=-1)))  # Now dims should be indim*self.nb_attention
@@ -1646,20 +1662,19 @@ class GraphAttNet(MultiGraphNN):
             Ia = tf.Variable(tf.eye(self.node_indim), trainable=False)
 
             for a in range(self.nb_attention):
-                via = tf.ones([1, int(self.node_indim)], name='va' + str(i) + '_' + str(a))
+                via = init_glorot([2, int(self.node_indim)], name='va' + str(i) + '_' + str(a))
                 _, nH = self.simple_graph_attention_layer(Hi, Ia, via, self.Ssparse, self.Tsparse,
                                                           self.Aind,
                                                           self.Sshape, self.nb_edge, self.dropout_p_attn,
                                                           self.dropout_p_node,
-                                                          use_dropout=self.use_dropout, add_self_loop=False,attn_type=2)
+                                                          use_dropout=self.use_dropout, add_self_loop=False,attn_type=self.attn_type)
                 attns.append(nH)
 
             self.hidden_layer.append(self.activation(tf.concat(attns, axis=-1)))
 
         # Define Logit Layer
         #TODO Add Attention on Logit Layer
-        # Why does node_dim=-1 does not work .. BUG ?
-        #Investigate attention mecha with learning to rank like effect w(H_i -H_j)
+        #It would not cost too much to add an attn mecha once I get the logits
         #If x,y are indicated in the node feature then we can implicitly find the type of edges that we are using ...
 
 
