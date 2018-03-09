@@ -24,6 +24,9 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import sys, os
 
@@ -37,11 +40,11 @@ from common.trace import traceln
 
 from crf.Graph_MultiPageXml import FactorialGraph_MultiContinuousPageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
-from DU_CRF_Task import DU_FactorialCRF_Task
+from .DU_CRF_Task import DU_FactorialCRF_Task
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_T_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 
-from DU_BAR import main
+from .DU_BAR import main
  
 class DU_BAR_sem_sgm(DU_FactorialCRF_Task):
     """
