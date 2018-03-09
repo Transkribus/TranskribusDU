@@ -393,11 +393,6 @@ def main(sModelDir, sModelName, options):
         return
 
     lTrn, lTst, lRun, lFold = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun, options.lFold]] 
-#     if options.bAnnotate:
-#         doer.annotateDocument(lTrn)
-#         traceln('annotation done')    
-#         sys.exit(0)
-    
     
     traceln("- classes: ", doer.getGraphClass().getLabelNameList())
     
@@ -444,12 +439,11 @@ def main(sModelDir, sModelName, options):
         traceln(tstReport)
         if options.bDetailedReport:
             traceln(tstReport.getDetailledReport())
-#         if True:
-#             import crf.Model
-#             #In case we want to store the Ys
-#             for sfn, o in [("l_Y_GT.pkl", tstReport.l_Y), ("l_Y_pred.pkl", tstReport.l_Y_pred)]:
-#                 traceln("STORING in %s"%sfn)
-#                 crf.Model.Model.gzip_cPickle_dump(sfn, o)
+            import crf.Model
+            for test in lTst:
+                sReportPickleFilename = os.path.join('..',test, sModelName + "__report.pkl")
+                traceln('Report dumped into %s'%sReportPickleFilename)
+                crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, tstReport)
     
     if lRun:
         if options.storeX or options.applyY:
