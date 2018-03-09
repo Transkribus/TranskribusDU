@@ -1,0 +1,20 @@
+{
+   "gat_learner_config":
+     {
+	"name":"gat_new_3Lay10Attn",
+    "nb_iter": 500,
+    "lr": 0.001,
+    "num_layers": 5,
+    "nb_attention": 5,
+    "stack_convolutions": true,
+    "node_indim": -1,
+    "dropout_rate_node": 0.0,
+    "dropout_rate_attention": 0.0,
+    "ratio_train_val": 0.15,
+    "activation_name": "tanh",
+    "patience": 50,
+    "mu": 0.00001,
+    "attn_type": 0,
+    "original_model" : false
+    }
+}
