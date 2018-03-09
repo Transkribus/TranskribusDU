@@ -60,7 +60,7 @@ class pageVerticalMiner(Component.Component):
         self.sTag= XMLDSTEXTClass
         # TH for comparing numerical features for X
         self.THNUMERICAL = 30
-        self.testTH = 30  # use dfor --test
+        self.testTH = 30  # use dfor --test  BUT ALSO IN RUN !!
         # use for evaluation
         self.THCOMP = 10
         self.evalData= None
@@ -128,7 +128,7 @@ class pageVerticalMiner(Component.Component):
         self.THNUMERICAL = 60  # 2 cml
         
         ## initialization for iter 0
-        for page, in lPages:
+        for page in lPages:
             page.setFeatureFunction(page.getSetOfFeaturesPageSize,self.THNUMERICAL)
             page.computeSetofFeatures()
             
@@ -136,17 +136,17 @@ class pageVerticalMiner(Component.Component):
         seqGen.setMaxSequenceLength(1)
         seqGen.setObjectLevel(XMLDSPageClass)
 
-        seqGen.setSDC(0.96)          
         lSortedFeatures  = seqGen.featureGeneration(lPages,2)
 
         for _,p in enumerate(lPages):
             p.lFeatureForParsing=p.getSetofFeatures()
-#             print p, p.lFeatureForParsing
+            print (p, p.lFeatureForParsing)
         icpt=0
         lCurList=lPages[:]
         lTerminalTemplates=[]
         while icpt <=0:
             if icpt > 0: 
+                #                           N ?
                 seqGen.setMaxSequenceLength(1)
 #                 print '***'*20
                 seqGen.bDebug = False
@@ -165,7 +165,7 @@ class pageVerticalMiner(Component.Component):
             # mis very small since: space is small; some specific pages can be 
             ## replace by PrefiwScan
             lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.002)
-            lPatterns = seqGen.miningSequencePrefixScan(lSeq)
+            lPatterns = seqGen.miningSequencePrefixScan(lSeq,minSupport=0.01,maxPatternLength=3)
 #             lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
             if lPatterns is None:
                 return [lPages]
@@ -589,8 +589,8 @@ class pageVerticalMiner(Component.Component):
             if elt.getAttribute('virtual'):
                 print ("  "*level, 'Node', elt.getAttribute('virtual'))
                 self.printTreeView(elt.getObjects(),level+1)
-            else:
-                print ("  "*level, elt.getContent(), elt.lFeatureForParsing)            
+#             else:
+#                 print ("  "*level, elt.getContent(), elt.lFeatureForParsing)            
     
    
     
@@ -958,16 +958,6 @@ class pageVerticalMiner(Component.Component):
         
         setFullListTemplates= set() 
         for lPages in lLPages:
-            #Width 
-#             self.THNUMERICAL = 50
-#             self.minePageVerticalFeature(lPages, ['width'])
-#             lT, lScore,score = self.processVSegmentation(lPages,[],bTAMode=True,iMinLen=1,iMaxLen=1)
-#             print score, lT, lScore
-            
-            # if w board enough:  assume one column for the main body part (+marginalia?)
-            # here segmentation of lPages if needed (put outside of this loop)
-            ## if coverage low: noisy? not the right way to deal with this document??
-            ###   -> reduce batch ?
             
 #             lsubList = [lPages]
 
@@ -1326,6 +1316,8 @@ class pageVerticalMiner(Component.Component):
         
     def isMirroredPattern(self,pattern):
         """
+        to be replace by a classification model!!
+        
             test if a pattern is mirrored or not
             [A,B,C] [C,B,A]
             
@@ -1537,11 +1529,11 @@ class pageVerticalMiner(Component.Component):
         """
         for page in lPages:
             if page.getNode() is not None:
-                if self.bIgnoreRegions:
-                    self.deleteRegions(page)
-                # if several template ??
+#                 if self.bIgnoreRegions:
+#                     self.deleteRegions(page)
+                lRegions=[]
                 for template in page.getVerticalTemplates():
-#                     print page, template, template.getParent()
+#                     print (page, template, template.getParent())
                     page.getdVSeparator(template).sort(key=lambda x:x.getValue())
 #                     print page.getdVSeparator(template)
                     page.getNode().set('template',str(list(map(lambda x:x.getValue(),page.getdVSeparator(template)))))
@@ -1579,7 +1571,11 @@ class pageVerticalMiner(Component.Component):
 #                         print newReg.getX(),newReg.getY(),newReg.getHeight(),newReg.getWidth(),cut.getValue() - prevcut
                         lRegions.append(newReg)
                         prevcut  = cut.getValue()
-                self.storeLineInRegions(page,lRegions)
+                
+                if lRegions != []:
+                    if self.bIgnoreRegions:
+                        self.deleteRegions(page)
+                    self.storeLineInRegions(page,lRegions)
     
     def tagDomAsTable(self,lPages):
         """
@@ -1722,7 +1718,6 @@ class pageVerticalMiner(Component.Component):
             # first mine page size!!
             ## if width is not the 'same' , then  initial values are not comparable (x-end-ofpage)
             lSubPagesList = self.highLevelSegmentation(self.lPages)
-            
             ## need to regroup similar 
              
 #             self.arrayApproach(lSubPagesList)

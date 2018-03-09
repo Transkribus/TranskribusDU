@@ -135,6 +135,55 @@ class TestReport:
         
         return fScore, sClassificationReport
 
+    @classmethod
+    def compareReport(cls,r1,r2,bDisplay=False):
+        """    
+            compare two reports using  
+                scipy.stats.wilcoxon : Calculate the Wilcoxon signed-rank test.
+
+        """
+        from  scipy.stats import wilcoxon
+        from scipy.stats import  mannwhitneyu
+         
+        lConfMat1 = r1.getConfusionMatrixByDocument()
+        nbClasses = len(lConfMat1[0])
+        print ('nb classes: %d'%nbClasses)
+        eps=1e-8
+        lP1=np.ndarray((len(lConfMat1),nbClasses),dtype=float)
+        lR1=np.ndarray((len(lConfMat1),nbClasses),dtype=float)
+        lF1=np.ndarray((len(lConfMat1),nbClasses),dtype=float)
+        for i,conf in enumerate(lConfMat1):
+            lP1[i]=np.diag(conf)/(eps+conf.sum(axis=0))
+            lR1[i]=np.diag(conf)/(eps+conf.sum(axis=1))
+            lF1[i]= 2*lP1[-1]*lR1[-1]/(eps+lP1[-1]+lR1[-1])
+        
+        lConfMat2 = r2.getConfusionMatrixByDocument()
+        lP2=np.ndarray((len(lConfMat2),nbClasses),dtype=float)
+        lR2=np.ndarray((len(lConfMat2),nbClasses),dtype=float)
+        lF2=np.ndarray((len(lConfMat2),nbClasses),dtype=float)
+        for i,conf2 in enumerate(lConfMat2):
+            lP2[i]=np.diag(conf2)/(eps+conf2.sum(axis=0))
+            lR2[i]=np.diag(conf2)/(eps+conf2.sum(axis=1))
+            lF2[i]= 2*lP2[-1]*lR2[-1]/(eps+lP2[-1]+lR2[-1])
+        
+        if bDisplay:
+            for cl in range(nbClasses):
+                print ('class %s'%cl)
+                r1 = lP1[:,cl]
+                r2 = lP2[:,cl]
+                print ('\tPrecision:')
+                print('\t',wilcoxon(r1,r2))  
+
+                r1 = lR1[:,cl]
+                r2 = lR2[:,cl]
+                print ('\tRecall:')
+                print('\t',wilcoxon(r1,r2))  
+                r1 = lF1[:,cl]
+                r2 = lF2[:,cl]
+                print ('\tF1:')
+                print('\t',wilcoxon(r1,r2))                        
+        
+    
     def getDetailledReport(self):
         """
             return Precision, Recall, F1 per label for each docucment
