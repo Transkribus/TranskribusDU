@@ -28,7 +28,9 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
-
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
@@ -42,7 +44,7 @@ from xml_formats.PageXml import PageXml
 from xml_formats.PageXml import MultiPageXml
 
 from util.Polygon import Polygon
-import libxml2
+from lxml import etree
   
 class LAProcessor(Component.Component):
     """
@@ -54,36 +56,12 @@ class LAProcessor(Component.Component):
 
     if sys.platform == 'win32':
         cNomacs = '"C:\\Program Files\\READFramework\\bin\\nomacs.exe"'
-        cNomacsold = '"C:\\Program Files\\READFramework\\bin\\nomacs.exe"'
-        #cNomacsold = '"C:\\Program Files\\READFramework2\\nomacs-x64\\nomacs.exe"'
 
     else:
         cNomacs = "/opt/Tools/src/tuwien-2017/nomacs/nomacs"
-        cNomacsold = "/opt/Tools/src/tuwien-2017/nomacs/nomacs"
 
-    
-    cCVLLAProfileold="""
-[%%General]  
-FileList="%s"
-OutputDirPath=%s
-FileNamePattern=<c:0>.<old>
-SaveInfo\Compression=-1
-SaveInfo\Mode=2
-SaveInfo\DeleteOriginal=false
-SaveInfo\InputDirIsOutputDir=true
-PluginBatch\pluginList=Layout Analysis | Layout Analysis
-PluginBatch\LayoutPlugin\General\useTextRegions=false
-PluginBatch\LayoutPlugin\General\drawResults=false
-PluginBatch\LayoutPlugin\General\saveXml=true
-PluginBatch\LayoutPlugin\Super Pixel Labeler\\featureFilePath=
-PluginBatch\LayoutPlugin\Super Pixel Labeler\labelConfigFilePath=
-PluginBatch\LayoutPlugin\Super Pixel Labeler\maxNumFeaturesPerImage=1000000
-PluginBatch\LayoutPlugin\Super Pixel Labeler\minNumFeaturesPerClass=10000
-PluginBatch\LayoutPlugin\Super Pixel Labeler\maxNumFeaturesPerClass=10000
-PluginBatch\LayoutPlugin\Super Pixel Classification\classifierPath=
 
-"""
-
+     
     cCVLLAProfile = """
 [%%General]  
 FileList="%s"
@@ -91,7 +69,7 @@ OutputDirPath=%s
 FileNamePattern=<c:0>.<old>
 PluginBatch\LayoutPlugin\General\drawResults=false
 PluginBatch\LayoutPlugin\General\saveXml=true
-PluginBatch\LayoutPlugin\General\useTextRegions=%s
+PluginBatch\LayoutPlugin\General\\useTextRegions=%s
 PluginBatch\LayoutPlugin\Layout Analysis Module\computeSeparators=true
 PluginBatch\LayoutPlugin\Layout Analysis Module\localBlockOrientation=false
 PluginBatch\LayoutPlugin\Layout Analysis Module\maxImageSide=3000
@@ -125,7 +103,7 @@ SaveInfo\Mode=2
 SaveInfo\DeleteOriginal=false
 SaveInfo\InputDirIsOutputDir=true
 PluginBatch\pluginList=Layout Analysis | Detect Separator Lines
-PluginBatch\LayoutPlugin\General\useTextRegions=false
+PluginBatch\LayoutPlugin\General\\useTextRegions=false
 PluginBatch\LayoutPlugin\General\drawResults=false
 PluginBatch\LayoutPlugin\General\saveXml=true
 PluginBatch\LayoutPlugin\Super Pixel Labeler\\featureFilePath=
@@ -136,8 +114,6 @@ PluginBatch\LayoutPlugin\Super Pixel Labeler\maxNumFeaturesPerClass=10000
 PluginBatch\LayoutPlugin\Super Pixel Classification\classifierPath=
 
 """
-
-
     cCVLProfileTabReg ="""
 [%%General]  
 FileList="%s"
@@ -147,14 +123,32 @@ SaveInfo\Compression=-1
 SaveInfo\Mode=2
 SaveInfo\DeleteOriginal=false
 SaveInfo\InputDirIsOutputDir=true
-PluginBatch\pluginList=Forms Analysis | Apply Template (Single)
+PluginBatch\pluginList=Forms Analysis | Apply template (Match)
 PluginBatch\FormAnalysis\FormFeatures\\formTemplate="%s"
 PluginBatch\FormAnalysis\FormFeatures\distThreshold=200
 PluginBatch\FormAnalysis\FormFeatures\colinearityThreshold=20
-PluginBatch\FormAnalysis\FormFeatures\variationThresholdLower=0.5
-PluginBatch\FormAnalysis\FormFeatures\variationThresholdUpper=0.55
+PluginBatch\FormAnalysis\FormFeatures\\variationThresholdLower=0.5
+PluginBatch\FormAnalysis\FormFeatures\\variationThresholdUpper=0.55
 PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
      """
+
+#     cCVLProfileTabReg ="""
+# [%%General]  
+# FileList="%s"
+# OutputDirPath="%s"
+# FileNamePattern=<c:0>.<old>
+# SaveInfo\Compression=-1
+# SaveInfo\Mode=2
+# SaveInfo\DeleteOriginal=false
+# SaveInfo\InputDirIsOutputDir=true
+# PluginBatch\pluginList=Forms Analysis | Apply template (Match)
+# PluginBatch\FormAnalysis\FormFeatures\\formTemplate="%s"
+# PluginBatch\FormAnalysis\FormFeatures\distThreshold=200
+# PluginBatch\FormAnalysis\FormFeatures\colinearityThreshold=20
+# PluginBatch\FormAnalysis\FormFeatures\\variationThresholdLower=0.5
+# PluginBatch\FormAnalysis\FormFeatures\\variationThresholdUpper=0.55
+# PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
+#      """
      
         
 
@@ -184,24 +178,24 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         Here, we set our internal attribute according to a possibly specified value (otherwise it stays at its default value)
         """
         Component.Component.setParams(self, dParams)
-        if dParams.has_key("coldir"): 
+        if "coldir" in dParams.keys():
             self.coldir = dParams["coldir"].strip()
-        if dParams.has_key("docid"):         
+        if "docid" in dParams.keys():  
             self.docid = dParams["docid"].strip()
 #         if dParams.has_key("bRegion"):         
 #             self.bKeepRegion = dParams["bRegion"]
-        if dParams.has_key("bTL"):         
+        if "bTL" in dParams.keys():     
             self.bKeepTL = dParams["bTL"]            
-        if dParams.has_key("bBaseline"):         
+        if "bBaseline" in dParams.keys():
             self.bBaseLine = dParams["bBaseline"]
-        if dParams.has_key("bSeparator"):         
+        if "bSeparator" in dParams.keys():
             self.bSeparator = dParams["bSeparator"]
-        if dParams.has_key("template"):         
+        if "template" in dParams.keys():         
             self.bTemplate = dParams["template"]                        
-        if dParams.has_key("regTL"):         
+        if "regTL" in dParams.keys():
             self.bRegularTextLine = dParams["regTL"]  
 
-        if dParams.has_key("templatefile"):         
+        if "templatefile" in dParams.keys():  
             self.sTemplateFile = dParams["templatefile"]
             self.bTemplate=True                  
     
@@ -273,14 +267,13 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
     
             lOverlap=[]        
             for _,plg in lRegions:
-#                 print cell.prop('id'),plgtl.getBoundingBox(), plg.getBoundingBox()
                 lOverlap.append(signedRatioOverlap(plgtl.getBoundingBox(),plg.getBoundingBox()))
 #             print plgtl.getBoundingBox(), lOverlap
             if max(lOverlap) == 0: return None
             return lRegions[lOverlap.index(max(lOverlap))]
         
         
-        lPages = PageXml.getChildByName(doc.getRootElement(),'Page')
+        lPages = PageXml.getChildByName(doc.getroot(),'Page')
         lRegionsToBeDeleted = []
         for i, page in enumerate(lPages):
             if lLTextLines == []:
@@ -289,17 +282,14 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
                 
             lCells = PageXml.getChildByName(page,'TableCell')
     
-            print len(lCells),len(lTextLines)
+#             print len(lCells),len(lTextLines)
             lOCells=[]  
             for cell in lCells:
                 #get Coords
-                ctxt = cell.doc.xpathNewContext()
-                ctxt.xpathRegisterNs("a", self.xmlns)
                 xpath  = "./a:%s" % ("Coords")
-                ctxt.setContextNode(cell)
-                lCoords = ctxt.xpathEval(xpath)            
+                lCoords = cell.xpath(xpath,namespaces={"a": self.xmlns})            
                 coord= lCoords[0]
-                sPoints=coord.prop('points')
+                sPoints=coord.get('points')
                 lsPair = sPoints.split(' ')
                 lXY = list()
                 for sPair in lsPair:
@@ -311,13 +301,10 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             # find the best assignment of each text
             for tl in lTextLines:
                 #get Coords
-                ctxt = tl.doc.xpathNewContext()
-                ctxt.xpathRegisterNs("a", self.xmlns)
                 xpath  = "./a:%s" % ("Coords")
-                ctxt.setContextNode(tl)
-                lCoords = ctxt.xpathEval(xpath)            
+                lCoords = tl.xpath(xpath,namespaces={"a": self.xmlns})            
                 coord= lCoords[0]
-                sPoints=coord.prop('points')
+                sPoints=coord.get('points')
                 lsPair = sPoints.split(' ')
                 lXY = list()
                 for sPair in lsPair:
@@ -332,13 +319,13 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
 #                     tl.unlinkNode()
                     tlcp = tl.docCopyNode(c.doc,True)
 #                     tlcp.unlinkNode()
-                    c.addChild(tlcp)
-                    print c
+                    c.append(tlcp)
+#                     print c
             
-            ctxt.xpathFreeContext()
         for region in lRegionsToBeDeleted:
-            region.unlinkNode()
-            region.freeNode()
+            region.getParent().remove(region)
+#             region.unlinkNode()
+#             region.freeNode()
             
             
             
@@ -346,7 +333,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         """
          empty page 
         """
-        lNodes = PageXml.getChildByName(doc.getRootElement(),'Page')
+        lNodes = PageXml.getChildByName(doc.getroot(),'Page')
 
         for node in lNodes:
             node.unlinkNode()
@@ -356,31 +343,29 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             find the page where the first TableRegion occurs and extract it
             
         """
+        from copy import deepcopy
         
-        lT = PageXml.getChildByName(doc.getRootElement(),'TableRegion')
+        lT = PageXml.getChildByName(doc.getroot(),'TableRegion')
         if lT == []:
             return None
         firstTable=lT[0]
         # lazy guy!
-        page = firstTable.parent
-        newDoc,_ = PageXml.createPageXmlDocument('NLE', '', 0,0)
-        ## why unlink he page???  30/08/2017: because we recreate a new analysis (no old table!)21/11/2017
-        page.unlinkNode()
-        newDoc.setRootElement(page)
-        ### need to add the ns!!
-#         print newDoc.serialize('utf-8',True)
-        # Borders must be visible: 
-        # done in template now !!
-        #leftBorderVisible="false" rightBorderVisible="false" topBorderVisible="false
-#         lcells = PageXml.getChildByName(newDoc.getRootElement(),'TableCell')
-#         for cell in lcells:
-#             cell.setProp("leftBorderVisible",'true')
-#             cell.setProp("rightBorderVisible",'true')
-#             cell.setProp("topBorderVisible",'true')
-#             cell.setProp("bottomBorderVisible",'true')
-
+        newDoc,fakepage = PageXml.createPageXmlDocument('NLE', '', 0,0)
+        
+        
+        page=firstTable.getparent()
+        fakepage.set("imageFilename",page.get('imageFilename'))
+        fakepage.set("imageWidth",page.get('imageWidth'))
+        fakepage.set("imageHeight",page.get('imageHeight'))
+        page.getparent().remove(page)
+        # add table
+        
+        xx =deepcopy(firstTable)
+        fakepage.append(xx)
         return newDoc
         
+
+            
     def createRegistrationProfile(self,sTemplatefile):
         # get all images files
         localpath =  os.path.abspath("./%s/col/%s"%(self.coldir,self.docid))
@@ -388,12 +373,11 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         l.sort()
         listfile = ";".join(l)
         listfile  = listfile.replace(os.sep,"/")
-#         txt=  LAProcessor.cCVLProfileTabReg % (listfile,"%s/col/%s"%(self.coldir,self.docid),os.path.abspath("%s/%s.templ.xml"%(self.coldir,self.docid)).replace(os.sep,"/"))
-        txt=  LAProcessor.cCVLProfileTabReg % (listfile,"%s/col/%s"%(self.coldir,self.docid),os.path.abspath("%s"%(sTemplatefile)).replace(os.sep,"/"))
+        txt=  LAProcessor.cCVLProfileTabReg % (listfile,localpath.replace(os.sep,"/"),os.path.abspath("%s"%(sTemplatefile)).replace(os.sep,"/"))
 
         # wb mandatory for crlf in windows
         prnfilename = "%s%s%s_reg.prn"%(self.coldir,os.sep,self.docid)
-        f=open(prnfilename,'wb')
+        f=open(prnfilename,'w', encoding="utf-8")
         f.write(txt)
         return prnfilename
     
@@ -446,8 +430,8 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         doc = MultiPageXml.makeMultiPageXml(lFiles)
 
         sMPXML  = docDir+".mpxml"
-        print sMPXML
-        doc.saveFormatFileEnc(sMPXML,"UTF-8",True)       
+#         print sMPXML
+        doc.write(sMPXML,encoding="UTF-8",pretty_print=True,xml_declaration=True)       
         
 #         trace("\t\t- validating the MultiPageXml ...")
 #         if not MultiPageXml.validate(doc): 
@@ -463,21 +447,11 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         """
         xmlpath=os.path.abspath("%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid))
 
-        lNd = PageXml.getChildByName(doc.getRootElement(), 'Page')
+        lNd = PageXml.getChildByName(doc.getroot(), 'Page')
 #         for i in lNd:print i
-        return map(lambda x:"%s%s%s.xml"%(xmlpath,os.sep,x.prop('imageFilename')[:-4]), lNd)
+        return list(map(lambda x:"%s%s%s.xml"%(xmlpath,os.sep,x.get('imageFilename')[:-4]), lNd))
     
     
-#     # ---  Xml stuff -------------------------------------
-#     def getChildByName(self, elt, sChildName):
-#         """
-#         """
-#         ctxt = elt.doc.xpathNewContext()
-#         ctxt.xpathRegisterNs("pc", PageXml.NS_PAGE_XML)  
-#         ctxt.setContextNode(elt)
-#         lNd = ctxt.xpathEval(".//pc:%s"%sChildName)
-#         ctxt.xpathFreeContext()
-#         return lNd    
     
     def performLA(self,doc):
         """
@@ -490,7 +464,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             ## (execution)    
         """
         
-        lNumPages = []
+#         lNumPages = []
         if self.bTemplate or self.bBaseLine or self.bSeparator:
             # extract list of files sorted as in MPXML
             lFullPathXMLNames = self.extractFileNamesFromMPXML(doc)
@@ -516,32 +490,26 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
                     oldname = "%s%s%s" %(xmlpath,os.sep,name)
                     newname = "%s%s%s" % (xmlpath,os.sep,name)
                     newname = newname[:-5]+'.xml' 
-                    tmpdoc =  libxml2.parseFile(oldname)
-                    ##add 21/11/2017
-#                     self.reinitPage(doc)
-    #                 self.unLinkTable(doc)
-                    tmpdoc.saveFileEnc(newname,"UTF-8")                         
-        
-        
+                    tmpdoc =  etree.parse(oldname)
+                    tmpdoc.write(newname,encoding="UTF-8", pretty_print=True,xml_declaration=True)
+
         if self.bKeepTL:
             # keep ltextLione
             lTextLines=[]
-            lPages = PageXml.getChildByName(doc.getRootElement(),'Page')
+            lPages = PageXml.getChildByName(doc.getroot(),'Page')
             for page in lPages:
                 lTextLines.append(PageXml.getChildByName(page,'TextLine'))
         ## Table registration 
         if self.bTemplate:
             if self.sTemplateFile is None:
                 templatePage = self.findTemplate(doc)
-                ## RM  previous *.xml
-    #             xmlpath=os.path.abspath("%s%s%s%s%s" % (self.coldir,os.sep,'col',os.sep,self.docid))
-                [ os.remove("%s%s%s"%(xmlpath,os.sep,name)) for name in os.listdir(xmlpath) if os.path.basename(name)[-4:] =='.xml']
                 if templatePage is None:
                     traceln("No table found in this document: %s" % self.docid)
                 else:
                     oldOut=  self.outputFileName
                     self.outputFileName = "%s%s%s.templ.xml" % (self.coldir,os.sep,self.docid)
                     stemplatefile = "%s%s%s.templ.xml" % (self.coldir,os.sep,self.docid)
+                    print (stemplatefile)
                     self.writeDom(templatePage, True)
                     self.outputFileName = oldOut
                     prnregfilename= self.createRegistrationProfile(stemplatefile)
@@ -581,7 +549,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         ## text rectangles as textline region 
         if self.bRegularTextLine:
             self.regularTextLines(doc)
-        doc.saveFormatFileEnc(sMPXML,"UTF-8",True)       
+        doc.write(sMPXML,encoding="UTF-8",pretty_print=True,xml_declaration=True)       
 
         return doc, nbPages
     
@@ -594,37 +562,32 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
         """
         self.xmlns='http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
 
-        lTextLines = PageXml.getChildByName(doc.getRootElement(),'TextLine')
+        lTextLines = PageXml.getChildByName(doc.getroot(),'TextLine')
         for tl in lTextLines:
             #get Coords
-            ctxt = tl.doc.xpathNewContext()
-            ctxt.xpathRegisterNs("a", self.xmlns)
             xpath  = "./a:%s" % ("Coords")
-            ctxt.setContextNode(tl)
-            lCoords = ctxt.xpathEval(xpath)            
+            lCoords = tl.xpath(xpath,namespaces={"a": self.xmlns})            
             coord= lCoords[0]
             xpath  = "./a:%s" % ("Baseline")
-            ctxt.setContextNode(tl)
-            lBL = ctxt.xpathEval(xpath)
-            ctxt.xpathFreeContext()
-            
+            lBL = tl.xpath(xpath,namespaces={"a": self.xmlns})      
             baseline = lBL[0]
-            sPoints=baseline.prop('points')
+            
+            sPoints=baseline.get('points')
             lsPair = sPoints.split(' ')
             lXY = list()
             for sPair in lsPair:
                 try:
                     (sx,sy) = sPair.split(',')
                     lXY.append( (int(sx), int(sy)) )
-                except ValueError:print tl
+                except ValueError:print (tl)
             plg = Polygon(lXY)
             # 50 seems to large: the manual GT is 30  
-            iHeight = 30  # in pixel
+            iHeight = 30   # in pixel
             x1,y1, x2,y2 = plg.getBoundingBox()
-            if coord: 
-                coord.setProp('points',"%d,%d %d,%d %d,%d %d,%d" % (x1,y1-iHeight,x2,y1-iHeight,x2,y2,x1,y2))
+            if coord is not None: 
+                coord.set('points',"%d,%d %d,%d %d,%d %d,%d" % (x1,y1-iHeight,x2,y1-iHeight,x2,y2,x1,y2))
             else:
-                print tl                     
+                print (tl)                     
 #             print tl
     def run(self,doc):
         """
