@@ -522,6 +522,8 @@ class DU_Model_ECN(Model):
 
         del lX, lY
         gc.collect()
+        
+        return tstRpt
 
     def restore(self):
         traceln(" start tf session; loading checkpoint")
