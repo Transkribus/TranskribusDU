@@ -458,8 +458,8 @@ class DU_Model_ECN(Model):
         traceln(" [%.1fs] done\n" % chronoOff("test2"))
         tstRpt = TestReport(self.sName, lY_list, lY, lLabelName, lsDocName=lsDocName)
 
-        lBaselineTestReport = self._testBaselines(lX, lY, lLabelName, lsDocName=lsDocName)
-        tstRpt.attach(lBaselineTestReport)
+        #lBaselineTestReport = self._testBaselines(lX, lY, lLabelName, lsDocName=lsDocName)
+        #tstRpt.attach(lBaselineTestReport)
 
 
         # do some garbage collection
@@ -522,6 +522,8 @@ class DU_Model_ECN(Model):
 
         del lX, lY
         gc.collect()
+        
+        return tstRpt
 
     def restore(self):
         traceln(" start tf session; loading checkpoint")
