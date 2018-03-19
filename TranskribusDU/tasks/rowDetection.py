@@ -71,6 +71,7 @@ class RowDetection(Component.Component):
 
         self.do2DS= False
         
+        self.THHighSupport = 0.33
         # for --test
         self.bCreateRef = False
         self.evalData = None
@@ -91,7 +92,8 @@ class RowDetection(Component.Component):
         if "createref" in dParams:         
             self.bCreateRef = dParams["createref"]                        
     
-    
+        if "thhighsupport" in dParams:
+            self.THHighSupport = dParams["thhighsupport"] * 0.01
     
     def createCells(self, table):
         """
@@ -114,6 +116,7 @@ class RowDetection(Component.Component):
                 cell.getObjects().sort(key=lambda x:x.getY())
                 for txt in cell.getObjects():
 #                     print txt.getAttribute("type")
+                    txt.addAttribute("type",'RS')
                     if txt.getAttribute("type") == 'RS':
                         if curChunk != []:
                             lChunks.append(curChunk)
@@ -152,12 +155,11 @@ class RowDetection(Component.Component):
                             o.tagMe()
 #                         table.addCell(newCell)
                         lNewCells.append(newCell)
-                    cell.getNode().getparent().remove(cell.getNode())
+                    if cell.getNode().getparent() is not None: cell.getNode().getparent().remove(cell.getNode())
                     del(cell)
             col.setObjectsList(lNewCells[:])
             [table.addCell(c) for c in lNewCells]        
         
-#             print col.tagMe()
         
 
     def processRows(self,table,predefinedCuts=[]):
@@ -167,7 +169,9 @@ class RowDetection(Component.Component):
         if everything is centered? not a realistic assumption 
         """
         rowMiner= tableRowMiner()
-        lYcuts = rowMiner.columnMining(table,predefinedCuts)
+        lYcuts = rowMiner.columnMining(table,self.THHighSupport,predefinedCuts)
+        lYcuts.sort(key= lambda x:x.getValue())
+        print ('ycuts',lYcuts)
 
         # shift up offset / find a better way to do this: integration skewing 
         [ x.setValue(x.getValue()-10) for x in lYcuts ]
@@ -176,6 +180,17 @@ class RowDetection(Component.Component):
 
         table.buildNDARRAY()
         
+        
+    def generateCutCandidates(self,table):
+        """
+            generate a list of cuts
+            
+            input:  Table with cells (candidates from createCells)
+            output: [ (a,b),...]
+                where y=ax+b
+        """
+        
+    
     def findRowsInTable(self,table):
         """ 
             find row in this table
@@ -200,8 +215,14 @@ class RowDetection(Component.Component):
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
             for table in lTables:
                 rowscuts = list(map(lambda r:r.getY(),table.getRows()))
+#                 traceln ('initial cuts:',rowscuts)
                 self.createCells(table)
-                self.processRows(table,rowscuts)        
+#                 self.processRows(table,rowscuts)        
+                self.processRows(table,[])        
+
+                coherence = self.computeCoherenceScore(table)
+                print ('coherence Score: %f'%(coherence))
+    
     def run(self,doc):
         """
            load dom and find rows 
@@ -228,20 +249,38 @@ class RowDetection(Component.Component):
 #         self.ODoc.loadFromDom(self.doc,listPages = range(30,31))        
 
         self.findRowsInDoc(self.ODoc)
-        refdoc = self.createRef(self.doc)
-#         print refdoc.serialize('utf-8', 1)
-
-        if self.do2DS:
-            # bakc to PageXml
-            conv= DS2PageXMLConvertor()
-            lPageXDoc = conv.run(self.doc)
-            conv.storeMultiPageXml(lPageXDoc,self.getOutputFileName())
-#             print self.getOutputFileName()
-            return None
         return self.doc
         
         
 
+    def computeCoherenceScore(self,table):
+        """
+            input: table with rows, BIEOS tagged textlines
+            output: coherence score
+            
+            coherence score: float
+                percentage of textlines those BIESO tagged is 'coherent with the row segmentation'
+            
+        """
+        coherenceScore = 0
+        nbTotalTextLines = 0
+        for row in table.getRows():
+            for cell in row.getCells():
+                nbTextLines = len(cell.getObjects())
+                nbTotalTextLines += nbTextLines
+                if nbTextLines == 1 and cell.getObjects()[0].getAttribute("type") == 'RS': coherenceScore+=1
+                else: 
+                    for ipos, textline in enumerate(cell.getObjects()):
+                        if ipos == 0:
+                            if textline.getAttribute("type") in ['RB']: coherenceScore += 1
+                        if ipos == nbTextLines-1:
+                            if textline.getAttribute("type") in ['RE']: coherenceScore += 1
+                        if ipos not in [0, nbTextLines-1]:
+                            if textline.getAttribute("type") in ['RI']: coherenceScore += 1
+                        
+        if nbTotalTextLines == 0: return 0
+        else :return  coherenceScore /nbTotalTextLines
+         
     ################ TEST ##################
     
 
@@ -347,7 +386,7 @@ class RowDetection(Component.Component):
                     row.fromDom(row._domNode)
                     row.setIndex(row.getAttribute('id'))
                     lRun.append((pnum,row))            
-        print (lRun)
+#         print (lRun)
         
         lRef = []
         lPages = RefData.xpath('//%s' % ('PAGE'))
@@ -545,7 +584,7 @@ class RowDetection(Component.Component):
 
             
             self.outputFileName = os.path.basename(page.getAttribute('imageFilename')[:-3]+'ref')
-            print(self.outputFileName)
+#             print(self.outputFileName)
             self.writeDom(refdoc, bIndent=True)
 
         return refdoc    
@@ -563,6 +602,7 @@ if __name__ == "__main__":
     rdc.add_option("--docid", dest="docid", action="store", type="string", help="document id")
     rdc.add_option("--dsconv", dest="dsconv", action="store_true", default=False, help="convert page format to DS")
     rdc.add_option("--createref", dest="createref", action="store_true", default=False, help="create REF file for component")
+    rdc.add_option("--thhighsupport", dest="thhighsupport", action="store", type="int", help="TH for high support", metavar="NN")
 
     rdc.add_option('-f',"--first", dest="first", action="store", type="int", help="first page to be processed")
     rdc.add_option('-l',"--last", dest="last", action="store", type="int", help="last page to be processed")
