@@ -602,7 +602,7 @@ if __name__ == "__main__":
     rdc.add_option("--docid", dest="docid", action="store", type="string", help="document id")
     rdc.add_option("--dsconv", dest="dsconv", action="store_true", default=False, help="convert page format to DS")
     rdc.add_option("--createref", dest="createref", action="store_true", default=False, help="create REF file for component")
-    rdc.add_option("--thhighsupport", dest="thhighsupport", action="store", type="int", help="TH for high support", metavar="NN")
+    rdc.add_option("--thhighsupport", dest="thhighsupport", action="store", type="int", default=33,help="TH for high support", metavar="NN")
 
     rdc.add_option('-f',"--first", dest="first", action="store", type="int", help="first page to be processed")
     rdc.add_option('-l',"--last", dest="last", action="store", type="int", help="last page to be processed")
