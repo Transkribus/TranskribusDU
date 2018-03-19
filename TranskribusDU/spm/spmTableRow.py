@@ -40,7 +40,7 @@ class tableRowMiner(Component.Component):
     #DEFINE the version, usage and description of this particular component
     usage = "" 
     version = "v.01"
-    description = "description: line miner "
+    description = "description: table row miner "
 
     
     #--- INIT -------------------------------------------------------------------------------------------------------------    
@@ -51,11 +51,14 @@ class tableRowMiner(Component.Component):
         Component.Component.__init__(self, "tableRowMiner", self.usage, self.version, self.description) 
         
         
-        # TH for comparing numerical features for X
-        self.THNUMERICAL = 15
+        # TH for comparing numerical features
+        ## need to be fucntion of leading: when leading small THNUMERICAL small, lineHeighr reduced a well?
+        self.THNUMERICAL = 25
         # use for evaluation
         self.THCOMP = 10
         self.evalData= None
+        
+        self.THHighSupport = 0.33
         
         self.bManual = False
         
@@ -65,15 +68,16 @@ class tableRowMiner(Component.Component):
         Here, we set our internal attribute according to a possibly specified value (otherwise it stays at its default value)
         """
         Component.Component.setParams(self, dParams)
-        if dParams.has_key("pattern"): 
+        if "pattern" in dParams:
             self.manualPattern = eval( dParams["pattern"])
             self.bManual=True  
+        if "thhighsupport" in dParams:
+            self.THHighSupport = dParams["thhighsupport"] * 0.01
 
 
 
 
-
-    def testHighSupport(self,sequences):
+    def testHighSupport(self,sequences,th):
         """
             compute unigram support
         """
@@ -87,9 +91,9 @@ class tableRowMiner(Component.Component):
         support_counts = dict(Counter(item for flattened_sequence in flattened_sequences for item in flattened_sequence))
         actual_supports = {item:support_counts.get(item)/float(sequence_count) for item in support_counts.keys()}        
 #         lOneSupport= [k for k,v in actual_supports.iteritems() if v >= 0.5 ]
-        lOneSupport= [k for k,v in actual_supports.items() if v >= 0.33 ]
-
-#         print actual_supports
+        lOneSupport= [k for k,v in actual_supports.items() if v >= th ]
+        print(actual_supports.items() )
+        print (th,lOneSupport)
         return lOneSupport
     
     
@@ -103,7 +107,7 @@ class tableRowMiner(Component.Component):
         feature.setType(featureObject.NUMERICAL)
         return feature
     
-    def columnMining(self,table,predefinedCuts=[]):
+    def columnMining(self,table,th,predefinedCuts=[]):
         """
             for a table: take itemset=colmun, item=cell(Y) + separator
             - test: is a same rowgrid for all pages: row of fixed positions, size
@@ -119,32 +123,35 @@ class tableRowMiner(Component.Component):
         lElts=  table.getColumns() #getAllNamedObjects(XMLDSTABLECOLUMNClass)
         for elt in lElts:
             # how to add separator?
+#             for c in elt.getCells():c.setHeight()
             elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['y'],myLevel=XMLDSTABLECELLClass)
             ## add predefinedCuts here
             elt.computeSetofFeatures()
             for prevFea in predefinedCuts:
                 f = self.createFeatureFromValue(elt,round(prevFea), 'y')
                 elt.addFeature(f)
-#                 print f
-#             print elt.getSetofFeatures()
+
         seqGen = sequenceMiner()
         seqGen.bDebug = False
         seqGen.setMaxSequenceLength(1)
-        seqGen.setSDC(0.7) # related to noise level       AND STRUCTURES (if many columns)          
+#         seqGen.setSDC(0.7) # related to noise level       AND STRUCTURES (if many columns)          
 #         _  = seqGen.featureGeneration(lElts,2) # more at token level, but at text level: freq=2
         seqGen.setObjectLevel(XMLDSTABLECELLClass)
         for elt in lElts:
             elt.lFeatureForParsing=elt.getSetofFeatures()
             elt.lFeatureForParsing.sort(key = lambda x:x.getValue())
-#             print elt, elt.lFeatureForParsing
+#             print( elt, elt.lFeatureForParsing)
 #             
         lSortedFeatures = seqGen.featureGeneration(lElts,2)
-#         print lSortedFeatures
+#         for f in lSortedFeatures:
+#             print ("%s\s%s"%(f, f.getNodes()))
+
+
         lmaxSequence = seqGen.generateItemsets(lElts)
 #         for elt in lElts:
 #             print elt, elt.getCanonicalFeatures()
         lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.5)
-        lOneSupport =self.testHighSupport(lSeq)
+        lOneSupport =self.testHighSupport(lSeq,th)
         lOneSupport.sort(key = lambda x:x.getValue())
         return lOneSupport
         
@@ -561,6 +568,7 @@ if __name__ == "__main__":
     docM.add_option("-f", "--first", dest="first", action="store", type="int", help="first page number", metavar="NN")
     docM.add_option("-l", "--last", dest="last", action="store", type="int", help="last page number", metavar="NN")
     docM.add_option("--pattern", dest="pattern", action="store", type="string", help="pattern to be applied", metavar="[]")
+    docM.add_option("--thhighsupport", dest="thhighsupport", action="store", type="int", help="TH for high support", metavar="NN")
         
     #parse the command line
     dParams, args = docM.parseCommandLine()
