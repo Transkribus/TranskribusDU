@@ -893,7 +893,7 @@ class Component:
 				ltOkErrMissltis.append( (taskName, nOk, nErr, nMiss, ltisRefsRunbErrbMiss) )
 
 				fP, fR, fF = self.computePRF(nOk, nErr, nMiss)
-				sRpt = "%20s  Doc %d: %s\t%6s\t%6s\t%6s\t%s"%(taskName, len(ltOkErrMissltis), self.formatPRF(fP, fR, fF), nOk, nErr, nMiss, filename)
+				sRpt = "%20s  Doc %d: %s\t%.2f\t%.2f\t%2.4f\t%s"%(taskName, len(ltOkErrMissltis), self.formatPRF(fP, fR, fF), nOk, nErr, nMiss, filename)
 				traceln(sRpt)				
 			traceln()	
 			self.testRecordHtml(filename, ltOkErrMissltis, None, None, None)
@@ -921,7 +921,7 @@ class Component:
 		#some nice trace
 		fP, fR, fF = self.computePRF(nOk, nErr, nMiss)
 # 		sRpt = "Doc %d: %s\t%6s\t%6s\t%6s\t%s\n"%(len(self.ltFileOkErrMiss), self.formatPRF(fP, fR, fF), nOk, nErr, nMiss, filename)
-		sRpt = "Doc %d: %s\t%6s\t%6s\t%6s\t%s\n"%(len(self.dic_ltFileOkErrMiss[None]), self.formatPRF(fP, fR, fF), nOk, nErr, nMiss, filename)
+		sRpt = "Doc %d: %s\t%6s\t%6s\t%s\t%s\n"%(len(self.dic_ltFileOkErrMiss[None]), self.formatPRF(fP, fR, fF), nOk, nErr, nMiss, filename)
 		traceln(sRpt)
 		
 		if ltisRefsRunbErrbMiss != None:
@@ -955,7 +955,7 @@ class Component:
 				docid += 1
 				fP, fR, fF = self.computePRF(nOk, nErr, nMiss)
 				lPRF.append( (fP, fR, fF) )
-				sRpt += "%4d %s%6s%6s%6s \t%s\n"%(docid, self.formatPRF(fP, fR, fF), nOk, nErr, nMiss, filename)
+				sRpt += "%4d %s  %2.2f  %2.2f  %2.2f \t%s\n"%(docid, self.formatPRF(fP, fR, fF), nOk, nErr, nMiss, filename)
 	
 			#MICRO
 			sumNOk	 = sum( [rec[1] for rec in lt_Filename_nOk_nErr_nMiss_ltisRefsRunbErrbMiss] )
@@ -967,7 +967,7 @@ class Component:
 	#		sRpt += "%s\t%6s\t%6s\t%6s\n"%(self.formatPRF(fP, fR, fF), sumNOk, sumNErr, sumNMiss)
 	#		sRpt += "%3s %s%6s%6s%6s \tTOTAL\n"%("", self.formatPRF(fP, fR, fF), sumNOk, sumNErr, sumNMiss)
 			if taskName != None:
-				sRpt += " All %s%6s%6s%6s \t%s\n"%(self.formatPRF(fP, fR, fF), sumNOk, sumNErr, sumNMiss, taskName)
+				sRpt += " All %s  %2.2f  %2.2f  %2.2f \t%s\n"%(self.formatPRF(fP, fR, fF), sumNOk, sumNErr, sumNMiss, taskName)
 			else:
 				sRpt += " All %s%6s%6s%6s\n"%(self.formatPRF(fP, fR, fF), sumNOk, sumNErr, sumNMiss)
 			
