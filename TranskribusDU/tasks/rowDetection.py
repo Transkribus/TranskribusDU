@@ -127,7 +127,6 @@ class RowDetection(Component.Component):
                 cell.getObjects().sort(key=lambda x:x.getY())
                 for txt in cell.getObjects():
 #                     print txt.getAttribute("type")
-                    txt.addAttribute("type",'RS')
                     if txt.getAttribute("type") == 'RS':
                         if curChunk != []:
                             lChunks.append(curChunk)
