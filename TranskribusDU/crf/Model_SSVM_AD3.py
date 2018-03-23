@@ -201,6 +201,8 @@ class Model_SSVM_AD3(Model):
         traceln("\t\t %s"%self._getNbFeatureAsText())
         traceln("\t [%.1fs] done\n"%chronoOff())
         
+        bMakeSlim = not bWarmStart  # for warm-start mode, we do not make the model slimer!"
+        
         traceln("\t- retrieving or creating model...")
         self.ssvm = None
         sModelFN = self.getModelFilename()
@@ -257,7 +259,7 @@ class Model_SSVM_AD3(Model):
         traceln(self.getModelInfo())
         
         #cleaning useless data that takes MB on disk
-        if not bWarmStart:
+        if bMakeSlim:
             self.ssvm.alphas = None  
             self.ssvm.constraints_ = None
             self.ssvm.inference_cache_ = None    
