@@ -592,6 +592,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
             exit(1)
         
         #list the train files
+        traceln(" - looking for %s files in %s"%(self.sXmlFilenamePattern, lsTrnColDir))
         ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
         self.traceln("       %d train documents" % len(lFilename_trn))
         
@@ -838,7 +839,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         lFn, ts = [], None 
         for sDir in lsDir:
             lsFilename = sorted(glob.iglob(os.path.join(sDir, sPattern)))  
-            lFn.extend(lsFilename)
+            lFn.extend([s.replace("\\", "/") for s in lsFilename]) #Unix-style is universal
             if lsFilename:
                 ts_max =  max([os.path.getmtime(sFilename) for sFilename in lsFilename])
                 ts = ts_max if ts is None else max(ts, ts_max)

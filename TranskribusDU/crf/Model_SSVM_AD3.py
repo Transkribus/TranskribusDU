@@ -235,7 +235,7 @@ class Model_SSVM_AD3(Model):
             
             traceln("\t\t- computing class weight:")
             clsWeights = self.computeClassWeight(lY)
-            traceln("\t\t\t%s"%list(["%.3f"%w for w in clsWeights]))
+            traceln("\t\t\t%s" % "N/A" if clsWeights is None else list(["%.3f"%w for w in clsWeights]))
             
             crf = self._getCRFModel(clsWeights)
     
