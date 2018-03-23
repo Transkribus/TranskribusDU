@@ -586,7 +586,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         self.traceln("Evaluating with collection(s):", lsTrnColDir)
         self.traceln("-"*50)
 
-        fnCrossValidDetails = os.path.join(self.sModelDir, "fold_1_def.pkl")
+        fnCrossValidDetails = os.path.join(self.sModelDir, "fold_def.pkl")
         if os.path.exists(fnCrossValidDetails):
             self.traceln("ERROR: I refuse to overwrite an existing CV setup. Remove manually the CV data! (files %s%s%s_fold* )"%(self.sModelDir, os.sep, self.sModelName))
             exit(1)
@@ -667,7 +667,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
     def _nfold_Finish(self):
         traceln("---------- SHOWING RESULTS OF CROSS-VALIDATION ----------")
         
-        fnCrossValidDetails = os.path.join(self.sModelDir, self.sModelName+"_fold_def.pkl")
+        fnCrossValidDetails = os.path.join(self.sModelDir, "fold_def.pkl")
         (lsTrnColDir, n_splits, test_size, random_state) = crf.Model.Model.gzip_cPickle_load(fnCrossValidDetails)
         
         loReport = []
