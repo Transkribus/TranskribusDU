@@ -55,6 +55,7 @@ sBaseline = "BASELINE"
 sBLOCK = "BLOCK"
 sTABLE = "TABLE"
 sROW   = "ROW"
+sCOL   = "COL"
 sCELL  = "CELL"
 sFRAME = "FRAME"
 
