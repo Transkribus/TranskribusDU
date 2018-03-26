@@ -265,10 +265,18 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
                                           )
         return crf 
 
+    @classmethod
+    def computeClassWeight_Uniform(cls, lY):
+        """
+        This is tricky. Uniform weight for now.
+        """
+        traceln("\t NOTE: uniform class weights ! (do not know how to properly deal with unbalanced classes per type)")
+        return None
+
+
     def computeClassWeight(self, lY):
         """
-        We compute a balanced set of weights per type and the divides all 
-        weights by the number of types
+        We compute a normalized balanced set of weights per type
         """
         l_class_weights = []
         
@@ -279,7 +287,8 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
             Y_typ = np.extract(np.logical_and(iTypPrev <= Y, Y < iTypNext), Y)
             Y_typ_unique = np.unique(Y_typ)
             class_weights = compute_class_weight("balanced", Y_typ_unique, Y_typ)
-            l_class_weights.append(class_weights / self.nbType)
+            
+            l_class_weights.append( class_weights / np.linalg.norm(class_weights) )
             del Y_typ, Y_typ_unique
             iTypPrev = iTypNext
         del Y
