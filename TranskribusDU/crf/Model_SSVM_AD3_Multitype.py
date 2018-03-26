@@ -38,6 +38,8 @@ try:
     import cPickle as pickle
 except ImportError:
     import pickle
+
+from sklearn.utils.class_weight import compute_class_weight
     
 from pystruct.utils import SaveLogger
 from pystruct.models import NodeTypeEdgeFeatureGraphCRF
@@ -263,13 +265,26 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
                                           )
         return crf 
 
-    @classmethod
-    def computeClassWeight(cls, lY):
+    def computeClassWeight(self, lY):
         """
-        This is tricky. Uniform weight for now.
+        We compute a balanced set of weights per type and the divides all 
+        weights by the number of types
         """
-        traceln("\t NOTE: uniform class weights ! (do not know how to properly deal with unbalanced classes per type)")
-        return None
+        l_class_weights = []
+        
+        iTypPrev = 0
+        Y = np.hstack(lY)
+        for ityp in range(self.nbType):
+            iTypNext = iTypPrev + self._nbClass[ityp]
+            Y_typ = np.extract(np.logical_and(iTypPrev <= Y, Y < iTypNext), Y)
+            Y_typ_unique = np.unique(Y_typ)
+            class_weights = compute_class_weight("balanced", Y_typ_unique, Y_typ)
+            l_class_weights.append(class_weights / self.nbType)
+            del Y_typ, Y_typ_unique
+            iTypPrev = iTypNext
+        del Y
+        
+        return l_class_weights
 
     
 # --- MAIN: DISPLAY STORED MODEL INFO ------------------------------------------------------------------
