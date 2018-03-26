@@ -450,8 +450,8 @@ def test_computeClassWeight():
     a = np.array([1,1,2], dtype=np.int32)
     b = np.array([2,1,3], dtype=np.int32)        
     cw = Model.computeClassWeight([a,b])
-    ref_cw = 11.0/3.0*np.array([2/11.0, 3/11.0, 6/11.0])
-    assert ((cw - ref_cw) <0.1).all()
+    ref_cw = 6.0/3.0*np.array([1/3.0, 1/2.0, 1/1.0])
+    assert ((cw - ref_cw) <0.001).all()    
     
 def test_test_report():
     lsClassName = ['OTHER', 'catch-word', 'header', 'heading', 'marginalia', 'page-number']
