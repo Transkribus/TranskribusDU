@@ -558,36 +558,5 @@ class Model_SSVM_AD3(Model):
     
         return s
     
-# --- MAIN: DISPLAY STORED MODEL INFO ------------------------------------------------------------------
 
-if __name__ == "__main__":
-    try:
-        sModelDir, sModelName = sys.argv[1:3]
-    except:
-        print("Usage: %s <model-dir> <model-name>"%sys.argv[0])
-        print("Display some info regarding the stored model")
-        exit(1)
-        
-    mdl = Model_SSVM_AD3(sModelName, sModelDir)
-    print("Loading %s"%mdl.getModelFilename())
-    if False:
-        mdl.load()  #loads all sub-models!!
-    else:
-        mdl.ssvm = mdl._loadIfFresh(mdl.getModelFilename(), None, lambda x: SaveLogger(x).load())
-
-    print(mdl.getModelInfo())
-    
-    try:
-        import matplotlib.pyplot as plt
-    except ImportError as e:
-        print("Please install matplotlib to get graphical display of the model convergence")
-        raise e
-    fig = plt.figure()
-    fig.canvas.set_window_title("dir=%s  model=%s  "%(sModelDir, sModelName))
-    plt.plot(mdl.ssvm.loss_curve_)
-    plt.xlabel("Iteration / 10")
-    plt.ylabel("Loss")
-    plt.show()
-
-    
     
