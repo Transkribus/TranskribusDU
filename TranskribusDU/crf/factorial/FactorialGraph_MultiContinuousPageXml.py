@@ -71,6 +71,7 @@ class FactorialGraph_MultiContinuousPageXml(FactorialGraph_MultiPageXml, Contino
         for pnum, page, domNdPage in self._iter_Page_DomNode(self.doc):
             #now that we have the page, let's create the node for each type!
             lPageNode = list()
+            #setPageNdDomId = set() #the set of DOM id
             # because the node types are supposed to have an empty intersection
                             
             lPageNode = list(nodeType0._iter_GraphNode(self.doc, domNdPage, page))
@@ -85,6 +86,7 @@ class FactorialGraph_MultiContinuousPageXml(FactorialGraph_MultiPageXml, Contino
             lPageEdge = Edge.computeEdges(lPrevPageNode, lPageNode)
             self.lEdge.extend(lPageEdge)
 
+            # only difference with its parent method from FactorialGraph_MultiPageXml
             lContinuousPageEdge = self.computeContinuousPageEdges(lPrevPageNode, lPageNode)
             self.lEdge.extend(lContinuousPageEdge)
             
