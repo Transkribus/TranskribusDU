@@ -41,11 +41,12 @@ from tasks import _checkFindColDir, _exit
 
 
 #from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
-from crf.Graph_MultiPageXml import FactorialGraph_MultiContinuousPageXml
+from crf.factorial.FactorialGraph_MultiPageXml import FactorialGraph_MultiPageXml
+from crf.factorial.FactorialGraph_MultiPageXml_Scaffold import FactorialGraph_MultiPageXml_Scaffold
 
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 #from tasks.DU_CRF_Task import DU_CRF_Task
-from tasks.DU_CRF_Task import DU_FactorialCRF_Task
+from tasks.DU_FactorialCRF_Task import DU_FactorialCRF_Task
 
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
@@ -64,8 +65,8 @@ class DU_ABPTableRH(DU_FactorialCRF_Task):
 
     #WHY THIS ? sLabeledXmlFilenameEXT = ".mpxml"
 
-    DU_GRAPH =FactorialGraph_MultiContinuousPageXml
-
+    bScaffold = None
+    
     #=== CONFIGURATION ====================================================================
     @classmethod
     def getConfiguredGraphClass(cls):
@@ -92,7 +93,11 @@ class DU_ABPTableRH(DU_FactorialCRF_Task):
 #             print( len(lIgnoredLabels)   , lIgnoredLabels)
         
         #DEFINING THE CLASS OF GRAPH WE USE
-        DU_GRAPH = FactorialGraph_MultiContinuousPageXml
+        if cls.bScaffold is None: raise Exception("Internal error")
+        if cls.bScaffold:
+            DU_GRAPH = FactorialGraph_MultiPageXml_Scaffold
+        else:
+            DU_GRAPH = FactorialGraph_MultiPageXml
         
         # ROW
         ntR = NodeType_PageXml_type_woText("row"
@@ -123,8 +128,13 @@ class DU_ABPTableRH(DU_FactorialCRF_Task):
         
         return DU_GRAPH
         
-    def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
-
+    def __init__(self, sModelName, sModelDir, sComment=None,
+                 C=None, tol=None, njobs=None, max_iter=None,
+                 inference_cache=None,
+                 bScaffold=False): 
+        
+        DU_ABPTableRH.bScaffold = bScaffold
+        
         DU_FactorialCRF_Task.__init__(self
                      , sModelName, sModelDir
                      , dFeatureConfig = {  }
@@ -172,7 +182,8 @@ def main(sModelDir, sModelName, options):
                       tol               = options.crf_tol,
                       njobs             = options.crf_njobs,
                       max_iter          = options.crf_max_iter,
-                      inference_cache   = options.crf_inference_cache)
+                      inference_cache   = options.crf_inference_cache,
+                      bScaffold         = options.bScaffold)
     
     if options.rm:
         doer.rm()
@@ -256,6 +267,8 @@ if __name__ == "__main__":
     parser.add_option("--revertEdges", dest='bRevertEdges',  action="store_true", help="Revert the direction of the edges") 
     parser.add_option("--detail", dest='bDetailedReport',  action="store_true", default=False,help="Display detailled reporting (score per document)") 
     parser.add_option("--baseline", dest='bBaseline',  action="store_true", default=False, help="report baseline method") 
+    parser.add_option("--scaffold", dest='bScaffold',  action="store_true", default=False, help="scaffold factorial") 
+
             
     # --- 
     #parse the command line
