@@ -848,52 +848,6 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
     listMaxTimestampFile = classmethod(listMaxTimestampFile)
     
 # ------------------------------------------------------------------------------------------------------------------------------
-class DU_FactorialCRF_Task(DU_CRF_Task):
-
-
-    def __init__(self, sModelName, sModelDir,  dLearnerConfig={}, sComment=None
-                 , cFeatureDefinition=None, dFeatureConfig={}
-                 ): 
-        """
-        Same as DU_CRF_Task except for the cFeatureConfig
-        """
-        self.configureGraphClass()
-        self.sModelName     = sModelName
-        self.sModelDir      = sModelDir
-#         self.cGraphClass    = cGraphClass
-        #Because of the way of dealing with the command line, we may get singleton instead of scalar. We fix this here
-        self.config_learner_kwargs      = {k:v[0] if type(v) is list and len(v)==1 else v for k,v in dLearnerConfig.items()}
-        if sComment: self.sMetadata_Comments    = sComment
-        
-        self._mdl = None
-        self._lBaselineModel = []
-        self.bVerbose = True
-        
-        self.iNbCRFType = None #is set below
-        
-        #--- Number of class per type
-        #We have either one number of class (single type) or a list of number of class per type
-        #in single-type CRF, if we know the number of class, we check that the training set covers all
-        self.nbClass  = None    #either the number or the sum of the numbers
-        self.lNbClass = None    #a list of length #type of number of class
-
-        #--- feature definition and configuration per type
-        #Feature definition and their config
-        if cFeatureDefinition: self.cFeatureDefinition  = cFeatureDefinition
-        assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
-        
-        #for single- or multi-type CRF, the same applies!
-        self.lNbClass = [len(nt.getLabelNameList()) for nt in self.cGraphClass.getNodeTypeList()]
-        self.nbClass = sum(self.lNbClass)
-        self.iNbCRFType = len(self.cGraphClass.getNodeTypeList())
-
-        self.config_extractor_kwargs = dFeatureConfig
-
-        self.cModelClass = Model_SSVM_AD3 if self.iNbCRFType == 1 else Model_SSVM_AD3_Multitype
-        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
-        
-        
-# ------------------------------------------------------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
