@@ -35,12 +35,12 @@ from  lxml import etree
 from common.trace import traceln
 
 from ..Graph_MultiPageXml import Graph_MultiPageXml
-
 from ..Edge import Edge
 
+from .FactorialGraph import FactorialGraph
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
-class FactorialGraph_MultiPageXml(Graph_MultiPageXml):
+class FactorialGraph_MultiPageXml(Graph_MultiPageXml, FactorialGraph):
     """
     FactorialCRF for MultiPageXml document
     
@@ -127,14 +127,14 @@ class FactorialGraph_MultiPageXml(Graph_MultiPageXml):
         for pnum, page, domNdPage in self._iter_Page_DomNode(self.doc):
             #now that we have the page, let's create the node for each type!
             lPageNode = list()
-            setPageNdDomId = set() #the set of DOM id
+            #setPageNdDomId = set() #the set of DOM id
             # because the node types are supposed to have an empty intersection
                             
             lPageNode = list(nodeType0._iter_GraphNode(self.doc, domNdPage, page))
             
-            #check that each node appears once
-            setPageNdDomId = set([nd.domid for nd in lPageNode])
-            assert len(setPageNdDomId) == len(lPageNode), "ERROR: some nodes fit with multiple NodeTypes"
+#            #check that each node appears once
+#            setPageNdDomId = set([nd.domid for nd in lPageNode])
+#            assert len(setPageNdDomId) == len(lPageNode), "ERROR: some nodes fit with multiple NodeTypes"
             
         
             self.lNode.extend(lPageNode)
