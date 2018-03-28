@@ -124,7 +124,7 @@ class DU_ABPTable(DU_CRF_Task):
                                  , 'save_every'       : 50     #save every 50 iterations,for warm start
                                  , 'max_iter'         : 1000 if max_iter        is None else max_iter
                          }
-                     , sComment=sComment
+                     , sComment=sComment+ " %s"%sModelName
                      #,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
                      ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
                      )
@@ -222,7 +222,7 @@ try:
                                      , sModelName, sModelDir
                                      , dFeatureConfig={}
                                      , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
-                                     , sComment=sComment
+                                     , sComment=sComment+ " %s"%sModelName
                                      , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
                                      )
 
@@ -333,7 +333,7 @@ try:
                                      , sModelName, sModelDir
                                      , dFeatureConfig={}
                                      , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
-                                     , sComment=sComment
+                                     , sComment=sComment+ " %s"%sModelName
                                      , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
                                      , cModelClass=DU_Model_GAT
                                      )
