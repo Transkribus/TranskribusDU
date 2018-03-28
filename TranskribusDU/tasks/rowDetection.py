@@ -104,7 +104,8 @@ class RowDetection(Component.Component):
                         
         if "thhighsupport" in dParams:
             self.THHighSupport = dParams["thhighsupport"] * 0.01
-        
+         
+        self.bYCut =  dParams["YCut"] 
         
     def createCells(self, table):
         """
@@ -118,14 +119,19 @@ class RowDetection(Component.Component):
             lNewCells=[]
             # keep original positions
             col.resizeMe(XMLDSTABLECELLClass)
-            for cell in col.getCells():
+            # in order to ignore existing cells from GT: collect all objects from cells
+            lObjects = [txt for cell in col.getCells() for txt in cell.getObjects() ]
+            lObjects.sort(key=lambda x:x.getY())
+            
+#             for cell in col.getCells():
 #                 print cell
-                curChunk=[]
-                lChunks = []
+            curChunk=[]
+            lChunks = []
 #                 print map(lambda x:x.getAttribute('type'),cell.getObjects())
 #                 print map(lambda x:x.getID(),cell.getObjects())
-                cell.getObjects().sort(key=lambda x:x.getY())
-                for txt in cell.getObjects():
+#                 cell.getObjects().sort(key=lambda x:x.getY())
+#                 for txt in cell.getObjects():
+            for txt in lObjects:
 #                     print txt.getAttribute("type")
                     if txt.getAttribute("type") == 'RS':
                         if curChunk != []:
@@ -142,31 +148,37 @@ class RowDetection(Component.Component):
                         ## add Other as well???
                         curChunk.append(txt)
                         
-                if curChunk != []:
-                    lChunks.append(curChunk)
-                    
-                if lChunks != []:
-                    # create new cells
-                    table.delCell(cell)
-                    irow= cell.getIndex()[0]
-                    for i,c in enumerate(lChunks):
+            if curChunk != []:
+                lChunks.append(curChunk)
+                
+            if lChunks != []:
+                # create new cells
+#                 table.delCell(cell)
+                irow= txt.getParent().getIndex()[0]
+                for i,c in enumerate(lChunks):
 #                         print map(lambda x:x.getAttribute('type'),c)
-                        #create a new cell per chunk and replace 'cell'
-                        newCell = XMLDSTABLECELLClass()
-                        newCell.setPage(cell.getPage())
-                        newCell.setParent(table)
-                        newCell.setName(ds_xml.sCELL)
-                        newCell.setIndex(irow+i,cell.getIndex()[1])
-                        newCell.setObjectsList(c)
-                        newCell.resizeMe(XMLDSTEXTClass)
-                        newCell.tagMe2()
-                        for o in newCell.getObjects():
-                            o.setParent(newCell)
-                            o.tagMe()
+                    #create a new cell per chunk and replace 'cell'
+                    newCell = XMLDSTABLECELLClass()
+                    newCell.setPage(txt.getParent().getPage())
+                    newCell.setParent(table)
+                    newCell.setName(ds_xml.sCELL)
+                    newCell.setIndex(irow+i,txt.getParent().getIndex()[1])
+                    newCell.setObjectsList(c)
+                    newCell.resizeMe(XMLDSTEXTClass)
+                    newCell.tagMe2()
+                    for o in newCell.getObjects():
+                        o.setParent(newCell)
+                        o.tagMe()
 #                         table.addCell(newCell)
-                        lNewCells.append(newCell)
+                    lNewCells.append(newCell)
+#                 if txt.getParent().getNode().getparent() is not None: txt.getParent().getNode().getparent().remove(txt.getParent().getNode())
+#                 del(txt.getParent())
+        #delete all cells
+            for cell in col.getCells():
+                try: 
                     if cell.getNode().getparent() is not None: cell.getNode().getparent().remove(cell.getNode())
-                    del(cell)
+                except: pass
+            [table.delCell(cell) for cell in col.getCells() ]
             col.setObjectsList(lNewCells[:])
             [table.addCell(c) for c in lNewCells]        
         
@@ -176,11 +188,12 @@ class RowDetection(Component.Component):
         """
         apply mining to get Y cuts for rows
         
-        if everything is centered? not a realistic assumption 
+        if everything is centered? 
         """
         rowMiner= tableRowMiner()
         lYcuts = rowMiner.columnMining(table,self.THHighSupport,predefinedCuts)
         lYcuts.sort(key= lambda x:x.getValue())
+#         for c in lYcuts:  print (c, [x.getY() for x in c.getNodes()])
 #         print ('ycuts',lYcuts)
 
         # shift up offset / find a better way to do this: integration skewing 
@@ -191,25 +204,57 @@ class RowDetection(Component.Component):
         table.buildNDARRAY()
         
         
-    def generateCutCandidates(self,table):
-        """
-            generate a list of cuts
-            
-            input:  Table with cells (candidates from createCells)
-            output: [ (a,b),...]
-                where y=ax+b
-        """
+#     def findRowsInTable(self,table):
+#         """ 
+#             find row in this table
+#         """
+#         rowscuts = map(lambda r:r.getY(),table.getRows())
+#         self.createCells(table)
+#         self.processRows(table,rowscuts)
         
-    
-    def findRowsInTable(self,table):
-        """ 
-            find row in this table
-        """
-        rowscuts = map(lambda r:r.getY(),table.getRows())
-        self.createCells(table)
-        self.processRows(table,rowscuts)
         
-
+    def checkInputFormat(self,lPages):
+        """
+            delete regions : copy regions elements at page object
+            unlink subnodes
+        """
+        for page in lPages:
+            lTables = page.getAllNamedObjects(XMLDSTABLEClass)
+            for table in lTables:
+                lRegions = table.getAllNamedObjects("CELL")
+                lElts=[]
+                [lElts.extend(x.getObjects()) for x in lRegions]
+                [table.addObject(x,bDom=True) for x in lElts]
+                [table.removeObject(x,bDom=True) for x in lRegions]
+                    
+    def processYCuts(self,ODoc):
+        from util.XYcut import mergeSegments
+        
+        self.checkInputFormat(ODoc.getPages())
+        for page in ODoc.getPages():
+            traceln("page: %d" %  page.getNumber())        
+            lTables = page.getAllNamedObjects(XMLDSTABLEClass)
+            for table in lTables:
+                print ('nb Y: %s'% len(set([round(x.getY()) for x in page.getAllNamedObjects(XMLDSTEXTClass)])),len(page.getAllNamedObjects(XMLDSTEXTClass)))
+#                 lCuts, _, _ = mergeSegments([(x.getY(),x.getY() + x.getHeight(),x) for x in page.getAllNamedObjects(XMLDSTEXTClass)],0)
+#                 for i, (y,_,cut) in enumerate(lCuts):
+#                     ll =list(cut)
+#                     ll.sort(key=lambda x:x.getY())
+#                     #add column
+#                     myRow= XMLDSTABLEROWClass(i)
+#                     myRow.setPage(page)
+#                     myRow.setParent(table)
+#                     table.addObject(myRow)
+#                     myRow.setY(y)
+#                     myRow.setX(table.getX())
+#                     myRow.setWidth(table.getWidth())
+#                     if i +1  < len(lCuts):
+#                         myRow.setHeight(lCuts[i+1][0]-y)
+#                     else: # use table 
+#                         myRow.setHeight(table.getY2()-y)
+#                     table.addRow(myRow)
+#                     print (myRow)
+#                     myRow.tagMe(ds_xml.sROW)
 
     def findRowsInDoc(self,ODoc):
         """
@@ -231,7 +276,7 @@ class RowDetection(Component.Component):
                 self.processRows(table,[])        
 
                 coherence = self.computeCoherenceScore(table)
-                print ('coherence Score: %f'%(coherence))
+                traceln ('coherence Score: %f'%(coherence))
     
     def run(self,doc):
         """
@@ -266,7 +311,10 @@ class RowDetection(Component.Component):
         self.ODoc.loadFromDom(self.doc,listPages = range(self.firstPage,self.lastPage+1))        
 #         self.ODoc.loadFromDom(self.doc,listPages = range(30,31))        
 
-        self.findRowsInDoc(self.ODoc)
+        if self.bYCut:
+            self.processYCuts(self.ODoc)
+        else:
+            self.findRowsInDoc(self.ODoc)
         return self.doc
         
         
@@ -801,6 +849,8 @@ if __name__ == "__main__":
     rdc.add_option("--createref", dest="createref", action="store_true", default=False, help="create REF file for component")
     rdc.add_option("--createrefC", dest="createrefCluster", action="store_true", default=False, help="create REF file for component (cluster of textlines)")
     rdc.add_option("--evalC", dest="evalCluster", action="store_true", default=False, help="evaluation using clusters (of textlines)")
+
+    rdc.add_option("--YC", dest="YCut", action="store_true", default=False, help="use Ycut")
 
     rdc.add_option("--thhighsupport", dest="thhighsupport", action="store", type="int", default=33,help="TH for high support", metavar="NN")
 
