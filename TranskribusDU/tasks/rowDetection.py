@@ -73,11 +73,12 @@ class RowDetection(Component.Component):
         self.do2DS= False
         
         self.THHighSupport = 0.33
+        self.bYCut = False
         # for --test
         self.bCreateRef = False
         self.bCreateRefCluster = False
         
-        self.bEvalCluster=True
+        self.bEvalCluster=False
         self.evalData = None
         
     def setParams(self, dParams):
@@ -105,7 +106,7 @@ class RowDetection(Component.Component):
         if "thhighsupport" in dParams:
             self.THHighSupport = dParams["thhighsupport"] * 0.01
          
-        self.bYCut =  dParams["YCut"] 
+        if 'YCut' in dParams: self.bYCut =  dParams["YCut"] 
         
     def createCells(self, table):
         """
@@ -652,8 +653,10 @@ class RowDetection(Component.Component):
                 
         """
         dicTestByTask = dict()
-#         dicTestByTask['T50']= self.testCPOUM(0.50,srefData,srunData,bVisual)
-        dicTestByTask['CLUSTER']= self.testCluster(srefData,srunData,bVisual)
+        if self.bEvalCluster:
+            dicTestByTask['CLUSTER']= self.testCluster(srefData,srunData,bVisual)
+        else:
+            dicTestByTask['T50']= self.testCPOUM(0.50,srefData,srunData,bVisual)
 #         dicTestByTask['T75']= self.testCPOUM(0.750,srefData,srunData,bVisual)
 #         dicTestByTask['T100']= self.testCPOUM(0.50,srefData,srunData,bVisual)
 
