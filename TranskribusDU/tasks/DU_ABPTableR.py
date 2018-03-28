@@ -41,19 +41,17 @@ from tasks import _checkFindColDir, _exit
 
 
 #from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
-from crf.factorial.FactorialGraph_MultiPageXml import FactorialGraph_MultiPageXml
-from crf.factorial.FactorialGraph_MultiPageXml_Scaffold import FactorialGraph_MultiPageXml_Scaffold
+from crf.Graph_MultiPageXml import Graph_MultiContinousPageXml
 
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
-#from tasks.DU_CRF_Task import DU_CRF_Task
-from tasks.DU_FactorialCRF_Task import DU_FactorialCRF_Task
+from tasks.DU_CRF_Task import DU_CRF_Task
 
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 
 
  
-class DU_ABPTableRH(DU_FactorialCRF_Task):
+class DU_ABPTableR(DU_CRF_Task):
     """
     We will do a CRF model for a DU task
     , with the below labels 
@@ -65,8 +63,8 @@ class DU_ABPTableRH(DU_FactorialCRF_Task):
 
     #WHY THIS ? sLabeledXmlFilenameEXT = ".mpxml"
 
-    bScaffold = None
-    
+    DU_GRAPH = Graph_MultiContinousPageXml
+
     #=== CONFIGURATION ====================================================================
     @classmethod
     def getConfiguredGraphClass(cls):
@@ -78,7 +76,7 @@ class DU_ABPTableRH(DU_FactorialCRF_Task):
         #lLabelsSM_C     = ['M', 'S', 'O']   # single cell, multicells
 #         lLabels_OI      = ['O','I']   # inside/outside a table           
 #         lLabels_SPAN    = ['rspan','cspan','nospan','OTHER']
-        lLabels_COLUMN_HEADER  = ['CH', 'D', 'O',]
+        #lLabels_COLUMN_HEADER  = ['CH', 'D', 'O',]
         
 #         """
 #         if you play with a toy collection, which does not have all expected classes, you can reduce those.
@@ -93,11 +91,7 @@ class DU_ABPTableRH(DU_FactorialCRF_Task):
 #             print( len(lIgnoredLabels)   , lIgnoredLabels)
         
         #DEFINING THE CLASS OF GRAPH WE USE
-        if cls.bScaffold is None: raise Exception("Internal error")
-        if cls.bScaffold:
-            DU_GRAPH = FactorialGraph_MultiPageXml_Scaffold
-        else:
-            DU_GRAPH = FactorialGraph_MultiPageXml
+        DU_GRAPH = Graph_MultiContinousPageXml
         
         # ROW
         ntR = NodeType_PageXml_type_woText("row"
@@ -112,30 +106,11 @@ class DU_ABPTableRH(DU_FactorialCRF_Task):
                        )
         DU_GRAPH.addNodeType(ntR)
         
-        # HEADER
-        ntH = NodeType_PageXml_type_woText("hdr"
-                              , lLabels_COLUMN_HEADER
-                              , None
-                              , False    #no label means OTHER
-                              , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
-                              )
-        ntH.setLabelAttribute("DU_header")
-        ntH.setXpathExpr( (".//pc:TextLine"        #how to find the nodes
-                          , "./pc:TextEquiv")       #how to get their text
-                       )
-        DU_GRAPH.addNodeType(ntH)        
-        
-        
         return DU_GRAPH
         
-    def __init__(self, sModelName, sModelDir, sComment=None,
-                 C=None, tol=None, njobs=None, max_iter=None,
-                 inference_cache=None,
-                 bScaffold=False): 
-        
-        DU_ABPTableRH.bScaffold = bScaffold
-        
-        DU_FactorialCRF_Task.__init__(self
+    def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
+
+        DU_CRF_Task.__init__(self
                      , sModelName, sModelDir
                      , dFeatureConfig = {  }
                      , dLearnerConfig = {
@@ -164,26 +139,25 @@ class DU_ABPTableRH(DU_FactorialCRF_Task):
         Return the list of produced files
         """
         self.sXmlFilenamePattern = "*.mpxml"
-        return DU_FactorialCRF_Task.predict(self, lsColDir)
+        return DU_CRF_Task.predict(self, lsColDir)
         
     def runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges=False):
         """
         Return the list of produced files
         """
         self.sXmlFilenamePattern = "*.mpxml"
-        return DU_FactorialCRF_Task.runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges)
+        return DU_CRF_Task.runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges)
               
 
 # ----------------------------------------------------------------------------
 
 def main(sModelDir, sModelName, options):
-    doer = DU_ABPTableRH(sModelName, sModelDir,
+    doer = DU_ABPTableR(sModelName, sModelDir,
                       C                 = options.crf_C,
                       tol               = options.crf_tol,
                       njobs             = options.crf_njobs,
                       max_iter          = options.crf_max_iter,
-                      inference_cache   = options.crf_inference_cache,
-                      bScaffold         = options.bScaffold)
+                      inference_cache   = options.crf_inference_cache)
     
     if options.rm:
         doer.rm()
@@ -260,15 +234,13 @@ def main(sModelDir, sModelName, options):
 if __name__ == "__main__":
 
     version = "v.01"
-    usage, description, parser = DU_FactorialCRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
+    usage, description, parser = DU_CRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
 #     parser.add_option("--annotate", dest='bAnnotate',  action="store_true",default=False,  help="Annotate the textlines with BIES labels")    
 
     #FOR GCN
     parser.add_option("--revertEdges", dest='bRevertEdges',  action="store_true", help="Revert the direction of the edges") 
     parser.add_option("--detail", dest='bDetailedReport',  action="store_true", default=False,help="Display detailled reporting (score per document)") 
     parser.add_option("--baseline", dest='bBaseline',  action="store_true", default=False, help="report baseline method") 
-    parser.add_option("--scaffold", dest='bScaffold',  action="store_true", default=False, help="scaffold factorial") 
-
             
     # --- 
     #parse the command line
