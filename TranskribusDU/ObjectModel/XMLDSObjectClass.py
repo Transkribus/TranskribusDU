@@ -51,7 +51,11 @@ class  XMLDSObjectClass(XMLObjectClass):
     def getY2(self): return float(self.getAttribute('y'))+self.getHeight()        
     def getHeight(self): return float(self.getAttribute('height'))
     def getWidth(self): return float(self.getAttribute('width'))    
+
+    def setX(self,x): self.addAttribute('x',x)
+    def setY(self,y): self.addAttribute('y',y)
     def setWidth(self,w): self.addAttribute('width',w)
+    def setHeight(self,h):self.addAttribute('height',h)
     
     def setDimensions(self,x,y,h,w):
         self.addAttribute('x', x)
@@ -358,7 +362,8 @@ class  XMLDSObjectClass(XMLObjectClass):
                     feature.setName(attr)
 #                     feature.setName('f')
                     feature.setTH(TH)
-                    feature.addNode(self)
+                    for o in lHisto[attr][value]:
+                        feature.addNode(o)
                     feature.setObjectName(self)
                     feature.setValue(value)
                     feature.setType(ftype)

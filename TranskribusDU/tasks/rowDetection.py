@@ -36,7 +36,9 @@ import sys, os.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 from lxml import etree
-
+from sklearn.metrics import  adjusted_rand_score
+from sklearn.metrics import homogeneity_score
+from sklearn.metrics import completeness_score
 import common.Component as Component
 from common.trace import traceln
 import config.ds_xml_def as ds_xml
@@ -47,7 +49,6 @@ from ObjectModel.XMLDSCELLClass import XMLDSTABLECELLClass
 from ObjectModel.XMLDSTableRowClass import XMLDSTABLEROWClass
 from spm.spmTableRow import tableRowMiner
 from xml_formats.Page2DS import primaAnalysis
-from xml_formats.DS2PageXml import DS2PageXMLConvertor
 
 class RowDetection(Component.Component):
     """
@@ -74,6 +75,9 @@ class RowDetection(Component.Component):
         self.THHighSupport = 0.33
         # for --test
         self.bCreateRef = False
+        self.bCreateRefCluster = False
+        
+        self.bEvalCluster=True
         self.evalData = None
         
     def setParams(self, dParams):
@@ -90,11 +94,19 @@ class RowDetection(Component.Component):
             self.do2DS = dParams["dsconv"]
                         
         if "createref" in dParams:         
-            self.bCreateRef = dParams["createref"]                        
-    
+            self.bCreateRef = dParams["createref"]
+
+        if "createrefCluster" in dParams:         
+            self.bCreateRefCluster = dParams["createrefCluster"]
+
+        if "evalCluster" in dParams:         
+            self.bEvalCluster = dParams["evalCluster"]
+                        
         if "thhighsupport" in dParams:
             self.THHighSupport = dParams["thhighsupport"] * 0.01
-    
+         
+        self.bYCut =  dParams["YCut"] 
+        
     def createCells(self, table):
         """
             create new cells using BIESO tags
@@ -107,16 +119,20 @@ class RowDetection(Component.Component):
             lNewCells=[]
             # keep original positions
             col.resizeMe(XMLDSTABLECELLClass)
-            for cell in col.getCells():
+            # in order to ignore existing cells from GT: collect all objects from cells
+            lObjects = [txt for cell in col.getCells() for txt in cell.getObjects() ]
+            lObjects.sort(key=lambda x:x.getY())
+            
+#             for cell in col.getCells():
 #                 print cell
-                curChunk=[]
-                lChunks = []
+            curChunk=[]
+            lChunks = []
 #                 print map(lambda x:x.getAttribute('type'),cell.getObjects())
 #                 print map(lambda x:x.getID(),cell.getObjects())
-                cell.getObjects().sort(key=lambda x:x.getY())
-                for txt in cell.getObjects():
+#                 cell.getObjects().sort(key=lambda x:x.getY())
+#                 for txt in cell.getObjects():
+            for txt in lObjects:
 #                     print txt.getAttribute("type")
-                    txt.addAttribute("type",'RS')
                     if txt.getAttribute("type") == 'RS':
                         if curChunk != []:
                             lChunks.append(curChunk)
@@ -132,31 +148,37 @@ class RowDetection(Component.Component):
                         ## add Other as well???
                         curChunk.append(txt)
                         
-                if curChunk != []:
-                    lChunks.append(curChunk)
-                    
-                if lChunks != []:
-                    # create new cells
-                    table.delCell(cell)
-                    irow= cell.getIndex()[0]
-                    for i,c in enumerate(lChunks):
+            if curChunk != []:
+                lChunks.append(curChunk)
+                
+            if lChunks != []:
+                # create new cells
+#                 table.delCell(cell)
+                irow= txt.getParent().getIndex()[0]
+                for i,c in enumerate(lChunks):
 #                         print map(lambda x:x.getAttribute('type'),c)
-                        #create a new cell per chunk and replace 'cell'
-                        newCell = XMLDSTABLECELLClass()
-                        newCell.setPage(cell.getPage())
-                        newCell.setParent(table)
-                        newCell.setName(ds_xml.sCELL)
-                        newCell.setIndex(irow+i,cell.getIndex()[1])
-                        newCell.setObjectsList(c)
-                        newCell.resizeMe(XMLDSTEXTClass)
-                        newCell.tagMe2()
-                        for o in newCell.getObjects():
-                            o.setParent(newCell)
-                            o.tagMe()
+                    #create a new cell per chunk and replace 'cell'
+                    newCell = XMLDSTABLECELLClass()
+                    newCell.setPage(txt.getParent().getPage())
+                    newCell.setParent(table)
+                    newCell.setName(ds_xml.sCELL)
+                    newCell.setIndex(irow+i,txt.getParent().getIndex()[1])
+                    newCell.setObjectsList(c)
+                    newCell.resizeMe(XMLDSTEXTClass)
+                    newCell.tagMe2()
+                    for o in newCell.getObjects():
+                        o.setParent(newCell)
+                        o.tagMe()
 #                         table.addCell(newCell)
-                        lNewCells.append(newCell)
+                    lNewCells.append(newCell)
+#                 if txt.getParent().getNode().getparent() is not None: txt.getParent().getNode().getparent().remove(txt.getParent().getNode())
+#                 del(txt.getParent())
+        #delete all cells
+            for cell in col.getCells():
+                try: 
                     if cell.getNode().getparent() is not None: cell.getNode().getparent().remove(cell.getNode())
-                    del(cell)
+                except: pass
+            [table.delCell(cell) for cell in col.getCells() ]
             col.setObjectsList(lNewCells[:])
             [table.addCell(c) for c in lNewCells]        
         
@@ -166,12 +188,13 @@ class RowDetection(Component.Component):
         """
         apply mining to get Y cuts for rows
         
-        if everything is centered? not a realistic assumption 
+        if everything is centered? 
         """
         rowMiner= tableRowMiner()
         lYcuts = rowMiner.columnMining(table,self.THHighSupport,predefinedCuts)
         lYcuts.sort(key= lambda x:x.getValue())
-        print ('ycuts',lYcuts)
+#         for c in lYcuts:  print (c, [x.getY() for x in c.getNodes()])
+#         print ('ycuts',lYcuts)
 
         # shift up offset / find a better way to do this: integration skewing 
         [ x.setValue(x.getValue()-10) for x in lYcuts ]
@@ -181,25 +204,57 @@ class RowDetection(Component.Component):
         table.buildNDARRAY()
         
         
-    def generateCutCandidates(self,table):
-        """
-            generate a list of cuts
-            
-            input:  Table with cells (candidates from createCells)
-            output: [ (a,b),...]
-                where y=ax+b
-        """
+#     def findRowsInTable(self,table):
+#         """ 
+#             find row in this table
+#         """
+#         rowscuts = map(lambda r:r.getY(),table.getRows())
+#         self.createCells(table)
+#         self.processRows(table,rowscuts)
         
-    
-    def findRowsInTable(self,table):
-        """ 
-            find row in this table
-        """
-        rowscuts = map(lambda r:r.getY(),table.getRows())
-        self.createCells(table)
-        self.processRows(table,rowscuts)
         
-
+    def checkInputFormat(self,lPages):
+        """
+            delete regions : copy regions elements at page object
+            unlink subnodes
+        """
+        for page in lPages:
+            lTables = page.getAllNamedObjects(XMLDSTABLEClass)
+            for table in lTables:
+                lRegions = table.getAllNamedObjects("CELL")
+                lElts=[]
+                [lElts.extend(x.getObjects()) for x in lRegions]
+                [table.addObject(x,bDom=True) for x in lElts]
+                [table.removeObject(x,bDom=True) for x in lRegions]
+                    
+    def processYCuts(self,ODoc):
+        from util.XYcut import mergeSegments
+        
+        self.checkInputFormat(ODoc.getPages())
+        for page in ODoc.getPages():
+            traceln("page: %d" %  page.getNumber())        
+            lTables = page.getAllNamedObjects(XMLDSTABLEClass)
+            for table in lTables:
+                print ('nb Y: %s'% len(set([round(x.getY()) for x in page.getAllNamedObjects(XMLDSTEXTClass)])),len(page.getAllNamedObjects(XMLDSTEXTClass)))
+#                 lCuts, _, _ = mergeSegments([(x.getY(),x.getY() + x.getHeight(),x) for x in page.getAllNamedObjects(XMLDSTEXTClass)],0)
+#                 for i, (y,_,cut) in enumerate(lCuts):
+#                     ll =list(cut)
+#                     ll.sort(key=lambda x:x.getY())
+#                     #add column
+#                     myRow= XMLDSTABLEROWClass(i)
+#                     myRow.setPage(page)
+#                     myRow.setParent(table)
+#                     table.addObject(myRow)
+#                     myRow.setY(y)
+#                     myRow.setX(table.getX())
+#                     myRow.setWidth(table.getWidth())
+#                     if i +1  < len(lCuts):
+#                         myRow.setHeight(lCuts[i+1][0]-y)
+#                     else: # use table 
+#                         myRow.setHeight(table.getY2()-y)
+#                     table.addRow(myRow)
+#                     print (myRow)
+#                     myRow.tagMe(ds_xml.sROW)
 
     def findRowsInDoc(self,ODoc):
         """
@@ -221,7 +276,7 @@ class RowDetection(Component.Component):
                 self.processRows(table,[])        
 
                 coherence = self.computeCoherenceScore(table)
-                print ('coherence Score: %f'%(coherence))
+                traceln ('coherence Score: %f'%(coherence))
     
     def run(self,doc):
         """
@@ -236,8 +291,16 @@ class RowDetection(Component.Component):
             refdoc = self.createRef(doc)
             return refdoc
             # single ref per page
-            refdoc= self.createRefPerPage(doc)
-            return None
+#             refdoc= self.createRefPerPage(doc)
+#             return None
+        
+        if self.bCreateRefCluster:
+            if self.do2DS:
+                dsconv = primaAnalysis()
+                doc = dsconv.convert2DS(doc,self.docid)
+            
+            refdoc = self.createRefCluster(doc)            
+            return refdoc
         
         if self.do2DS:
             dsconv = primaAnalysis()
@@ -248,7 +311,10 @@ class RowDetection(Component.Component):
         self.ODoc.loadFromDom(self.doc,listPages = range(self.firstPage,self.lastPage+1))        
 #         self.ODoc.loadFromDom(self.doc,listPages = range(30,31))        
 
-        self.findRowsInDoc(self.ODoc)
+        if self.bYCut:
+            self.processYCuts(self.ODoc)
+        else:
+            self.findRowsInDoc(self.ODoc)
         return self.doc
         
         
@@ -292,12 +358,147 @@ class RowDetection(Component.Component):
         self.evalData=None
         doc = self.loadDom(filename)
         doc =self.run(doc)
-        self.evalData = self.createRef(doc)
+        if self.bEvalCluster:
+            self.evalData = self.createRefCluster(doc)
+        else:
+            self.evalData = self.createRef(doc)
         if outFile: self.writeDom(doc)
-#         return self.evalData.serialize('utf-8',1)
         return etree.tostring(self.evalData,encoding='unicode',pretty_print=True)
     
     
+    
+    
+    
+    def testCluster(self, srefData, srunData, bVisual=False):
+        """
+        <DOCUMENT>
+          <PAGE number="1" imageFilename="g" width="1457.52" height="1085.04">
+            <TABLE x="120.72" y="90.72" width="1240.08" height="923.28">
+              <ROW>
+                <TEXT id="line_1502076498510_2209"/>
+                <TEXT id="line_1502076500291_2210"/>
+                <TEXT id="line_1502076502635_2211"/>
+                <TEXT id="line_1502076505260_2212"/>
+        
+            
+        """
+        cntOk = cntErr = cntMissed = 0
+        
+        RefData = etree.XML(srefData.strip("\n").encode('utf-8'))
+        RunData = etree.XML(srunData.strip("\n").encode('utf-8'))
+
+        lPages = RefData.xpath('//%s' % ('PAGE[@number]'))
+        lRefKeys={}
+        dY = {}
+        lY=[]
+        dIDMap={}
+        for page in lPages:
+            pnum=page.get('number')
+            key=page.get('pagekey') 
+            xpath = ".//%s" % ("ROW")
+            lrows = page.xpath(xpath)
+            if len(lrows) > 0:
+                for i,row in enumerate(lrows):
+                    xpath = ".//@id" 
+                    lids = row.xpath(xpath)
+                    for id in lids: 
+                        dY[id]=i 
+                        lY.append(i)
+                        dIDMap[id]=len(lY)-1
+                    try:lRefKeys[key].append((pnum,key,lids))
+                    except KeyError:lRefKeys[key] = [(pnum,key,lids)]
+        lRunPerPage={}
+        lPageMapping={}
+        dX={}
+        lX=[-1 for i in range(len(dIDMap))]
+        if RunData is not None:
+            lpages = RunData.xpath('//%s' % ('PAGE[@number]'))
+            for page in lpages:
+                pnum=page.get('number')
+                key=page.get('pagekey')
+                lPageMapping[key]=pnum
+                if key in lRefKeys:
+                    xpath = ".//%s" % ("ROW")
+                    lrows = page.xpath(xpath)
+                    if len(lrows) > 0:
+                        for i,row in enumerate(lrows):
+                            xpath = ".//@id" 
+                            lids = row.xpath(xpath)
+                            for id in lids: 
+                                dX[id]=i 
+                                lX[ dIDMap[id]] = i
+                            try:lRunPerPage[key].append((pnum,key,lids))
+                            except KeyError:lRunPerPage[key] = [(pnum,key,lids)]
+
+        
+        
+        #adjusted_rand_score(ref,run)
+        rand_score= adjusted_rand_score(lY,lX)
+        completeness= completeness_score(lY, lX)
+        homogen_score = homogeneity_score(lY, lX) 
+        ltisRefsRunbErrbMiss= list()
+#         for key in  lRunPerPage:
+# #         for key in ['Neuoetting_008_03_0032']:       
+#             lRun= lRunPerPage[key]
+#             lRef = lRefKeys[key]
+#             runLen = len(lRunPerPage[key])
+#             refLen = len(lRefKeys[key])
+# 
+#             bT=False
+#             if refLen <= runLen:
+#                 rows=lRef;cols=lRun
+#             else: 
+#                 rows=lRun;cols=lRef
+#                 bT=True        
+#             cost_matrix=np.zeros((len(rows),len(cols)),dtype=float)
+#             for a,i in enumerate(rows):
+#                 curRef=i
+#                 for b,j in enumerate(cols):
+#                     runElt=j
+#                     ret,val = self.purityComputation(curRef,runElt)
+#                     dist = 100-val
+#                     cost_matrix[a,b]=dist
+# #                     print (curRef,runElt,val,dist)
+#             m = linear_sum_assignment(cost_matrix)
+#             r1,r2 = m
+#             if False:
+#                 print (len(lRef),lRef)
+#                 print (len(lRun),lRun)
+#                 print (bT,r1,r2)
+#             lcsTH = self.lcsTH 
+#             lCovered=[]
+#             lMatched=[]
+#             for a,i in enumerate(r2):
+# #                 print (key,a,r1[a],i,rows[r1[a]][2],cols[i][2], 100-cost_matrix[r1[a],i])
+#                 if  100-cost_matrix[r1[a,],i] > lcsTH:
+#                     cntOk += 1
+#                     if bT:
+#                         ltisRefsRunbErrbMiss.append( (rows[r1[a]][1],int(rows[r1[a]][0]), cols[i][2], rows[r1[a]][2],False, False) )
+#                         lMatched.append(i)
+#                     else:
+#                         ltisRefsRunbErrbMiss.append( (cols[i][1],int(cols[i][0]), rows[r1[a]][2], cols[i][2],False, False) )
+#                         lMatched.append(r1[a])
+#                 else:
+#                     #too distant: false
+#                     if bT:
+#                         lCovered.append(i)
+#                         ltisRefsRunbErrbMiss.append( (rows[r1[a]][1],int(rows[r1[a]][0]), "", rows[r1[a]][2],True, False) )
+#                     else:                    
+#                         lCovered.append(r1[a])
+#                         ltisRefsRunbErrbMiss.append( (cols[i][1],int(cols[i][0]), "", cols[i][2],True, False) )
+#  
+#                     cntErr+=1
+# #             print ('matched',lMatched)
+#             for i,iref in enumerate(lRef):
+#                 if i not in lMatched: 
+# #                     print ('not mathced',i,iref)
+#                     ltisRefsRunbErrbMiss.append( (lRef[i][1],int(lPageMapping[lRef[i][1]]), lRef[i][2], '',False, True) )
+#                     cntMissed+=1
+# #                 else:print('machtg!',i,lRef[i])
+        
+        ### replace cntOK per the randscore? 
+        return (rand_score, completeness, homogen_score,ltisRefsRunbErrbMiss)  
+        
     def overlapX(self,zone):
         
     
@@ -375,7 +576,7 @@ class RowDetection(Component.Component):
 #             RunData = None
 #             return (cntOk, cntErr, cntMissed)        
         lRun = []
-        if RunData:
+        if RunData is not None:
             lpages = RunData.xpath('//%s' % ('PAGE'))
             for page in lpages:
                 pnum=page.get('number')
@@ -451,7 +652,8 @@ class RowDetection(Component.Component):
                 
         """
         dicTestByTask = dict()
-        dicTestByTask['T50']= self.testCPOUM(0.50,srefData,srunData,bVisual)
+#         dicTestByTask['T50']= self.testCPOUM(0.50,srefData,srunData,bVisual)
+        dicTestByTask['CLUSTER']= self.testCluster(srefData,srunData,bVisual)
 #         dicTestByTask['T75']= self.testCPOUM(0.750,srefData,srunData,bVisual)
 #         dicTestByTask['T100']= self.testCPOUM(0.50,srefData,srunData,bVisual)
 
@@ -494,7 +696,50 @@ class RowDetection(Component.Component):
         rowNode.set('width',str(table.getWidth()))        
         rowNode.set('id',str(index))
 
-            
+
+    def createRefCluster(self,doc):
+        """
+            Ref: a row = set of textlines
+        """            
+        self.ODoc = XMLDSDocument()
+        self.ODoc.loadFromDom(doc,listPages = range(self.firstPage,self.lastPage+1))        
+  
+  
+        root=etree.Element("DOCUMENT")
+        refdoc=etree.ElementTree(root)
+        
+
+        for page in self.ODoc.getPages():
+            pageNode = etree.Element('PAGE')
+            pageNode.set("number",page.getAttribute('number'))
+            pageNode.set("pagekey",os.path.basename(page.getAttribute('imageFilename')))
+            pageNode.set("width",page.getAttribute('width'))
+            pageNode.set("height",page.getAttribute('height'))
+
+            root.append(pageNode)   
+            lTables = page.getAllNamedObjects(XMLDSTABLEClass)
+            for table in lTables:
+                dRows={}
+                tableNode = etree.Element('TABLE')
+                tableNode.set("x",table.getAttribute('x'))
+                tableNode.set("y",table.getAttribute('y'))
+                tableNode.set("width",table.getAttribute('width'))
+                tableNode.set("height",table.getAttribute('height'))
+                pageNode.append(tableNode)
+                for cell in table.getAllNamedObjects(XMLDSTABLECELLClass):
+                    try:dRows[int(cell.getAttribute("row"))].extend(cell.getObjects())
+                    except KeyError:dRows[int(cell.getAttribute("row"))] = cell.getObjects()
+        
+                for rowid in sorted(dRows.keys()):
+                    rowNode= etree.Element("ROW")
+                    tableNode.append(rowNode)
+                    for elt in dRows[rowid]:
+                        txtNode = etree.Element("TEXT")
+                        txtNode.set('id',elt.getAttribute('id'))
+                        rowNode.append(txtNode)
+                        
+        return refdoc
+        
     def createRef(self,doc):
         """
             create a ref file from the xml one
@@ -511,7 +756,7 @@ class RowDetection(Component.Component):
             #imageFilename="..\col\30275\S_Freyung_021_0001.jpg" width="977.52" height="780.0">
             pageNode = etree.Element('PAGE')
             pageNode.set("number",page.getAttribute('number'))
-            pageNode.set("imageFilename",page.getAttribute('imageFilename'))
+            pageNode.set("pagekey",os.path.basename(page.getAttribute('imageFilename')))
             pageNode.set("width",page.getAttribute('width'))
             pageNode.set("height",page.getAttribute('height'))
 
@@ -602,7 +847,12 @@ if __name__ == "__main__":
     rdc.add_option("--docid", dest="docid", action="store", type="string", help="document id")
     rdc.add_option("--dsconv", dest="dsconv", action="store_true", default=False, help="convert page format to DS")
     rdc.add_option("--createref", dest="createref", action="store_true", default=False, help="create REF file for component")
-    rdc.add_option("--thhighsupport", dest="thhighsupport", action="store", type="int", help="TH for high support", metavar="NN")
+    rdc.add_option("--createrefC", dest="createrefCluster", action="store_true", default=False, help="create REF file for component (cluster of textlines)")
+    rdc.add_option("--evalC", dest="evalCluster", action="store_true", default=False, help="evaluation using clusters (of textlines)")
+
+    rdc.add_option("--YC", dest="YCut", action="store_true", default=False, help="use Ycut")
+
+    rdc.add_option("--thhighsupport", dest="thhighsupport", action="store", type="int", default=33,help="TH for high support", metavar="NN")
 
     rdc.add_option('-f',"--first", dest="first", action="store", type="int", help="first page to be processed")
     rdc.add_option('-l',"--last", dest="last", action="store", type="int", help="last page to be processed")

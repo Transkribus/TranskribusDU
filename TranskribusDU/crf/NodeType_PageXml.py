@@ -29,6 +29,7 @@ from __future__ import  print_function
 from __future__ import unicode_literals
 
 import types
+from lxml import etree
 
 from common.trace import traceln
 
@@ -97,10 +98,10 @@ class NodeType_PageXml(NodeType):
                     self.checkIsIgnored(sXmlLabel)
                     #if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
                 except:
-                    raise ValueError("Invalid label '%s' in node %s"%(sXmlLabel, str(domnode)))
+                    raise ValueError("Invalid label '%s' in node %s"%(sXmlLabel, etree.tostring(domnode)))
         except KeyError:
             #no label at all
-            if not self.sDefaultLabel: raise ValueError("Missing label in node %s"%str(domnode))
+            if not self.sDefaultLabel: raise ValueError("Missing label in node %s"%etree.tostring(domnode))
         
         return sLabel
 
@@ -182,9 +183,9 @@ class NodeType_PageXml(NodeType):
         lNdText = ndBlock.xpath(self.sxpTextual, namespaces=self.dNS)
         if len(lNdText) != 1:
             if len(lNdText) <= 0:
-                raise ValueError("I found no useful TextEquiv below this node... \n%s"%str(ndBlock))
+                raise ValueError("I found no useful TextEquiv below this node... \n%s"%etree.tostring(ndBlock))
             else:
-                raise ValueError("I expected exactly one useful TextEquiv below this node. Got many... \n%s"%str(ndBlock))
+                raise ValueError("I expected exactly one useful TextEquiv below this node. Got many... \n%s"%etree.tostring(ndBlock))
         
         return PageXml.makeText(lNdText[0])
         
@@ -224,7 +225,7 @@ class NodeType_PageXml_type(NodeType_PageXml):
                 self.checkIsIgnored(sXmlLabel)
                 #if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
             except:
-                raise ValueError("Invalid label '%s' in node %s"%(sXmlLabel, str(domnode)))
+                raise ValueError("Invalid label '%s' in node %s"%(sXmlLabel, etree.tostring(domnode)))
         
         return sLabel
 
@@ -264,7 +265,7 @@ class NodeType_PageXml_type_NestedText(NodeType_PageXml_type):
         """    
         lNdText = ndBlock.xpath(self.sxpTextual, namespaces=self.dNS)
         if len(lNdText) != 1:
-            if len(lNdText) > 1: raise ValueError("More than 1 textual content for this node: %s"%str(ndBlock))
+            if len(lNdText) > 1: raise ValueError("More than 1 textual content for this node: %s"%etree.tostring(ndBlock))
             
             #let's try to get th etext of the words, and concatenate...
             # traceln("Warning: no text in node %s => looking at words!"%ndBlock.prop("id")) 

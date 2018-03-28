@@ -29,6 +29,10 @@
     under grant agreement No 674943.
     
 """
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
+
 import sys, os, collections, pickle, glob
 from lxml import etree
 import re
@@ -70,7 +74,7 @@ class DoubleHistogram:
         """
         return the sorted list of first key
         """
-        l = self.dCnt.keys(); l.sort()
+        l = list(self.dCnt.keys()); l.sort()
         return l
     
     #--- Second Key
@@ -84,7 +88,7 @@ class DoubleHistogram:
         """
         return the sorted list of observed labels for this tag
         """
-        l = self.dCnt[k].keys(); l.sort()
+        l = list(self.dCnt[k].keys()); l.sort()
         return l
     
     def getSecondKeyCountList(self, k):
@@ -162,48 +166,55 @@ class CollectionAnalyzer:
         with open(filename, "rb")as fd: 
             self.hPageCountPerDoc, self.hTagCountPerDoc, self.hLblCountPerTag = pickle.load(fd)
     
-    def prcnt(self, num, totnum, sFmt="%f%%"):
+    def prcnt(self, num, totnum):
         if totnum==0:
             return "n/a"
         else:
-            return sFmt % (num*100.0/totnum)
+            f = num*100.0/totnum
+            if 0.0 < f and f < 2.0:
+                return "%.1f%%" % f
+            else:
+                return "%.0f%%" % f
             
     def report(self):
         """
         report on accumulated data so far
         """
-        print "-"*60
+        print( "-"*60)
         
-        print " ----- %d documents, %d pages" %(len(self.lDoc), sum(self.lNbPage))
+        print( " ----- %d documents, %d pages" %(len(self.lDoc), sum(self.lNbPage)))
         for doc, nb in zip(self.lDoc, self.lNbPage): 
-            print "\t---- %40s  %6d pages"%(doc, nb)
+            print( "\t---- %40s  %6d pages"%(doc, nb))
         
-        print
-        print " ----- %d objects of interest (%d observed): %s"%(len(self.lTag), len(self.lObservedTag), self.lTag)
+        print()
+        print( " ----- %d objects of interest (%d observed): %s"%(len(self.lTag), len(self.lObservedTag), self.lTag))
         for doc in self.lDoc:
-            print "\t---- %s  %6d occurences"%(doc, self.hTagCountPerDoc.getSumByFirstKey(doc))
+            print( "\t---- %s  %6d occurences"%(doc, self.hTagCountPerDoc.getSumByFirstKey(doc)))
             for tag in self.lObservedTag: 
-                print "\t\t--%20s  %6d occurences" %(tag, self.hTagCountPerDoc.getCount(doc, tag))
-        print
+                print( "\t\t--%20s  %6d occurences" %(tag, self.hTagCountPerDoc.getCount(doc, tag)))
+        print()
         for tag in self.lObservedTag: 
-            print "\t-- %s  %6d occurences" %(tag, self.hTagCountPerDoc.getSumBySecondKey(tag))
+            print( "\t-- %s  %6d occurences" %(tag, self.hTagCountPerDoc.getSumBySecondKey(tag)))
             for doc in self.lDoc:
-                print "\t\t---- %40s  %6d occurences"%(doc, self.hTagCountPerDoc.getCount(doc, tag))
+                print( "\t\t---- %40s  %6d occurences"%(doc, self.hTagCountPerDoc.getCount(doc, tag)))
 
-        print
-        print " ----- Label frequency for ALL %d objects of interest: %s"%(len(self.lTag), self.lTag)
+        print()
+        print( " ----- Label frequency for ALL %d objects of interest: %s"%(len(self.lTag), self.lTag))
         for tag in self.lTag: 
             totnb           = self.hTagCountPerDoc.getSumBySecondKey(tag)
             totnblabeled    = self.hLblCountPerTag.getSumByFirstKey(tag)
-            print "\t-- %s  %6d occurences  %d labelled" %(tag, totnb, totnblabeled)
+            print( "\t-- %s  %6d occurences  %d labelled" %(tag, totnb, totnblabeled))
             for lbl in self.hLblCountPerTag.getSecondKeyList(tag):
                 nb = self.hLblCountPerTag.getCount(tag, lbl)
-                print "\t\t- %20s  %6d occurences\t(%5s)  (%5s)"%(lbl, nb, self.prcnt(nb, totnb, "%.0f%%"), self.prcnt(nb, totnblabeled, "%.0f%%"))
+                print( "\t\t- %20s  %6d occurences\t(%5s)  (%5s)"%(lbl,
+                                                                   nb,
+                                                                   self.prcnt(nb, totnb),
+                                                                   self.prcnt(nb, totnblabeled)))
             nb = totnb - totnblabeled
             lbl="<unlabeled>"
-            print "\t\t- %20s  %6d occurences\t(%5s)"%(lbl, nb, self.prcnt(nb, totnb, "%.0f%%"))
+            print( "\t\t- %20s  %6d occurences\t(%5s)"%(lbl, nb, self.prcnt(nb, totnb)))
             
-        print "-"*60
+        print( "-"*60)
         return ""
     
     def seenDocPageCount(self, doc, pagecnt):
@@ -244,16 +255,16 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
         lFolder = [os.path.basename(folder) for folder in glob.iglob(os.path.join(sRootDir, self.sDocPattern)) 
                                 if os.path.isdir(folder)]
         lFolder.sort()
-        print "Documents: ", lFolder
+        print( "Documents: ", lFolder)
         
         for docdir in lFolder:
-            print "Document ", docdir
+            print( "Document ", docdir)
             lPageFile = [os.path.basename(name) for name in glob.iglob(os.path.join(sRootDir, docdir, self.sPagePattern)) 
                                 if os.path.isfile(os.path.join(sRootDir, docdir, name))]
             lPageFile.sort()
             self.seenDocPageCount(docdir, len(lPageFile))
             for sPageFile in lPageFile: 
-                print ".",
+                print( ".",)
                 doc = etree.parse(os.path.join(sRootDir, docdir, sPageFile))
                 self.parsePage(doc, doc.getroot(), docdir)
                 doc = None
@@ -262,23 +273,23 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
             sys.stdout.flush()
             
     def runMultiPageXml(self, sRootDir):
-        print os.path.join(sRootDir, self.sDocPattern)
-        print glob.glob(os.path.join(sRootDir, self.sDocPattern))
+        print( os.path.join(sRootDir, self.sDocPattern))
+        print( glob.glob(os.path.join(sRootDir, self.sDocPattern)))
         lDocFile = [os.path.basename(filename) for filename in glob.iglob(os.path.join(sRootDir, self.sDocPattern)) 
                                 if os.path.isfile(filename)]
         lDocFile.sort()
-        print "Documents: ", lDocFile
+        print( "Documents: ", lDocFile)
         
         for docFile in lDocFile:
-            print "Document ", docFile
+            print( "Document ", docFile)
             doc = etree.parse(os.path.join(sRootDir, docFile))
             lNdPage = doc.getroot().xpath("//pg:Page",
                                           namespaces=self.dNS)
             self.seenDocPageCount(docFile, len(lNdPage))
             for ndPage in lNdPage:
-                print ".",
+                print( ".",)
                 self.parsePage(doc, ndPage, docFile)
-            print
+            print()
             sys.stdout.flush()
 
     def parsePage(self, doc, ctxtNd, name):
@@ -317,15 +328,20 @@ def test_simple():
     doer.runMultiPageXml(os.path.join(sDATA_DIR, "abp_TABLE_9142_mpxml", "col"))
     doer.end()
     sReport = doer.report()
-    print sReport
+    print( sReport)
     
 if __name__ == "__main__":
 
     if False:
         test_simple()
 
+    sUsage="""Usage: %s <sRootDir> <sDocPattern> [sPagePattern])
+For Multi-PageXml, only root directory and document pattern (2 arguments, e.g. 9142_GTRC/col '*.mpxml' )
+For PageXml, give also the Xml page pattern (3 arguments, e.g. 9142_GTRC/col '[0-9]+' *.mpxml')
+"""%sys.argv[0]
+
     #prepare for the parsing of the command line
-    parser = OptionParser()
+    parser = OptionParser(usage=sUsage)
     
 #     parser.add_option("--dir", dest='lTrn',  action="store", type="string"
 #                       , help="Train or continue previous training session using the given annotated collection.")    
@@ -355,10 +371,7 @@ if __name__ == "__main__":
             bMultiPageXml = True 
             sPagePattern = None
     except:
-        print """Usage: %s sRootDir sDocPattern [sPagePattern]
-For Multi-PageXml, only root directory and document name pattern
-For PageXml, give also the Xml filename pattern
-"""%sys.argv[0]
+        print(sUsage)
         exit(1)
         
     #all tag supporting the attribute type in PageXml 2003
@@ -368,7 +381,7 @@ For PageXml, give also the Xml filename pattern
     #Pragmatism: we may also have tagged TextLine ...
     lTag.append("TextLine")
     
-    print sRootDir, sDocPattern, sPagePattern, lTag
+    print( sRootDir, sDocPattern, sPagePattern, lTag)
 
 #         if bMODEUN:
 #             #all tag supporting the attribute type in PageXml 2003
@@ -376,12 +389,12 @@ For PageXml, give also the Xml filename pattern
 #         else:
 #             ls = args[3:]
 #             ltTagAttr = zip(ls[slice(0, len(ls), 2)], ls[slice(1, len(ls), 2)])
-#         print sRootDir, sDocPattern, sPagePattern, ltTagAttr
+#         print( sRootDir, sDocPattern, sPagePattern, ltTagAttr)
 #     except:
 # #         if bMODEUN:
-# #             print "Usage: %s sRootDir sDocPattern [sPagePattern]"%(sys.argv[0] )
+# #             print( "Usage: %s sRootDir sDocPattern [sPagePattern]"%(sys.argv[0] ))
 # #         else:
-# #             print "Usage: %s sRootDir sDocPattern [sPagePattern] [Tag Attr]+"%(sys.argv[0] )
+# #             print( "Usage: %s sRootDir sDocPattern [sPagePattern] [Tag Attr]+"%(sys.argv[0] ))
 #         exit(1)
 
     doer = PageXmlCollectionAnalyzer(sDocPattern, sPagePattern, lTag, sCustom=options.custom)
@@ -390,14 +403,14 @@ For PageXml, give also the Xml filename pattern
         
     doer.start()
     if bMultiPageXml:
-        print "--- MultiPageXml ---"
+        print( "--- MultiPageXml ---")
         doer.runMultiPageXml(sRootDir)
     else:
-        print "--- PageXml ---"
+        print( "--- PageXml ---")
         doer.runPageXml(sRootDir)
         
     doer.end()
     sReport = doer.report()
     
-    print sReport
+    print( sReport)
     

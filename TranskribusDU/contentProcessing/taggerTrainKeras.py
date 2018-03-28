@@ -440,20 +440,36 @@ class DeepTagger():
 #         
         lX,lY = self.prepareTensor(traindata)
 
-#         print lX.shape
+#         lX.reshape(1000,self.max_sentence_len)
+        print(lX.shape)
 #         print lY.shape
 
+        """
+        (1000, 26, 128)
+        (?, 26, 128)
+        (?, 26, 128)
+        (?, ?, 64)
+
+        """
         model = Sequential()
         reg= L1L2(l1=0.001, l2=0.0)
 
+        print ('feature: %s sent:%s  hid:%s'%(self.max_features,self.max_sentence_len,self.hiddenSize))
         model.add(Masking(mask_value=0., input_shape=(self.max_sentence_len, self.max_features)))
+        model.add(TimeDistributed(Dense(self.hiddenSize)))
         model.add(Bidirectional(LSTM(self.hiddenSize,return_sequences = True,bias_regularizer=reg))) 
-        model.add(Dropout(0.5))
+#         model.add(Dropout(0.5))
+#         model.add(Bidirectional(LSTM(self.hiddenSize,return_sequences = True,bias_regularizer=reg)))
+#         model.add(Dropout(0.5)) 
+#         model.add(Bidirectional(LSTM(self.hiddenSize,return_sequences = True,bias_regularizer=reg)))
+#         model.add(Dropout(0.5)) 
+        print (model.layers[-1].output.get_shape())
         if self.bAttentionLayer:
             model.add(AttentionDecoder(self.max_sentence_len, self.nbClasses))
         else:
             model.add(TimeDistributed(Dense(self.nbClasses, activation='softmax')))
-        #keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-08, decay=0.0)
+#        keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-08, decay=0.0)
+        model.add(Dropout(0.5))
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop',metrics=['categorical_accuracy']  )
         print (model.summary())
         _ = model.fit(lX, lY, epochs = self.nbEpochs,batch_size = self.batch_size, verbose = 1,validation_split = 0.33, shuffle=True)
@@ -869,9 +885,9 @@ if __name__ == '__main__':
     cmp.parser.add_option("--hidden", dest="hidden",  action="store", type="int", help="hidden layer dimension")    
     cmp.parser.add_option("--batch", dest="batchSize",  action="store", type="int", help="batch size")    
 
-    cmp.parser.add_option("--epochs", dest="nbEpochs",  action="store", type="int", help="nb epochs for training")    
-    cmp.parser.add_option("--ngram", dest="ngram",  action="store", type="int", help="ngram size")    
-    cmp.parser.add_option("--nbfeatures", dest="nbfeatures",  action="store", type="int", help="nb features")    
+    cmp.parser.add_option("--epochs", dest="nbEpochs",  action="store", type="int", default=2,help="nb epochs for training")    
+    cmp.parser.add_option("--ngram", dest="ngram",  action="store", type="int", default=2,help="ngram size")    
+    cmp.parser.add_option("--nbfeatures", dest="nbfeatures",  action="store", type="int",default=128, help="nb features")    
 
     cmp.parser.add_option("--testing", dest="testing",  action="append", type="string", help="test data")    
     cmp.parser.add_option("--run", dest="predict",  action="store", type="string", help="string to be categorized")    

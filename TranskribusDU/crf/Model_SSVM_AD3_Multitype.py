@@ -38,6 +38,8 @@ try:
     import cPickle as pickle
 except ImportError:
     import pickle
+
+from sklearn.utils.class_weight import compute_class_weight
     
 from pystruct.utils import SaveLogger
 from pystruct.models import NodeTypeEdgeFeatureGraphCRF
@@ -109,6 +111,31 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
     #         Look at flattenY and unflattentY if you want to pass/obtain list of labels per type, with first label of each type being encoded by 0
     # ------------------------------------------------------------------------------------------------------
 
+    def get_lX_lY(self, lGraph):
+        """
+        Compute node and edge features and return one X matrix for each graph as a list
+        return a list of X, a list of Y matrix
+        """
+        lX, lY = Model_SSVM_AD3.get_lX_lY(self, lGraph)
+        
+        nbEdge = sum( e.shape[0] for (_lNF, lE, _lEF) in lX for e in lE)
+        traceln(" CRF multi-type model: %d edges" % nbEdge)
+        
+        return lX, lY
+
+    def get_lX(self, lGraph):
+        """
+        Compute node and edge features and return one X matrix for each graph as a list
+        return a list of X, a list of Y matrix
+        """
+        lX = Model_SSVM_AD3.get_lX(self, lGraph)
+
+        nbEdge = sum( e.shape[0] for (_lNF, lE, _lEF) in lX for e in lE)
+        traceln(" CRF multi-type model: %d edges" % nbEdge)
+        
+        return lX
+
+
     # --- UTILITIES -------------------------------------------------------------
     def _computeModelCaracteristics(self, lX):
         """
@@ -122,8 +149,16 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
         """
         lNF, lE, lEF = lX[0]    #we assume the lX is properly constructed (and they have all correct shape! even if dim0=0
         self.nbType = len(lNF)
-        assert len(lE)  == self.nbType*self.nbType, "SW Error: Badly constructed X: expected %d Edge matrices"         % self.nbType*self.nbType
-        assert len(lEF) == self.nbType*self.nbType, "SW Error: Badly constructed X: expected %d Edge Feature matrices" % self.nbType*self.nbType
+        assert len(lE)  == self.nbType*self.nbType, \
+            "SW Error: Badly constructed X: "       \
+            "expected %d Edge matrices, got %d" % (self.nbType*self.nbType,
+                                                   len(lE))
+            
+        assert len(lEF) == self.nbType*self.nbType, \
+            "SW Error: Badly constructed X: "       \
+            "expected %d Edge Feature matrices"     \
+            ", got %d" % (self.nbType*self.nbType, len(lEF))
+            
         self.lNodeFeatNb = [NF.shape[1] for NF in lNF]
         self.lEdgeFeatNb = [ [lEF[i*self.nbType+j].shape[1] for i in range(self.nbType)] for j in range(self.nbType)]
         return self.nbType, self.lNodeFeatNb, self.lEdgeFeatNb
@@ -263,42 +298,29 @@ class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
                                           )
         return crf 
 
-    @classmethod
-    def computeClassWeight(cls, lY):
-        """
-        This is tricky. Uniform weight for now.
-        """
-        traceln("\t NOTE: uniform class weights ! (do not know how to properly deal with unbalanced classes per type)")
-        return None
 
-    
-# --- MAIN: DISPLAY STORED MODEL INFO ------------------------------------------------------------------
-
-if __name__ == "__main__":
-    try:
-        sModelDir, sModelName = sys.argv[1:3]
-    except:
-        print("Usage: %s <model-dir> <model-name>"%sys.argv[0])
-        print("Display some info regarding the stored model")
-        exit(1)
+    def computeClassWeight_balanced(self, lY):
+        """
+        We compute a normalized balanced set of weights per type
         
-    mdl = Model_SSVM_AD3_Multitype(sModelName, sModelDir)
-    print("Loading %s"%mdl.getModelFilename())
-    if False:
-        mdl.load()  #loads all sub-models!!
-    else:
-        mdl.ssvm = mdl._loadIfFresh(mdl.getModelFilename(), None, lambda x: SaveLogger(x).load())
+        UNUSED as of March 2018 (showed worse results on ABP table)
+        """
+        l_class_weights = []
+        
+        iTypPrev = 0
+        Y = np.hstack(lY)
+        for ityp in range(self.nbType):
+            iTypNext = iTypPrev + self._nbClass[ityp]
+            Y_typ = np.extract(np.logical_and(iTypPrev <= Y, Y < iTypNext), Y)
+            Y_typ_unique = np.unique(Y_typ)
+            class_weights = compute_class_weight("balanced", Y_typ_unique, Y_typ)
+            
+            l_class_weights.append( class_weights / np.linalg.norm(class_weights) )
+            del Y_typ, Y_typ_unique
+            iTypPrev = iTypNext
+        del Y
+        
+        return l_class_weights
 
-    print(mdl.getModelInfo())
-    
-    try:
-        import matplotlib.pyplot as plt
-    except ImportError as e:
-        print("Please install matplotlib to get graphical display of the model convergence")
-        raise e
-    plt.plot(mdl.ssvm.loss_curve_)
-    plt.ylabel("Loss")
-    plt.show()
 
-    
     

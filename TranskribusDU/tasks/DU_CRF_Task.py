@@ -586,12 +586,13 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         self.traceln("Evaluating with collection(s):", lsTrnColDir)
         self.traceln("-"*50)
 
-        fnCrossValidDetails = os.path.join(self.sModelDir, "fold_1_def.pkl")
+        fnCrossValidDetails = os.path.join(self.sModelDir, "fold_def.pkl")
         if os.path.exists(fnCrossValidDetails):
             self.traceln("ERROR: I refuse to overwrite an existing CV setup. Remove manually the CV data! (files %s%s%s_fold* )"%(self.sModelDir, os.sep, self.sModelName))
             exit(1)
         
         #list the train files
+        traceln(" - looking for %s files in %s"%(self.sXmlFilenamePattern, lsTrnColDir))
         ts_trn, lFilename_trn = self.listMaxTimestampFile(lsTrnColDir, self.sXmlFilenamePattern)
         self.traceln("       %d train documents" % len(lFilename_trn))
         
@@ -666,7 +667,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
     def _nfold_Finish(self):
         traceln("---------- SHOWING RESULTS OF CROSS-VALIDATION ----------")
         
-        fnCrossValidDetails = os.path.join(self.sModelDir, self.sModelName+"_fold_def.pkl")
+        fnCrossValidDetails = os.path.join(self.sModelDir, "fold_def.pkl")
         (lsTrnColDir, n_splits, test_size, random_state) = crf.Model.Model.gzip_cPickle_load(fnCrossValidDetails)
         
         loReport = []
@@ -838,7 +839,7 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         lFn, ts = [], None 
         for sDir in lsDir:
             lsFilename = sorted(glob.iglob(os.path.join(sDir, sPattern)))  
-            lFn.extend(lsFilename)
+            lFn.extend([s.replace("\\", "/") for s in lsFilename]) #Unix-style is universal
             if lsFilename:
                 ts_max =  max([os.path.getmtime(sFilename) for sFilename in lsFilename])
                 ts = ts_max if ts is None else max(ts, ts_max)
@@ -846,52 +847,6 @@ CRF options: [--crf-max_iter <int>]  [--crf-C <float>] [--crf-tol <float>] [--cr
         return ts, lFn
     listMaxTimestampFile = classmethod(listMaxTimestampFile)
     
-# ------------------------------------------------------------------------------------------------------------------------------
-class DU_FactorialCRF_Task(DU_CRF_Task):
-
-
-    def __init__(self, sModelName, sModelDir,  dLearnerConfig={}, sComment=None
-                 , cFeatureDefinition=None, dFeatureConfig={}
-                 ): 
-        """
-        Same as DU_CRF_Task except for the cFeatureConfig
-        """
-        self.configureGraphClass()
-        self.sModelName     = sModelName
-        self.sModelDir      = sModelDir
-#         self.cGraphClass    = cGraphClass
-        #Because of the way of dealing with the command line, we may get singleton instead of scalar. We fix this here
-        self.config_learner_kwargs      = {k:v[0] if type(v) is list and len(v)==1 else v for k,v in dLearnerConfig.items()}
-        if sComment: self.sMetadata_Comments    = sComment
-        
-        self._mdl = None
-        self._lBaselineModel = []
-        self.bVerbose = True
-        
-        self.iNbCRFType = None #is set below
-        
-        #--- Number of class per type
-        #We have either one number of class (single type) or a list of number of class per type
-        #in single-type CRF, if we know the number of class, we check that the training set covers all
-        self.nbClass  = None    #either the number or the sum of the numbers
-        self.lNbClass = None    #a list of length #type of number of class
-
-        #--- feature definition and configuration per type
-        #Feature definition and their config
-        if cFeatureDefinition: self.cFeatureDefinition  = cFeatureDefinition
-        assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
-        
-        #for single- or multi-type CRF, the same applies!
-        self.lNbClass = [len(nt.getLabelNameList()) for nt in self.cGraphClass.getNodeTypeList()]
-        self.nbClass = sum(self.lNbClass)
-        self.iNbCRFType = len(self.cGraphClass.getNodeTypeList())
-
-        self.config_extractor_kwargs = dFeatureConfig
-
-        self.cModelClass = Model_SSVM_AD3 if self.iNbCRFType == 1 else Model_SSVM_AD3_Multitype
-        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
-        
-        
 # ------------------------------------------------------------------------------------------------------------------------------
 
 

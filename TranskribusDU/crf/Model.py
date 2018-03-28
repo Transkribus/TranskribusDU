@@ -74,6 +74,8 @@ class Model:
         self.bTrainEdgeBaseline  = False
         
         self._nbClass = None
+        
+        self._balancedWeights = False   #  Uniform does same or better, in general
             
     def configureLearner(self, **kwargs):
         """
@@ -217,6 +219,7 @@ class Model:
         dat =  self._loadIfFresh(sTransfFile, expiration_timestamp, self.gzip_cPickle_load)
         self._node_transformer, self._edge_transformer = dat        
         return True
+    
     
     def get_lX_lY(self, lGraph):
         """
@@ -436,22 +439,46 @@ class Model:
         """
         return ""
     
+    # ----
+    def setBalancedWeights(self, bBalanced=True):
+        """
+        By default, we use a uniform weighting scheme.
+        A balanced by class is possible.
+        """
+        self._balancedWeights = bBalanced
+        return bBalanced
+    
     @classmethod
-    def computeClassWeight(cls, lY):
+    def computeClassWeight_balanced(cls, lY):
         Y = np.hstack(lY)
         Y_unique = np.unique(Y)
         class_weights = compute_class_weight("balanced", Y_unique, Y)
         del Y, Y_unique
         return class_weights
 
+    @classmethod
+    def computeClassWeight_uniform(cls, _):
+        #Pystruct does uniform by default
+        return None
+
+    def computeClassWeight(self, lY):
+        """
+        This is tricky. Uniform weight for now.
+        In our experience, uniform class weight is same or better.
+        In addition, in multi-type, the weighting scheme is hard to design.
+        """
+        if self._balancedWeights:
+            return self.computeClassWeight_balanced(lY)
+        else:
+            return self.computeClassWeight_uniform(lY) # by default
 
 # --- AUTO-TESTS ------------------------------------------------------------------
 def test_computeClassWeight():
     a = np.array([1,1,2], dtype=np.int32)
     b = np.array([2,1,3], dtype=np.int32)        
     cw = Model.computeClassWeight([a,b])
-    ref_cw = 11.0/3.0*np.array([2/11.0, 3/11.0, 6/11.0])
-    assert ((cw - ref_cw) <0.1).all()
+    ref_cw = 6.0/3.0*np.array([1/3.0, 1/2.0, 1/1.0])
+    assert ((cw - ref_cw) <0.001).all()    
     
 def test_test_report():
     lsClassName = ['OTHER', 'catch-word', 'header', 'heading', 'marginalia', 'page-number']
