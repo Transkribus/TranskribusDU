@@ -112,6 +112,7 @@ class DU_ABPTable(DU_CRF_Task):
         
     def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
 
+        if sComment is None: sComment = sModelName
         DU_CRF_Task.__init__(self
                      , sModelName, sModelDir
                      , dFeatureConfig = {  }
@@ -124,7 +125,7 @@ class DU_ABPTable(DU_CRF_Task):
                                  , 'save_every'       : 50     #save every 50 iterations,for warm start
                                  , 'max_iter'         : 1000 if max_iter        is None else max_iter
                          }
-                     , sComment=sComment
+                     , sComment= sComment
                      #,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
                      ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
                      )
@@ -158,6 +159,8 @@ try:
             """
             ECN Models
             """
+            
+            sMetadata_Creator = "NLE Document Understanding ECN"
             sXmlFilenamePattern = "*.mpxml"
 
             # sLabeledXmlFilenamePattern = "*.a_mpxml"
@@ -217,12 +220,12 @@ try:
                 return DU_GRAPH
 
             def __init__(self, sModelName, sModelDir, sComment=None,dLearnerConfigArg=None):
-
+                if sComment is None: sComment  = sModelName
                 DU_ECN_Task.__init__(self
                                      , sModelName, sModelDir
                                      , dFeatureConfig={}
                                      , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
-                                     , sComment=sComment
+                                     , sComment= sComment
                                      , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
                                      )
 
@@ -247,6 +250,10 @@ try:
             """
             ECN Models
             """
+            
+            sMetadata_Creator = "NLE Document Understanding GAT"
+
+
             sXmlFilenamePattern = "*.mpxml"
 
             # sLabeledXmlFilenamePattern = "*.a_mpxml"
@@ -328,7 +335,7 @@ try:
                 return DU_GRAPH
 
             def __init__(self, sModelName, sModelDir, sComment=None,dLearnerConfigArg=None):
-
+                if sComment is None : sComment= sModelName
                 DU_ECN_Task.__init__(self
                                      , sModelName, sModelDir
                                      , dFeatureConfig={}
