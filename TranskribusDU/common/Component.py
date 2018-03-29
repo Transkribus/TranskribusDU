@@ -10,6 +10,8 @@ Copyright Xerox XRCE 2006
 from __future__ import absolute_import
 from __future__ import  print_function
 from __future__ import unicode_literals
+
+from builtins import input
 #Adjustement of the PYTHONPATH to include /.../DS/src
 import sys, os.path
 import logging
@@ -492,7 +494,7 @@ class Component:
 				traceln("EXITING")
 				sys.exit(0)
 			traceln("*** DO YOU WANT TO CREATE A NEW TESTSET?? [y/n]")
-			s = raw_input()
+			s = input()
 			if s.lower() not in ["yes", "y"]:
 				traceln("*** EXITING...")
 				sys.exit(0)
