@@ -371,7 +371,7 @@ class PageXml:
         return the content of the @points attribute
         """
         sPairs = " ".join( ["%d,%d"%(int(x), int(y)) for x,y in lXY] )
-        if nd: nd.set("points", sPairs)
+        if nd is not None: nd.set("points", sPairs)
         return sPairs
     setPoints = classmethod(setPoints)
 
@@ -422,7 +422,7 @@ class PageXml:
         return xmlPageDoc, pageNode
     
     @classmethod
-    def createPageXmlNode(cls,nodeName,ns):
+    def createPageXmlNode(cls,nodeName):
         """
             create a PageXMl element
         """
