@@ -29,12 +29,23 @@ from __future__ import absolute_import
 from __future__ import  print_function
 from __future__ import unicode_literals
 
+
 class Polygon:
     
     def __init__(self, lXY):
         assert lXY, "ERROR: empty list of points"
         self.lXY = [(x,y) for x,y in lXY]
     
+    @classmethod
+    def parsePoints(cls, sPoints):
+        """
+        Parse a string containing a space-separated list of points, like:
+        "3466,3342 3512,3342 3512,3392 3466,3392"
+        returns a Polygon object
+        """
+        it_sXsY = (sPair.split(',') for sPair in sPoints.split(' '))
+        return Polygon((int(sx), int(sy)) for sx, sy in it_sXsY)
+
     def lX(self): return [x for x,_y in self.lXY]
     def lY(self): return [y for _x,y in self.lXY]
     
@@ -131,7 +142,44 @@ class Polygon:
         
         return x1,y1, x2,y2
         
+    def partitionSegmentTopRightBottomLeft(self):
+        """
+        partition the polygon segment into those on "top", on left, on bottom,
+         on left of the centre of gravity of the polygon
+        return 4 lists of segments
+        """
+        _fA, (fXg, fYg) = self.getArea_and_CenterOfMass()
 
+        if len(self.lXY) < 2: raise ValueError("Only one point: wrong polygon.")
+
+        #lists top, right, bottom, left segments
+        lT, lR, lB, lL = [],[],[],[]
+        xprev, yprev = self.lXY[-1]
+        for x, y in self.lXY:
+            segment = (xprev, yprev, x, y)
+            dx = x - xprev
+            dy = y - yprev
+            xm = (x + xprev) / 2.0
+            ym = (y + yprev) / 2.0
+            
+            if abs(dx) > abs(dy):
+                # "horizontal segment" :)
+                if fYg > ym:    # Y axis goes downward!!!
+                    #left one
+                    lT.append(segment)
+                else:
+                    lB.append(segment)
+            else:
+                # "vertical" segment
+                if fXg < xm:
+                    lR.append(segment)
+                else:
+                    lL.append(segment)
+            xprev, yprev = x, y    
+
+        return lT, lR, lB, lL
+
+    
 def test_trigo():    
     print([(3673, 1721), (3744, 1742), (3944, 1729), (3946, 1764), (3740, 1777), (3664, 1755)])
     p = Polygon([(3673, 1721), (3744, 1742), (3944, 1729), (3946, 1764), (3740, 1777), (3664, 1755)])
@@ -148,11 +196,40 @@ def test_trigo():
     print([(4140, 2771), (4140, 3400), (4340, 3400), (4340, 2771)])
     p = Polygon([(4140, 2771), (4140, 3400), (4340, 3400), (4340, 2771)])
     fA, (xg, yg) =  p.getArea_and_CenterOfMass()
-    assert fA and xg > 0 and yg >0        
+    assert fA and xg > 0 and yg >0      
+    
+
+def test_parse():
+    s = "3466,3342 3512,3342"  
+    p = Polygon.parsePoints(s)
+    assert p.lXY == [ (3466,3342), (3512,3342) ]
         
+def test_partition():
+    s = "0,0 1,3 4,4 6,3 5,1 3,0"  
+    p = Polygon.parsePoints(s)
+    lT, lR, lB, lL = p.partitionSegmentTopRightBottomLeft()
+    assert lB == [(1, 3, 4, 4), (4, 4, 6, 3)]
+    assert lR == [(6, 3, 5, 1)]
+    assert lT == [(3, 0, 0, 0), (5, 1, 3, 0)]
+    assert lL == [(0, 0, 1, 3)]
+
+    s = "0,0 1,3 4,4 6,3 5,1 6,-1 3,0"  #added one before last  
+    p = Polygon.parsePoints(s)
+    lT, lR, lB, lL = p.partitionSegmentTopRightBottomLeft()
+    assert lB == [(1, 3, 4, 4), (4, 4, 6, 3)]
+    assert lR == [(6, 3, 5, 1), (5,1,6,-1)]
+    assert lT == [(3, 0, 0, 0), (6,-1, 3,0)]
+    assert lL == [(0, 0, 1, 3)]
+
         
-        
-        
-        
-        
-        
+# s = "0,0 1,3 4,4 6,3 5,1 3,0"  
+# s = "0,0 1,3 4,4 6,3 5,1 6,-1 3,0"  #added one before last  
+# s = "65,41 67,322 485,323 480,42"
+# p = Polygon.parsePoints(s)
+# print(p.lXY)
+# (lT, lR, lB, lL) =  p.partitionSegmentTopRightBottomLeft()
+# print("\t", lT)
+# print(lL, "   ", lR)
+# print("\t", lB)
+         
+                
