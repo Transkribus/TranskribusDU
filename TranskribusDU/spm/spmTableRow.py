@@ -92,8 +92,8 @@ class tableRowMiner(Component.Component):
         actual_supports = {item:support_counts.get(item)/float(sequence_count) for item in support_counts.keys()}        
 #         lOneSupport= [k for k,v in actual_supports.iteritems() if v >= 0.5 ]
         lOneSupport= [k for k,v in actual_supports.items() if v >= th ]
-        print(actual_supports.items() )
-        print (th,lOneSupport)
+#         print(actual_supports.items() )
+#         print (th,lOneSupport)
         return lOneSupport
     
     
