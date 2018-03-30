@@ -149,6 +149,11 @@ class GridAnnotator:
                     # propagate the groundtruth info we have
                     sLabel = self.getLabel(i, lGTi)
                     ndSep.set("type", sLabel)
+                if abs(x2-x1) > abs(y2-y1):
+                    ndSep.set("orient", "0")
+                else:
+                    ndSep.set("orient", "90")
+                    
                 nd.append(ndSep)
                 ndCoord = MultiPageXml.createPageXmlNode("Coords")
                 MultiPageXml.setPoints(ndCoord, [(x1, y1), (x2, y2)])
