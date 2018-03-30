@@ -186,6 +186,7 @@ if __name__ == "__main__":
     iGridStep_H = 33  #odd number is better
     iGridStep_V = 33  #odd number is better
     
+    # Some grid line will be O or I simply because they are too short.
     fMinPageCoverage = 0.5  # minimum proportion of the page crossed by a grid line
                             # we want to ignore col- and row- spans
     
