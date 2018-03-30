@@ -77,7 +77,7 @@ class GridAnnotator:
             ymax = (iPageHeight // self.iGridVertiStep) * self.iGridVertiStep
             return xmin, ymin, xmax, ymax
                     
-    def get_grid_GT_index_from_DOM(self, root):
+    def get_grid_GT_index_from_DOM(self, root, fMinPageCoverage):
         """
         get the index in our grid of the table lines
         return lists of index, for horizontal and for vertical grid lines, per page
@@ -85,6 +85,8 @@ class GridAnnotator:
         """
         ltlHlV = []
         for ndPage in MultiPageXml.getChildByName(root, 'Page'):
+            w, h = int(ndPage.get("imageWidth")), int(ndPage.get("imageHeight"))
+
             lHi, lVi = [], []
     
             ndTR = MultiPageXml.getChildByName(ndPage,'TableRegion')[0]
@@ -93,15 +95,19 @@ class GridAnnotator:
             for ndSep in MultiPageXml.getChildByName(ndTR,'SeparatorRegion'):
                 sPoints=MultiPageXml.getChildByName(ndSep,'Coords')[0].get('points')
                 [(x1,y1),(x2,y2)] = Polygon.parsePoints(sPoints).lXY
-                if abs(x2-x1) > abs(y2-y1):
+                
+                dx, dy = abs(x2-x1), abs(y2-y1)
+                if dx > dy:
                     #horizontal table line
-                    ym = (y1+y2)/2.0
-                    i = int(round(ym / self.iGridVertiStep, 0)) 
-                    lHi.append(i)
+                    if dx > (fMinPageCoverage*w):
+                        ym = (y1+y2)/2.0
+                        i = int(round(ym / self.iGridVertiStep, 0)) 
+                        lHi.append(i)
                 else:
-                    xm = (x1+x2)/2.0
-                    i = int(round(xm / self.iGridHorizStep, 0)) 
-                    lVi.append(i)
+                    if dy > (fMinPageCoverage*h):
+                        xm = (x1+x2)/2.0
+                        i = int(round(xm / self.iGridHorizStep, 0)) 
+                        lVi.append(i)
             ltlHlV.append( (lHi, lVi) )
         return ltlHlV
 
@@ -180,6 +186,9 @@ if __name__ == "__main__":
     iGridStep_H = 33  #odd number is better
     iGridStep_V = 33  #odd number is better
     
+    fMinPageCoverage = 0.5  # minimum proportion of the page crossed by a grid line
+                            # we want to ignore col- and row- spans
+    
     #for the pretty printer to format better...
     parser = etree.XMLParser(remove_blank_text=True)
     doc = etree.parse(sFilename, parser)
@@ -188,7 +197,7 @@ if __name__ == "__main__":
     doer = GridAnnotator(iGridStep_H, iGridStep_V)
         
     #map the groundtruth table separators to our grid
-    ltlHlV = doer.get_grid_GT_index_from_DOM(root)
+    ltlHlV = doer.get_grid_GT_index_from_DOM(root, fMinPageCoverage)
     
     #create DOM node reflecting the grid 
     # we add GridSeparator elements. Groundtruth ones have type="1"
