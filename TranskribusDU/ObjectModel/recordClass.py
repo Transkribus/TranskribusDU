@@ -235,6 +235,10 @@ class fieldClass(object):
     def setRecord(self,r): self._record = r
     def getRecord(self):return self._record
     
+    #
+    def setOffset(self,o): self._offsets = o
+    def getOffset(self): return self._offsets
+    
     def setLabelMapping(self,l): self._lMapping = l
     
     def extractLabel(self,lres):
@@ -369,6 +373,7 @@ class KerasTagger(taggerClass):
     def loadResources(self,sModelName,dirName):
         # location from sModeName, dirName
         self.myTagger.sModelName = sModelName
+        self.myTagger.bAttentionLayer = sModelName[-3:] == 'att'
         self.myTagger.dirName = dirName        
         self.myTagger.loadModels()
     
@@ -384,7 +389,9 @@ class KerasTagger(taggerClass):
         if self.myTagger.bMultiType:
             res = self.myTagger.predict_multiptype([documentObject.getContent()])
         else:
-            res = self.myTagger.predict([documentObject.getContent().replace('.','')])
+#             res = self.myTagger.predict([documentObject.getContent().replace('.','')])
+            res = self.myTagger.predict([documentObject.getContent()])
+
         return res
     
 class CRFTagger(taggerClass):
