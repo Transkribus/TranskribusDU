@@ -246,7 +246,7 @@ class MyFrame(wx.Frame):
             curdir = self.config.working_dir
         #we also tolerate gzipped xml
         #wildcard = "Xml Document (*.xml; *.xml.gz)|*.xml;*.xml.gz"
-        wildcard = "XML (*.xml; *.xml.gz)|*.xml;*.xml.gz|PageXml (*.pxml; *.mpxml)|*.pxml; *.mpxml|All files (*.*)|*.*"
+        wildcard = "All files (*.*)|*.*;XML (*.xml; *.xml.gz)|*.xml;*.xml.gz|PageXml (*.pxml; *.mpxml)|*.pxml; *.mpxml"
         dlg = wx.FileDialog(self, message="Choose a model", 
                             wildcard=wildcard, defaultDir=curdir,
                             style=wx.OPEN | wx.CHANGE_DIR)

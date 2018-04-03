@@ -173,7 +173,7 @@ class IETest(Component.Component):
                     if extractedValues != []:
 #                         extractedValues = map(lambda offset,value,label,score:(value,score),extractedValues)
                         extractedValues = list(map(lambda x:(x[1],x[3]),extractedValues))
-
+                        field.setOffset(res[0])
                         field.setValue(extractedValues)
                         if self.bDebug: print ('found:',field, field.getValue())
         
@@ -351,12 +351,15 @@ class IETest(Component.Component):
         ### 
         
         for page in self.lPages:
-            print("page: ", page.getNumber())
+#             print("page: ", page.getNumber())
 #             self.testGTText(page)
 #             continue
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
             
             for table in lTables:
+                if table.getNbRows() < 2:
+                    print ("page: %s : not a table? %d/%d"%(page.getNumber(),table.getNbRows(),table.getNbColumns()))
+                    continue
                 if self.BuseStoredTemplate:
                     self.processWithTemplate(table, dr)
                 else:
@@ -578,8 +581,8 @@ class IETest(Component.Component):
             key=page.get('pagenum')
             xpath = "./%s" % ("RECORD")
             lrecord = page.xpath(xpath)
-            if len(lrecord)==0:
-                lRef.append([])
+            if len(lrecord) == 0:
+                pass
             else:
                 for record in lrecord:
                     lf =[]
@@ -688,8 +691,8 @@ class IETest(Component.Component):
 
         ltisRefsRunbErrbMiss.sort(key=lambda x:x[0])
         
-        for x in ltisRefsRunbErrbMiss:
-            print (x)
+#         for x in ltisRefsRunbErrbMiss:
+#             print (x)
         
         return (cntOk, cntErr, cntMissed,ltisRefsRunbErrbMiss)  
     
@@ -791,10 +794,8 @@ class IETest(Component.Component):
         dicTestByTask['location']= self.testRecordField(['location'],[None],srefData, srunData,bVisual)
         dicTestByTask['deathreason']= self.testRecordField(['deathreason'],[None],srefData, srunData,bVisual)
         dicTestByTask['names']= self.testRecordField(['firstname','lastname'],[None,None],srefData, srunData,bVisual)
-        dicTestByTask['namedeathlocationoccupation']= self.testRecordField(['firstname','lastname','deathreason','location','occupation'],[None,None,None,None,None],srefData, srunData,bVisual)
-
-#         dicTestByTask['situation']= self.testRecordField('situation','family',srefData, srunData,bVisual)
-
+#         dicTestByTask['namedeathlocationoccupation']= self.testRecordField(['firstname','lastname','deathreason','location','occupation'],[None,None,None,None,None],srefData, srunData,bVisual)
+        dicTestByTask['situation']= self.testRecordField(['situation'],['family'],srefData, srunData,bVisual)
 #         dicTestByTask['Year']= self.testYear(srefData, srunData,bVisual)
     
         return dicTestByTask    
