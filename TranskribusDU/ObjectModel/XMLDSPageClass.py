@@ -588,7 +588,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
             
         """
         from spm.feature import featureObject
-     
+
         if self._lBasicFeatures is None:
             self._lBasicFeatures = []
         # needed to keep canonical values!
@@ -606,11 +606,11 @@ class  XMLDSPageClass(XMLDSObjectClass):
             feature.setValue(self.getAttribute('virtual'))
             feature.setType(ftype)
             self.addFeature(feature)
-        return self.getSetofFeatures()
+            return self.getSetofFeatures()
             
         lHisto={}
         for elt in self.getAllNamedObjects(myObject):
-            if float(elt.getAttribute('width')) > 00:
+            if float(elt.getAttribute('width')) > 0:
                 for attr in lAttributes:
                     try:lHisto[attr]
                     except KeyError:lHisto[attr] = {}
@@ -620,12 +620,11 @@ class  XMLDSPageClass(XMLDSObjectClass):
         
         for attr in lAttributes:
             for value in lHisto[attr]:
-                print (attr, value)
                 if  len(lHisto[attr][value]) > 0.1:
                     ftype= featureObject.NUMERICAL
                     feature = featureObject()
                     feature.setName(attr)
-                    l = sum(x.getHeight() for x in lHisto[attr])
+                    l = sum(x.getHeight() for x in lHisto[attr][value])
                     feature.setWeight(l)
                     feature.setTH(TH)
                     feature.addNode(self)
