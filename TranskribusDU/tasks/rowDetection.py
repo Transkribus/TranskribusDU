@@ -394,11 +394,14 @@ class RowDetection(Component.Component):
         lPages = RefData.xpath('//%s' % ('PAGE[@number]'))
         lRefKeys={}
         dY = {}
-        lY=[]
+        lY={}
         dIDMap={}
         for page in lPages:
             pnum=page.get('number')
             key=page.get('pagekey') 
+            dIDMap[key]={}
+            lY[key]=[]
+            dY[key]={}
             xpath = ".//%s" % ("ROW")
             lrows = page.xpath(xpath)
             if len(lrows) > 0:
@@ -407,24 +410,20 @@ class RowDetection(Component.Component):
                     lids = row.xpath(xpath)
                     for id in lids:
                         # with spanning an element can belong to several rows?
-                        if id not in dY: 
-                            dY[id]=i 
-                            lY.append(i)
-                            dIDMap[id]=len(lY)-1
+                        if id not in dY[key]: 
+                            dY[key][id]=i 
+                            lY[key].append(i)
+                            dIDMap[key][id]=len(lY[key])-1
                     try:lRefKeys[key].append((pnum,key,lids))
                     except KeyError:lRefKeys[key] = [(pnum,key,lids)]
-        lRunPerPage={}
-        lPageMapping={}
-        dX={}
-        
-        lX=[-1 for i in range(len(dIDMap))]
+        rand_score = completeness = homogen_score = 0
         if RunData is not None:
             lpages = RunData.xpath('//%s' % ('PAGE[@number]'))
             for page in lpages:
                 pnum=page.get('number')
                 key=page.get('pagekey')
-                lPageMapping[key]=pnum
                 if key in lRefKeys:
+                    lX=[-1 for i in range(len(dIDMap[key]))]
                     xpath = ".//%s" % ("ROW")
                     lrows = page.xpath(xpath)
                     if len(lrows) > 0:
@@ -432,20 +431,15 @@ class RowDetection(Component.Component):
                             xpath = ".//@id" 
                             lids = row.xpath(xpath)
                             for id in lids: 
-                                dX[id]=i 
-#                                 print (i,id, dIDMap[id],len(lY),len(lids),len(dIDMap), len(lX))
-                                lX[ dIDMap[id]] = i
-                            try:lRunPerPage[key].append((pnum,key,lids))
-                            except KeyError:lRunPerPage[key] = [(pnum,key,lids)]
+                                lX[ dIDMap[key][id]] = i
 
-        
-        
-        #adjusted_rand_score(ref,run)
-        rand_score= adjusted_rand_score(lY,lX)
-        completeness= completeness_score(lY, lX)
-        homogen_score = homogeneity_score(lY, lX) 
+                    #adjusted_rand_score(ref,run)
+                    rand_score += adjusted_rand_score(lY[key],lX)
+                    completeness += completeness_score(lY[key], lX)
+                    homogen_score += homogeneity_score(lY[key], lX) 
+
         ltisRefsRunbErrbMiss= list()
-        return (rand_score, completeness, homogen_score,ltisRefsRunbErrbMiss)  
+        return (rand_score/len(lRefKeys), completeness/len(lRefKeys), homogen_score/len(lRefKeys),ltisRefsRunbErrbMiss)  
         
     def overlapX(self,zone):
         
