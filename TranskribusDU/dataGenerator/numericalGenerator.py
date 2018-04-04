@@ -35,7 +35,7 @@ from __future__ import unicode_literals
 
 import random
 
-from .generator import Generator
+from dataGenerator.generator import Generator
 
 """
      see http://www.southampton.ac.uk/~fangohr/blog/physical-quantities-numerical-value-with-units-in-python.html
@@ -49,9 +49,9 @@ from .generator import Generator
 class numericalGenerator(Generator):
     """
         generic numerical Generator
-    """
+    """   
     def __init__(self,mean,sd):
-        Generator.__init__(self)
+        Generator.__init__(self,None)
         self._name='num'
         self._mean = mean
         self._std= sd
@@ -70,7 +70,11 @@ class numericalGenerator(Generator):
         self._std = s
 
     def exportAnnotatedData(self,lLabels):
-        lLabels.append(self.getLabel())
+        
+#         lLabels.append(self.getLabel())
+        for i,ltype  in enumerate(self.lClassesToBeLearnt):
+            if self.getName() in ltype:
+                lLabels[i]= self.getName()     
         self._GT = [(self._generation,lLabels[:])]    
         return self._GT     
     
