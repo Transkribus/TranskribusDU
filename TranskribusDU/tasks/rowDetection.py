@@ -382,6 +382,9 @@ class RowDetection(Component.Component):
                 <TEXT id="line_1502076505260_2212"/>
         
             
+            
+            NEED to work at page level !!??
+            then average?
         """
         cntOk = cntErr = cntMissed = 0
         
@@ -391,34 +394,36 @@ class RowDetection(Component.Component):
         lPages = RefData.xpath('//%s' % ('PAGE[@number]'))
         lRefKeys={}
         dY = {}
-        lY=[]
+        lY={}
         dIDMap={}
         for page in lPages:
             pnum=page.get('number')
             key=page.get('pagekey') 
+            dIDMap[key]={}
+            lY[key]=[]
+            dY[key]={}
             xpath = ".//%s" % ("ROW")
             lrows = page.xpath(xpath)
             if len(lrows) > 0:
                 for i,row in enumerate(lrows):
                     xpath = ".//@id" 
                     lids = row.xpath(xpath)
-                    for id in lids: 
-                        dY[id]=i 
-                        lY.append(i)
-                        dIDMap[id]=len(lY)-1
+                    for id in lids:
+                        # with spanning an element can belong to several rows?
+                        if id not in dY[key]: 
+                            dY[key][id]=i 
+                            lY[key].append(i)
+                            dIDMap[key][id]=len(lY[key])-1
                     try:lRefKeys[key].append((pnum,key,lids))
                     except KeyError:lRefKeys[key] = [(pnum,key,lids)]
-        lRunPerPage={}
-        lPageMapping={}
-        dX={}
-        lX=[-1 for i in range(len(dIDMap))]
+        rand_score = completeness = homogen_score = 0
         if RunData is not None:
             lpages = RunData.xpath('//%s' % ('PAGE[@number]'))
             for page in lpages:
                 pnum=page.get('number')
                 key=page.get('pagekey')
-                lPageMapping[key]=pnum
                 if key in lRefKeys:
+                    lX=[-1 for i in range(len(dIDMap[key]))]
                     xpath = ".//%s" % ("ROW")
                     lrows = page.xpath(xpath)
                     if len(lrows) > 0:
@@ -426,79 +431,15 @@ class RowDetection(Component.Component):
                             xpath = ".//@id" 
                             lids = row.xpath(xpath)
                             for id in lids: 
-                                dX[id]=i 
-                                lX[ dIDMap[id]] = i
-                            try:lRunPerPage[key].append((pnum,key,lids))
-                            except KeyError:lRunPerPage[key] = [(pnum,key,lids)]
+                                lX[ dIDMap[key][id]] = i
 
-        
-        
-        #adjusted_rand_score(ref,run)
-        rand_score= adjusted_rand_score(lY,lX)
-        completeness= completeness_score(lY, lX)
-        homogen_score = homogeneity_score(lY, lX) 
+                    #adjusted_rand_score(ref,run)
+                    rand_score += adjusted_rand_score(lY[key],lX)
+                    completeness += completeness_score(lY[key], lX)
+                    homogen_score += homogeneity_score(lY[key], lX) 
+
         ltisRefsRunbErrbMiss= list()
-#         for key in  lRunPerPage:
-# #         for key in ['Neuoetting_008_03_0032']:       
-#             lRun= lRunPerPage[key]
-#             lRef = lRefKeys[key]
-#             runLen = len(lRunPerPage[key])
-#             refLen = len(lRefKeys[key])
-# 
-#             bT=False
-#             if refLen <= runLen:
-#                 rows=lRef;cols=lRun
-#             else: 
-#                 rows=lRun;cols=lRef
-#                 bT=True        
-#             cost_matrix=np.zeros((len(rows),len(cols)),dtype=float)
-#             for a,i in enumerate(rows):
-#                 curRef=i
-#                 for b,j in enumerate(cols):
-#                     runElt=j
-#                     ret,val = self.purityComputation(curRef,runElt)
-#                     dist = 100-val
-#                     cost_matrix[a,b]=dist
-# #                     print (curRef,runElt,val,dist)
-#             m = linear_sum_assignment(cost_matrix)
-#             r1,r2 = m
-#             if False:
-#                 print (len(lRef),lRef)
-#                 print (len(lRun),lRun)
-#                 print (bT,r1,r2)
-#             lcsTH = self.lcsTH 
-#             lCovered=[]
-#             lMatched=[]
-#             for a,i in enumerate(r2):
-# #                 print (key,a,r1[a],i,rows[r1[a]][2],cols[i][2], 100-cost_matrix[r1[a],i])
-#                 if  100-cost_matrix[r1[a,],i] > lcsTH:
-#                     cntOk += 1
-#                     if bT:
-#                         ltisRefsRunbErrbMiss.append( (rows[r1[a]][1],int(rows[r1[a]][0]), cols[i][2], rows[r1[a]][2],False, False) )
-#                         lMatched.append(i)
-#                     else:
-#                         ltisRefsRunbErrbMiss.append( (cols[i][1],int(cols[i][0]), rows[r1[a]][2], cols[i][2],False, False) )
-#                         lMatched.append(r1[a])
-#                 else:
-#                     #too distant: false
-#                     if bT:
-#                         lCovered.append(i)
-#                         ltisRefsRunbErrbMiss.append( (rows[r1[a]][1],int(rows[r1[a]][0]), "", rows[r1[a]][2],True, False) )
-#                     else:                    
-#                         lCovered.append(r1[a])
-#                         ltisRefsRunbErrbMiss.append( (cols[i][1],int(cols[i][0]), "", cols[i][2],True, False) )
-#  
-#                     cntErr+=1
-# #             print ('matched',lMatched)
-#             for i,iref in enumerate(lRef):
-#                 if i not in lMatched: 
-# #                     print ('not mathced',i,iref)
-#                     ltisRefsRunbErrbMiss.append( (lRef[i][1],int(lPageMapping[lRef[i][1]]), lRef[i][2], '',False, True) )
-#                     cntMissed+=1
-# #                 else:print('machtg!',i,lRef[i])
-        
-        ### replace cntOK per the randscore? 
-        return (rand_score, completeness, homogen_score,ltisRefsRunbErrbMiss)  
+        return (rand_score/len(lRefKeys), completeness/len(lRefKeys), homogen_score/len(lRefKeys),ltisRefsRunbErrbMiss)  
         
     def overlapX(self,zone):
         
