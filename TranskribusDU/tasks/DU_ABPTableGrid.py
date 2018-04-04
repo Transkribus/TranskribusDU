@@ -52,6 +52,23 @@ class GridAnnotator:
         self.iGridHorizStep = iGridHorizStep
         self.iGridVertiStep = iGridVertiStep
 
+    @classmethod
+    def gridIndex(cls, x, step_grid, x_grid_start, x_grid_end = None):
+        """
+        closest grid line to the given value
+        """
+        assert x_grid_end is None or x <= x_grid_end, "value out of grid: %s" \
+                    % ((step_grid, x_grid_start, x_grid_end),)
+        return int(round( (x - x_grid_start) / float(step_grid), 0)) # py2...
+
+    @classmethod
+    def snapToGridIndex(cls, x, step_grid):
+        """
+        closest grid line to the given value
+        return the grid line index
+        """
+        return int(round( x / float(step_grid), 0)) # py2...
+
     def iterGridHorizontalLines(self, iPageWidth, iPageHeight):
         """
         Coord of the horizontal lines of the grid, given the page size (pixels)
@@ -89,26 +106,32 @@ class GridAnnotator:
 
             lHi, lVi = [], []
     
-            ndTR = MultiPageXml.getChildByName(ndPage,'TableRegion')[0]
-            
-            #enumerate the table separators
-            for ndSep in MultiPageXml.getChildByName(ndTR,'SeparatorRegion'):
-                sPoints=MultiPageXml.getChildByName(ndSep,'Coords')[0].get('points')
-                [(x1,y1),(x2,y2)] = Polygon.parsePoints(sPoints).lXY
+            l = MultiPageXml.getChildByName(ndPage,'TableRegion')
+            if l:
+                assert len(l) == 1, "More than 1 TableRegion??"
+                ndTR = l[0]
                 
-                dx, dy = abs(x2-x1), abs(y2-y1)
-                if dx > dy:
-                    #horizontal table line
-                    if dx > (fMinPageCoverage*w):
-                        ym = (y1+y2)/2.0
-                        i = int(round(ym / self.iGridVertiStep, 0)) 
-                        lHi.append(i)
-                else:
-                    if dy > (fMinPageCoverage*h):
-                        xm = (x1+x2)/2.0
-                        i = int(round(xm / self.iGridHorizStep, 0)) 
-                        lVi.append(i)
+                #enumerate the table separators
+                for ndSep in MultiPageXml.getChildByName(ndTR,'SeparatorRegion'):
+                    sPoints=MultiPageXml.getChildByName(ndSep,'Coords')[0].get('points')
+                    [(x1,y1),(x2,y2)] = Polygon.parsePoints(sPoints).lXY
+                    
+                    dx, dy = abs(x2-x1), abs(y2-y1)
+                    if dx > dy:
+                        #horizontal table line
+                        if dx > (fMinPageCoverage*w):
+                            ym = (y1+y2)/2.0   # 2.0 to support python2
+                            #i = int(round(ym / self.iGridVertiStep, 0)) 
+                            i = self.snapToGridIndex(ym, self.iGridVertiStep)
+                            lHi.append(i)
+                    else:
+                        if dy > (fMinPageCoverage*h):
+                            xm = (x1+x2)/2.0
+                            #i = int(round(xm / self.iGridHorizStep, 0)) 
+                            i = self.snapToGridIndex(xm, self.iGridHorizStep)
+                            lVi.append(i)
             ltlHlV.append( (lHi, lVi) )
+                
         return ltlHlV
 
     def getLabel(self, i, lGTi):
@@ -138,18 +161,19 @@ class GridAnnotator:
         Tag them if ltlHlV is given
         Modify the XML DOM
         """
+        domid = 0 #to add unique separator id
+        
         for iPage, ndPage in enumerate(MultiPageXml.getChildByName(root, 'Page')):
-            
-            if ltlHlV is None:
-                lHi, lVi = [], []
-            else:
+            try:
                 lHi, lVi = ltlHlV[iPage]
+            except IndexError:
+                lHi, lVi = [], []
     
             w, h = int(ndPage.get("imageWidth")), int(ndPage.get("imageHeight"))
             
             ndTR = MultiPageXml.getChildByName(root,'TableRegion')[0]
         
-            def addPageXmlSeparator(nd, i, lGTi, x1, y1, x2, y2):
+            def addPageXmlSeparator(nd, i, lGTi, x1, y1, x2, y2, domid):
                 ndSep = MultiPageXml.createPageXmlNode("GridSeparator")
                 if lGTi:
                     # propagate the groundtruth info we have
@@ -159,7 +183,7 @@ class GridAnnotator:
                     ndSep.set("orient", "0")
                 else:
                     ndSep.set("orient", "90")
-                    
+                ndSep.set("id", "s_%d"%domid)
                 nd.append(ndSep)
                 ndCoord = MultiPageXml.createPageXmlNode("Coords")
                 MultiPageXml.setPoints(ndCoord, [(x1, y1), (x2, y2)])
@@ -168,11 +192,13 @@ class GridAnnotator:
             
             #Vertical grid lines 
             for i, (x1,y1,x2,y2) in enumerate(self.iterGridVerticalLines(w,h)):
-                addPageXmlSeparator(ndTR, i, lVi, x1, y1, x2, y2)
+                domid += 1
+                addPageXmlSeparator(ndTR, i, lVi, x1, y1, x2, y2, domid)
 
             #horizontal grid lines 
             for i, (x1,y1,x2,y2) in enumerate(self.iterGridHorizontalLines(w,h)):
-                addPageXmlSeparator(ndTR, i, lHi, x1, y1, x2, y2)
+                domid += 1
+                addPageXmlSeparator(ndTR, i, lHi, x1, y1, x2, y2, domid)
                 
         return
     
@@ -183,6 +209,7 @@ if __name__ == "__main__":
     sFilename = sys.argv[1]
     sOutFilename = sys.argv[2]
     
+    print("-adding grid: %s --> %s"%(sFilename, sOutFilename))
     iGridStep_H = 33  #odd number is better
     iGridStep_V = 33  #odd number is better
     
