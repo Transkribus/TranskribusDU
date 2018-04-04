@@ -200,14 +200,14 @@ class GraphGrid_H(GraphGrid):
             i1 = int(math.floor(ndBlock.y1 / float(cls.iGridStep_V)))
             i2 = int(math.ceil (ndBlock.y2 / float(cls.iGridStep_V)))
             assert i2 >= i1
-
-            edge = Edge_BL(ndBlock, dGridLineByIndex[i1])
-            edge.len = (ndBlock.y1 - i1 * cls.iGridStep_V) / cls.iGridStep_V
-            edge._gridtype = -1 # grid line is above
-            lEdge.append(edge)
+            if i1 >= 0:  # got some negative i1...
+                edge = Edge_BL(ndBlock, dGridLineByIndex[i1])
+                edge.len = (ndBlock.y1 - i1 * cls.iGridStep_V) / cls.iGridStep_V
+                edge._gridtype = -1 # grid line is above
+                lEdge.append(edge)
             ### print(ndBlock.y1, i1, edge.len)
             
-            for i in range(i1+1, i2):
+            for i in range(max(0, i1+1), max(0, i2)):
                 ndLine = dGridLineByIndex[i]
                 edge = Edge_BL(ndBlock, ndLine)
                 edge.len = ( (ndBlock.y1 + ndBlock.y2)/2.0  - i * cls.iGridStep_V) / cls.iGridStep_V
@@ -217,11 +217,12 @@ class GraphGrid_H(GraphGrid):
                 ### print(ndBlock.y1, ndBlock.y2, i, edge.len)
                 lEdge.append(edge)
             
-            edge = Edge_BL(ndBlock, dGridLineByIndex[i2])
-            edge.len = (ndBlock.y2 - i2 * cls.iGridStep_V) / cls.iGridStep_V
-            edge._gridtype = +1 # grid line is above
-            lEdge.append(edge)
-            ### print(ndBlock.y2, i2, edge.len)
+            if i2 >= 0:
+                edge = Edge_BL(ndBlock, dGridLineByIndex[i2])
+                edge.len = (ndBlock.y2 - i2 * cls.iGridStep_V) / cls.iGridStep_V
+                edge._gridtype = +1 # grid line is above
+                lEdge.append(edge)
+                ### print(ndBlock.y2, i2, edge.len)
             
         
         # grid line to grid line edges
