@@ -1,0 +1,19 @@
+{
+   "ecn_learner_config":
+     {
+	"name":"3Lay10Conv",
+        "dropout_rate_edge": 0.2,
+        "dropout_rate_edge_feat": 0.0,
+        "dropout_rate_node": 0.2,
+        "lr": 0.001,
+        "mu": 0.0,
+        "nb_iter": 1500,
+        "nconv_edge": 10,
+        "node_indim": -1,
+        "num_layers": 3,
+        "ratio_train_val": 0.10,
+        "patience":50,
+        "activation_name":"tanh",
+        "stack_convolutions": true
+    }
+}
