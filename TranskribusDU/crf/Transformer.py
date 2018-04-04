@@ -57,7 +57,7 @@ class TransformerListByType(list, Transformer):
     This is a list of transformer by type (node type or edge type)
     """
         
-    def fit(self, l, y=None):
+    def fit(self, l, _y=None):
         """
         self is a list of transformers, one per type
         l is a list of objects 
@@ -70,7 +70,7 @@ class TransformerListByType(list, Transformer):
         l is a list of feature matrix, one per type
         """
         assert len(self) == len(l), "Internal error"
-        return [ t.transform(lo) for t, lo in zip(self, l)]
+        return [t.transform(lo) for t, lo in zip(self, l)]
 
 #before 12/9/2017: class RobustStandardScaler(StandardScaler):
 class EmptySafe_StandardScaler(StandardScaler):

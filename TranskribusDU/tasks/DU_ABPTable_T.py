@@ -42,7 +42,7 @@ from tasks import _checkFindColDir, _exit
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from tasks.DU_CRF_Task import DU_CRF_Task
-from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_T_PageXml_StandardOnes_noText_v2
+from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_T_PageXml_StandardOnes_noText_v3
 
 
 
@@ -127,7 +127,7 @@ class DU_ABPTable_TypedCRF(DU_CRF_Task):
                                  , 'max_iter'         : 1000 if max_iter        is None else max_iter
                          }
                      , sComment=sComment
-                     , cFeatureDefinition=FeatureDefinition_T_PageXml_StandardOnes_noText_v2
+                     , cFeatureDefinition=FeatureDefinition_T_PageXml_StandardOnes_noText_v3
                      , dFeatureConfig = {
                          #config for the extractor of nodes of each type
                          "text": None,    
