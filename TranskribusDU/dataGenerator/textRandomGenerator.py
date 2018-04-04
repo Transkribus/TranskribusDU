@@ -35,7 +35,7 @@ from __future__ import unicode_literals
 
 import random
 import string
-from .textGenerator import textGenerator
+from dataGenerator.textGenerator import textGenerator
 
 class textRandomGenerator(textGenerator):
     """
@@ -51,9 +51,14 @@ class textRandomGenerator(textGenerator):
                              
     
     def exportAnnotatedData(self,lLabels):
-        lLabels.append(self.getName())
+        #lLabels.append(self.getName())
+        for i,ltype  in enumerate(self.lClassesToBeLearnt):
+            if self.getName() in ltype:
+                lLabels[i]=self.getName()
+                        
         self._GT = [(self._generation,lLabels[:])]    
         return self._GT 
+    
     def generate(self):
         self._generation=""
         for i in range(int(round(random.gauss(self._length,self._std)))):
@@ -68,7 +73,7 @@ class textRandomGenerator(textGenerator):
     def noiseSplit(self):
         textGenerator.noiseSplit(self)
         
-class textletterstRandomGenerator(textRandomGenerator):
+class textletterRandomGenerator(textRandomGenerator):
     def generate(self):
         self._generation=""
         for i in range(int(round(random.gauss(self._length,self._std)))):
