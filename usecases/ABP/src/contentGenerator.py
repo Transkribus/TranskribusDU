@@ -36,8 +36,8 @@ from __future__ import print_function
 import sys, os.path
 import random
 import datetime
-# from dateutil.relativedelta import *
-
+from optparse import OptionParser
+import pickle,gzip
 import platform
 
 sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'TranskribusDU')
@@ -47,7 +47,7 @@ from dataGenerator.generator import Generator
 from dataGenerator.textGenerator import textGenerator 
 from dataGenerator.numericalGenerator import integerGenerator, positiveIntegerGenerator
 from dataGenerator.textRandomGenerator import textRandomGenerator
-from dataGenerator.textRandomGenerator import textletterstRandomGenerator
+from dataGenerator.textRandomGenerator import textletterRandomGenerator
 
 
 class NumberedItemSepGenerator(textGenerator):
@@ -68,7 +68,7 @@ class numberedItems(textGenerator):
 class AgeUnitGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
-        self.loadResourcesFromList( [[('Jahre',60),('Monate',20),('Wochen',10),('Tag',10),('Stunde',10)]])        
+        self.loadResourcesFromList( [[('Jahre',50),('Ja',10),('Monate',20),('Wochen',10),('Tag',10),('Stunde',10)]])        
         
 class ageValueGenerator(integerGenerator):
     """ 
@@ -100,9 +100,9 @@ class AgeGenerator(textGenerator):
         self.unit = AgeUnitGenerator()
                 
         self._structure = [
-                ( (self.measure,1,100), (self.unit,1,100),100),
-                ( (self.measure,1,100), (self.unit,1,100),(self.measure,1,100), (self.unit,1,100),100),
-                ( (self.measure,1,100), (self.unit,1,100),(self.measure,1,100), (self.unit,1,100),(self.measure,1,100), (self.unit,1,100),100)
+                ( (self.measure,1,100), (self.unit,1,100),100)
+#                 ( (self.measure,1,100), (self.unit,1,100),(self.measure,1,100), (self.unit,1,100),100),
+#                 ( (self.measure,1,100), (self.unit,1,100),(self.measure,1,100), (self.unit,1,100),(self.measure,1,100), (self.unit,1,100),100)
              ]
     def generate(self):
         return Generator.generate(self)    
@@ -122,7 +122,7 @@ class religionGenerator(textGenerator):
 class familyStatus(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
-        self.loadResourcesFromList( [[('kind',30),('Säugling',5),('ledig',20), ('verehelichet.',10),('erehelicht',10),('witwe',20),('witwer',10),('verwitwet',5),('verw.',5),('verheirathet',10),('verhei',10)]])
+        self.loadResourcesFromList( [[('knabe',5),('mädchen',5),('kind',30),('Säugling',5),('ledig',20), ('verehelichet.',10),('erehelicht',10),('wittwe',20),('wittwer',10),('verwitwet',5),('verw.',5),('verheirathet',10),('verhei',10)]])
                      
 class deathReasonColumnGenerator(textGenerator):
     def __init__(self,lang):
@@ -225,19 +225,16 @@ class CUMSACRGenerator(textGenerator):
         
 class PersonName2(textGenerator):
     """
-        TODO: add the profile for the noisegenerator: merge 10%, split ? 
-        
-        add a point at the end of the person :  Gotthard Wurstbauer.
     """
     def __init__(self,lang):
         textGenerator.__init__(self,lang=None)
         
         self._structure = [
-                 ( (firstNameGenerator(),1,100), (lastNameGenerator(),1,100), (religionGenerator(),1,20),(legitimGenerator(),1,10),100)
-                ,( (lastNameGenerator(),1,100),  (firstNameGenerator(),1,100),(religionGenerator(),1,20),(legitimGenerator(),1,10),100)
+                 ( (firstNameGenerator(),1,100), (lastNameGenerator(),1,100),(CUMSACRGenerator(lang),1,10), (religionGenerator(),1,20),(legitimGenerator(),1,10),100)
+                , ( (lastNameGenerator(),1,100), (firstNameGenerator(),1,100), (CUMSACRGenerator(lang),1,10),(religionGenerator(),1,20),(legitimGenerator(),1,10),100)
                 #noisy ones ?
-                ,(    (firstNameGenerator(),1,100), (CUMSACRGenerator(lang),1,25),100)
-                ,(    (lastNameGenerator(),1,100), (CUMSACRGenerator(lang),1,25),100)
+#                 ,(    (firstNameGenerator(),1,100), (CUMSACRGenerator(lang),1,25),100)
+#                 ,(    (lastNameGenerator(),1,100), (CUMSACRGenerator(lang),1,25),100)
 
              ]
     
@@ -246,7 +243,6 @@ class PersonName2(textGenerator):
         
 class PersonName(textGenerator):
     """
-        TODO: add the profile for the noisegenerator: merge 10%, split ? 
     """
     def __init__(self,lang):
         textGenerator.__init__(self,lang=None)
@@ -275,7 +271,7 @@ class doktorTitleGenerator(textGenerator):
     """
     def __init__(self,lang):
         textGenerator.__init__(self,lang=None)
-        self._value = ['Arzt','Dr', 'Landarzt','doktor', 'hebamme','Frau','Sch.' 'Schwester']    
+        self._value = ['Arzt','Dr', 'Landarzt','doktor', 'hebamme','Frau','Sch.', 'Schwester']    
         
 class doktorGenerator(textGenerator):
     def __init__(self,lang):
@@ -291,7 +287,8 @@ class MonthDateGenerator(textGenerator):
     def __init__(self,lang,value=None):
         textGenerator.__init__(self,lang)
         self._value = [value]   
-        self.realization = ['b','B','m']
+#         self.realization = ['b','B','m']   # m = 01 02 ...
+        self.realization = ['b','B']
         
                    
     def setValue(self,d): 
@@ -316,7 +313,9 @@ class MonthDayDateGenerator(textGenerator):
         self._value = [d.day]
 
     def generate(self):
-        try: self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization))
+        day= int(self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization)))
+        day= "%d"%day
+        try: self._generation = day
         except UnicodeDecodeError: self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization)).decode('latin-1')
         return self
 
@@ -325,7 +324,8 @@ class weekDayDateGenerator(textGenerator):
         self._fulldate = None
         textGenerator.__init__(self,lang)
         self._value = [value]     
-        self.realization=['a','A','w']
+#         self.realization=['a','A','w']
+        self.realization=['a','A']
          
     def __repr__(self): 
         try:
@@ -484,8 +484,6 @@ class ABPGermanDateGenerator(DateGenerator):
         for obj in self._instance:
             obj.generate()
             self._generation.append(obj)
-        return self    
-
         return self
      
     def getDayParts():
@@ -505,7 +503,7 @@ class ABPRecordGenerator(textGenerator):
     # method level otherwise loadresources for each sample!!
     person= PersonName2(lang)
     date= ABPGermanDateGenerator()
-    date.defineRange(1900, 2000)
+    date.defineRange(1700, 2000)
     deathreasons = deathReasonColumnGenerator(lang)
     doktor= doktorGenerator(lang)
     location= location2Generator()
@@ -519,39 +517,56 @@ class ABPRecordGenerator(textGenerator):
     numItems = numberedItems(15,10)     
     misc = integerGenerator(1000, 1000)
     noise = textRandomGenerator(10,8)
-    noise2 = textletterstRandomGenerator(10,5)
+    noise2 = textletterRandomGenerator(10,5)
 
-    #missing: legitimGenerator, religionGenerator
 
+    # per type as wel!!
+    lClassesToBeLearnt =['deathreasonGenerator'
+                              ,'doktorGenerator'
+                                ,'doktorTitleGenerator'
+                              ,'PersonName2'
+                                ,'lastNameGenerator'
+                                ,'firstNameGenerator'
+                              ,'professionGenerator'
+                              ,'religionGenerator'
+                              ,'familyStatus'
+                              ,'textletterRandomGenerator'
+                              ,'locationGenerator'
+                              ,'AgeGenerator'
+                                ,'ageValueGenerator'
+                                ,'AgeUnitGenerator'
+                              ,'ABPGermanDateGenerator'
+                                ,'DENGeneratornum'
+                                ,'MonthDayDateGenerator'
+                                ,'weekDayDateGenerator'
+                                ,'MonthDateGenerator'
+                                ,'UMGenerator'
+                                ,'HourDateGenerator'
+                                ,'UHRGenerator'
+                                ,'yearGenerator'
+                              ]
     
     def __init__(self):
-#         if platform.system() == 'Windows':
-#             self.lang= 'deu_deu.1252'
-#         else:
-#             self.lang='de-DE'  
         textGenerator.__init__(self,self.lang)
 
 
-#         myList = [self.person,self.person2]
-        myList = [self.religion,self.leg,self.numItems,self.noise,self.noise2,self.person, 
+        myList = [self.religion,self.leg,self.numItems,
+                  #self.noise,
+                  self.noise2,self.person, 
                   self.date,self.deathreasons,self.doktor,self.location,self.profession,self.status, self.age, self.misc]
-#         myList = [self.numItems,self.noise,self.noise2,firstNameGenerator(), lastNameGenerator(),self.person, self.date,self.deathreasons,self.doktor,self.location,self.profession,self.status, self.age, self.misc]
-#         myList = [self.age,self.date]
 
-#         myList = [firstNameGenerator(), lastNameGenerator()]
         
         self._structure = []
         
         
-        ## need to collect histogram of the generated structure 
         
 #         for nbfields in range(1,len(myList)+1):
-        for nbfields in range(1,3):
+        for nbfields in range(1,4):
 
             # x structures per length
+            # n!/(k!(n-k)!) = 364  pour 14/3
             nbx=0
-            while nbx < 30:
-#             for nbx in range(0,30):
+            while nbx < 400:
                 lseq=[]
                 sCoveredFields = set()
                 while len(sCoveredFields) < nbfields:
@@ -563,12 +578,9 @@ class ABPRecordGenerator(textGenerator):
                         lseq.append((curfield,1,100))
                         nbx += 1
                 lseq.append(100)
-#                 print "seq:", lseq
                 if tuple(lseq) not in  self._structure:
                     self._structure.append(tuple(lseq))
         
-#         for s in self._structure:
-#             print "# ",len(s),s
 
     def generate(self):
         return Generator.generate(self)
@@ -596,7 +608,7 @@ class ABPRecordGeneratorTOK(textGenerator):
     # method level otherwise loadresources for each sample!!
     person= PersonName2(lang)
     date= ABPGermanDateGenerator()
-    date.defineRange(1900, 2000)
+    date.defineRange(1700, 2000)
     deathreasons = deathReasonColumnGenerator(lang)
     doktor= doktorGenerator(lang)
     location= location2Generator()
@@ -611,9 +623,9 @@ class ABPRecordGeneratorTOK(textGenerator):
         
         self._structure = []
         
-        for nbfields in range(1,3):
+        for nbfields in range(1,4): #3
             nbx=0
-            while nbx < 30:
+            while nbx < 100: # 30 
 #             for nbx in range(0,30):
                 lseq=[]
                 sCoveredFields = set()
@@ -635,15 +647,79 @@ class ABPRecordGeneratorTOK(textGenerator):
         return Generator.generate(self)
     
          
+
+def ABP(options,args):
+    """
+    """
+    
+    if options.bFairseq:
+        #                   args[2]
+        iosource = open(sys.argv[2],'w',encoding='utf-8')
+        iotarget = open(sys.argv[3],'w',encoding='utf-8')
+    
+    
+    if options.bTok:
+        g = ABPRecordGeneratorTOK()
+        for i in range(nbX):
+            g.instantiate()
+            g.generate()
+            g.GTForTokenization()
+    else:
+        if options.bLoad:
+            pass
+        
+        g = ABPRecordGenerator()
+        g.setNoiseType(options.noiseType)
+        lReport={}
+        fd= open(os.path.join(options.dirname,options.name+".txt"), "w",encoding='utf-8')
+        for i in range(options.nbX):
+            g.instantiate()
+            g.generate()
+            try:lReport[tuple(g._instance)] +=1
+            except KeyError: lReport[tuple(g._instance)] = 1
+            if  options.bFairseq:
+                sS,sT =g.formatFairSeqWord(g.exportAnnotatedData([]))
+                if len(sS.strip()) > 0:
+                    iosource.write("%s\n"%sS)
+                    iotarget.write("%s\n"%sT)
+            else:
+                sGen = g.formatAnnotatedData(g.exportAnnotatedData([]),mode=2)
+                fd.write(sGen)
+        for inst in lReport:
+            fd.write("# %s %s\n"%(lReport[inst],inst)) 
+        fd.close()
+        
+        if options.bFairseq:
+            iosource.close()
+            iotarget.close()
+        
+        elif options.bconll:
+            if g is not None:
+                with gzip.open(os.path.join(options.dirname,options.name+".pkl"), "wb") as fd:
+                    pickle.dump(g, fd, protocol=2)
+    
 if __name__ == "__main__":
 
     if platform.system() == 'Windows':
         lang= 'deu_deu.1252'
     else:
         lang='de-DE'        
-    try:
-        nbX = int(sys.argv[1])
-    except:nbX = 10
+
+    parser = OptionParser(usage="", version="0.1")
+    parser.description = "text Generator"
+    parser.add_option("--model", dest="name",  action="store", type="string",default="test.pkl", help="model name")
+    parser.add_option("--dir", dest="dirname",  action="store", type="string", default=".",help="directory to store model")
+    parser.add_option("--noise", dest="noiseType",  action="store", type=int, default=0, help="add noise of type N")
+    parser.add_option("--load", dest="bLoad",  action="store_true", default=False, help="model name")
+    parser.add_option("--number", dest="nbX",  action="store", type=int, default=10,help="number of samples")
+    parser.add_option("--tok", dest="bTok",  action="store", type=int,default=False, help="correct tokination GT")
+    parser.add_option("--fairseq", dest="bFairseq",  action="store", type=int, default=False,help="seq2seq GT")
+    parser.add_option("--conll", dest="bconll",  action="store", type=int, default=True,help="conll like GT")
+    
+
+    (options, args) = parser.parse_args()    
+
+    ABP(options,args)
 #     g = PersonName2(lang)
     
 #     g= ABPGermanDateGenerator()
@@ -652,27 +728,3 @@ if __name__ == "__main__":
 #     g= deathReasonColumnGenerator('deu_deu.1252')
 #     g= numberedItems(20,10)
     
-    bGTTOK=False
-    
-    if bGTTOK:
-        g = ABPRecordGeneratorTOK()
-        for i in range(nbX):
-            g.instantiate()
-            g.generate()
-            g.GTForTokenization()
-    else:
-        g = ABPRecordGenerator()
-#         g = ABPGermanDateGenerator()
-#         g.defineRange(1900, 2000)
-        lReport={}
-        for i in range(nbX):
-            g.instantiate()
-            g.generate()
-            try:lReport[tuple(g._instance)] +=1
-            except KeyError: lReport[tuple(g._instance)] = 1
-            uString= g.formatAnnotatedData(g.exportAnnotatedData([]),mode=2)
-    
-        for inst in lReport:
-            print("# ", lReport[inst],inst) 
-            
-        

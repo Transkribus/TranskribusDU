@@ -111,7 +111,7 @@ class FeatureDefinition_PageXml_StandardOnes_noText_v3(FeatureDefinition):
 #         return self._node_transformer, self._edge_transformer        
 
 
-class FeatureDefinition_T_PageXml_StandardOnes_noText_v2(FeatureDefinition):
+class FeatureDefinition_T_PageXml_StandardOnes_noText_v3(FeatureDefinition):
     """
     Multitype version:
     so the node_transformer actually is a list of node_transformer of length n_class
@@ -122,7 +122,7 @@ class FeatureDefinition_T_PageXml_StandardOnes_noText_v2(FeatureDefinition):
     n_QUANTILES = 16
        
     def __init__(self, **kwargs):
-        FeatureDefinition.__init__(self)
+        FeatureDefinition.__init__(self, **kwargs)
 
         nbTypes = self._getTypeNumber(kwargs)
         

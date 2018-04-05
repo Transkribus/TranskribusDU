@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
 
 """
-    Computing the graph for a MultiPageXml document
+    Computing the graph for a "Multi-singlePage-PageXml" document
+    
+    A POSTERIORI EXPLANATION  :))
+    at some point, we had independent pages taht were stored together in a 
+    single .mpxml file. SO this class can load this file, and build one graph
+    per page (instead of one graph per file).
+    2018/03/30 JL
 
     Copyright Xerox(C) 2017 H . Déjean
 
