@@ -195,7 +195,7 @@ class GraphGrid_H(GraphGrid):
         lEdge = []
         fLenNorm = float(cls.iGridStep_V * cls.iGridVisibility)
         for ndBlock in lClassicPageNode:
-            print("---- ", ndBlock)
+            ### print("---- ", ndBlock)
             # i1 = GridAnnotator.snapToGridIndex(nd.x1, cls.iGridStep_V)
             # i2 = GridAnnotator.snapToGridIndex(nd.x2, cls.iGridStep_V)
             i1 = int(math.floor(ndBlock.y1 / float(cls.iGridStep_V)))
@@ -207,7 +207,7 @@ class GraphGrid_H(GraphGrid):
                 edge.len = (ndBlock.y1 - i1 * cls.iGridStep_V) / fLenNorm
                 edge._gridtype = -1 # grid line is above
                 lEdge.append(edge)
-                print(ndBlock.y1, i1, edge.len)
+                ### print(ndBlock.y1, i1, edge.len)
             else:
                 #Also make visible the iGridVisibility-1 previous grid lines, if any
                 for i in range(max(0, i1 - cls.iGridVisibility + 1), i1+1):
@@ -215,7 +215,7 @@ class GraphGrid_H(GraphGrid):
                     edge.len = (ndBlock.y1 - i * cls.iGridStep_V) / fLenNorm
                     edge._gridtype = -1
                     lEdge.append(edge)
-                    print(ndBlock.y1, i, edge.len)
+                    ### print(ndBlock.y1, i, edge.len)
             
             for i in range(i1+1, i2):
                 ndLine = dGridLineByIndex[i]
@@ -224,7 +224,7 @@ class GraphGrid_H(GraphGrid):
                 edge._gridtype = 0 # grid line is crossing the block
                 assert ndBlock.y1 < i*cls.iGridStep_V
                 assert i*cls.iGridStep_V < ndBlock.y2
-                print(ndBlock.y1, ndBlock.y2, i, edge.len)
+                ### print(ndBlock.y1, ndBlock.y2, i, edge.len)
                 lEdge.append(edge)
             
             if False:
@@ -232,7 +232,7 @@ class GraphGrid_H(GraphGrid):
                 edge.len = (ndBlock.y2 - i2 * cls.iGridStep_V) / fLenNorm
                 edge._gridtype = +1 # grid line is above
                 lEdge.append(edge)
-                print(ndBlock.y2, i2, edge.len)
+                ### print(ndBlock.y2, i2, edge.len)
             else:
                 for i in range(i2, i2 + cls.iGridVisibility):
                     try:
@@ -242,7 +242,7 @@ class GraphGrid_H(GraphGrid):
                     edge.len = (ndBlock.y2 - i * cls.iGridStep_V) / fLenNorm
                     edge._gridtype = +1
                     lEdge.append(edge)
-                    print(ndBlock.y2, i, edge.len)
+                    ### print(ndBlock.y2, i, edge.len)
                 
         
         # grid line to grid line edges
