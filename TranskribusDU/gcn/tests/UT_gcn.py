@@ -537,8 +537,64 @@ class UT_gcn(unittest.TestCase):
             g_acc, node_acc = gcn_model.test_lG(session, gcn_graph_train)
             print('Mean Accuracy', g_acc, node_acc)
 
+    def test_dense_attn_layer(self):
+        gcn_graph = get_graph_test()
+        node_dim = gcn_graph.X.shape[1]
+        edge_dim = gcn_graph.E.shape[1] - 2.0
+        nb_class = gcn_graph.Y.shape[1]
 
+        gcn_model = GraphAttNet(node_dim, nb_class, num_layers=1, learning_rate=0.01, node_indim=8, nb_attention=1)
+        gcn_model.create_model()
 
+        Wa = tf.eye(node_dim)
+        va = tf.ones([2, node_dim])
+        # elf.Ssparse, self.Tspars
+        alphas, nH = gcn_model.dense_graph_attention_layer(gcn_model.node_input, Wa, va, gcn_model.nb_node,
+                                                            gcn_model.dropout_p_attn,
+                                                            gcn_model.dropout_p_node)
+        alphas_shape = tf.shape(alphas)
+
+        init = tf.global_variables_initializer()
+
+        graph = gcn_graph
+        with tf.Session() as session:
+            session.run([init])
+
+            print('### Graph', graph.X.shape, graph.F.shape[0])
+            # print(graph.Sind)
+            # print(graph.Tind)
+            nb_node = graph.X.shape[0]
+            Aind = np.array(np.stack([graph.Sind[:, 0], graph.Tind[:, 1]], axis=-1), dtype='int64')
+            print("Adjacency Indices:", Aind.shape, Aind)
+            feed_batch = {
+                gcn_model.nb_node: graph.X.shape[0],
+                gcn_model.nb_edge: graph.F.shape[0],
+                gcn_model.node_input: graph.X,
+                gcn_model.Ssparse: np.array(graph.Sind, dtype='int64'),
+                gcn_model.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
+                gcn_model.Tsparse: np.array(graph.Tind, dtype='int64'),
+                gcn_model.Aind: Aind,
+                # self.F: graph.F,
+                gcn_model.y_input: graph.Y,
+                # self.dropout_p_H: self.dropout_rate_H,
+                gcn_model.dropout_p_node: 0.0,
+                gcn_model.dropout_p_attn: 0.0,
+
+            }
+            [c_alphas, c_nH, c_alphas_shape] = session.run([alphas, nH, alphas_shape], feed_dict=feed_batch)
+            print('alphas', c_alphas, c_alphas_shape)
+
+            sp_mat = sp.coo_matrix((c_alphas.values, (c_alphas.indices[:, 0], c_alphas.indices[:, 1])),
+                                   shape=(nb_node, nb_node))
+            Att_dense = sp_mat.todense()
+            print(Att_dense)
+            self.assertTrue(c_alphas_shape[0] == 3)
+            self.assertTrue(c_alphas_shape[1] == 3)
+
+            self.assertTrue(Att_dense[0, 2] == 0)
+            self.assertAlmostEqual(Att_dense[1, 0], np.exp(2.5) / (np.exp(2.5) + np.exp(2)))
+            self.assertAlmostEqual(Att_dense[0, 1], 1.0)
+            self.assertAlmostEqual(Att_dense[2, 1], 1.0)
 
 
 if __name__ == '__main__':

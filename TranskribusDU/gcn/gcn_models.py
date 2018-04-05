@@ -1397,7 +1397,7 @@ class GraphAttNet(MultiGraphNN):
         self.distinguish_node_from_neighbor=False
         self.original_model=False
         self.attn_type=0
-
+        self.dense_model=False
 
         if node_indim==-1:
             self.node_indim=self.node_dim
@@ -1430,6 +1430,58 @@ class GraphAttNet(MultiGraphNN):
                     setattr(self,attrname,val)
                 except AttributeError:
                     warnings.warn("Ignored options for ECN"+attrname+':'+val)
+
+    def dense_graph_attention_layer(self,H,W,A,nb_node,dropout_attention,dropout_node,use_dropout=False):
+        '''
+        Implement a dense attention layer where every node is connected to everybody
+        :param A:
+        :param H:
+        :param W:
+        :param dropout_attention:
+        :param dropout_node:
+        :param use_dropout:
+        :return:
+        '''
+
+        '''
+        for all i,j aHi + bHj
+        repmat all first column contains H1 second columns H2  etc
+        diag may be a special case
+        
+        
+        '''
+        with tf.name_scope('graph_att_dense_attn'):
+
+            P = tf.matmul(H, W)
+            Aij_forward = tf.expand_dims(A[0], 0)  # attention vector for forward edge and backward edge
+            Aij_backward = tf.expand_dims(A[1], 0)  # Here we assume it is the same on contrary to the paper
+            # Compute the attention weight for target node, ie a . Whj if j is the target node
+            att_target_node = tf.matmul(P, Aij_backward,transpose_b=True)
+            # Compute the attention weight for the source node, ie a . Whi if j is the target node
+            att_source_node = tf.matmul(P, Aij_forward, transpose_b=True)
+
+            Asrc_vect = tf.tile(att_source_node,[nb_node,1])
+            Asrc = tf.reshape(Asrc_vect,[nb_node,nb_node])
+
+            Atgt_vect = tf.tile(att_target_node, [nb_node,1])
+            Atgt = tf.reshape(Atgt_vect, [nb_node, nb_node])
+
+
+            Att = tf.nn.leaky_relu(Asrc+Atgt)
+            #Att = tf.nn.leaky_relu(Asrc)
+            alphas = tf.nn.softmax(Att)
+
+            # dropout is done after the softmax
+            if use_dropout:
+                print('... using dropout for attention layer')
+                alphasD = tf.nn.dropout(alphas, 1.0 - dropout_attention)
+                P_D = tf.nn.dropout(P, 1.0 - dropout_node)
+                alphasP = tf.matmul(alphasD, P_D)
+                return alphasD, alphasP
+            else:
+                # We compute the features given by the attentive neighborhood
+                alphasP = tf.matmul(alphas, P)
+                return alphas, alphasP
 
     #TODO Change the transpose of the A parameter
     def simple_graph_attention_layer(self,H,W,A,S,T,Adjind,Sshape,nb_edge,
@@ -1688,6 +1740,80 @@ class GraphAttNet(MultiGraphNN):
         # self.logits = tf.add_n(out) / self.nb_attention
         self.logits = tf.matmul(self.hidden_layer[-1],logits_a) +Bc
 
+    def _create_densegraph_model(self):
+        '''
+        Create a model the separe node distinct models
+        :return:
+        '''
+
+        std_dev_in = float(1.0 / float(self.node_dim))
+        self.use_dropout = self.dropout_rate_attention > 0 or self.dropout_rate_node > 0
+        self.hidden_layer = []
+        attns0 = []
+
+        # Define the First Layer from the Node Input
+        Wa = tf.eye(int(self.node_dim), name='I0')
+        H0 = tf.matmul(self.node_input, Wa)
+        attns0.append(H0)
+
+        I = tf.Variable(tf.eye(self.node_dim), trainable=False)
+        for a in range(self.nb_attention):
+            # H0 = Maybe do a common H0 and have different attention parameters
+            # Change the attention, maybe ?
+            # Do multiplicative
+            # How to add edges here
+            # Just softmax makes a differences
+            # I could stack [current_node,representation; edge_features;] and do a dot product on that
+            va = init_glorot([2, int(self.node_dim)], name='va0' + str(a))
+
+
+            _, nH = self.dense_graph_attention_layer(H0, I, va, self.nb_node, self.dropout_p_attn,
+                                                      self.dropout_p_node,
+                                                      use_dropout=self.use_dropout)
+            attns0.append(nH)
+        self.hidden_layer.append(
+            self.activation(tf.concat(attns0, axis=-1)))  # Now dims should be indim*self.nb_attention
+
+        # Define Intermediate Layers
+        for i in range(1, self.num_layers):
+            attns = []
+            if i == 1:
+                previous_layer_dim =int(self.node_dim * self.nb_attention + self.node_dim)
+                Wia = init_glorot([previous_layer_dim, int(self.node_indim)],
+                    name='Wa' + str(i) + '_' + str(a))
+            else:
+                previous_layer_dim = int(self.node_indim * self.nb_attention + self.node_indim)
+                Wia = init_glorot( [previous_layer_dim, int(self.node_indim)], name='Wa' + str(i) + '_' + str(a))
+
+            Hi = tf.matmul(self.hidden_layer[-1], Wia)
+            attns.append(Hi)
+            Ia = tf.Variable(tf.eye(self.node_indim), trainable=False)
+
+            for a in range(self.nb_attention):
+                via = init_glorot([2, int(self.node_indim)], name='va' + str(i) + '_' + str(a))
+                _, nH = self.dense_graph_attention_layer(Hi, Ia, via, self.nb_node,
+                                                          self.dropout_p_attn,
+                                                          self.dropout_p_node,
+                                                          use_dropout=self.use_dropout)
+                attns.append(nH)
+
+            self.hidden_layer.append(self.activation(tf.concat(attns, axis=-1)))
+
+        # Define Logit Layer
+        #TODO Add Attention on Logit Layer
+        #It would not cost too much to add an attn mecha once I get the logits
+        #If x,y are indicated in the node feature then we can implicitly find the type of edges that we are using ...
+
+
+        if self.num_layers>1:
+            logits_a = init_glorot([int(self.node_indim * self.nb_attention+self.node_indim), int(self.n_classes)],
+                                   name='Logita' + '_' + str(a))
+        else:
+            logits_a = init_glorot([int(self.node_dim * self.nb_attention + self.node_dim), int(self.n_classes)],
+                                   name='Logita' + '_' + str(a))
+        Bc = tf.ones([int(self.n_classes)], name='LogitA' + '_' + str(a))
+        # self.logits = tf.add_n(out) / self.nb_attention
+        self.logits = tf.matmul(self.hidden_layer[-1],logits_a) +Bc
 
     def create_model(self):
         '''
@@ -1714,6 +1840,9 @@ class GraphAttNet(MultiGraphNN):
 
         if self.original_model:
             self._create_original_model()
+
+        elif self.dense_model:
+            self._create_densegraph_model()
         else:
             self._create_nodedistint_model()
 
