@@ -71,12 +71,20 @@ class  XMLDSObjectClass(XMLObjectClass):
             o.setParent(self)
             if bDom: 
                 if o.getNode() is not None and self.getNode() is not None:
-                    o.getNode().unlinkNode()
-                    self.getNode().addChild(o.getNode())
+                    o.getNode().getparent().remove(o.getNode())
+                    self.getNode().append(o.getNode())
                
     
 
-    
+    def removeObject(self,o,bDom=False):
+        """
+            remove o from self.getObjects()
+            unlink if bDom
+        """
+        self.getObjects().remove(o)
+        if bDom: 
+            if o.getNode() is not None and self.getNode() is not None:
+                o.getNode().getparent().remove(o.getNode())
     
     def resizeMe(self,objectType):
         assert len(self.getAllNamedObjects(objectType)) != 0
