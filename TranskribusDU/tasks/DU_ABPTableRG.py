@@ -70,9 +70,11 @@ class GraphGrid(Graph_MultiPageXml):
     # Some grid line will be O or I simply because they are too short.
     fMinPageCoverage = 0.5  # minimum proportion of the page crossed by a grid line
                             # we want to ignore col- and row- spans
-    iGridVisibility = 2  # a grid line sees N neighbours below
-
+    iGridVisibility = 2   # a grid line sees N neighbours below
+    iBlockVisibility = 1  # a block sees N neighbouring grid lines
+    
     _lClassicNodeType = None
+    
     @classmethod
     def setClassicNodeTypeList(cls, lNodeType):
         """
@@ -186,14 +188,17 @@ class GraphGrid_H(GraphGrid):
         """
         # indexing the grid lines
         dGridLineByIndex = {GridAnnotator.snapToGridIndex(nd.y1, cls.iGridStep_V):nd for nd in lSpecialPageNode}
-        
+
         for nd in lSpecialPageNode:
             #print(nd, dGridLineByIndex[GridAnnotator.snapToGridIndex(nd.y1, cls.iGridStep_V)])
             assert dGridLineByIndex[GridAnnotator.snapToGridIndex(nd.y1, cls.iGridStep_V)] == nd, "internal error inconsistent grid"
         
         # block to grid line edges
         lEdge = []
-        fLenNorm = float(cls.iGridStep_V * cls.iGridVisibility)
+        fLenNorm = float(cls.iGridStep_V * cls.iBlockVisibility)
+        imin, imax = 100, -1
+        assert lClassicPageNode, "ERROR: empty page!!??"
+        
         for ndBlock in lClassicPageNode:
             ### print("---- ", ndBlock)
             # i1 = GridAnnotator.snapToGridIndex(nd.x1, cls.iGridStep_V)
@@ -202,49 +207,139 @@ class GraphGrid_H(GraphGrid):
             i2 = int(math.ceil (ndBlock.y2 / float(cls.iGridStep_V)))
             assert i2 >= i1
 
-            yavg = (ndBlock.y1 + ndBlock.y2)/2.0
+            yBlkAvg = (ndBlock.y1 + ndBlock.y2)/2.0
             
-            #Also make visible the iGridVisibility-1 previous grid lines, if any
-            for i in range(max(0, i1 - cls.iGridVisibility + 1), i1+1):
+            #Also make visible the iBlockVisibility-1 previous grid lines, if any
+            for i in range(max(0, i1 - cls.iBlockVisibility + 1), i1+1):
                 edge = Edge_BL(ndBlock, dGridLineByIndex[i])
-                edge.len = (yavg - i * cls.iGridStep_V) / fLenNorm
+                edge.len = (yBlkAvg - i * cls.iGridStep_V) / fLenNorm
                 edge._gridtype = -1
                 lEdge.append(edge)
+                imin = min(i, imin)
                 ### print(ndBlock.y1, i, edge.len)
             
             for i in range(max(0, i1+1), max(0, i2)):
                 ndLine = dGridLineByIndex[i]
                 edge = Edge_BL(ndBlock, ndLine)
-                edge.len = (yavg  - i * cls.iGridStep_V) / fLenNorm
+                edge.len = (yBlkAvg  - i * cls.iGridStep_V) / fLenNorm
                 edge._gridtype = 0 # grid line is crossing the block
                 assert ndBlock.y1 < i*cls.iGridStep_V
                 assert i*cls.iGridStep_V < ndBlock.y2
                 ### print(ndBlock.y1, ndBlock.y2, i, edge.len)
                 lEdge.append(edge)
+                imax = max(imax, i)
             
-            for i in range(max(0, i2), i2 + cls.iGridVisibility):
+            for i in range(max(0, i2), i2 + cls.iBlockVisibility):
                 try:
                     edge = Edge_BL(ndBlock, dGridLineByIndex[i])
                 except KeyError:
                     break  #  out of the grid
-                edge.len = (yavg - i * cls.iGridStep_V) / fLenNorm
+                edge.len = (yBlkAvg - i * cls.iGridStep_V) / fLenNorm
                 edge._gridtype = +1
                 lEdge.append(edge)
+                imax = max(imax, i)
                 ### print(ndBlock.y2, i, edge.len)
+                
+        #now filter those edges
+        lEdge = cls._filterBadEdge(lEdge, imin, imax, dGridLineByIndex)
+        
+        if False:
+            print("--- After filtering: %d edges", len(lEdge))
+            lSortedEdge = sorted(lEdge, key=lambda x: x.A.domid)
+            for edge in lSortedEdge:
+                print( "domid=%s y1=%s y2=%s"%(edge.A.domid, edge.A.y1, edge.A.y2)
+                       + "  %s  %s "%(["↑", "-", "↓"][1+edge._gridtype], 
+                                    edge.B.y1 / cls.iGridStep_V))
                 
         # grid line to grid line edges
         n = len(dGridLineByIndex)
         for i in range(n):
             A = dGridLineByIndex[i]
             for j in range(i+1, min(n, i+cls.iGridVisibility+1)):
-                B = dGridLineByIndex[j]
-                edge = Edge_LL(A, B)
+                edge = Edge_LL(A, dGridLineByIndex[j])
                 edge.len = (j - i)
                 lEdge.append(edge) 
         
         return lEdge
 
 
+    @classmethod
+    def _filterBadEdge(cls, lEdge, imin, imax, dGridLineByIndex, fRatio=0.25):
+        """
+        We get 
+        - a list of block2Line edges
+        - the [imin, imax] interval of involved grid line index
+        - the dGridLineByIndex dictionary
+        But some block should not be connected to a line due to obstruction by 
+        another blocks.
+        We filter out those edges...
+        return a sub-list of lEdge
+        """
+        lKeepEdge = []
+        
+        def _xoverlapSrcSrc(edge, lEdge):
+            """
+            does the source node of edge overlap with the source node of any 
+            edge of the list?
+            """
+            A = edge.A
+            for _edge in lEdge:
+                if A.significantXOverlap(_edge.A, fRatio): return True
+            return False
+
+        def _yoverlapSrcSrc(edge, lEdge):
+            """
+            does the source node of edge overlap with the source node of any 
+            edge of the list?
+            """
+            A = edge.A
+            for _edge in lEdge:
+                if A.significantYOverlap(_edge.A, fRatio): return True
+            return False
+        
+        #take each line in turn
+        for i in range(imin, imax+1):
+            ndLine = dGridLineByIndex[i]
+
+            #--- process downward edges
+            lDownwardEdge = [edge for edge in lEdge \
+                              if edge._gridtype == +1 and edge.B == ndLine]
+            if lDownwardEdge:
+                #sort edge by source block from closest to line block to farthest
+                lDownwardEdge.sort(key=lambda o: o.A.y2 - ndLine.y1, reverse=True)
+                
+                lKeepDownwardEdge = [lDownwardEdge.pop(0)]
+                
+                #now keep all edges whose source does not overlap vertically with 
+                #  the source of an edge that is kept
+                for edge in lDownwardEdge:
+                    if not _xoverlapSrcSrc(edge, lKeepDownwardEdge):
+                        lKeepDownwardEdge.append(edge)
+                lKeepEdge.extend(lKeepDownwardEdge)
+
+            #--- keep all crossing edges
+            lCrossingEdge = [edge for edge in lEdge \
+                              if edge._gridtype == 0 and edge.B == ndLine]
+            
+            lKeepEdge.extend(lCrossingEdge)                
+            
+            #--- process downward edges
+            lUpwardEdge = [edge for edge in lEdge \
+                              if edge._gridtype == -1 and edge.B == ndLine]
+            if lUpwardEdge:
+                #sort edge by source block from closest to line block to farthest
+                lUpwardEdge.sort(key=lambda o: ndLine.y2 - o.A.y1, reverse=True)
+                
+                lKeepUpwardEdge = [lUpwardEdge.pop(0)]
+                
+                #now keep all edges whose source does not overlap vertically with 
+                #  the source of an edge that is kept
+                for edge in lUpwardEdge:
+                    if not _xoverlapSrcSrc(edge, lKeepUpwardEdge):
+                        lKeepUpwardEdge.append(edge)
+                lKeepEdge.extend(lKeepUpwardEdge)
+                
+        return lKeepEdge
 
 #------------------------------------------------------------------------------------------------------
 class GridLine_NodeTransformer(Transformer):
@@ -383,6 +478,7 @@ class DU_ABPTableRG(DU_CRF_Task):
     """
     sXmlFilenamePattern = "*.mpxml"
     iGridVisibility = None
+    iBlockVisibility = None
     
     #=== CONFIGURATION ====================================================================
     @classmethod
@@ -403,11 +499,17 @@ class DU_ABPTableRG(DU_CRF_Task):
         DU_GRAPH = GraphGrid_H
         
         if cls.iGridVisibility is None:
-            traceln(" - grid visibility is %d" % DU_GRAPH.iGridVisibility)
+            traceln(" - grid2grid visibility is %d" % DU_GRAPH.iGridVisibility)
         else:
-            traceln(" - set grid visibility to %d" % cls.iGridVisibility)
+            traceln(" - set grid2grid visibility to %d" % cls.iGridVisibility)
             DU_GRAPH.iGridVisibility = cls.iGridVisibility
-        
+
+        if cls.iBlockVisibility is None:
+            traceln(" - block2grid visibility is %d" % DU_GRAPH.iBlockVisibility)
+        else:
+            traceln(" - set block2grid visibility to %d" % cls.iBlockVisibility)
+            DU_GRAPH.iBlockVisibility = cls.iBlockVisibility
+            
         # ROW
         ntR = NodeType_PageXml_type_woText("row"
                               , lLabels_BIESO
@@ -440,11 +542,13 @@ class DU_ABPTableRG(DU_CRF_Task):
         
     def __init__(self, sModelName, sModelDir, 
                  iGridVisibility = None,
+                 iBlockVisibility = None,
                  sComment=None,
                  C=None, tol=None, njobs=None, max_iter=None,
                  inference_cache=None): 
 
-        DU_ABPTableRG.iGridVisibility = iGridVisibility
+        DU_ABPTableRG.iGridVisibility  = iGridVisibility
+        DU_ABPTableRG.iBlockVisibility = iBlockVisibility
         
         DU_CRF_Task.__init__(self
                      , sModelName, sModelDir
@@ -491,6 +595,7 @@ class DU_ABPTableRG(DU_CRF_Task):
 def main(sModelDir, sModelName, options):
     doer = DU_ABPTableRG(sModelName, sModelDir, 
                          iGridVisibility   = options.iGridVisibility,
+                         iBlockVisibility  = options.iBlockVisibility,
                          C                 = options.crf_C,
                          tol               = options.crf_tol,
                          njobs             = options.crf_njobs,
@@ -579,7 +684,8 @@ if __name__ == "__main__":
     parser.add_option("--revertEdges", dest='bRevertEdges',  action="store_true", help="Revert the direction of the edges") 
     parser.add_option("--detail", dest='bDetailedReport',  action="store_true", default=False,help="Display detailled reporting (score per document)") 
     parser.add_option("--baseline", dest='bBaseline',  action="store_true", default=False, help="report baseline method") 
-    parser.add_option("--seeline", dest='iGridVisibility',  action="store", type=int, default=2, help="seeline: how many next grid lines does one line see?") 
+    parser.add_option("--line_see_line", dest='iGridVisibility',  action="store", type=int, default=2, help="seeline2line: how many next grid lines does one line see?") 
+    parser.add_option("--block_see_line", dest='iBlockVisibility',  action="store", type=int, default=2, help="seeblock2line: how many next grid lines does one block see?") 
 
             
     # --- 
