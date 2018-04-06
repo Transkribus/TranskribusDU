@@ -131,6 +131,39 @@ class Block:
         """
         #Any horizontal overlap?
         return (min(self.x2, b.x2) - max(self.x1, b.x1)) >= epsilon or (min(self.y2, b.y2) - max(self.y1, b.y1)) >= epsilon
+
+    def significantXOverlap(self, b, fThreshold=0.25):
+        """
+        Return True if the two objects significantly overlap each other, on the X axis.
+        The ratio of the overlap length to the sum of length must be aove the threshold.
+        """
+        #Any horizontal overlap?
+        a = self
+        overlap = float(min(a.x2, b.x2) - max(a.x1, b.x1))
+        if overlap > 0:
+            la = abs(a.x2 - a.x1)
+            lb = abs(b.x2 - b.x1)
+            ratio = overlap / (la + lb)
+            return ratio >= fThreshold 
+        else:
+            return False
+
+    def significantYOverlap(self, b, fThreshold=0.25):
+        """
+        Return True if the two objects significantly overlap each other, on the X axis.
+        The ratio of the overlap length to the sum of length must be aove the threshold.
+        """
+        #Any horizontal overlap?
+        a = self
+        overlap = float(min(a.y2, b.y2) - max(a.y1, b.y1))
+        if overlap > 0:
+            la = abs(a.y2 - a.y1)
+            lb = abs(b.y2 - b.y1)
+            ratio = overlap / (la + lb)
+            return ratio >= fThreshold 
+        else:
+            return False
+
 #         a = self
 #         w = min(a.x2, b.x2) - max(a.x1, b.x1)
 #         if w >= epsilon:
