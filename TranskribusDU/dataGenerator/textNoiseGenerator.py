@@ -33,7 +33,10 @@ from __future__ import absolute_import
 from __future__ import  print_function
 from __future__ import unicode_literals
 
-from .noiseGenerator import noiseGenerator
+try:basestring
+except NameError:basestring = str
+
+from dataGenerator.noiseGenerator import noiseGenerator
 
 class textNoiseGenerator(noiseGenerator):
     def __init__(self,tuplesplit, tupleNsplit,tuplechar):
@@ -62,7 +65,7 @@ class textNoiseGenerator(noiseGenerator):
         
         for token,label in gtdata:
             # should be replace by self.tokenizer(token)
-            if type(token) == unicode:
+            if type(token) == basestring:
                 ltoken= token.split(" ")
             elif type(token) in [float,int ]:
                 ltoken= [token]

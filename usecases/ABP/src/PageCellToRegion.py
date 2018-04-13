@@ -41,8 +41,8 @@ class table2TextRegion(Component.Component):
         self.sPttrn     = None
         self.dpi = 300
          
-        self.xmlns='http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
-        self.ns={'a':self.xmlns}
+#         self.xmlns='http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
+        self.ns={'a':PageXml.NS_PAGE_XML}
         self.id=1
         
         self.HeightTH=0.5
@@ -63,7 +63,7 @@ class table2TextRegion(Component.Component):
             replace the cell region by a BB for textlines: better for transcriber
         """
         xpath  = "./a:%s" % ("TextLine")     
-        lTextLines = cell.xpath(xpath, namespaces={'a':self.xmlns})
+        lTextLines = cell.xpath(xpath, namespaces={'a':PageXml.NS_PAGE_XML})
         if lTextLines == []:
             return True
         
@@ -149,16 +149,16 @@ class table2TextRegion(Component.Component):
         xpath  = "//a:%s" % ("ReadingOrder")
         lRO = document.getroot().xpath(xpath,namespaces = self.ns)
         if lRO == []:      
-            ro = PageXml.createPageXmlNode('ReadingOrder', self.xmlns)
+            ro = PageXml.createPageXmlNode('ReadingOrder')
             #addPrevSibling
         else:
             ro =lRO[0]
         
         for table in lTables:
-            orderGroup = PageXml.createPageXmlNode('OrderedGroup',self.xmlns)
+            orderGroup = PageXml.createPageXmlNode('OrderedGroup')
             ro.append(orderGroup)
-            orderGroup.set('{%s}id'%self.xmlns,table.get('id'))
-            orderGroup.set('{%s}caption'%self.xmlns,'Cell2TextRegion')
+            orderGroup.set('{%s}id'%PageXml.NS_PAGE_XML,table.get('id'))
+            orderGroup.set('{%s}caption'%PageXml.NS_PAGE_XML,'Cell2TextRegion')
 
             xpath  = "./a:%s" % ("TableCell")
             lCells = table.xpath(xpath,namespaces = self.ns)
@@ -169,7 +169,7 @@ class table2TextRegion(Component.Component):
 #                 cell.unlinkNode()
 #                 print cell
                 table.getparent().append(cell)
-                cell.tag = '{%s}TextRegion'%(self.xmlns)
+                cell.tag = '{%s}TextRegion'%(PageXml.NS_PAGE_XML)
                 cell.set('custom',"readingOrder {index:%d;}"%i)
                 # delete cell props
                 for propname in ['row','col','rowSpan','colSpan']:
@@ -181,10 +181,10 @@ class table2TextRegion(Component.Component):
                 lCorner = cell.xpath(xpath,namespaces = self.ns)
                 for c in lCorner:
                     c.getparent().remove(c)
-                reind = PageXml.createPageXmlNode('RegionRefIndexed', self.xmlns)
+                reind = PageXml.createPageXmlNode('RegionRefIndexed')
                 orderGroup.append(reind)
-                reind.set('{%s}index'%self.xmlns,str(i))
-                reind.set('{%s}regionRef'%self.xmlns,cell.get('id'))
+                reind.set('{%s}index'%PageXml.NS_PAGE_XML,str(i))
+                reind.set('{%s}regionRef'%PageXml.NS_PAGE_XML,cell.get('id'))
                 
                 ## resize cell/region:
                 if self.resizeCell(cell,self.ns):

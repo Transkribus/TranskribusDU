@@ -37,13 +37,13 @@ from  lxml import etree
 try:basestring
 except NameError:basestring = str
 
-from .generator import Generator 
-from .numericalGenerator import numericalGenerator
+from dataGenerator.generator import Generator 
+from dataGenerator.numericalGenerator import numericalGenerator
 
 
 class layoutZoneGenerator(Generator):
-    def __init__(self,x=None,y=None,h=None,w=None):
-        Generator.__init__(self)
+    def __init__(self,config,x=None,y=None,h=None,w=None):
+        Generator.__init__(self,config)
         if x is None:
             self._x  = numericalGenerator(None,None)
             self._x.setLabel("x")
@@ -84,10 +84,10 @@ class layoutZoneGenerator(Generator):
     def setWidth(self,v): self._w.setUple(v)
 
     def setPositionalGenerators(self,x,y,h,w):
-        self.setX(x)
-        self.setY(y)
-        self.setHeight(h)
-        self.setWidth(w)
+        if x is not None:self.setX(x)
+        if y is not None:self.setY(y)
+        if h is not None:self.setHeight(h)
+        if w is not None:self.setWidth(w)
     
     def setPage(self,p): self._page = p
     def getPage(self):return self._page
@@ -170,7 +170,7 @@ class layoutZoneGenerator(Generator):
     
 if __name__ == '__main__':
     TH=30
-    myZone= layoutZoneGenerator(numericalGenerator(5,TH),numericalGenerator(30,TH),numericalGenerator(20,TH),numericalGenerator(100,TH))
+    myZone = layoutZoneGenerator({},numericalGenerator(5,TH),numericalGenerator(30,TH),numericalGenerator(20,TH),numericalGenerator(100,TH))
     myZone.instantiate()
     myZone.generate()
     print(myZone._generation)
