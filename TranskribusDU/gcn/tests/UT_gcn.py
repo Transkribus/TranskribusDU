@@ -630,9 +630,9 @@ class UT_gcn(unittest.TestCase):
         edge_dim = 42
         nb_class = 18
 
-        nb_layers =1
+        nb_layers =3
         lr=0.001
-        nb_conv=1
+        nb_conv=10
 
         g1 = tf.Graph()
         with g1.as_default() as g:
@@ -644,10 +644,10 @@ class UT_gcn(unittest.TestCase):
                                         )
                 gcn_model.stack_instead_add=True
                 gcn_model.create_model_old()
-                first_graph = str(g.as_graph_def().SerializeToString())
-                f=open('first_graph.txt','w')
-                f.write(first_graph)
-                f.close()
+                #first_graph = str(g.as_graph_def().SerializeToString())
+                #f=open('first_graph.txt','w')
+                #f.write(first_graph)
+                #f.close()
 
         g2 = tf.Graph()
         with g2.as_default() as g:
@@ -660,9 +660,9 @@ class UT_gcn(unittest.TestCase):
                 gcn_model.stack_instead_add = True
                 gcn_model.create_model()
                 second_graph = str(g.as_graph_def().SerializeToString())
-                f = open('second_graph.txt', 'w')
-                f.write(second_graph)
-                f.close()
+                #f = open('second_graph.txt', 'w')
+                #f.write(second_graph)
+                #f.close()
 
         #print(first_graph)
         #print(second_graph)
