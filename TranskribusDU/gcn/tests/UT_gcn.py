@@ -36,6 +36,8 @@ from gcn.gcn_models import EdgeConvNet, GraphAttNet, init_glorot
 import sklearn
 import sklearn.metrics
 
+from tensorflow.python import pywrap_tensorflow
+
 
 
 def make_fake_gcn_dataset():
@@ -595,6 +597,124 @@ class UT_gcn(unittest.TestCase):
             self.assertAlmostEqual(Att_dense[1, 0], np.exp(2.5) / (np.exp(2.5) + np.exp(2)))
             self.assertAlmostEqual(Att_dense[0, 1], 1.0)
             self.assertAlmostEqual(Att_dense[2, 1], 1.0)
+
+    def test_diff_in_tf_graph(self):
+        g1 = tf.Graph()
+        with g1.as_default() as g:
+            with g.name_scope("g1") as g1_scope:
+                matrix1 = tf.constant([[3., 3.]])
+                matrix2 = tf.constant([[2.], [2.]])
+                product = tf.matmul(matrix1, matrix2, name="product")
+                first_graph=str(g.as_graph_def())
+
+        g2 = tf.Graph()
+        with g2.as_default() as g:
+            with g.name_scope("g1") as g1_scope:
+                matrix1 = tf.constant([[3., 3.]])
+                matrix2 = tf.constant([[2.], [2.]])
+                #product = tf.matmul(matrix1, tf.matmul(matrix2,matrix1), name="product")
+                product = tf.matmul(matrix1, matrix2, name="product")
+                second_graph =str(g.as_graph_def())
+
+        print(first_graph)
+        print(second_graph)
+        diff = pywrap_tensorflow.EqualGraphDefWrapper(g1.as_graph_def().SerializeToString(),
+                                                      g2.as_graph_def().SerializeToString())
+        print('diff',diff)
+        assert not diff
+
+    def test_refactoring_ecn_stack(self):
+        #Test the refactoring of ECN
+
+        node_dim = 29
+        edge_dim = 42
+        nb_class = 18
+
+        nb_layers =1
+        lr=0.001
+        nb_conv=1
+
+        g1 = tf.Graph()
+        with g1.as_default() as g:
+            with g.name_scope("g1") as g1_scope:
+                print('Old')
+                gcn_model = EdgeConvNet(node_dim, edge_dim, nb_class,
+                                        num_layers=nb_layers, learning_rate=lr, mu=0.0,
+                                        node_indim=-1, nconv_edge=nb_conv,
+                                        )
+                gcn_model.stack_instead_add=True
+                gcn_model.create_model_old()
+                first_graph = str(g.as_graph_def().SerializeToString())
+                f=open('first_graph.txt','w')
+                f.write(first_graph)
+                f.close()
+
+        g2 = tf.Graph()
+        with g2.as_default() as g:
+            with g.name_scope("g1") as g1_scope:
+                print('New')
+                gcn_model = EdgeConvNet(node_dim, edge_dim, nb_class,
+                                        num_layers=nb_layers, learning_rate=lr, mu=0.0,
+                                        node_indim=-1, nconv_edge=nb_conv,
+                                        )
+                gcn_model.stack_instead_add = True
+                gcn_model.create_model()
+                second_graph = str(g.as_graph_def().SerializeToString())
+                f = open('second_graph.txt', 'w')
+                f.write(second_graph)
+                f.close()
+
+        #print(first_graph)
+        #print(second_graph)
+        '''
+        for i in range(len(first_graph)):
+            if first_graph[i] != second_graph[i]:
+                print(i, first_graph[i], second_graph[i])
+        '''
+        diff = pywrap_tensorflow.EqualGraphDefWrapper(g1.as_graph_def().SerializeToString(),
+                                                      g2.as_graph_def().SerializeToString())
+        print('diff', diff)
+        assert not diff
+
+    def test_refactoring_ecn_sum(self):
+        # Test the refactoring of ECN
+
+        node_dim = 29
+        edge_dim = 42
+        nb_class = 18
+
+        nb_layers = 3
+        lr = 0.001
+        nb_conv = 10
+
+        g1 = tf.Graph()
+        with g1.as_default() as g:
+            with g.name_scope("g1") as g1_scope:
+                print('Old')
+                gcn_model = EdgeConvNet(node_dim, edge_dim, nb_class,
+                                        num_layers=nb_layers, learning_rate=lr, mu=0.0,
+                                        node_indim=-1, nconv_edge=nb_conv,
+                                        )
+                gcn_model.stack_instead_add = False
+                gcn_model.create_model_old()
+                first_graph = str(g.as_graph_def())
+
+        g2 = tf.Graph()
+        with g2.as_default() as g:
+            with g.name_scope("g1") as g1_scope:
+                print('New')
+                gcn_model = EdgeConvNet(node_dim, edge_dim, nb_class,
+                                        num_layers=nb_layers, learning_rate=lr, mu=0.0,
+                                        node_indim=-1, nconv_edge=nb_conv,
+                                        )
+                gcn_model.stack_instead_add = False
+                gcn_model.create_model()
+                second_graph = str(g.as_graph_def())
+
+        diff = pywrap_tensorflow.EqualGraphDefWrapper(g1.as_graph_def().SerializeToString(),
+                                                      g2.as_graph_def().SerializeToString())
+        print('diff', diff)
+        assert not diff
 
 
 if __name__ == '__main__':
