@@ -42,7 +42,7 @@ import locale
 
 import random
 
-from .generator import Generator 
+from dataGenerator.generator import Generator 
 
 class textGenerator(Generator):
     
@@ -57,13 +57,14 @@ class textGenerator(Generator):
     def __init__(self,lang):
         self.lang = lang
         locale.setlocale(locale.LC_TIME, self.lang)        
-        Generator.__init__(self)
+        Generator.__init__(self,{})
         # list of content
         self._value = None
         # reference to the list of content (stored)        
         self._lresources = None
         self.isWeighted = False
 
+        self.delChar= 10
     
     def getSeparator(self):
         """
@@ -122,12 +123,7 @@ class textGenerator(Generator):
         return self._value
     
     
-#     def instantiate(self):
-#         """
-#             for terminal elements (from a list): nothing to do
-#         """
-#         return []
-        
+       
     def generate(self):
         """
             need to take into account element frequency! done in getRandomElt
@@ -139,19 +135,37 @@ class textGenerator(Generator):
         while len(self._generation.strip()) == 0:
             self._generation = self.getRandomElt(self._value)
         
-        # create the noiseGenerrator?
         return self
        
        
     
-    def generateNoise(self):
+    def delCharacter(self,s,th):
         """
-             add noise to pureGen
+             delete characters 
         """
-        #use textnoiseGen to determine if noise will be generated?
-#         if self.getNoiseGen() is not None:
             
+        ns=""
+        for i in range(len(s)):
+            generateProb = random.uniform(0,100)
+            if generateProb >= th:
+                ns+=s[i]
+        
+        # at least one char
+        if ns=="":ns=s[0]
+        return ns
+       
+    def replaceCharacter(self,s,th):
+        """
+             add noise  (replace char) to pureGen
+        """
             
+        ns=""
+        for i in range(len(s)):
+            generateProb = random.uniform(0,100)
+            if generateProb < th:
+                ns+=chr(int(random.uniform(65,240)))
+            else: ns+=s[i]
+        return ns
        
     def noiseSplit(self,lGTTokens):
         """
@@ -179,6 +193,44 @@ class textGenerator(Generator):
         
         return lGTTokens
 
+
+    def TypedBIES(self,lList):
+        """
+            fixed length of types 
+            
+            ABPRecordGenerator Maria ['PersonName2', 'firstNameGenerator']
+            ABPRecordGenerator Pfeiffer ['PersonName2', 'lastNameGenerator']
+            ABPRecordGenerator Forster [None, 'professionGenerator']
+
+        """
+        lNewList = []
+        for pos,(token,llabels) in enumerate(lList):
+            # need to copy while we update llabels but need to keep the original version for the prev/next test
+            lNewList.append((token,llabels[:]))
+            for type in range(len(self.lClassesToBeLearnt)):
+                isAsPrev = False
+                isAsNext = False
+                bies="??"
+                if pos > 0:
+                    isAsPrev = llabels[type] ==lList[pos-1][1][type]
+#                     print (llabels[type],lList[pos-1][1][type],llabels[type] == lList[pos-1][1][type])
+                if pos < len(lList) -1 :
+                    isAsNext = llabels[type] ==lList[pos+1][1][type]            
+                if isAsPrev and isAsNext:
+                    bies= 'I_'
+                elif not isAsPrev and not isAsNext:
+                    bies= 'S_'
+                elif isAsPrev and not isAsNext:
+                    bies= 'E_'
+                elif not isAsPrev and isAsNext:
+                    bies='B_'
+                else:
+                    pass
+                #update     
+                if lNewList[-1][1][type] != None:
+                    lNewList[-1][1][type]=  bies+  llabels[type]
+        return lNewList
+    
     def hierarchicalBIES(self,lList):
         """
             add BIES to labels
@@ -270,6 +322,40 @@ class textGenerator(Generator):
                 
                   
         """
+        
+    def formatFairSeqWord(self,gtdata):
+        """
+            FairSeq Format at character level
+            C C C C   \t BIESO
+        """
+        lnewGT=[]
+        # duplicate labels for multitoken
+        for token,label in gtdata:
+            # should be replace by self.tokenizer(token)
+            if isinstance(token, str) : #type(token) == unicode:
+                ltoken = token.split(" ")
+            elif type(token) in [float,int ]:
+                ltoken = [token]
+            
+            if len(ltoken) == 1:
+                lnewGT.append((token,label))
+            else:
+                for tok in ltoken:
+                    lnewGT.append((tok,label[:]))
+    
+        # compute BIES
+        assert lnewGT != []
+        lnewGT = self.hierarchicalBIES(lnewGT)
+        
+        #output for GT
+        sSource  = ""
+        sTarget  = ""
+        for token, labels in lnewGT:
+            sTarget  += labels[-1] + " "
+            sSource  += str(token) + " "
+        return sSource, sTarget
+        
+        
     def formatAnnotatedData(self,gtdata,mode=2):
         """
             format with bIES hierarchically
@@ -286,34 +372,43 @@ class textGenerator(Generator):
             if isinstance(token, str) : #type(token) == unicode:
                 ltoken= token.split(" ")
             elif type(token) in [float,int ]:
-                ltoken= [token]
+                ltoken= [str(token)]
             
             if len(ltoken) == 1:
-                lnewGT.append((token,label))
+                # token is a str hereafter
+                lnewGT.append((str(token),label))
             else:
                 for tok in ltoken:
                     lnewGT.append((tok,label[:]))
     
         # compute BIES
         assert lnewGT != []
-        lnewGT = self.hierarchicalBIES(lnewGT)
+        lnewGT = self.TypedBIES(lnewGT)
         
         # noise  here?
 #         lnewGT = self.noiseSplit(lnewGT)
         
         #output for GT
+        sReturn = ""
         for token, labels in lnewGT:
-            uLabels  = '\t'.join(labels)
-            uString = "%s\t%s" % (token,uLabels)
-            print(uString)
-        print ("EOS")
+            assert type(token) != int
+            if len(str(token)) > 0:
+                uLabels  = '\t'.join(labels)
+                if self.getNoiseType() in [1]:
+                    token = self.delCharacter(token,self.delChar)
+                uString = "%s\t%s" % (token,uLabels)
+                sReturn +=uString+'\n'
+        sReturn+="EOS\n"
+        return sReturn
             
     def exportAnnotatedData(self,lLabels):
         # export (generated value, label) for terminal 
         self._GT  = []
 
-        lLabels.append(self.getName())
-        
+        # here test if the label has to be in the classes to be learned
+        for i,ltype  in enumerate(self.lClassesToBeLearnt):
+            if self.getName() in ltype:
+                lLabels[i]=self.getName()
         if isinstance(self._generation, str) : #type(self._generation) == unicode:
             self._GT.append((self._generation,lLabels[:]))
         elif type(self._generation) == int:

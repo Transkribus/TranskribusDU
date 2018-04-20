@@ -65,7 +65,8 @@ class NodeType_PageXml(NodeType):
         NodeType.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther)
         
         self.BBoxDeltaFun = BBoxDeltaFun
-        assert type(self.BBoxDeltaFun) == types.FunctionType, "Error: BBoxDeltaFun must be a function (or a lambda)"
+        if  self.BBoxDeltaFun is not None and type(self.BBoxDeltaFun) != types.FunctionType:
+            raise Exception("Error: BBoxDeltaFun must be None or a function (or a lambda)")
 
     def setXpathExpr(self, t_sxpNode_sxpTextual):
         self.sxpNode, self.sxpTextual = t_sxpNode_sxpTextual
@@ -155,10 +156,11 @@ class NodeType_PageXml(NodeType):
                 x1,y1,x2,y2 = plg.getBoundingBox()
                 
             #we reduce a bit this rectangle, to ovoid overlap
-            w,h = x2-x1, y2-y1
-            dx = self.BBoxDeltaFun(w)
-            dy = self.BBoxDeltaFun(h)
-            x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
+            if not(self.BBoxDeltaFun is None):
+                w,h = x2-x1, y2-y1
+                dx = self.BBoxDeltaFun(w)
+                dy = self.BBoxDeltaFun(h)
+                x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
                 
             
             #TODO
@@ -225,7 +227,11 @@ class NodeType_PageXml_type(NodeType_PageXml):
                 self.checkIsIgnored(sXmlLabel)
                 #if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
             except:
-                raise ValueError("Invalid label '%s' in node %s"%(sXmlLabel, etree.tostring(domnode)))
+                raise ValueError("Invalid label '%s'"
+                                 " (from @%s or @%s) in node %s"%(sXmlLabel,
+                                                           self.sLabelAttr,
+                                                           self.sDefaultLabel,
+                                                           etree.tostring(domnode)))
         
         return sLabel
 
