@@ -165,6 +165,7 @@ class DeepTagger():
         
         
     def initTransformeur(self):
+        # lowercase = False ??   True by default
         self.cv= CountVectorizer( max_features = self.max_features
                              , analyzer = 'char' ,ngram_range = (1,self.maxngram)
                              , dtype=np.float64)
@@ -326,7 +327,7 @@ class DeepTagger():
             x=[]
             for l in f:
                 l = l.strip()
-                if l[:3] == '#  ':continue  # comments
+                if l[:2] == '# ':continue  # comments
                 if l =='EOS':
                     if x!=[]:
                         lTmp.append(x)
@@ -367,7 +368,7 @@ class DeepTagger():
             x=[]
             for l in f:
                 l = l.strip()
-                if l[:3] == '#  ':continue  # comments
+                if l[:2] == '# ':continue  # comments
                 if l =='EOS':
                     if x!=[]:
                         lTmp.append(x)
@@ -441,7 +442,7 @@ class DeepTagger():
         lX,lY = self.prepareTensor(traindata)
 
 #         lX.reshape(1000,self.max_sentence_len)
-        print(lX.shape)
+#         print(lX.shape)
 #         print lY.shape
 
         """
@@ -472,7 +473,7 @@ class DeepTagger():
         model.add(Dropout(0.5))
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop',metrics=['categorical_accuracy']  )
         print (model.summary())
-        _ = model.fit(lX, lY, epochs = self.nbEpochs,batch_size = self.batch_size, verbose = 1,validation_split = 0.33, shuffle=True)
+        _ = model.fit(lX, lY, epochs = self.nbEpochs,batch_size = self.batch_size, verbose = 1,validation_split = 0.10, shuffle=True)
         
         del lX,lY
         
@@ -769,7 +770,7 @@ class DeepTagger():
                             #print self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]
                             pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
                     l_multi_type_results.append(pred_tags[:len(allwords)])
-                    print(l_multi_type_results) 
+                    print(mysent.split(),l_multi_type_results) 
                 lRes.append(self.prepareOutput_multitype(mysent.split(),l_multi_type_results))
 
         return lRes
@@ -808,7 +809,7 @@ class DeepTagger():
 #                     print class_prs[class_prs >0.1]
                     if tuple(class_vec.tolist()) in self.tag_vector:
                         pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
-#                 print zip(mysent.encode('utf-8').split(),pred_tags[pad_length:])
+#                 print (zip(mysent.encode('utf-8').split(),pred_tags[pad_length:]))
 #                 lRes.append((mysent.split(),pred_tags[pad_length:]))   
                 lRes.append(self.prepareOutput(mysent.split(),pred_tags[:len(allwords)]))
 
@@ -832,7 +833,6 @@ class DeepTagger():
             
         if self.bMultiType and self.bTraining:
             lX, lY = self.load_data_Multitype(self.lTrain)
-            print(lY)
             model, other = self.training_multitype((lX,lY))
             # store
             self.storeModel(model,other)
