@@ -194,7 +194,7 @@ class DeepTagger():
             x=[]
             for l in f:
                 l = l.strip()
-                if l[:3] == '#  ':continue  # comments
+                if l[:2] == '# ':continue  # comments
                 if l =='EOS':
                     lTmp.append(x)
                     self.max_sentence_len = max(self.max_sentence_len,len(x))
@@ -202,8 +202,9 @@ class DeepTagger():
                 else:
                     try:
                         la=l.split('\t')
-                        b1=la[-1].split('_')[0]
-                        b2=la[-1].split('_')[1]
+                        b1=la[-1].split('_')[1]
+                        #b2=la[-1].split('_')[1]
+                        b2=la[-2].split('_')[1]
                     except  ValueError:
                         #print 'cannot find value and label in: %s'%(l)
                         continue
@@ -264,7 +265,7 @@ class DeepTagger():
             x=[]
             for l in f:
                 l = l.strip()
-                if l[:3] == '#  ':continue  # comments
+                if l[:2] == '# ':continue  # comments
                 if l =='EOS':
                     lTmp.append(x)
                     self.max_sentence_len = max(self.max_sentence_len,len(x))
@@ -326,7 +327,7 @@ class DeepTagger():
             x=[]
             for l in f:
                 l = l.strip()
-                if l[:3] == '#  ':continue  # comments
+                if l[:2] == '# ':continue  # comments
                 if l =='EOS':
                     if x!=[]:
                         lTmp.append(x)
@@ -367,7 +368,7 @@ class DeepTagger():
             x=[]
             for l in f:
                 l = l.strip()
-                if l[:3] == '#  ':continue  # comments
+                if l[:2] == '# ':continue  # comments
                 if l =='EOS':
                     if x!=[]:
                         lTmp.append(x)
@@ -456,7 +457,7 @@ class DeepTagger():
 
         print ('feature: %s sent:%s  hid:%s'%(self.max_features,self.max_sentence_len,self.hiddenSize))
         model.add(Masking(mask_value=0., input_shape=(self.max_sentence_len, self.max_features)))
-        model.add(TimeDistributed(Dense(self.hiddenSize)))
+        #model.add(TimeDistributed(Dense(self.hiddenSize)))
         model.add(Bidirectional(LSTM(self.hiddenSize,return_sequences = True,bias_regularizer=reg))) 
 #         model.add(Dropout(0.5))
 #         model.add(Bidirectional(LSTM(self.hiddenSize,return_sequences = True,bias_regularizer=reg)))
@@ -592,7 +593,7 @@ class DeepTagger():
 #         print lY.shape
 
         scores = self.model.evaluate(lX,lY,verbose=True)
-        print(list(zip(self.model.metrics_names,scores)))
+        #print(list(zip(self.model.metrics_names,scores)))
         
         test_x, _ = testdata
         
@@ -618,7 +619,7 @@ class DeepTagger():
         lX,(lY,lY2) = self.prepareTensor_multitype(testdata)
 
         scores = self.model.evaluate(lX,[lY,lY2],verbose=True)
-        print(list(zip(self.model.metrics_names,scores)))
+        #print(list(zip(self.model.metrics_names,scores)))
         
         test_x, _ = testdata
         
@@ -769,7 +770,7 @@ class DeepTagger():
                             #print self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]
                             pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
                     l_multi_type_results.append(pred_tags[:len(allwords)])
-                    print(l_multi_type_results) 
+                    #print(l_multi_type_results) 
                 lRes.append(self.prepareOutput_multitype(mysent.split(),l_multi_type_results))
 
         return lRes
