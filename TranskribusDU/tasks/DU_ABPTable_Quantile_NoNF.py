@@ -75,11 +75,11 @@ class DU_ABPTable(DU_CRF_Task):
         
         lActuallySeen = None
         if lActuallySeen:
-            print "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING"
+            print ("REDUCING THE CLASSES TO THOSE SEEN IN TRAINING")
             lIgnoredLabels  = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
             lLabels         = [lLabels[i] for i in lActuallySeen ]
-            print len(lLabels)          , lLabels
-            print len(lIgnoredLabels)   , lIgnoredLabels
+            print (len(lLabels)          , lLabels)
+            print (len(lIgnoredLabels)   , lIgnoredLabels)
             nbClass = len(lLabels) + 1  #because the ignored labels will become OTHER
         
         #DEFINING THE CLASS OF GRAPH WE USE
