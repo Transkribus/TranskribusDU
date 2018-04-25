@@ -200,7 +200,8 @@ class TestReport:
             p   = np.diag(conf)/(eps+conf.sum(axis=0))
             r   = np.diag(conf)/(eps+conf.sum(axis=1))
             f1  = 2*p*r/(eps+p+r)
-            sReport += "%d\t%s\t%s %s %s\n"%(i,os.path.basename(self.getDocNameList()[i]),p,r,f1)
+            #sReport += "%d\t%s\t%s %s %s\n"%(i,os.path.basename(self.getDocNameList()[i]),p,r,f1)
+            sReport += "%d\t%s %s %s\t%s\n"%(i, p,r,f1, os.path.basename(self.getDocNameList()[i]))
             
         return sReport
     # ------------------------------------------------------------------------------------------------------------------

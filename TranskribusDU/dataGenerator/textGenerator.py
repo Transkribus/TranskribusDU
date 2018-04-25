@@ -64,7 +64,6 @@ class textGenerator(Generator):
         self._lresources = None
         self.isWeighted = False
 
-        self.delChar= 10
     
     def getSeparator(self):
         """
@@ -395,7 +394,7 @@ class textGenerator(Generator):
             if len(str(token)) > 0:
                 uLabels  = '\t'.join(labels)
                 if self.getNoiseType() in [1]:
-                    token = self.delCharacter(token,self.delChar)
+                    token = self.delCharacter(token,self.getNoiseLevel())
                 uString = "%s\t%s" % (token,uLabels)
                 sReturn +=uString+'\n'
         sReturn+="EOS\n"
