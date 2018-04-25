@@ -25,6 +25,7 @@ __"Comparing Machine Learning Approaches for Table Recognition in Historical Reg
 Here, we explain how to reproduce our experiments or do your own experiments on the same data.
 
 # Data
+## WARNING: in the DAS article the first dataset (144 pages) has duplicated pages... THe new correct correspoding dataset has 111 pages. It does not change the comparison between tools (new results will be published soon)
 
 in resources/DAS_2018, you will find files listed below. 
 
@@ -101,7 +102,7 @@ python $SRC/tasks/DU_ABPTable.py  --fold abp --fold-init 4  abp_CV  das_abp_mode
 
 ### GCN, ECN and Logit-1conv
 
-First of all, the code is located in src/gcn folder but it has developped under Python3 (wherease TranskribusDU is with 2.7).
+First of all, the code is located in src/gcn folder but it has developed under Python 3.
 Then, our main dependencies are the following:
     scikit-learn==0.19.1
     scipy==1.0.0
