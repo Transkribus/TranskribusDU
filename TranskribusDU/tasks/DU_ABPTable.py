@@ -42,7 +42,7 @@ from tasks import _checkFindColDir, _exit
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from tasks.DU_CRF_Task import DU_CRF_Task
-
+import gcn.DU_Model_ECN
 
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
@@ -221,16 +221,32 @@ try:
 
             def __init__(self, sModelName, sModelDir, sComment=None,dLearnerConfigArg=None):
                 if sComment is None: sComment  = sModelName
-                DU_ECN_Task.__init__(self
-                                     , sModelName, sModelDir
-                                     , dFeatureConfig={}
-                                     , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
-                                     , sComment= sComment
-                                     , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
-                                     )
 
-                if options.bBaseline:
-                    self.bsln_mdl = self.addBaseline_LogisticRegression()  # use a LR model trained by GridSearch as baseline
+                if  dLearnerConfigArg is not None and "ecn_ensemble" in dLearnerConfigArg:
+                    print('ECN_ENSEMBLE')
+                    DU_ECN_Task.__init__(self
+                                         , sModelName, sModelDir
+                                         , dFeatureConfig={}
+                                         ,
+                                         dLearnerConfig=dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
+                                         , sComment=sComment
+                                         , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3,
+                                          cModelClass=gcn.DU_Model_ECN.DU_Ensemble_ECN
+                                         )
+
+
+                else:
+                    #Default Case Single Model
+                    DU_ECN_Task.__init__(self
+                                         , sModelName, sModelDir
+                                         , dFeatureConfig={}
+                                         , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
+                                         , sComment= sComment
+                                         , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
+                                         )
+
+                #if options.bBaseline:
+                #    self.bsln_mdl = self.addBaseline_LogisticRegression()  # use a LR model trained by GridSearch as baseline
 
             # === END OF CONFIGURATION =============================================================
             def predict(self, lsColDir):
@@ -367,11 +383,15 @@ def main(sModelDir, sModelName, options):
         if options.ecn_json_config is not None and options.ecn_json_config is not []:
             f = open(options.ecn_json_config[0])
             djson=json.loads(f.read())
-            dLearnerConfig=djson["ecn_learner_config"]
-            f.close()
-            doer = DU_ABPTable_ECN(sModelName, sModelDir,dLearnerConfigArg=dLearnerConfig)
 
-
+            if "ecn_learner_config" in djson:
+                dLearnerConfig=djson["ecn_learner_config"]
+                f.close()
+                doer = DU_ABPTable_ECN(sModelName, sModelDir,dLearnerConfigArg=dLearnerConfig)
+            elif "ecn_ensemble" in djson:
+                dLearnerConfig = djson
+                f.close()
+                doer = DU_ABPTable_ECN(sModelName, sModelDir, dLearnerConfigArg=dLearnerConfig)
 
         else:
             doer = DU_ABPTable_ECN(sModelName, sModelDir)

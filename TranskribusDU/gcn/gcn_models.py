@@ -91,9 +91,22 @@ class MultiGraphNN(object):
             gY_pred = self.predict(session, g, verbose=verbose)
             lY_pred.append(gY_pred)
 
-
         return lY_pred
 
+    def predict_prob_lG(self,session,gcn_graph_predict,verbose=True):
+        '''
+                Predict Probabilities for a list of graph
+                :param session:
+                :param gcn_graph_test:
+                :return:
+                '''
+        lY_pred = []
+
+        for g in gcn_graph_predict:
+            gY_pred = self.prediction_prob(session, g, verbose=verbose)
+            lY_pred.append(gY_pred)
+
+        return lY_pred
 
     def get_nb_params(self):
         total_parameters = 0
@@ -225,6 +238,78 @@ class MultiGraphNN(object):
 
         return R
 
+
+class EnsembleGraphNN(MultiGraphNN):
+    '''
+    An ensemble of Graph NN Models
+    Construction Outside of class
+    '''
+
+    def __init__(self,graph_nn_models):
+        self.models=graph_nn_models
+
+    def train_lG(self, session, gcn_graph_train):
+        '''
+        Train an a list of graph
+        :param session:
+        :param gcn_graph_train:
+        :return:
+        '''
+        for m in self.models:
+            m.train_lG(session, gcn_graph_train)
+
+    def test_lG(self, session, gcn_graph_test, verbose=True):
+        '''
+        Test on a list of Graph
+        :param session:
+        :param gcn_graph_test:
+        :return:
+        '''
+        acc_tp = np.float64(0.0)
+        nb_node_total = np.float64(0.0)
+        mean_acc_test = []
+
+
+        Y_pred=self.predict_lG(session,gcn_graph_test)
+        Y_true =[g.Y for g in gcn_graph_test]
+        Y_pred_node = np.vstack(Y_pred)
+
+        node_acc  = sklearn.metrics.accuracy_score(np.argmax(np.vstack(Y_true),axis=1),np.argmax(Y_pred_node,axis=1))
+
+        g_acc =-1
+        #node_acc = acc_tp / nb_node_total
+
+        if verbose:
+            print('Mean Graph Accuracy', '%.4f' % g_acc)
+            print('Mean Node  Accuracy', '%.4f' % node_acc)
+
+        return g_acc, node_acc
+
+    def predict_lG(self, session, gcn_graph_predict, verbose=True):
+        '''
+        Predict for a list of graph
+        :param session:
+        :param gcn_graph_test:
+        :return:
+        '''
+        lY_pred = []
+
+        #Seem Very Slow ... Here
+        #I should predict for all graph
+        nb_models = float(len(self.models))
+        for g in gcn_graph_predict:
+            #Average Proba Here
+            g_pred=[]
+            for m in self.models:
+                gY_pred = m.prediction_prob(session, g, verbose=verbose)
+                g_pred.append(gY_pred)
+                #print(gY_pred)
+            lY_pred.append(np.sum(g_pred,axis=0)/nb_models)
+        return lY_pred
+
+    def train_with_validation_set(self, session, graph_train, graph_val, max_iter, eval_iter=10, patience=7,
+                                  graph_test=None, save_model_path=None):
+        raise NotImplementedError
 
 class Logit(MultiGraphNN):
     '''
@@ -550,7 +635,7 @@ class EdgeConvNet(MultiGraphNN):
 
                 Wnli = tf.Variable(
                     tf.random_uniform((self.node_indim * self.nconv_edge + self.node_indim, self.node_indim),
-                                      -1.0 / math.sqrt(self.node_indim),
+                                          -1.0 / math.sqrt(self.node_indim),
                                       1.0 / math.sqrt(self.node_indim)), name='Wnl', dtype=tf.float32)
             print('Wnli shape', Wnli.get_shape())
             Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl' + str(i), dtype=tf.float32)
@@ -608,9 +693,11 @@ class EdgeConvNet(MultiGraphNN):
         elif self.num_layers > 1:
 
             if self.dropout_rate_node > 0.0:
-                H0 = self.activation(tf.matmul(self.ND, tf.add(tf.matmul(self.node_input, self.Wnl0), self.Bnl0)))
+                #H0 = self.activation(tf.matmul(self.ND, tf.add(tf.matmul(self.node_input, self.Wnl0), self.Bnl0)))
+                H0 = tf.matmul(self.ND, tf.add(tf.matmul(self.node_input, self.Wnl0), self.Bnl0))
             else:
-                H0 = self.activation(tf.add(tf.matmul(self.node_input, self.Wnl0), self.Bnl0))
+                #H0 = self.activation(tf.add(tf.matmul(self.node_input, self.Wnl0), self.Bnl0))
+                H0 = tf.add(tf.matmul(self.node_input, self.Wnl0), self.Bnl0)
 
             self.Hnode_layers.append(H0)
 
@@ -623,8 +710,8 @@ class EdgeConvNet(MultiGraphNN):
             Hp = tf.concat([H0, P], 1)
 
             # TODO add activation Here.
-            # self.hidden_layers = [self.activation(Hp)]
-            self.hidden_layers = [Hp]
+            self.hidden_layers = [self.activation(Hp)]
+            #self.hidden_layers = [Hp]
 
             for i in range(self.num_layers - 1):
 
@@ -703,7 +790,7 @@ class EdgeConvNet(MultiGraphNN):
         edge_dropout = self.dropout_rate_edge> 0.0 or self.dropout_rate_edge_feat > 0.0
         print('Edge Dropout',edge_dropout, self.dropout_rate_edge,self.dropout_rate_edge_feat)
         if self.num_layers==1:
-            self.H = self.activation(tf.add(tf.matmul(self.node_input, Wnl0), Bnl0))
+            self.H = self.activation(tf.add(tf.matmul(self.node_input, self.Wnl0), self.Bnl0))
             self.hidden_layers = [self.H]
             print("H shape",self.H.get_shape())
 
@@ -828,6 +915,7 @@ class EdgeConvNet(MultiGraphNN):
         # Global L2 Regulization
         self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(self.W_classif)
 
+        self.predict_proba = tf.nn.softmax(self.logits)
         self.pred = tf.argmax(tf.nn.softmax(self.logits), 1)
         self.correct_prediction = tf.equal(self.pred, tf.argmax(self.y_input, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
@@ -1126,6 +1214,7 @@ class EdgeConvNet(MultiGraphNN):
 
 
         self.pred = tf.argmax(tf.nn.softmax(self.logits), 1)
+        self.predict_proba = tf.nn.softmax(self.logits)
         self.correct_prediction = tf.equal(self.pred, tf.argmax(self.y_input, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
@@ -1277,6 +1366,36 @@ class EdgeConvNet(MultiGraphNN):
             #self.NA_indegree: graph.NA_indegree
         }
         Ops = session.run([self.pred], feed_dict=feed_batch)
+        if verbose:
+            print('Got Prediction for:',Ops[0].shape)
+        return Ops[0]
+
+    def prediction_prob(self,session,graph,verbose=True):
+        '''
+        Does the prediction
+        :param session:
+        :param graph:
+        :param verbose:
+        :return:
+        '''
+        feed_batch = {
+            self.nb_node: graph.X.shape[0],
+            self.nb_edge: graph.F.shape[0],
+            self.node_input: graph.X,
+            # fast_gcn.S: np.asarray(graph.S.todense()).squeeze(),
+            # fast_gcn.Ssparse: np.vstack([graph.S.row,graph.S.col]),
+            self.Ssparse: np.array(graph.Sind, dtype='int64'),
+            self.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
+            self.Tsparse: np.array(graph.Tind, dtype='int64'),
+            # fast_gcn.T: np.asarray(graph.T.todense()).squeeze(),
+            self.F: graph.F,
+            self.dropout_p_H: 0.0,
+            self.dropout_p_node: 0.0,
+            self.dropout_p_edge: 0.0,
+            self.dropout_p_edge_feat: 0.0,
+            #self.NA_indegree: graph.NA_indegree
+        }
+        Ops = session.run([self.predict_proba], feed_dict=feed_batch)
         if verbose:
             print('Got Prediction for:',Ops[0].shape)
         return Ops[0]
@@ -1921,7 +2040,7 @@ class GraphAttNet(MultiGraphNN):
 
             if self.distinguish_node_from_neighbor:
                 H0 = tf.matmul(self.node_input, Wa)
-                attns.append(H0)
+                attns0.append(H0)
 
             _, nH = self.simple_graph_attention_layer(self.node_input, Wa, va, self.Ssparse, self.Tsparse, self.Aind,
                                                       self.Sshape, self.nb_edge, self.dropout_p_attn,
@@ -2156,7 +2275,7 @@ class GraphAttNet(MultiGraphNN):
 
         cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
         self.loss = tf.reduce_mean(cross_entropy_source)
-
+        self.predict_proba = tf.nn.softmax(self.logits)
         self.pred = tf.argmax(tf.nn.softmax(self.logits), 1)
         self.correct_prediction = tf.equal(self.pred, tf.argmax(self.y_input, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
@@ -2282,6 +2401,34 @@ class GraphAttNet(MultiGraphNN):
             print('Got Prediction for:',Ops[0].shape)
         return Ops[0]
 
+    def prediction_prob(self, session, graph, verbose=True):
+        '''
+        Does the prediction
+        :param session:
+        :param graph:
+        :param verbose:
+        :return:
+        '''
+        Aind = np.array(np.stack([graph.Sind[:, 0], graph.Tind[:, 1]], axis=-1), dtype='int64')
+        feed_batch = {
+            self.nb_node: graph.X.shape[0],
+            self.nb_edge: graph.F.shape[0],
+            self.node_input: graph.X,
+            # fast_gcn.S: np.asarray(graph.S.todense()).squeeze(),
+            # fast_gcn.Ssparse: np.vstack([graph.S.row,graph.S.col]),
+            self.Ssparse: np.array(graph.Sind, dtype='int64'),
+            self.Sshape: np.array([graph.X.shape[0], graph.F.shape[0]], dtype='int64'),
+            self.Tsparse: np.array(graph.Tind, dtype='int64'),
+            # fast_gcn.T: np.asarray(graph.T.todense()).squeeze(),
+            # self.F: graph.F,
+            self.Aind: Aind,
+            self.dropout_p_node: 0.0,
+            self.dropout_p_attn: 0.0,
+        }
+        Ops = session.run([self.predict_proba], feed_dict=feed_batch)
+        if verbose:
+            print('Got Prediction for:', Ops[0].shape)
+        return Ops[0]
 
     #TODO Move that MultiGraphNN
     def train_All_lG(self,session,graph_train,graph_val, max_iter, eval_iter = 10, patience = 7, graph_test = None, save_model_path = None):

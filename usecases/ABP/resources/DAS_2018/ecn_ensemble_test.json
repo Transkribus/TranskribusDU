@@ -1,0 +1,40 @@
+  {
+    "ecn_ensemble": [
+      {
+        "type": "ecn",
+        "name": "8Lay1Conv_m1",
+        "dropout_rate_edge": 0.0,
+        "dropout_rate_edge_feat": 0.0,
+        "dropout_rate_node": 0.0,
+        "lr": 0.001,
+        "mu": 0.0,
+        "nb_iter":500,
+        "nconv_edge": 1,
+        "node_indim": -1,
+        "num_layers": 8,
+        "ratio_train_val": 0.1,
+        "patience": 500,
+        "activation_name": "tanh",
+        "stack_convolutions": true
+
+    }
+      ,
+      {
+        "type": "ecn",
+        "name": "8Lay1Conv_m2",
+        "dropout_rate_edge": 0.0,
+        "dropout_rate_edge_feat": 0.0,
+        "dropout_rate_node": 0.0,
+        "lr": 0.001,
+        "mu": 0.0,
+        "nb_iter": 500,
+        "nconv_edge": 1,
+        "node_indim": -1,
+        "num_layers": 8,
+        "ratio_train_val": 0.1,
+        "patience": 50,
+        "activation_name": "relu",
+        "stack_convolutions": true
+      }
+    ]
+  }
