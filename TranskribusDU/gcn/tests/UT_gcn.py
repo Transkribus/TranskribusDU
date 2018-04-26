@@ -655,7 +655,7 @@ class UT_gcn(unittest.TestCase):
 
         assert not diff
 
-    def test_train_ensemble(self):
+    def test_train_ensemble_NN_model(self):
         #TODO Make a proper synthetic dataset for test Purpose
         pickle_fname = 'abp_CV_fold_1_tlXlY_trn.pkl'
         gcn_graph = GCNDataset.load_transkribus_pickle(pickle_fname)
@@ -914,8 +914,51 @@ class UT_gcn(unittest.TestCase):
             self.assertTrue(acc > 0.5)
         else:
             self.fail('UT_mod1 was not trained')
+    def test_sum_conv_attention(self):
+        H  = tf.Variable([[1.0,0.0],[0.1,2.0],[0.5,0.5]])
+        C1 = tf.Variable([[100,0.0],[0.0,0.0],[0.1,0.1]])
+        C2 = tf.Variable([[-0.1, 2.0], [0.0, 100],[0.1,0.1]])
 
-    #TODO Test files Too
+        #H = tf.Variable([[1.0, 0.0], [0.1, 2.0]])
+        #C1 = tf.Variable([[0.1, 2.0], [0.1, 0.0]])
+        #C2 = tf.Variable([[-0.1, 2.0], [1.0, 0.0]])
+        #A=tf.ones([2.0,2.0])
+        A =tf.concat([tf.zeros([1.0,2.0]),tf.ones([1.0,2.0])],axis=0)
+        alphas=[]
+        for C in [C1,C2]:
+            attn_val = tf.reduce_sum(tf.multiply(A[0], H) + tf.multiply(A[1],C),axis=1 )
+            alphas.append(attn_val)
+        alphas_s =tf.stack(alphas,axis=1)
+        alphas_l = tf.nn.softmax(tf.nn.leaky_relu(alphas_s))
+        #Add Dropout
+        #Test moyennage
+        #Can we make that more efficiently
+        #Make_dropoout on alphas_l Here and then sum
+        #Write proper unit test
+        #Is the broadcasting correct Here
+
+        wC=[tf.multiply(tf.expand_dims(tf.transpose(alphas_l)[i],1),C) for i,C in enumerate([C1,C2])]
+        wH =tf.add_n(wC)
+
+        init= tf.global_variables_initializer()
+        #tf.einsum()
+        with tf.Session() as session:
+            session.run(init)
+            #[alphas_s_v] = session.run([alphas_s])
+            #[alphas_s_v,alphas_l] = session.run([alphas_s,alphas_l])
+            [alphas_s_v, alphas_l,wHv] = session.run([alphas_s, alphas_l,wH])
+        print(alphas_s_v)
+        print(alphas_l)
+        self.assertAlmostEqual(alphas_l[0,0],1.0)
+        self.assertAlmostEqual(alphas_l[1, 1], 1.0)
+        self.assertAlmostEqual(alphas_l[2, 0], alphas_l[2, 1])
+        print(wHv)
+        self.assertSequenceEqual(list(wHv[0]), [100,0.0])
+
+
+
+
+        #TODO Test files Too
     #Does not work yet Predict does not work
 
 

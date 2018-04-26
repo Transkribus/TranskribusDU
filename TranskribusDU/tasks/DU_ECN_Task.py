@@ -77,7 +77,7 @@ class DU_ECN_Task(DU_CRF_Task):
         du_postfix = "_du" + MultiPageXml.sEXT
 
         #Creates a tf.Session and load the model checkpoints
-        session=self._mdl.restore()
+        #session=self._mdl.restore()
         lsOutputFilename = []
         for sFilename in lFilename:
             if sFilename.endswith(du_postfix): continue  #:)
@@ -91,7 +91,7 @@ class DU_ECN_Task(DU_CRF_Task):
                         self.traceln("\t- prediction with logical constraints: %s" % sFilename)
                     else:
                         self.traceln("\t- prediction : %s" % sFilename)
-                    Y = self._mdl.predict(g,session)
+                    Y = self._mdl.predict(g)
 
                     g.setDomLabels(Y)
                     del Y
@@ -112,5 +112,5 @@ class DU_ECN_Task(DU_CRF_Task):
 
             self.traceln("\t done [%.2fs]" % chronoOff("predict_1"))
         self.traceln(" done [%.2fs]" % chronoOff("predict"))
-        session.close()
+        #session.close()
         return lsOutputFilename

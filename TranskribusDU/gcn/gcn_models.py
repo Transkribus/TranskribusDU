@@ -155,7 +155,7 @@ class MultiGraphNN(object):
                 break
 
             if i % eval_iter == 0:
-                print('\nEpoch', i)
+                print('\nEpoch', i,'Patience',wait)
                 _, tr_acc = self.test_lG(session, graph_train,verbose=False)
                 print(' Train Acc', '%.4f' % tr_acc)
                 train_accuracies.append(tr_acc)
@@ -496,6 +496,7 @@ class EdgeConvNet(MultiGraphNN):
         self.use_conv_weighted_avg=False
         self.use_edge_mlp=False
         self.edge_mlp_dim = 5
+        self.sum_attention=False
 
         if node_indim==-1:
             self.node_indim=self.node_dim
@@ -532,7 +533,7 @@ class EdgeConvNet(MultiGraphNN):
 
     def fastconvolve(self,Wedge,Bedge,F,S,T,H,nconv,Sshape,nb_edge,dropout_p_edge,dropout_p_edge_feat,
                      stack=True, use_dropout=False,zwe=None,use_weighted_average=False,
-                     use_edge_mlp=False,Wedge_mlp=None,Bedge_mlp=None):
+                     use_edge_mlp=False,Wedge_mlp=None,Bedge_mlp=None,use_attention=False):
         '''
 
         :param Wedge: Parameter matrix for edge convolution, with hape (n_conv_edge,edge_dim)
@@ -574,13 +575,14 @@ class EdgeConvNet(MultiGraphNN):
 
         self.conv =tf.unstack(FW,axis=1)
         Cops=[]
-
+        alphas=[]
 
         Tr = tf.SparseTensor(indices=T, values=tf.ones([nb_edge], dtype=tf.float32), dense_shape=[Sshape[1],Sshape[0]])
         Tr = tf.sparse_reorder(Tr)
         TP = tf.sparse_tensor_dense_matmul(Tr,H)
 
-
+        if use_attention:
+            attn_params = va = init_glorot([2, int(self.node_dim)])
 
         for i, cw in enumerate(self.conv):
             #SD= tf.SparseTensor(indices=S,values=cw,dense_shape=[nb_node,nb_edge])
@@ -599,10 +601,23 @@ class EdgeConvNet(MultiGraphNN):
 
             Hi =tf.sparse_tensor_dense_matmul(SD,TP)
             Cops.append(Hi)
+            if use_attention:
+                attn_val = tf.reduce_sum(tf.multiply(attn_params[0], H) + tf.multiply(attn_params[1], Hi), axis=1)
+                alphas.append(attn_val)
 
         if stack is True:
             #If stack we concatenate all the different convolutions
             P=tf.concat(Cops,1)
+
+        elif use_attention:
+            alphas_s = tf.stack(alphas, axis=1)
+            alphas_l = tf.nn.softmax(tf.nn.leaky_relu(alphas_s))
+            #Not Clean to use the dropout for the edge feat
+            #Is this dropout necessary Here ? could do without
+            alphas_do =tf.nn.dropout(alphas_l,1 - dropout_p_edge_feat)
+            wC = [tf.multiply(tf.expand_dims(tf.transpose(alphas_do)[i], 1), C) for i, C in enumerate(Cops)]
+            P = tf.add_n(wC)
+
         else:
             #Else we take the mean
             P=1.0/(tf.cast(nconv,tf.float32))*tf.add_n(Cops)
@@ -796,7 +811,9 @@ class EdgeConvNet(MultiGraphNN):
 
 
             P = self.fastconvolve(self.Wel0,self.Bel0,self.F,self.Ssparse,self.Tsparse,self.H,self.nconv_edge,self.Sshape,self.nb_edge,
-                                  self.dropout_p_edge,self.dropout_p_edge_feat,stack=self.stack_instead_add,use_dropout=edge_dropout)
+                                  self.dropout_p_edge,self.dropout_p_edge_feat,stack=self.stack_instead_add,use_dropout=edge_dropout,
+                                  use_attention=self.sum_attention
+                                  )
 
             Hp = tf.concat([self.H, P], 1)
             Hi=self.activation(Hp)
@@ -814,6 +831,7 @@ class EdgeConvNet(MultiGraphNN):
             #TODO Default to fast convolve but we change update configs, train and test flags
             P = self.fastconvolve(self.Wel0,self.Bel0, self.F, self.Ssparse, self.Tsparse, H0, self.nconv_edge, self.Sshape,self.nb_edge,
                                   self.dropout_p_edge,self.dropout_p_edge_feat, stack=self.stack_instead_add, use_dropout=edge_dropout,
+                                  use_attention=self.sum_attention
                                   )
 
             if self.use_conv_weighted_avg:
