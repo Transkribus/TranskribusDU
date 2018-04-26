@@ -25,13 +25,16 @@ __"Comparing Machine Learning Approaches for Table Recognition in Historical Reg
 Here, we explain how to reproduce our experiments or do your own experiments on the same data.
 
 # Data
-## WARNING: in the DAS article the first dataset (144 pages) has duplicated pages... THe new correct correspoding dataset has 111 pages. It does not change the comparison between tools (new results will be published soon)
+## WARNING: in the DAS article the first dataset (144 pages) has duplicated pages... The new correct correspoding dataset has 111 pages. It does not change the comparison between tools (new results will be published soon)
 
 in resources/DAS_2018, you will find files listed below. 
 
-The show_shape.py utility will help you understanding the content of each file. 
+Images and pagexml can be also found  at https://zenodo.org/record/1226879#.WuFitE6g9PY
 
-The data is provided both as Transkribus XML files for consumption by TranskribusDU tools and as Numpy data.
+
+The show_shape.py utility will help you understanding the content of each pickle file. 
+
+The data is provided both as Transkribus PageXml files for consumption by TranskribusDU tools and as Numpy data.
 
 ##Training data
 As XML files:
