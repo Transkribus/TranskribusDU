@@ -55,6 +55,7 @@ class DU_Model_ECN(Model):
 
         self.gcn_model=None
         self.tf_graph=None
+        self.tf_session=None
         #We should pickle that
         self.labelBinarizer = LabelBinarizer()
 
@@ -317,6 +318,8 @@ class DU_Model_ECN(Model):
         #This save the model
         self._getBestModelVal()
         self._cleanTmpCheckpointFiles()
+        #We reopen a session here and load the selected model if we need one
+        self.restore()
 
 
     def _getBestModelVal(self):
@@ -406,6 +409,8 @@ class DU_Model_ECN(Model):
         tf_graph = tf.Graph()
         with tf_graph.as_default():
             self._init_model()
+            #This create a session containing the correct model
+            self.restore()
         self.tf_graph=tf_graph
         return self
 
@@ -431,43 +436,45 @@ class DU_Model_ECN(Model):
         gcn_graph_test = self.convert_lX_lY_to_GCNDataset(lX, lY, training=False,test=True)
 
         chronoOn("test2")
-        with tf.Session(graph=self.tf_graph) as session:
+        #with tf.Session(graph=self.tf_graph) as session:
         #with tf.Session() as session:
-            session.run(self.gcn_model.init)
-            self.gcn_model.restore_model(session, self.getModelFilename())
+        #session.run(self.gcn_model.init)
+        #self.gcn_model.restore_model(session, self.getModelFilename())
+        session=self.tf_session
+        if predict_proba:
+            #TODO Should split that function diryt
+            lY_pred_proba = self.gcn_model.predict_prob_lG(session, gcn_graph_test, verbose=False)
+            traceln(" [%.1fs] done\n" % chronoOff("test2"))
 
-            if predict_proba:
-                lY_pred_proba = self.gcn_model.predict_prob_lG(session, gcn_graph_test, verbose=False)
-                traceln(" [%.1fs] done\n" % chronoOff("test2"))
+            del lX, lY
+            gc.collect()
 
-                del lX, lY
-                gc.collect()
+            return lY_pred_proba
 
-                return lY_pred_proba
+        else:
+            #pdb.set_trace()
+            lY_pred = self.gcn_model.predict_lG(session, gcn_graph_test, verbose=False)
+            #end_time = time.time()
+            #print("--- %s seconds ---" % (end_time - start_time))
+            #print('Number of graphs:', len(lY_pred))
 
-            else:
-                lY_pred = self.gcn_model.predict_lG(session, gcn_graph_test, verbose=False)
-                #end_time = time.time()
-                #print("--- %s seconds ---" % (end_time - start_time))
-                #print('Number of graphs:', len(lY_pred))
+            # Convert to list as Python pickle does not  seem like the array while the list can be pickled
+            lY_list = []
+            for x in lY_pred:
+                lY_list.append(list(x))
 
-                # Convert to list as Python pickle does not  seem like the array while the list can be pickled
-                lY_list = []
-                for x in lY_pred:
-                    lY_list.append(list(x))
+            traceln(" [%.1fs] done\n" % chronoOff("test2"))
+            tstRpt = TestReport(self.sName, lY_list, lY, lLabelName, lsDocName=lsDocName)
 
-                traceln(" [%.1fs] done\n" % chronoOff("test2"))
-                tstRpt = TestReport(self.sName, lY_list, lY, lLabelName, lsDocName=lsDocName)
-
-                lBaselineTestReport = self._testBaselines(lX, lY, lLabelName, lsDocName=lsDocName)
-                tstRpt.attach(lBaselineTestReport)
+            lBaselineTestReport = self._testBaselines(lX, lY, lLabelName, lsDocName=lsDocName)
+            tstRpt.attach(lBaselineTestReport)
 
 
-                # do some garbage collection
-                del lX, lY
-                gc.collect()
+            # do some garbage collection
+            del lX, lY
+            gc.collect()
 
-                return tstRpt
+            return tstRpt
 
 
     #TODO Test This ;#Is this deprecated ?
@@ -487,31 +494,31 @@ class DU_Model_ECN(Model):
         chronoOn("testFiles")
 
 
-        with tf.Session(graph=self.tf_graph) as session:
-            session.run(self.gcn_model.init)
-            self.gcn_model.restore_model(session, self.getModelFilename())
+        #with tf.Session(graph=self.tf_graph) as session:
+        #session.run(self.gcn_model.init)
+        #self.gcn_model.restore_model(session, self.getModelFilename())
 
 
-            for sFilename in lsFilename:
-                [g] = loadFun(sFilename)  # returns a singleton list
-                [X], [Y] = self.get_lX_lY([g])
+        for sFilename in lsFilename:
+            [g] = loadFun(sFilename)  # returns a singleton list
+            [X], [Y] = self.get_lX_lY([g])
 
-                gcn_graph_test = self.convert_lX_lY_to_GCNDataset([X], [Y], training=False, test=True)
-                if lLabelName == None:
-                    lLabelName = g.getLabelNameList()
-                    traceln("\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber([g]))
-                    tNF_EF = (X[0].shape[1], X[2].shape[1])
-                    traceln("node-dim,edge-dim", tNF_EF)
-                else:
-                    assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
-                lY_pred_ = self.gcn_model.predict_lG(session, gcn_graph_test, verbose=False)
+            gcn_graph_test = self.convert_lX_lY_to_GCNDataset([X], [Y], training=False, test=True)
+            if lLabelName == None:
+                lLabelName = g.getLabelNameList()
+                traceln("\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber([g]))
+                tNF_EF = (X[0].shape[1], X[2].shape[1])
+                traceln("node-dim,edge-dim", tNF_EF)
+            else:
+                assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
+            lY_pred_ = self.gcn_model.predict_lG(self.tf_session, gcn_graph_test, verbose=False)
 
-                lY_pred.append(lY_pred_[0])
-                lX.append(X)
-                lY.append(Y)
-                g.detachFromDOM()
-                del g  # this can be very large
-                gc.collect()
+            lY_pred.append(lY_pred_[0])
+            lX.append(X)
+            lY.append(Y)
+            g.detachFromDOM()
+            del g  # this can be very large
+            gc.collect()
 
         traceln("[%.1fs] done\n" % chronoOff("testFiles"))
 
@@ -528,14 +535,14 @@ class DU_Model_ECN(Model):
 
     def restore(self):
         traceln(" start tf session; loading checkpoint")
-        #with tf.Session(graph=self.tf_graph) as session:
         session=tf.Session(graph=self.tf_graph)
         session.run(self.gcn_model.init)
         self.gcn_model.restore_model(session, self.getModelFilename())
-        traceln(" ... done")
+        traceln(" ... done loaded",self.sName)
+        self.tf_session=session
         return session
 
-    def predict(self, g,session):
+    def predict(self, g):
         """
         predict the class of each node of the graph
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph.
@@ -551,7 +558,7 @@ class DU_Model_ECN(Model):
             traceln("node-dim,edge-dim:", tNF_EF)
         else:
             assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
-        lY_pred = self.gcn_model.predict_lG(session, gcn_graph_test, verbose=False)
+        lY_pred = self.gcn_model.predict_lG(self.tf_session, gcn_graph_test, verbose=False)
         return lY_pred[0]
 
     def getModelInfo(self):
@@ -706,8 +713,11 @@ class DU_Ensemble_ECN(DU_Model_ECN):
         #Still unclear if the load should load all the submodels
         #In principle yes
         self._init_model()
-        #for du_model in self.models:
-        #    du_model.load()
+        for du_model in self.models:
+            #Load each model, init and restore the checkpoint
+            # Create also a corresponding tf.Session
+            du_model.load()
+
         return self
 
 
@@ -739,10 +749,8 @@ class DU_Ensemble_ECN(DU_Model_ECN):
 
         lY_pred_proba=[]
         for du_model in self.models:
-            du_model.load()
-            with du_model.tf_graph.as_default():
-                model_pred=du_model.test(lGraph,lsDocName=lsDocName,predict_proba=True)
-                lY_pred_proba.append(model_pred)
+            model_pred=du_model.test(lGraph,lsDocName=lsDocName,predict_proba=True)
+            lY_pred_proba.append(model_pred)
 
         print('Number of Models',len(lY_pred_proba))
         lY_pred,_ = DU_Ensemble_ECN.average_prediction(lY_pred_proba)
@@ -786,7 +794,7 @@ class DU_Ensemble_ECN(DU_Model_ECN):
 
         Return a Report object
         """
-
+        raise NotImplementedError
         lX, lY, lY_pred = [], [], []
         lLabelName = None
         traceln("- predicting on test set")
@@ -796,12 +804,12 @@ class DU_Ensemble_ECN(DU_Model_ECN):
 
 
         for du_model in self.models:
-            du_model.load()
+            #du_model.load()
 
             m_pred=[]
-            with tf.Session(graph=du_model.tf_graph) as session:
-                session.run(du_model.gcn_model.init)
-                du_model.gcn_model.restore_model(session, du_model.getModelFilename())
+            #with tf.Session(graph=du_model.tf_graph) as session:
+                #session.run(du_model.gcn_model.init)
+                #du_model.gcn_model.restore_model(session, du_model.getModelFilename())
 
             for sFilename in lsFilename:
                 [g] = loadFun(sFilename)  # returns a singleton list
@@ -842,23 +850,17 @@ class DU_Ensemble_ECN(DU_Model_ECN):
         return tstRpt
 
 
-    def predict(self, g,session):
+    def predict(self, g):
         """
         predict the class of each node of the graph
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph.
         """
-
-        raise NotImplementedError
-        lLabelName = None
-
-        [X], [Y] = self.get_lX_lY([g])
-        gcn_graph_test = self.convert_lX_lY_to_GCNDataset([X], [Y], training=False, predict=True)
-        if lLabelName is None:
-            lLabelName = g.getLabelNameList()
-            traceln("\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber([g]))
-            tNF_EF = (X[0].shape[1], X[2].shape[1])
-            traceln("node-dim,edge-dim:", tNF_EF)
-        else:
-            assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
-        lY_pred = self.gcn_model.predict_lG(session, gcn_graph_test, verbose=False)
-        return lY_pred[0]
+        m_pred=[]
+        for du_model in self.models:
+            #du_model.load()
+            ly_pred= du_model.test([g],predict_proba=True)
+            m_pred.append(ly_pred)
+        #print('Ensemble_predict',m_pred)
+        y_pred,_=DU_Ensemble_ECN.average_prediction(m_pred)
+        #print(y_pred)
+        return y_pred[0]
