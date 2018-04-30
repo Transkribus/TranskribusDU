@@ -42,7 +42,6 @@ from tasks import _checkFindColDir, _exit
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from tasks.DU_CRF_Task import DU_CRF_Task
-import gcn.DU_Model_ECN
 
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
@@ -69,7 +68,7 @@ class DU_ABPTable(DU_CRF_Task):
         """
         In this class method, we must return a configured graph class
         """
-        lLabels = ['RB', 'RI', 'RE', 'RS','RO']
+        lLabels = ['B', 'I', 'E', 'S','O']
         
         lIgnoredLabels = None
         
@@ -93,6 +92,8 @@ class DU_ABPTable(DU_CRF_Task):
                               , False    #no label means OTHER
                               , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
                               )
+        nt.setLabelAttribute("DU_row")
+        
         # ntA = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
         #                       , lLabels
         #                       , lIgnoredLabels
@@ -155,6 +156,7 @@ class DU_ABPTable(DU_CRF_Task):
 
 try:
     from tasks.DU_ECN_Task import DU_ECN_Task
+    import gcn.DU_Model_ECN
     class DU_ABPTable_ECN(DU_ECN_Task):
             """
             ECN Models
@@ -187,7 +189,7 @@ try:
                 """
                 In this class method, we must return a configured graph class
                 """
-                lLabels = ['RB', 'RI', 'RE', 'RS', 'RO']
+                lLabels = ['B', 'I', 'E', 'S', 'O']
 
                 lIgnoredLabels = None
 
@@ -212,6 +214,7 @@ try:
                                                   , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v / 3))
                                                   # we reduce overlap in this way
                                                   )
+                nt.setLabelAttribute("DU_row")
                 nt.setXpathExpr((".//pc:TextLine"  # how to find the nodes
                                  , "./pc:TextEquiv")  # how to get their text
                                 )
@@ -261,6 +264,7 @@ except ImportError:
 
 try:
     from tasks.DU_ECN_Task import DU_ECN_Task
+    import gcn.DU_Model_ECN
     from gcn.DU_Model_ECN import DU_Model_GAT
     class DU_ABPTable_GAT(DU_ECN_Task):
             """
@@ -318,7 +322,7 @@ try:
                 """
                 In this class method, we must return a configured graph class
                 """
-                lLabels = ['RB', 'RI', 'RE', 'RS', 'RO']
+                lLabels = ['B', 'I', 'E', 'S', 'O']
 
                 lIgnoredLabels = None
 
@@ -343,6 +347,7 @@ try:
                                                   , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v / 3))
                                                   # we reduce overlap in this way
                                                   )
+                nt.setLabelAttribute("DU_row")
                 nt.setXpathExpr((".//pc:TextLine"  # how to find the nodes
                                  , "./pc:TextEquiv")  # how to get their text
                                 )
