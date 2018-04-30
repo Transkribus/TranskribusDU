@@ -70,7 +70,7 @@ class DU_ABPTable(DU_CRF_Task):
         """
         In this class method, we must return a configured graph class
         """
-        lLabels = ['RB', 'RI', 'RE', 'RS','RO']
+        lLabels = ['B', 'I', 'E', 'S','O']
         
         lIgnoredLabels = None
         
@@ -95,6 +95,7 @@ class DU_ABPTable(DU_CRF_Task):
                               , False    #no label means OTHER
                               , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
                               )
+        nt.setLabelAttribute("DU_row")
         # ntA = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
         #                       , lLabels
         #                       , lIgnoredLabels
@@ -225,7 +226,7 @@ try:
                                      , dFeatureConfig={}
                                      , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
                                      , sComment=sComment
-                                     , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
+                                     , cFeatureDefinition=FeatureDefinition_PageXml_NoNodeFeat_v3
                                      )
 
                 if options.bBaseline:
@@ -336,7 +337,7 @@ try:
                                      , dFeatureConfig={}
                                      , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
                                      , sComment=sComment
-                                     , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
+                                     , cFeatureDefinition=FeatureDefinition_PageXml_NoNodeFeat_v3
                                      , cModelClass=DU_Model_GAT
                                      )
 
