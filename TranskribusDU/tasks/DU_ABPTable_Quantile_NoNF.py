@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
 """
-    Example DU task for ABP Table
+    Example DU task for ABP Table: no node feature
+        from DU_ABP_Table;py
     
-    Copyright Xerox(C) 2017 H. Déjean
+    Copyright NLE H Déjean
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,10 +40,8 @@ except ImportError:
 from common.trace import traceln
 from tasks import _checkFindColDir, _exit
 
-from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
-from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
+from tasks.DU_ABPTable import DU_ABPTable
 from tasks.DU_CRF_Task import DU_CRF_Task
-
 
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 #from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
@@ -51,7 +50,7 @@ from crf.FeatureDefinition_PageXml_NoNodeFeat_v3 import FeatureDefinition_PageXm
 import json
 
  
-class DU_ABPTable(DU_CRF_Task):
+class DU_ABPTable_NoNF(DU_ABPTable):
     """
     We will do a CRF model for a DU task
     , with the below labels 
@@ -64,55 +63,6 @@ class DU_ABPTable(DU_CRF_Task):
     sLabeledXmlFilenameEXT = ".mpxml"
 
 
-    #=== CONFIGURATION ====================================================================
-    @classmethod
-    def getConfiguredGraphClass(cls):
-        """
-        In this class method, we must return a configured graph class
-        """
-        lLabels = ['B', 'I', 'E', 'S','O']
-        
-        lIgnoredLabels = None
-        
-        """
-        if you play with a toy collection, which does not have all expected classes, you can reduce those.
-        """
-        
-        lActuallySeen = None
-        if lActuallySeen:
-            print( "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING")
-            lIgnoredLabels  = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
-            lLabels         = [lLabels[i] for i in lActuallySeen ]
-            print (len(lLabels)          , lLabels)
-            print (len(lIgnoredLabels)   , lIgnoredLabels)
-            nbClass = len(lLabels) + 1  #because the ignored labels will become OTHER
-        
-        #DEFINING THE CLASS OF GRAPH WE USE
-        DU_GRAPH = Graph_MultiSinglePageXml
-        nt = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
-                              , lLabels
-                              , lIgnoredLabels
-                              , False    #no label means OTHER
-                              , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
-                              )
-        nt.setLabelAttribute("DU_row")
-        # ntA = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
-        #                       , lLabels
-        #                       , lIgnoredLabels
-        #                       , False    #no label means OTHER
-        #                       )
-        
-        nt.setXpathExpr( (".//pc:TextLine"        #how to find the nodes
-                          , "./pc:TextEquiv")       #how to get their text
-                       )
-        
-        # ntA.setXpathExpr( (".//pc:TextLine | .//pc:TextRegion"        #how to find the nodes
-        #                   , "./pc:TextEquiv")       #how to get their text
-        #                 )
-        DU_GRAPH.addNodeType(nt)
-        
-        return DU_GRAPH
-        
     def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
 
         DU_CRF_Task.__init__(self
@@ -138,87 +88,11 @@ class DU_ABPTable(DU_CRF_Task):
             self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
     #=== END OF CONFIGURATION =============================================================
 
-  
-    def predict(self, lsColDir):
-        """
-        Return the list of produced files
-        """
-        self.sXmlFilenamePattern = "*.mpxml"
-        return DU_CRF_Task.predict(self, lsColDir)
-        
-    def runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges=False):
-        """
-        Return the list of produced files
-        """
-        self.sXmlFilenamePattern = "*.mpxml"
-        return DU_CRF_Task.runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges)
-
-
 
 try:
-    from tasks.DU_ECN_Task import DU_ECN_Task
-    class DU_ABPTable_ECN(DU_ECN_Task):
-            """
-            ECN Models
-            """
-            sXmlFilenamePattern = "*.mpxml"
-
-            # sLabeledXmlFilenamePattern = "*.a_mpxml"
-            sLabeledXmlFilenamePattern = "*.mpxml"
-
-            sLabeledXmlFilenameEXT = ".mpxml"
-
-            dLearnerConfig = {'nb_iter': 50,
-                              'lr': 0.001,
-                              'num_layers': 3,
-                              'nconv_edge': 10,
-                              'stack_convolutions': True,
-                              'node_indim': -1,
-                              'mu': 0.0,
-                              'dropout_rate_edge': 0.0,
-                              'dropout_rate_edge_feat': 0.0,
-                              'dropout_rate_node': 0.0,
-                              'ratio_train_val': 0.15,
-                              #'activation': tf.nn.tanh, Problem I can not serialize function HERE
-               }
-            # === CONFIGURATION ====================================================================
-            @classmethod
-            def getConfiguredGraphClass(cls):
-                """
-                In this class method, we must return a configured graph class
-                """
-                lLabels = ['RB', 'RI', 'RE', 'RS', 'RO']
-
-                lIgnoredLabels = None
-
-                """
-                if you play with a toy collection, which does not have all expected classes, you can reduce those.
-                """
-
-                lActuallySeen = None
-                if lActuallySeen:
-                    print("REDUCING THE CLASSES TO THOSE SEEN IN TRAINING")
-                    lIgnoredLabels = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
-                    lLabels = [lLabels[i] for i in lActuallySeen]
-                    print(len(lLabels), lLabels)
-                    print(len(lIgnoredLabels), lIgnoredLabels)
-
-                # DEFINING THE CLASS OF GRAPH WE USE
-                DU_GRAPH = Graph_MultiSinglePageXml
-                nt = NodeType_PageXml_type_woText("abp"  # some short prefix because labels below are prefixed with it
-                                                  , lLabels
-                                                  , lIgnoredLabels
-                                                  , False  # no label means OTHER
-                                                  , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v / 3))
-                                                  # we reduce overlap in this way
-                                                  )
-                nt.setXpathExpr((".//pc:TextLine"  # how to find the nodes
-                                 , "./pc:TextEquiv")  # how to get their text
-                                )
-                DU_GRAPH.addNodeType(nt)
-
-                return DU_GRAPH
-
+    from tasks.DU_ECN_Task import DU_ECN_Task 
+    from tasks.DU_ABPTable import DU_ABPTable_ECN
+    class DU_ABPTable_ECN_NoNF(DU_ABPTable_ECN):
             def __init__(self, sModelName, sModelDir, sComment=None,dLearnerConfigArg=None):
 
                 DU_ECN_Task.__init__(self
@@ -232,104 +106,15 @@ try:
                 if options.bBaseline:
                     self.bsln_mdl = self.addBaseline_LogisticRegression()  # use a LR model trained by GridSearch as baseline
 
-            # === END OF CONFIGURATION =============================================================
-            def predict(self, lsColDir):
-                """
-                Return the list of produced files
-                """
-                self.sXmlFilenamePattern = "*.mpxml"
-                return DU_ECN_Task.predict(self, lsColDir)
 except ImportError:
         print('Could not Load ECN Model, Is TensorFlow installed ?')
 
 
 try:
-    from tasks.DU_ECN_Task import DU_ECN_Task
-    from gcn.DU_Model_ECN import DU_Model_GAT
-    class DU_ABPTable_GAT(DU_ECN_Task):
-            """
-            ECN Models
-            """
-            sXmlFilenamePattern = "*.mpxml"
-
-            # sLabeledXmlFilenamePattern = "*.a_mpxml"
-            sLabeledXmlFilenamePattern = "*.mpxml"
-
-            sLabeledXmlFilenameEXT = ".mpxml"
-
-
-            dLearnerConfigOriginalGAT ={
-                'nb_iter': 500,
-                'lr': 0.001,
-                'num_layers': 2,#2 Train Acc is lower 5 overfit both reach 81% accuracy on Fold-1
-                'nb_attention': 5,
-                'stack_convolutions': True,
-                # 'node_indim': 50   , worked well 0.82
-                'node_indim': -1,
-                'dropout_rate_node': 0.0,
-                'dropout_rate_attention': 0.0,
-                'ratio_train_val': 0.15,
-                "activation_name": 'tanh',
-                "patience": 50,
-                "mu": 0.00001,
-                "original_model" : True
-
-            }
-
-            dLearnerConfigNewGAT = {'nb_iter': 500,
-                              'lr': 0.001,
-                              'num_layers': 5,
-                              'nb_attention': 5,
-                              'stack_convolutions': True,
-                              'node_indim': -1,
-                              'dropout_rate_node': 0.0,
-                              'dropout_rate_attention'  : 0.0,
-                              'ratio_train_val': 0.15,
-                              "activation_name": 'tanh',
-                              "patience":50,
-                              "original_model": False,
-                              "attn_type":0
-               }
-            dLearnerConfig = dLearnerConfigNewGAT
-            #dLearnerConfig = dLearnerConfigOriginalGAT
-            # === CONFIGURATION ====================================================================
-            @classmethod
-            def getConfiguredGraphClass(cls):
-                """
-                In this class method, we must return a configured graph class
-                """
-                lLabels = ['RB', 'RI', 'RE', 'RS', 'RO']
-
-                lIgnoredLabels = None
-
-                """
-                if you play with a toy collection, which does not have all expected classes, you can reduce those.
-                """
-
-                lActuallySeen = None
-                if lActuallySeen:
-                    print("REDUCING THE CLASSES TO THOSE SEEN IN TRAINING")
-                    lIgnoredLabels = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
-                    lLabels = [lLabels[i] for i in lActuallySeen]
-                    print(len(lLabels), lLabels)
-                    print(len(lIgnoredLabels), lIgnoredLabels)
-
-                # DEFINING THE CLASS OF GRAPH WE USE
-                DU_GRAPH = Graph_MultiSinglePageXml
-                nt = NodeType_PageXml_type_woText("abp"  # some short prefix because labels below are prefixed with it
-                                                  , lLabels
-                                                  , lIgnoredLabels
-                                                  , False  # no label means OTHER
-                                                  , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v / 3))
-                                                  # we reduce overlap in this way
-                                                  )
-                nt.setXpathExpr((".//pc:TextLine"  # how to find the nodes
-                                 , "./pc:TextEquiv")  # how to get their text
-                                )
-                DU_GRAPH.addNodeType(nt)
-
-                return DU_GRAPH
-
+    from tasks.DU_ECN_Task import DU_ECN_Task 
+    from tasks.DU_ABPTable import DU_ABPTable_GAT
+    from gcn.DU_Model_ECN import DU_Model_GAT 
+    class DU_ABPTable_GAT_NoNF(DU_ABPTable_GAT):
             def __init__(self, sModelName, sModelDir, sComment=None,dLearnerConfigArg=None):
 
                 DU_ECN_Task.__init__(self
@@ -345,12 +130,6 @@ try:
                     self.bsln_mdl = self.addBaseline_LogisticRegression()  # use a LR model trained by GridSearch as baseline
 
             # === END OF CONFIGURATION =============================================================
-            def predict(self, lsColDir):
-                """
-                Return the list of produced files
-                """
-                self.sXmlFilenamePattern = "*.mpxml"
-                return DU_ECN_Task.predict(self, lsColDir)
 except ImportError:
         print('Could not Load GAT Model','Is tensorflow installed ?')
 
@@ -365,12 +144,12 @@ def main(sModelDir, sModelName, options):
             djson=json.loads(f.read())
             dLearnerConfig=djson["ecn_learner_config"]
             f.close()
-            doer = DU_ABPTable_ECN(sModelName, sModelDir,dLearnerConfigArg=dLearnerConfig)
+            doer = DU_ABPTable_ECN_NoNF(sModelName, sModelDir,dLearnerConfigArg=dLearnerConfig)
 
 
 
         else:
-            doer = DU_ABPTable_ECN(sModelName, sModelDir)
+            doer = DU_ABPTable_ECN_NoNF(sModelName, sModelDir)
     elif options.use_gat:
         if options.gat_json_config is not None and options.gat_json_config is not []:
 
@@ -378,13 +157,13 @@ def main(sModelDir, sModelName, options):
             djson=json.loads(f.read())
             dLearnerConfig=djson["gat_learner_config"]
             f.close()
-            doer = DU_ABPTable_GAT(sModelName, sModelDir,dLearnerConfigArg=dLearnerConfig)
+            doer = DU_ABPTable_GAT_NoNF(sModelName, sModelDir,dLearnerConfigArg=dLearnerConfig)
 
         else:
-            doer = DU_ABPTable_GAT(sModelName, sModelDir)
+            doer = DU_ABPTable_GAT_NoNF(sModelName, sModelDir)
 
     else:
-        doer = DU_ABPTable(sModelName, sModelDir,
+        doer = DU_ABPTable_NoNF(sModelName, sModelDir,
                           C                 = options.crf_C,
                           tol               = options.crf_tol,
                           njobs             = options.crf_njobs,
