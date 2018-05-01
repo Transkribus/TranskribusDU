@@ -1,0 +1,2538 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd">
+  <Metadata>
+    <Creator>NLE</Creator>
+    <Created>2018-03-05T14:31:45.734+07:00</Created>
+    <LastChange>2018-04-18T10:24:35.954+02:00</LastChange>
+    <Comments>TextRegion/TableCell Merging</Comments>
+    <TranskribusMetadata docId="44545" pageId="1933496" pageNr="2" tsid="3135870" status="IN_PROGRESS" userId="3799" imgUrl="https://dbis-thure.uibk.ac.at/f/Get?id=WTDZNCPLMFHZQSDTMHFQJINZ&amp;fileType=view" xmlUrl="https://dbis-thure.uibk.ac.at/f/Get?id=IKGNANHBJEBEIEUFCJBEUBSF" imageId="1053779"/>
+  </Metadata>
+  <Page imageFilename="S_Aussernzell_010-01_0025.jpg" imageWidth="5045" imageHeight="3852">
+    <ReadingOrder>
+      <OrderedGroup id="ro_1524052819455" caption="Regions reading order">
+        <RegionRefIndexed index="0" regionRef="region_1520235323053_6464"/>
+        <RegionRefIndexed index="1" regionRef="region_1520235326678_6465"/>
+      </OrderedGroup>
+    </ReadingOrder>
+    <TextRegion id="region_1520235323053_6464" custom="readingOrder {index:0;}">
+      <Coords points="479,123 943,123 943,344 479,344"/>
+      <TextLine id="line_1520235331647_6466" custom="readingOrder {index:0;}" DU_row="O" DU_col="O" DU_header="O">
+        <Coords points="597,256 931,245 932,295 598,306"/>
+        <Baseline points="598,301 932,290"/>
+        <TextEquiv>
+          <Unicode>25</Unicode>
+        </TextEquiv>
+      </TextLine>
+      <TextEquiv>
+        <Unicode>25</Unicode>
+      </TextEquiv>
+    </TextRegion>
+    <TextRegion id="region_1520235326678_6465" custom="readingOrder {index:1;}">
+      <Coords points="2888,113 3422,113 3422,361 2888,361"/>
+      <TextLine id="line_1520235335194_6467" custom="readingOrder {index:0;}" DU_row="O" DU_col="O" DU_header="O">
+        <Coords points="2939,251 3316,267 3314,317 2937,301"/>
+        <Baseline points="2937,296 3314,312"/>
+        <TextEquiv>
+          <Unicode>1869</Unicode>
+        </TextEquiv>
+      </TextLine>
+      <TextEquiv>
+        <Unicode>1869</Unicode>
+      </TextEquiv>
+    </TextRegion>
+    <TableRegion id="Table_1520235342866_6468" custom="readingOrder {index:2;}">
+      <Coords points="291,361 4812,361 4812,3637 291,3637"/>
+      <TableCell row="0" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235400867_6809">
+        <Coords points="298,365 300,757 785,754 782,364"/>
+        <TextLine id="line_1520299612073_230" custom="readingOrder {index:0;}" DU_header="CH" DU_row="B" DU_col="S">
+          <Coords points="384,436 676,437 676,487 384,486"/>
+          <Baseline points="384,481 676,482"/>
+          <TextEquiv>
+            <Unicode>Namen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299614604_231" custom="readingOrder {index:1;}" DU_header="CH" DU_row="I" DU_col="S">
+          <Coords points="483,529 619,529 619,579 483,579"/>
+          <Baseline points="483,574 619,574"/>
+          <TextEquiv>
+            <Unicode>des</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299617354_232" custom="readingOrder {index:2;}" DU_header="CH" DU_row="E" DU_col="S">
+          <Coords points="335,616 749,613 749,663 335,666"/>
+          <Baseline points="335,661 749,658"/>
+          <TextEquiv>
+            <Unicode>Verstorbenen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="0" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235400867_6808">
+        <Coords points="782,364 785,754 1195,754 1195,361"/>
+        <TextLine id="line_1520299621260_233" custom="readingOrder {index:0;}" DU_header="CH" DU_row="B" DU_col="S">
+          <Coords points="829,465 1194,462 1194,512 829,515"/>
+          <Baseline points="829,510 1194,507"/>
+          <TextEquiv>
+            <Unicode>Stand und</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299624370_234" custom="readingOrder {index:1;}" DU_header="CH" DU_row="E" DU_col="S">
+          <Coords points="819,575 1122,571 1123,621 820,625"/>
+          <Baseline points="820,620 1123,616"/>
+          <TextEquiv>
+            <Unicode>Religion</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="0" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235396445_6774">
+        <Coords points="1195,361 1195,754 1690,747 1690,357"/>
+        <TextLine id="line_1520299629573_235" custom="readingOrder {index:0;}" DU_header="CH" DU_row="B" DU_col="S">
+          <Coords points="1246,398 1626,393 1627,443 1247,448"/>
+          <Baseline points="1247,443 1627,438"/>
+          <TextEquiv>
+            <Unicode>Landgericht,</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299636573_236" custom="readingOrder {index:1;}" DU_header="CH" DU_row="I" DU_col="S">
+          <Coords points="1207,475 1668,469 1669,519 1208,525"/>
+          <Baseline points="1208,520 1669,514"/>
+          <TextEquiv>
+            <Unicode>Aufenthalts=Ort,</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299639823_237" custom="readingOrder {index:2;}" DU_header="CH" DU_row="I" DU_col="S">
+          <Coords points="1268,546 1596,546 1596,596 1268,596"/>
+          <Baseline points="1268,591 1596,591"/>
+          <TextEquiv>
+            <Unicode>Nummer</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299643073_238" custom="readingOrder {index:3;}" DU_header="CH" DU_row="E" DU_col="S">
+          <Coords points="1242,624 1608,621 1608,671 1242,674"/>
+          <Baseline points="1242,669 1608,666"/>
+          <TextEquiv>
+            <Unicode>des Hauses.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="0" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235393695_6740">
+        <Coords points="1690,357 1690,747 2039,750 2039,357"/>
+        <TextLine id="line_1520299648339_239" custom="readingOrder {index:0;}" DU_header="CH" DU_row="B" DU_col="S">
+          <Coords points="1753,431 1954,432 1954,482 1753,481"/>
+          <Baseline points="1753,476 1954,477"/>
+          <TextEquiv>
+            <Unicode>Ledig</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299651089_240" custom="readingOrder {index:1;}" DU_header="CH" DU_row="I" DU_col="S">
+          <Coords points="1776,523 1967,523 1967,573 1776,573"/>
+          <Baseline points="1776,568 1967,568"/>
+          <TextEquiv>
+            <Unicode>oder</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299654933_241" custom="readingOrder {index:2;}" DU_header="CH" DU_row="E" DU_col="S">
+          <Coords points="1697,612 2032,609 2032,659 1697,662"/>
+          <Baseline points="1697,657 2032,654"/>
+          <TextEquiv>
+            <Unicode>verheirathet.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="0" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235390679_6706">
+        <Coords points="2039,357 2039,750 2478,748 2478,355"/>
+        <TextLine id="line_1520299659339_242" custom="readingOrder {index:0;}" DU_header="CH" DU_row="B" DU_col="S">
+          <Coords points="2042,397 2473,394 2473,444 2042,447"/>
+          <Baseline points="2042,442 2473,439"/>
+          <TextEquiv>
+            <Unicode>Krankheit, Arzt,</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299662980_243" custom="readingOrder {index:1;}" DU_header="CH" DU_row="I" DU_col="S">
+          <Coords points="2204,469 2312,465 2314,515 2206,519"/>
+          <Baseline points="2206,514 2314,510"/>
+          <TextEquiv>
+            <Unicode>bei</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299668214_244" custom="readingOrder {index:2;}" DU_header="CH" DU_row="I" DU_col="S">
+          <Coords points="2048,544 2460,544 2460,594 2048,594"/>
+          <Baseline points="2048,589 2460,589"/>
+          <TextEquiv>
+            <Unicode>Gebährmüttern</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299672464_245" custom="readingOrder {index:3;}" DU_header="CH" DU_row="E" DU_col="S">
+          <Coords points="2050,620 2465,622 2465,672 2050,670"/>
+          <Baseline points="2050,665 2465,667"/>
+          <TextEquiv>
+            <Unicode>die Hebamme.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="0" col="5" rowSpan="17" colSpan="1" id="TableCell_1521514077230_261">
+        <Coords points="2478,355 2478,748 2479,948 2480,1144 2484,1309 2484,1487 2479,1643 2486,1819 2486,2001 2487,2170 2486,2327 2485,2499 2486,2674 2486,2841 2486,3014 2486,3201 2486,3370 2482,3551 2658,3550 2659,3364 2656,3195 2659,3013 2659,2848 2659,2681 2659,2501 2659,2340 2660,2179 2661,2008 2662,1833 2662,1652 2662,1485 2660,1326 2663,1168 2666,965 2664,768 2667,376"/>
+        <CornerPts>0 17 18 35</CornerPts>
+      </TableCell>
+      <TableCell row="0" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383351_6638">
+        <Coords points="2667,376 2664,768 3081,768 3084,376"/>
+        <TextLine id="line_1520300510842_460" custom="readingOrder {index:0;}" DU_header="CH" DU_row="B" DU_col="S">
+          <Coords points="2696,422 3071,417 3072,467 2697,472"/>
+          <Baseline points="2697,467 3072,462"/>
+          <TextEquiv>
+            <Unicode>Tag, Monat,</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300513795_461" custom="readingOrder {index:1;}" DU_header="CH" DU_row="I" DU_col="S">
+          <Coords points="2747,497 3068,490 3069,540 2748,547"/>
+          <Baseline points="2748,542 3069,535"/>
+          <TextEquiv>
+            <Unicode>Jahr und</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300517749_462" custom="readingOrder {index:2;}" DU_header="CH" DU_row="I" DU_col="S">
+          <Coords points="2691,569 3056,566 3056,616 2691,619"/>
+          <Baseline points="2691,614 3056,611"/>
+          <TextEquiv>
+            <Unicode>Stunde des</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300520655_463" custom="readingOrder {index:3;}" DU_header="CH" DU_row="E" DU_col="S">
+          <Coords points="2775,646 2982,646 2982,696 2775,696"/>
+          <Baseline points="2775,691 2982,691"/>
+          <TextEquiv>
+            <Unicode>Todes.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="0" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235381585_6604">
+        <Coords points="3084,376 3081,768 3476,771 3476,378"/>
+        <TextLine id="line_1520300523842_464" custom="readingOrder {index:0;}" DU_header="CH" DU_row="B" DU_col="S">
+          <Coords points="3131,422 3401,422 3401,472 3131,472"/>
+          <Baseline points="3131,467 3401,467"/>
+          <TextEquiv>
+            <Unicode>Tag der</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300526780_465" custom="readingOrder {index:1;}" DU_header="CH" DU_row="I" DU_col="S">
+          <Coords points="3087,493 3461,492 3461,542 3087,543"/>
+          <Baseline points="3087,538 3461,537"/>
+          <TextEquiv>
+            <Unicode>Beerdigung</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300530233_466" custom="readingOrder {index:2;}" DU_header="CH" DU_row="I" DU_col="S">
+          <Coords points="3224,566 3370,566 3370,616 3224,616"/>
+          <Baseline points="3224,611 3370,611"/>
+          <TextEquiv>
+            <Unicode>Ort</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300533202_467" custom="readingOrder {index:3;}" DU_header="CH" DU_row="E" DU_col="S">
+          <Coords points="3117,648 3406,649 3406,699 3117,698"/>
+          <Baseline points="3117,693 3406,694"/>
+          <TextEquiv>
+            <Unicode>derselben.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="0" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235379991_6570">
+        <Coords points="3476,378 3476,771 3770,769 3768,378"/>
+        <TextLine id="line_1520300537749_468" custom="readingOrder {index:0;}" DU_header="CH" DU_row="S" DU_col="S">
+          <Coords points="3543,535 3750,536 3750,586 3543,585"/>
+          <Baseline points="3543,580 3750,581"/>
+          <TextEquiv>
+            <Unicode>Alter</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="0" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378382_6536">
+        <Coords points="3768,378 3770,769 4169,768 4168,378"/>
+        <TextLine id="line_1520300540733_469" custom="readingOrder {index:0;}" DU_header="CH" DU_row="B" DU_col="S">
+          <Coords points="3838,418 4108,418 4108,468 3838,468"/>
+          <Baseline points="3838,463 4108,463"/>
+          <TextEquiv>
+            <Unicode>Pfarrer</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300543999_470" custom="readingOrder {index:1;}" DU_header="CH" DU_row="I" DU_col="S">
+          <Coords points="3785,497 4139,496 4139,546 3785,547"/>
+          <Baseline points="3785,542 4139,541"/>
+          <TextEquiv>
+            <Unicode>oder dessen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300547561_471" custom="readingOrder {index:2;}" DU_header="CH" DU_row="I" DU_col="S">
+          <Coords points="3831,566 4125,565 4125,615 3831,616"/>
+          <Baseline points="3831,611 4125,610"/>
+          <TextEquiv>
+            <Unicode>Stellver¬</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300550452_472" custom="readingOrder {index:3;}" DU_header="CH" DU_row="E" DU_col="S">
+          <Coords points="3863,646 4093,648 4093,698 3863,696"/>
+          <Baseline points="3863,691 4093,693"/>
+          <TextEquiv>
+            <Unicode>treter.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="0" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235376866_6502">
+        <Coords points="4168,378 4169,768 4819,775 4819,378"/>
+        <TextLine id="line_1520300554327_473" custom="readingOrder {index:0;}" DU_header="CH" DU_row="B" DU_col="S">
+          <Coords points="4287,484 4653,488 4653,538 4287,534"/>
+          <Baseline points="4287,529 4653,533"/>
+          <TextEquiv>
+            <Unicode>Besondere</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300560858_474" custom="readingOrder {index:1;}" DU_header="CH" DU_row="E" DU_col="S">
+          <Coords points="4290,595 4696,598 4696,648 4290,645"/>
+          <Baseline points="4290,640 4696,643"/>
+          <TextEquiv>
+            <Unicode>Anmerkung.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="1" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235400945_6811">
+        <Coords points="300,757 296,947 785,948 785,754"/>
+        <TextLine id="line_1520299677917_246" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="326,827 601,820 602,870 327,877"/>
+          <Baseline points="327,872 602,865"/>
+          <TextEquiv>
+            <Unicode>Kuffner</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299680933_247" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="490,888 683,882 684,932 491,938"/>
+          <Baseline points="491,933 684,927"/>
+          <TextEquiv>
+            <Unicode>Kreszenz</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="1" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235400945_6810">
+        <Coords points="785,754 785,948 1196,948 1195,754"/>
+        <TextLine id="line_1520299685120_248" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="816,816 1149,814 1149,864 816,866"/>
+          <Baseline points="816,861 1149,859"/>
+          <TextEquiv>
+            <Unicode>Gütlerskind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="1" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235396507_6776">
+        <Coords points="1195,754 1196,948 1693,947 1690,747"/>
+        <TextLine id="line_1520299688574_249" custom="readingOrder {index:0;} unclear {offset:0; length:13;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1268,800 1663,802 1663,852 1268,850"/>
+          <Baseline points="1268,845 1663,847"/>
+          <TextEquiv>
+            <Unicode>Engelreiching</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="1" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235393773_6742">
+        <Coords points="1690,747 1693,947 2037,954 2039,750"/>
+        <TextLine id="line_1520299691386_250" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1721,803 1931,798 1932,848 1722,853"/>
+          <Baseline points="1722,848 1932,843"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="1" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235390742_6708">
+        <Coords points="2039,750 2037,954 2479,948 2478,748"/>
+        <TextLine id="line_1520299695417_251" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2109,786 2391,776 2393,826 2111,836"/>
+          <Baseline points="2111,831 2393,821"/>
+          <TextEquiv>
+            <Unicode>Fraisen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="1" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383398_6640">
+        <Coords points="2664,768 2660,966 3083,969 3081,768"/>
+        <TextLine id="line_1520300440716_439" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2684,803 2869,803 2869,853 2684,853"/>
+          <Baseline points="2684,848 2869,848"/>
+          <TextEquiv>
+            <Unicode>8. Mai</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300443482_440" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2719,866 2968,875 2966,925 2717,916"/>
+          <Baseline points="2717,911 2966,920"/>
+          <TextEquiv>
+            <Unicode>10 Nachts</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="1" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235381632_6606">
+        <Coords points="3081,768 3083,969 3475,966 3476,771"/>
+        <TextLine id="line_1520300445623_441" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3110,840 3402,837 3402,887 3110,890"/>
+          <Baseline points="3110,885 3402,882"/>
+          <TextEquiv>
+            <Unicode>10. Mai</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="1" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380023_6572">
+        <Coords points="3476,771 3475,966 3770,966 3770,769"/>
+        <TextLine id="line_1520300447373_442" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3555,805 3603,803 3605,853 3557,855"/>
+          <Baseline points="3557,850 3605,848"/>
+          <TextEquiv>
+            <Unicode>3</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300450482_443" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3498,877 3756,874 3757,924 3499,927"/>
+          <Baseline points="3499,922 3757,919"/>
+          <TextEquiv>
+            <Unicode>Wochen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="1" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378429_6538">
+        <Coords points="3770,769 3770,966 4169,971 4169,768"/>
+        <TextLine id="line_1520300456638_444" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3788,831 4013,838 4039,898 4154,895 4152,945 4011,939 3985,880 3788,881"/>
+          <Baseline points="3788,876 3988,876 4014,935 4152,940"/>
+          <TextEquiv>
+            <Unicode>Müller Pfarrer</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="1" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235376898_6504">
+        <Coords points="4169,768 4169,971 4816,984 4819,775"/>
+        <TextLine id="line_1520300460076_445" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4218,882 4531,866 4533,916 4220,932"/>
+          <Baseline points="4220,927 4533,911"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="2" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401007_6813">
+        <Coords points="296,947 298,1119 783,1127 785,948"/>
+        <TextLine id="line_1520299699168_252" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="322,983 724,979 724,1029 322,1033"/>
+          <Baseline points="322,1028 724,1024"/>
+          <TextEquiv>
+            <Unicode>Zitzelsberger</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299704855_253" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="420,1038 613,1043 612,1093 419,1088"/>
+          <Baseline points="419,1083 612,1088"/>
+          <TextEquiv>
+            <Unicode>Theres</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="2" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401007_6812">
+        <Coords points="785,948 783,1127 1196,1131 1196,948"/>
+        <TextLine id="line_1520299708558_254" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="813,998 1115,996 1115,1046 813,1048"/>
+          <Baseline points="813,1043 1115,1041"/>
+          <TextEquiv>
+            <Unicode>Bäuerin</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="2" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235396585_6778">
+        <Coords points="1196,948 1196,1131 1694,1136 1693,947"/>
+        <TextLine id="line_1520299712230_255" custom="readingOrder {index:0;} unclear {offset:0; length:6;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1253,1009 1619,1000 1620,1050 1254,1059"/>
+          <Baseline points="1254,1054 1620,1045"/>
+          <TextEquiv>
+            <Unicode>Daming</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="2" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235393820_6744">
+        <Coords points="1693,947 1694,1136 2040,1144 2037,954"/>
+        <TextLine id="line_1520299722355_256" custom="readingOrder {index:0;} abbrev {offset:0; length:8;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1716,1006 1975,1013 1974,1063 1715,1056"/>
+          <Baseline points="1715,1051 1974,1058"/>
+          <TextEquiv>
+            <Unicode>verheir.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="2" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235390804_6710">
+        <Coords points="2037,954 2040,1144 2478,1145 2479,948"/>
+        <TextLine id="line_1520299725512_257" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2081,987 2402,983 2403,1033 2082,1037"/>
+          <Baseline points="2082,1032 2403,1028"/>
+          <TextEquiv>
+            <Unicode>Abzehrung</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299729574_258" custom="readingOrder {index:1;} abbrev {offset:0; length:3;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2062,1073 2423,1067 2424,1117 2063,1123"/>
+          <Baseline points="2063,1118 2424,1112"/>
+          <TextEquiv>
+            <Unicode>Dr. Kuffner</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="2" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383445_6642">
+        <Coords points="2660,966 2663,1168 3082,1163 3083,969"/>
+        <TextLine id="line_1520300494233_456" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2709,1012 2985,1009 2985,1059 2709,1062"/>
+          <Baseline points="2709,1057 2985,1054"/>
+          <TextEquiv>
+            <Unicode>29. Mai</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300497092_457" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2693,1092 2974,1085 2975,1135 2694,1142"/>
+          <Baseline points="2694,1137 2975,1130"/>
+          <TextEquiv>
+            <Unicode>10 Nachts</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="2" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235381679_6608">
+        <Coords points="3083,969 3082,1163 3474,1162 3475,966"/>
+        <TextLine id="line_1520300491451_455" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3094,1034 3377,1042 3376,1092 3093,1084"/>
+          <Baseline points="3093,1079 3376,1087"/>
+          <TextEquiv>
+            <Unicode>1. Juni</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="2" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380070_6574">
+        <Coords points="3475,966 3474,1162 3770,1167 3770,966"/>
+        <TextLine id="line_1520300479029_451" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3556,993 3630,997 3628,1047 3554,1043"/>
+          <Baseline points="3554,1038 3628,1042"/>
+          <TextEquiv>
+            <Unicode>53</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300476826_450" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3501,1060 3705,1080 3701,1130 3497,1110"/>
+          <Baseline points="3497,1105 3701,1125"/>
+          <TextEquiv>
+            <Unicode>Jahre</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="2" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378460_6540">
+        <Coords points="3770,966 3770,1167 4167,1174 4169,971"/>
+        <TextLine id="line_1520300469560_448" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3816,1030 4060,1034 4059,1084 3815,1080"/>
+          <Baseline points="3815,1075 4059,1079"/>
+          <TextEquiv>
+            <Unicode>Müller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="2" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235376929_6506">
+        <Coords points="4169,971 4167,1174 4817,1191 4816,984"/>
+        <TextLine id="line_1520300462717_446" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4202,1039 4537,1073 4531,1123 4196,1089"/>
+          <Baseline points="4197,1084 4532,1118"/>
+          <TextEquiv>
+            <Unicode>provisa</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="3" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401086_6815">
+        <Coords points="298,1119 301,1294 785,1296 783,1127"/>
+        <TextLine id="line_1520299748278_263" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="347,1153 730,1152 730,1202 347,1203"/>
+          <Baseline points="347,1198 730,1197"/>
+          <TextEquiv>
+            <Unicode>Schachtner</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299752043_264" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="434,1229 653,1221 655,1271 436,1279"/>
+          <Baseline points="436,1274 655,1266"/>
+          <TextEquiv>
+            <Unicode>Maria</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="3" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401086_6814">
+        <Coords points="783,1127 785,1296 1195,1297 1196,1131"/>
+        <TextLine id="line_1520299744809_262" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="804,1192 1091,1175 1094,1225 807,1242"/>
+          <Baseline points="807,1237 1094,1220"/>
+          <TextEquiv>
+            <Unicode>Bäuerin</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="3" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235396648_6780">
+        <Coords points="1196,1131 1195,1297 1695,1300 1694,1136"/>
+        <TextLine id="line_1520299741402_261" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1219,1175 1647,1170 1648,1220 1220,1225"/>
+          <Baseline points="1220,1220 1648,1215"/>
+          <TextEquiv>
+            <Unicode>Großmeiking</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="3" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235393882_6746">
+        <Coords points="1694,1136 1695,1300 2039,1307 2040,1144"/>
+        <TextLine id="line_1520299737012_260" custom="readingOrder {index:0;} abbrev {offset:0; length:8;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1721,1169 1963,1171 1998,1189 1972,1232 1950,1219 1721,1219"/>
+          <Baseline points="1721,1214 1951,1214 1975,1228"/>
+          <TextEquiv>
+            <Unicode>verheir.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="3" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235390851_6712">
+        <Coords points="2040,1144 2039,1307 2483,1314 2478,1145"/>
+        <TextLine id="line_1520299732777_259" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2088,1166 2447,1165 2447,1215 2088,1216"/>
+          <Baseline points="2088,1211 2447,1210"/>
+          <TextEquiv>
+            <Unicode>Lungensucht</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="3" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383491_6644">
+        <Coords points="2663,1168 2658,1330 3083,1327 3082,1163"/>
+        <TextLine id="line_1520300500170_458" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2692,1189 2987,1186 2987,1236 2692,1239"/>
+          <Baseline points="2692,1234 2987,1231"/>
+          <TextEquiv>
+            <Unicode>1. Juni</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300504530_459" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2702,1256 2898,1248 2900,1298 2704,1306"/>
+          <Baseline points="2704,1301 2900,1293"/>
+          <TextEquiv>
+            <Unicode>1 früh</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="3" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235381726_6610">
+        <Coords points="3082,1163 3083,1327 3475,1323 3474,1162"/>
+        <TextLine id="line_1520300487748_454" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3100,1207 3380,1211 3379,1261 3099,1257"/>
+          <Baseline points="3099,1252 3379,1256"/>
+          <TextEquiv>
+            <Unicode>3 Juni</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="3" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380101_6576">
+        <Coords points="3474,1162 3475,1323 3768,1333 3770,1167"/>
+        <TextLine id="line_1520300481748_452" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3537,1173 3657,1174 3657,1224 3537,1223"/>
+          <Baseline points="3537,1218 3657,1219"/>
+          <TextEquiv>
+            <Unicode>41</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300484732_453" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3504,1221 3745,1233 3743,1283 3502,1271"/>
+          <Baseline points="3502,1266 3743,1278"/>
+          <TextEquiv>
+            <Unicode>Jahre</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="3" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378491_6542">
+        <Coords points="3770,1167 3768,1333 4167,1343 4167,1174"/>
+        <TextLine id="line_1520300473357_449" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3823,1215 4036,1229 4033,1279 3820,1265"/>
+          <Baseline points="3820,1260 4033,1274"/>
+          <TextEquiv>
+            <Unicode>Müller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="3" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235376960_6508">
+        <Coords points="4167,1174 4167,1343 4817,1361 4817,1191"/>
+        <TextLine id="line_1520300466873_447" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4204,1224 4444,1225 4578,1261 4565,1309 4437,1275 4204,1274"/>
+          <Baseline points="4204,1269 4438,1270 4566,1304"/>
+          <TextEquiv>
+            <Unicode>provisa</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="4" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401148_6817">
+        <Coords points="301,1294 301,1465 785,1467 785,1296"/>
+        <TextLine id="line_1520299760371_265" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="341,1333 506,1325 508,1375 343,1383"/>
+          <Baseline points="343,1378 508,1370"/>
+          <TextEquiv>
+            <Unicode>Am̄er</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299763715_266" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="494,1362 714,1359 715,1409 495,1412"/>
+          <Baseline points="495,1407 715,1404"/>
+          <TextEquiv>
+            <Unicode>Theres</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="4" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401148_6816">
+        <Coords points="785,1296 785,1467 1197,1470 1195,1297"/>
+        <TextLine id="line_1520299767215_267" custom="readingOrder {index:0;} abbrev {offset:0; length:4;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="773,1308 1198,1302 1199,1352 774,1358"/>
+          <Baseline points="774,1353 1199,1347"/>
+          <TextEquiv>
+            <Unicode>ill. Kind der Anna</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299771090_268" custom="readingOrder {index:1;}" DU_header="D" DU_row="I" DU_col="S">
+          <Coords points="783,1349 1200,1348 1200,1398 783,1399"/>
+          <Baseline points="783,1394 1200,1393"/>
+          <TextEquiv>
+            <Unicode>Am̄er, Inwohnerin</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299777544_269" custom="readingOrder {index:2;} abbrev {offset:0; length:2;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="785,1405 964,1399 1159,1401 1159,1451 965,1449 787,1455"/>
+          <Baseline points="787,1450 965,1444 1159,1446"/>
+          <TextEquiv>
+            <Unicode>v. Kleinmeiking</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="4" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235396710_6782">
+        <Coords points="1195,1297 1197,1470 1696,1472 1695,1300"/>
+        <TextLine id="line_1520299782497_270" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1210,1353 1636,1366 1635,1416 1209,1403"/>
+          <Baseline points="1209,1398 1635,1411"/>
+          <TextEquiv>
+            <Unicode>Kleinmeiking</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="4" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235393945_6748">
+        <Coords points="1695,1300 1696,1472 2039,1479 2039,1307"/>
+        <TextLine id="line_1520299787762_271" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1701,1361 1953,1325 1960,1375 1708,1411"/>
+          <Baseline points="1707,1406 1959,1370"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="4" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235390914_6714">
+        <Coords points="2039,1307 2039,1479 2484,1487 2483,1314"/>
+        <TextLine id="line_1520299790950_272" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2095,1340 2403,1337 2403,1387 2095,1390"/>
+          <Baseline points="2095,1385 2403,1382"/>
+          <TextEquiv>
+            <Unicode>Fraisen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="4" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383538_6646">
+        <Coords points="2658,1330 2662,1485 3081,1488 3083,1327"/>
+        <TextLine id="line_1520300415513_433" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2693,1346 2929,1345 2929,1395 2693,1396"/>
+          <Baseline points="2693,1391 2929,1390"/>
+          <TextEquiv>
+            <Unicode>4. Juni</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300418247_434" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2704,1418 3008,1409 3009,1459 2705,1468"/>
+          <Baseline points="2705,1463 3009,1454"/>
+          <TextEquiv>
+            <Unicode>11 Nachts</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="4" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235381773_6612">
+        <Coords points="3083,1327 3081,1488 3474,1493 3475,1323"/>
+        <TextLine id="line_1520300363356_418" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3106,1379 3363,1383 3362,1433 3105,1429"/>
+          <Baseline points="3105,1424 3362,1428"/>
+          <TextEquiv>
+            <Unicode>7. Juni</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="4" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380148_6578">
+        <Coords points="3475,1323 3474,1493 3769,1509 3768,1333"/>
+        <TextLine id="line_1520300360481_417" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3536,1355 3674,1358 3673,1408 3535,1405"/>
+          <Baseline points="3535,1400 3673,1403"/>
+          <TextEquiv>
+            <Unicode>35</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300357825_416" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3500,1427 3748,1407 3752,1457 3504,1477"/>
+          <Baseline points="3504,1472 3752,1452"/>
+          <TextEquiv>
+            <Unicode>Wochen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="4" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378538_6544">
+        <Coords points="3768,1333 3769,1509 4166,1516 4167,1343"/>
+        <TextLine id="line_1520300302886_397" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3830,1396 4069,1400 4068,1450 3829,1446"/>
+          <Baseline points="3829,1441 4068,1445"/>
+          <TextEquiv>
+            <Unicode>Müller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="4" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235376991_6510">
+        <Coords points="4167,1343 4166,1516 4813,1531 4817,1361"/>
+        <TextLine id="line_1520300299386_396" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4208,1393 4491,1393 4491,1443 4208,1443"/>
+          <Baseline points="4208,1438 4491,1438"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="5" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401211_6819">
+        <Coords points="301,1465 298,1632 783,1640 785,1467"/>
+        <TextLine id="line_1520299811950_277" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="387,1488 622,1488 622,1538 387,1538"/>
+          <Baseline points="387,1533 622,1533"/>
+          <TextEquiv>
+            <Unicode>Saller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299815435_278" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="402,1553 664,1547 665,1597 403,1603"/>
+          <Baseline points="403,1598 665,1592"/>
+          <TextEquiv>
+            <Unicode>Mathias</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="5" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401211_6818">
+        <Coords points="785,1467 783,1640 1197,1636 1197,1470"/>
+        <TextLine id="line_1520299808310_276" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="793,1508 1187,1506 1187,1556 793,1558"/>
+          <Baseline points="793,1553 1187,1551"/>
+          <TextEquiv>
+            <Unicode>Austragsbauer</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="5" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235396773_6784">
+        <Coords points="1197,1470 1197,1636 1696,1640 1696,1472"/>
+        <TextLine id="line_1520299805091_275" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1214,1523 1631,1519 1631,1569 1214,1573"/>
+          <Baseline points="1214,1568 1631,1564"/>
+          <TextEquiv>
+            <Unicode>Ramperding</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="5" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235394007_6750">
+        <Coords points="1696,1472 1696,1640 2038,1643 2039,1479"/>
+        <TextLine id="line_1520299801778_274" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1710,1531 1871,1513 2029,1521 2027,1571 1872,1563 1716,1581"/>
+          <Baseline points="1715,1576 1872,1558 2027,1566"/>
+          <TextEquiv>
+            <Unicode>Wittwer</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="5" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235390960_6716">
+        <Coords points="2039,1479 2038,1643 2479,1643 2484,1487"/>
+        <TextLine id="line_1520299796919_273" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2042,1508 2226,1502 2357,1502 2488,1528 2478,1577 2353,1552 2227,1552 2043,1558"/>
+          <Baseline points="2043,1553 2227,1547 2353,1547 2479,1572"/>
+          <TextEquiv>
+            <Unicode>Lungenlähmung</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="5" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383585_6648">
+        <Coords points="2662,1485 2662,1652 3084,1652 3081,1488"/>
+        <TextLine id="line_1520300421685_435" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2686,1508 2955,1501 2956,1551 2687,1558"/>
+          <Baseline points="2687,1553 2956,1546"/>
+          <TextEquiv>
+            <Unicode>17. Juni</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300424529_436" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2697,1576 2984,1581 2983,1631 2696,1626"/>
+          <Baseline points="2696,1621 2983,1626"/>
+          <TextEquiv>
+            <Unicode>4 Nachts</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="5" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235381820_6614">
+        <Coords points="3081,1488 3084,1652 3476,1653 3474,1493"/>
+        <TextLine id="line_1520300366543_419" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3092,1556 3389,1561 3388,1611 3091,1606"/>
+          <Baseline points="3091,1601 3388,1606"/>
+          <TextEquiv>
+            <Unicode>19. Juni</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="5" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380179_6580">
+        <Coords points="3474,1493 3476,1653 3767,1664 3769,1509"/>
+        <TextLine id="line_1520300354106_415" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3539,1534 3627,1520 3635,1569 3547,1583"/>
+          <Baseline points="3546,1578 3634,1564"/>
+          <TextEquiv>
+            <Unicode>74</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300351512_414" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3515,1575 3712,1594 3708,1644 3511,1625"/>
+          <Baseline points="3511,1620 3708,1639"/>
+          <TextEquiv>
+            <Unicode>Jahre</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="5" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378570_6546">
+        <Coords points="3769,1509 3767,1664 4166,1675 4166,1516"/>
+        <TextLine id="line_1520300306340_398" custom="readingOrder {index:0;} abbrev {offset:7; length:3;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3828,1566 4079,1598 4072,1648 3821,1616"/>
+          <Baseline points="3822,1611 4073,1643"/>
+          <TextEquiv>
+            <Unicode>Müller Pf.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="5" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235377023_6512">
+        <Coords points="4166,1516 4166,1675 4813,1691 4813,1531"/>
+        <TextLine id="line_1520300295714_395" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4227,1566 4543,1577 4541,1627 4225,1616"/>
+          <Baseline points="4225,1611 4541,1622"/>
+          <TextEquiv>
+            <Unicode>provisus</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="6" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401289_6821">
+        <Coords points="298,1632 296,1795 783,1801 783,1640"/>
+        <TextLine id="line_1520299818263_279" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="415,1662 614,1661 614,1711 415,1712"/>
+          <Baseline points="415,1707 614,1706"/>
+          <TextEquiv>
+            <Unicode>Saller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299821450_280" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="378,1724 686,1728 685,1778 377,1774"/>
+          <Baseline points="377,1769 685,1773"/>
+          <TextEquiv>
+            <Unicode>Katharina</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="6" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401289_6820">
+        <Coords points="783,1640 783,1801 1197,1803 1197,1636"/>
+        <TextLine id="line_1520299825435_281" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="783,1688 1197,1688 1197,1738 783,1738"/>
+          <Baseline points="783,1733 1197,1733"/>
+          <TextEquiv>
+            <Unicode>Bauerskind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="6" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235396835_6786">
+        <Coords points="1197,1636 1197,1803 1696,1812 1696,1640"/>
+        <TextLine id="line_1520299828404_282" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1253,1686 1664,1694 1663,1744 1252,1736"/>
+          <Baseline points="1252,1731 1663,1739"/>
+          <TextEquiv>
+            <Unicode>Ramperding</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="6" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235394070_6752">
+        <Coords points="1696,1640 1696,1812 2038,1815 2038,1643"/>
+        <TextLine id="line_1520299831529_283" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1723,1703 1966,1695 1967,1745 1724,1753"/>
+          <Baseline points="1724,1748 1967,1740"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="6" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235391023_6718">
+        <Coords points="2038,1643 2038,1815 2486,1819 2479,1643"/>
+        <TextLine id="line_1520299835841_284" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2103,1696 2407,1690 2408,1740 2104,1746"/>
+          <Baseline points="2104,1741 2408,1735"/>
+          <TextEquiv>
+            <Unicode>Fraisen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="6" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383632_6650">
+        <Coords points="2662,1652 2660,1839 3083,1833 3084,1652"/>
+        <TextLine id="line_1520300427325_437" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2719,1678 2962,1681 2961,1731 2718,1728"/>
+          <Baseline points="2718,1723 2961,1726"/>
+          <TextEquiv>
+            <Unicode>6. Juni</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300430388_438" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2709,1761 3011,1758 3011,1808 2709,1811"/>
+          <Baseline points="2709,1806 3011,1803"/>
+          <TextEquiv>
+            <Unicode>9 Abends</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="6" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235381851_6616">
+        <Coords points="3084,1652 3083,1833 3474,1835 3476,1653"/>
+        <TextLine id="line_1520300370325_420" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3102,1719 3381,1721 3381,1771 3102,1769"/>
+          <Baseline points="3102,1764 3381,1766"/>
+          <TextEquiv>
+            <Unicode>8. Juni</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="6" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380210_6582">
+        <Coords points="3476,1653 3474,1835 3768,1845 3767,1664"/>
+        <TextLine id="line_1520300348684_413" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3533,1692 3614,1688 3616,1738 3535,1742"/>
+          <Baseline points="3535,1737 3616,1733"/>
+          <TextEquiv>
+            <Unicode>10</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300346356_412" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3517,1733 3695,1757 3688,1807 3510,1783"/>
+          <Baseline points="3511,1778 3689,1802"/>
+          <TextEquiv>
+            <Unicode>Tage</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="6" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378601_6548">
+        <Coords points="3767,1664 3768,1845 4167,1859 4166,1675"/>
+        <TextLine id="line_1520300309183_399" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3862,1726 4089,1747 4085,1797 3858,1776"/>
+          <Baseline points="3858,1771 4085,1792"/>
+          <TextEquiv>
+            <Unicode>Müller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="6" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235377054_6514">
+        <Coords points="4166,1675 4167,1859 4813,1871 4813,1691"/>
+        <TextLine id="line_1520300292277_394" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4222,1734 4434,1750 4488,1780 4462,1823 4420,1798 4219,1784"/>
+          <Baseline points="4219,1779 4421,1793 4465,1819"/>
+          <TextEquiv>
+            <Unicode>Kind.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="7" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401351_6823">
+        <Coords points="296,1795 293,1978 783,1987 783,1801"/>
+        <TextLine id="line_1520299854998_289" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="377,1833 491,1850 575,1846 577,1896 489,1900 370,1883"/>
+          <Baseline points="371,1878 489,1895 577,1891"/>
+          <TextEquiv>
+            <Unicode>Döttl</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299860201_290" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="335,1907 520,1907 556,1910 730,1907 731,1957 555,1960 518,1957 335,1957"/>
+          <Baseline points="335,1952 518,1952 555,1955 731,1952"/>
+          <TextEquiv>
+            <Unicode>Anna Maria</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="7" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401351_6822">
+        <Coords points="783,1801 783,1987 1197,1988 1197,1803"/>
+        <TextLine id="line_1520299851248_288" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="818,1858 964,1871 1134,1860 1137,1910 963,1921 814,1908"/>
+          <Baseline points="814,1903 963,1916 1137,1905"/>
+          <TextEquiv>
+            <Unicode>Krämerin</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="7" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235396898_6788">
+        <Coords points="1197,1803 1197,1988 1697,1993 1696,1812"/>
+        <TextLine id="line_1520299845263_287" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1247,1855 1652,1854 1652,1904 1247,1905"/>
+          <Baseline points="1247,1900 1652,1899"/>
+          <TextEquiv>
+            <Unicode>Außernzell</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="7" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235394117_6754">
+        <Coords points="1696,1812 1697,1993 2041,2000 2038,1815"/>
+        <TextLine id="line_1520299842279_286" custom="readingOrder {index:0;} abbrev {offset:0; length:8;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1718,1863 1965,1863 2001,1885 1972,1926 1951,1911 1718,1913"/>
+          <Baseline points="1718,1908 1952,1906 1975,1922"/>
+          <TextEquiv>
+            <Unicode>verheir.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="7" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235391070_6720">
+        <Coords points="2038,1815 2041,2000 2485,2009 2486,1819"/>
+        <TextLine id="line_1520299838779_285" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2080,1871 2427,1856 2429,1906 2082,1921"/>
+          <Baseline points="2082,1916 2429,1901"/>
+          <TextEquiv>
+            <Unicode>Wassersucht</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="7" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383663_6652">
+        <Coords points="2660,1839 2661,2008 3083,2013 3083,1833"/>
+        <TextLine id="line_1520300410653_432" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2694,1856 2975,1858 2975,1908 2694,1906"/>
+          <Baseline points="2694,1901 2975,1903"/>
+          <TextEquiv>
+            <Unicode>14. Juni</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300407810_431" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2669,1950 2768,1932 2982,1929 3096,1945 3089,1995 2979,1979 2772,1982 2678,1999"/>
+          <Baseline points="2677,1994 2772,1977 2979,1974 3090,1990"/>
+          <TextEquiv>
+            <Unicode>9 Vormittags</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="7" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235381898_6618">
+        <Coords points="3083,1833 3083,2013 3476,2017 3474,1835"/>
+        <TextLine id="line_1520300373465_421" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3094,1885 3379,1912 3375,1962 3090,1935"/>
+          <Baseline points="3090,1930 3375,1957"/>
+          <TextEquiv>
+            <Unicode>16. Juni</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="7" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380257_6584">
+        <Coords points="3474,1835 3476,2017 3768,2028 3768,1845"/>
+        <TextLine id="line_1520300340778_410" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3515,1882 3603,1881 3604,1931 3516,1932"/>
+          <Baseline points="3516,1927 3604,1926"/>
+          <TextEquiv>
+            <Unicode>72</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300343074_411" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3503,1940 3654,1940 3654,1990 3503,1990"/>
+          <Baseline points="3503,1985 3654,1985"/>
+          <TextEquiv>
+            <Unicode>Jahre</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="7" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378648_6550">
+        <Coords points="3768,1845 3768,2028 4167,2043 4167,1859"/>
+        <TextLine id="line_1520300312855_400" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3819,1911 4048,1933 4044,1983 3815,1961"/>
+          <Baseline points="3815,1956 4044,1978"/>
+          <TextEquiv>
+            <Unicode>Müller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="7" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235377085_6516">
+        <Coords points="4167,1859 4167,2043 4816,2058 4813,1871"/>
+        <TextLine id="line_1520300287730_393" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4237,1913 4506,1944 4500,1994 4231,1963"/>
+          <Baseline points="4232,1958 4501,1989"/>
+          <TextEquiv>
+            <Unicode>provisa</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="8" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401414_6825">
+        <Coords points="293,1978 297,2135 783,2143 783,1987"/>
+        <TextLine id="line_1520299863482_291" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="329,2014 712,1998 714,2048 331,2064"/>
+          <Baseline points="331,2059 714,2043"/>
+          <TextEquiv>
+            <Unicode>Bürgmann</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299866513_292" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="466,2059 713,2048 715,2098 468,2109"/>
+          <Baseline points="468,2104 715,2093"/>
+          <TextEquiv>
+            <Unicode>Mathias</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="8" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401414_6824">
+        <Coords points="783,1987 783,2143 1197,2148 1197,1988"/>
+        <TextLine id="line_1520299870326_293" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="813,2020 1163,2017 1163,2067 813,2070"/>
+          <Baseline points="813,2065 1163,2062"/>
+          <TextEquiv>
+            <Unicode>Gütlerssohn</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="8" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235396961_6790">
+        <Coords points="1197,1988 1197,2148 1698,2158 1697,1993"/>
+        <TextLine id="line_1520299872920_294" custom="readingOrder {index:0;} unclear {offset:0; length:8;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1275,2038 1604,2036 1604,2086 1275,2088"/>
+          <Baseline points="1275,2083 1604,2081"/>
+          <TextEquiv>
+            <Unicode>Reindabl</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="8" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235394179_6756">
+        <Coords points="1697,1993 1698,2158 2041,2167 2041,2000"/>
+        <TextLine id="line_1520299900310_295" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1779,2038 1965,2042 1964,2092 1778,2088"/>
+          <Baseline points="1778,2083 1964,2087"/>
+          <TextEquiv>
+            <Unicode>ledig</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="8" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235391132_6722">
+        <Coords points="2041,2000 2041,2167 2487,2170 2485,2009"/>
+        <TextLine id="line_1520299903482_296" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2075,2054 2401,2057 2401,2107 2075,2104"/>
+          <Baseline points="2075,2099 2401,2102"/>
+          <TextEquiv>
+            <Unicode>Abzehrung</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="8" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383710_6654">
+        <Coords points="2661,2008 2660,2179 3084,2189 3083,2013"/>
+        <TextLine id="line_1520300398966_429" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2682,2042 2977,2029 2979,2079 2684,2092"/>
+          <Baseline points="2684,2087 2979,2074"/>
+          <TextEquiv>
+            <Unicode>8. August</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300402497_430" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2696,2106 3000,2106 3000,2156 2696,2156"/>
+          <Baseline points="2696,2151 3000,2151"/>
+          <TextEquiv>
+            <Unicode>7. Abends</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="8" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235381929_6620">
+        <Coords points="3083,2013 3084,2189 3474,2191 3476,2017"/>
+        <TextLine id="line_1520300376278_422" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3094,2064 3431,2064 3431,2114 3094,2114"/>
+          <Baseline points="3094,2109 3431,2109"/>
+          <TextEquiv>
+            <Unicode>10. August</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="8" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380288_6586">
+        <Coords points="3476,2017 3474,2191 3768,2198 3768,2028"/>
+        <TextLine id="line_1520300337762_409" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3544,2052 3637,2056 3635,2106 3542,2102"/>
+          <Baseline points="3542,2097 3635,2101"/>
+          <TextEquiv>
+            <Unicode>57</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300334856_408" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3502,2110 3702,2118 3700,2168 3500,2160"/>
+          <Baseline points="3500,2155 3700,2163"/>
+          <TextEquiv>
+            <Unicode>Jahre</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="8" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378679_6552">
+        <Coords points="3768,2028 3768,2198 4167,2211 4167,2043"/>
+        <TextLine id="line_1520300315871_401" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3821,2094 4047,2098 4046,2148 3820,2144"/>
+          <Baseline points="3820,2139 4046,2143"/>
+          <TextEquiv>
+            <Unicode>Müller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="8" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235377116_6518">
+        <Coords points="4167,2043 4167,2211 4815,2233 4816,2058"/>
+        <TextLine id="line_1520300285433_392" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4189,2094 4479,2107 4477,2157 4187,2144"/>
+          <Baseline points="4187,2139 4477,2152"/>
+          <TextEquiv>
+            <Unicode>provisus</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="9" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401476_6827">
+        <Coords points="297,2135 299,2300 782,2308 783,2143"/>
+        <TextLine id="line_1520299922435_302" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="317,2171 689,2163 690,2213 318,2221"/>
+          <Baseline points="318,2216 690,2208"/>
+          <TextEquiv>
+            <Unicode>Nothgetauftes</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299926263_303" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="469,2221 701,2215 702,2265 470,2271"/>
+          <Baseline points="470,2266 702,2260"/>
+          <TextEquiv>
+            <Unicode>Mädchen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="9" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401476_6826">
+        <Coords points="783,2143 782,2308 1196,2312 1197,2148"/>
+        <TextLine id="line_1520299916560_300" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="780,2150 1195,2151 1195,2201 780,2200"/>
+          <Baseline points="780,2195 1195,2196"/>
+          <TextEquiv>
+            <Unicode>des Andreas Bauer</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299919295_301" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="825,2221 1022,2219 1022,2269 825,2271"/>
+          <Baseline points="825,2266 1022,2264"/>
+          <TextEquiv>
+            <Unicode>Bauer</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="9" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235397007_6792">
+        <Coords points="1197,2148 1196,2312 1700,2320 1698,2158"/>
+        <TextLine id="line_1520299913920_299" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1278,2192 1568,2194 1568,2244 1278,2242"/>
+          <Baseline points="1278,2237 1568,2239"/>
+          <TextEquiv>
+            <Unicode>Hasling</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="9" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235394226_6758">
+        <Coords points="1698,2158 1700,2320 2042,2325 2041,2167"/>
+        <TextLine id="line_1520299910013_298" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1757,2202 1950,2198 1951,2248 1758,2252"/>
+          <Baseline points="1758,2247 1951,2243"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="9" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235391179_6724">
+        <Coords points="2041,2167 2042,2325 2486,2327 2487,2170"/>
+        <TextLine id="line_1520299906998_297" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2057,2208 2427,2204 2427,2254 2057,2258"/>
+          <Baseline points="2057,2253 2427,2249"/>
+          <TextEquiv>
+            <Unicode>Lebensschwäche</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="9" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383757_6656">
+        <Coords points="2660,2179 2659,2340 3083,2346 3084,2189"/>
+        <TextLine id="line_1520300392856_427" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2688,2211 3005,2210 3005,2260 2688,2261"/>
+          <Baseline points="2688,2256 3005,2255"/>
+          <TextEquiv>
+            <Unicode>9. August</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300395903_428" custom="readingOrder {index:1;} abbrev {offset:0; length:6;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2683,2270 2966,2270 2966,2320 2683,2320"/>
+          <Baseline points="2683,2315 2966,2315"/>
+          <TextEquiv>
+            <Unicode>Nachts 9 Uhr</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="9" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235381976_6622">
+        <Coords points="3084,2189 3083,2346 3476,2345 3474,2191"/>
+        <TextLine id="line_1520300379528_423" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3097,2233 3430,2235 3430,2285 3097,2283"/>
+          <Baseline points="3097,2278 3430,2280"/>
+          <TextEquiv>
+            <Unicode>12. August</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="9" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380335_6588">
+        <Coords points="3474,2191 3476,2345 3769,2360 3768,2198"/>
+        <TextLine id="line_1520300332106_407" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3563,2224 3611,2224 3611,2274 3563,2274"/>
+          <Baseline points="3563,2269 3611,2269"/>
+          <TextEquiv>
+            <Unicode>¼</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300330090_406" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3503,2275 3721,2275 3721,2325 3503,2325"/>
+          <Baseline points="3503,2320 3721,2320"/>
+          <TextEquiv>
+            <Unicode>Stunde</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="9" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378710_6554">
+        <Coords points="3768,2198 3769,2360 4167,2376 4167,2211"/>
+        <TextLine id="line_1520300318590_402" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3864,2242 4069,2250 4067,2300 3862,2292"/>
+          <Baseline points="3862,2287 4067,2295"/>
+          <TextEquiv>
+            <Unicode>Müller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="9" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235377148_6520">
+        <Coords points="4167,2211 4167,2376 4815,2390 4815,2233"/>
+        <TextLine id="line_1520300282074_391" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4216,2254 4455,2254 4455,2304 4216,2304"/>
+          <Baseline points="4216,2299 4455,2299"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="10" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401539_6829">
+        <Coords points="299,2300 297,2473 781,2478 782,2308"/>
+        <TextLine id="line_1520299931638_304" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="360,2331 694,2332 694,2382 360,2381"/>
+          <Baseline points="360,2376 694,2377"/>
+          <TextEquiv>
+            <Unicode>Bürgmann</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299934045_305" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="458,2411 744,2388 748,2438 462,2461"/>
+          <Baseline points="462,2456 748,2433"/>
+          <TextEquiv>
+            <Unicode>Leopold</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="10" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401539_6828">
+        <Coords points="782,2308 781,2478 1194,2479 1196,2312"/>
+        <TextLine id="line_1520299939138_306" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="788,2358 1171,2357 1171,2407 788,2408"/>
+          <Baseline points="788,2403 1171,2402"/>
+          <TextEquiv>
+            <Unicode>Bauerskind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="10" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235397070_6794">
+        <Coords points="1196,2312 1194,2479 1697,2488 1700,2320"/>
+        <TextLine id="line_1520299942091_307" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1232,2366 1631,2374 1630,2424 1231,2416"/>
+          <Baseline points="1231,2411 1630,2419"/>
+          <TextEquiv>
+            <Unicode>Bösmaign</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="10" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235394289_6760">
+        <Coords points="1700,2320 1697,2488 2041,2497 2042,2325"/>
+        <TextLine id="line_1520299946138_308" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1753,2380 1989,2376 1990,2426 1754,2430"/>
+          <Baseline points="1754,2425 1990,2421"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="10" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235391226_6726">
+        <Coords points="2042,2325 2041,2497 2484,2500 2486,2327"/>
+        <TextLine id="line_1520299949295_309" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2109,2371 2392,2386 2390,2436 2107,2421"/>
+          <Baseline points="2107,2416 2390,2431"/>
+          <TextEquiv>
+            <Unicode>Fraisen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="10" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383804_6658">
+        <Coords points="2659,2340 2661,2507 3083,2507 3083,2346"/>
+        <TextLine id="line_1520300390075_426" custom="readingOrder {index:0;} abbrev {offset:3; length:8;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2673,2367 3034,2366 3034,2416 2673,2417"/>
+          <Baseline points="2673,2412 3034,2411"/>
+          <TextEquiv>
+            <Unicode>9. Septemb.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300387575_425" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2686,2434 2910,2426 2912,2476 2688,2484"/>
+          <Baseline points="2688,2479 2912,2471"/>
+          <TextEquiv>
+            <Unicode>8½ früh</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="10" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235382007_6624">
+        <Coords points="3083,2346 3083,2507 3473,2517 3476,2345"/>
+        <TextLine id="line_1520300382512_424" custom="readingOrder {index:0;} abbrev {offset:4; length:5;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3096,2397 3359,2393 3360,2443 3097,2447"/>
+          <Baseline points="3097,2442 3360,2438"/>
+          <TextEquiv>
+            <Unicode>11. Sept.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="10" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380366_6590">
+        <Coords points="3476,2345 3473,2517 3768,2534 3769,2360"/>
+        <TextLine id="line_1520300328074_405" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3554,2367 3612,2367 3612,2417 3554,2417"/>
+          <Baseline points="3554,2412 3612,2412"/>
+          <TextEquiv>
+            <Unicode>5</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300325605_404" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3514,2414 3684,2427 3681,2477 3511,2464"/>
+          <Baseline points="3511,2459 3681,2472"/>
+          <TextEquiv>
+            <Unicode>Tage</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="10" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378741_6556">
+        <Coords points="3769,2360 3768,2534 4165,2552 4167,2376"/>
+        <TextLine id="line_1520300322902_403" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3845,2415 4084,2426 4082,2476 3843,2465"/>
+          <Baseline points="3843,2460 4082,2471"/>
+          <TextEquiv>
+            <Unicode>Müller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="10" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235377179_6522">
+        <Coords points="4167,2376 4165,2552 4814,2573 4815,2390"/>
+        <TextLine id="line_1520300279120_390" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4201,2425 4404,2430 4465,2457 4444,2503 4393,2479 4200,2475"/>
+          <Baseline points="4200,2470 4394,2474 4446,2498"/>
+          <TextEquiv>
+            <Unicode>Kind.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="11" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401601_6831">
+        <Coords points="297,2473 291,2640 781,2645 781,2478"/>
+        <TextLine id="line_1520299972904_314" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="362,2519 593,2511 637,2511 637,2561 594,2561 364,2569"/>
+          <Baseline points="364,2564 594,2556 637,2556"/>
+          <TextEquiv>
+            <Unicode>Bauer</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299976045_315" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="474,2570 672,2559 674,2609 476,2620"/>
+          <Baseline points="476,2615 674,2604"/>
+          <TextEquiv>
+            <Unicode>Maria</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="11" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401601_6830">
+        <Coords points="781,2478 781,2645 1195,2648 1194,2479"/>
+        <TextLine id="line_1520299963732_313" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="799,2527 1160,2526 1160,2576 799,2577"/>
+          <Baseline points="799,2572 1160,2571"/>
+          <TextEquiv>
+            <Unicode>Bauerskind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="11" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235397117_6796">
+        <Coords points="1194,2479 1195,2648 1698,2658 1697,2488"/>
+        <TextLine id="line_1520299960341_312" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1196,2517 1643,2531 1642,2581 1195,2567"/>
+          <Baseline points="1195,2562 1642,2576"/>
+          <TextEquiv>
+            <Unicode>Kleinmeiking</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="11" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235394335_6762">
+        <Coords points="1697,2488 1698,2658 2039,2670 2041,2497"/>
+        <TextLine id="line_1520299956779_311" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1748,2547 1968,2542 1969,2592 1749,2597"/>
+          <Baseline points="1749,2592 1969,2587"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="11" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235391273_6728">
+        <Coords points="2041,2497 2039,2670 2486,2674 2484,2500"/>
+        <TextLine id="line_1520299953763_310" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2116,2542 2393,2542 2393,2592 2116,2592"/>
+          <Baseline points="2116,2587 2393,2587"/>
+          <TextEquiv>
+            <Unicode>Fraisen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="11" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383835_6660">
+        <Coords points="2661,2507 2659,2681 3085,2688 3083,2507"/>
+        <TextLine id="line_1520300177210_359" custom="readingOrder {index:0;} abbrev {offset:4; length:5;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2697,2535 2960,2549 2958,2599 2695,2585"/>
+          <Baseline points="2695,2580 2958,2594"/>
+          <TextEquiv>
+            <Unicode>12. Sept.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300174928_358" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2687,2618 2895,2602 2898,2652 2690,2668"/>
+          <Baseline points="2690,2663 2898,2647"/>
+          <TextEquiv>
+            <Unicode>5 früh</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="11" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235382054_6626">
+        <Coords points="3083,2507 3085,2688 3473,2695 3473,2517"/>
+        <TextLine id="line_1520300180975_360" custom="readingOrder {index:0;} abbrev {offset:4; length:5;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3091,2560 3352,2580 3349,2630 3088,2610"/>
+          <Baseline points="3088,2605 3349,2625"/>
+          <TextEquiv>
+            <Unicode>14. Sept.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="11" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380398_6592">
+        <Coords points="3473,2517 3473,2695 3769,2704 3768,2534"/>
+        <TextLine id="line_1520300229493_377" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3551,2555 3631,2555 3631,2605 3551,2605"/>
+          <Baseline points="3551,2600 3631,2600"/>
+          <TextEquiv>
+            <Unicode>7</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300227212_376" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3500,2603 3646,2615 3642,2665 3496,2653"/>
+          <Baseline points="3496,2648 3642,2660"/>
+          <TextEquiv>
+            <Unicode>Tage</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="11" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378773_6558">
+        <Coords points="3768,2534 3769,2704 4165,2720 4165,2552"/>
+        <TextLine id="line_1520300234275_378" custom="readingOrder {index:0;} abbrev {offset:7; length:3;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3837,2577 4057,2593 4167,2650 4144,2694 4044,2641 3834,2627"/>
+          <Baseline points="3834,2622 4045,2636 4146,2690"/>
+          <TextEquiv>
+            <Unicode>Müller Pf.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="11" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235377210_6524">
+        <Coords points="4165,2552 4165,2720 4819,2740 4814,2573"/>
+        <TextLine id="line_1520300267620_388" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4218,2619 4455,2642 4451,2692 4214,2669"/>
+          <Baseline points="4214,2664 4451,2687"/>
+          <TextEquiv>
+            <Unicode>Kind.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="12" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401664_6833">
+        <Coords points="291,2640 293,2804 780,2812 781,2645"/>
+        <TextLine id="line_1520299982670_316" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="361,2670 722,2660 723,2710 362,2720"/>
+          <Baseline points="362,2715 723,2705"/>
+          <TextEquiv>
+            <Unicode>Ranzinger</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299985076_317" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="342,2735 687,2722 689,2772 344,2785"/>
+          <Baseline points="344,2780 689,2767"/>
+          <TextEquiv>
+            <Unicode>Karolina</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="12" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401664_6832">
+        <Coords points="781,2645 780,2812 1195,2815 1195,2648"/>
+        <TextLine id="line_1520299987467_318" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="931,2727 971,2727 971,2777 931,2777"/>
+          <Baseline points="931,2772 971,2772"/>
+          <TextEquiv>
+            <Unicode>"</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="12" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235397164_6798">
+        <Coords points="1195,2648 1195,2815 1698,2825 1698,2658"/>
+        <TextLine id="line_1520300046251_336" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1259,2702 1625,2701 1625,2751 1259,2752"/>
+          <Baseline points="1259,2747 1625,2746"/>
+          <TextEquiv>
+            <Unicode>Prüfing</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="12" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235394382_6764">
+        <Coords points="1698,2658 1698,2825 2039,2837 2039,2670"/>
+        <TextLine id="line_1520300050298_337" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1738,2713 1975,2704 1977,2754 1740,2763"/>
+          <Baseline points="1740,2758 1977,2749"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="12" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235391320_6730">
+        <Coords points="2039,2670 2039,2837 2486,2841 2486,2674"/>
+        <TextLine id="line_1520300126301_347" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2091,2717 2353,2715 2353,2765 2091,2767"/>
+          <Baseline points="2091,2762 2353,2760"/>
+          <TextEquiv>
+            <Unicode>Schwäche</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="12" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383882_6662">
+        <Coords points="2659,2681 2659,2848 3085,2855 3085,2688"/>
+        <TextLine id="line_1520300171694_357" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2684,2713 3055,2722 3054,2772 2683,2763"/>
+          <Baseline points="2683,2758 3054,2767"/>
+          <TextEquiv>
+            <Unicode>12. Oktober</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300169022_356" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2716,2784 2934,2776 2936,2826 2718,2834"/>
+          <Baseline points="2718,2829 2936,2821"/>
+          <TextEquiv>
+            <Unicode>8 früh</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="12" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235382085_6628">
+        <Coords points="3085,2688 3085,2855 3473,2863 3473,2695"/>
+        <TextLine id="line_1520300184304_361" custom="readingOrder {index:0;} abbrev {offset:4; length:6;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3112,2730 3411,2745 3409,2795 3110,2780"/>
+          <Baseline points="3110,2775 3409,2790"/>
+          <TextEquiv>
+            <Unicode>14. Oktob.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="12" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380429_6594">
+        <Coords points="3473,2695 3473,2863 3768,2872 3769,2704"/>
+        <TextLine id="line_1520300224915_375" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3568,2710 3640,2725 3630,2774 3558,2759"/>
+          <Baseline points="3559,2754 3631,2769"/>
+          <TextEquiv>
+            <Unicode>14</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300222368_374" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3486,2749 3714,2781 3707,2831 3479,2799"/>
+          <Baseline points="3480,2794 3708,2826"/>
+          <TextEquiv>
+            <Unicode>Tage</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="12" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378820_6560">
+        <Coords points="3769,2704 3768,2872 4164,2891 4165,2720"/>
+        <TextLine id="line_1520300237087_379" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3834,2736 4108,2763 4104,2813 3830,2786"/>
+          <Baseline points="3830,2781 4104,2808"/>
+          <TextEquiv>
+            <Unicode>Müller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="12" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235377241_6526">
+        <Coords points="4165,2720 4164,2891 4818,2915 4819,2740"/>
+        <TextLine id="line_1520300270151_389" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4212,2759 4464,2767 4463,2817 4211,2809"/>
+          <Baseline points="4211,2804 4463,2812"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="13" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401711_6835">
+        <Coords points="293,2804 292,2980 778,2989 780,2812"/>
+        <TextLine id="line_1520299990279_319" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="392,2869 628,2861 630,2911 394,2919"/>
+          <Baseline points="394,2914 630,2906"/>
+          <TextEquiv>
+            <Unicode>Eder</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299992920_320" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="518,2920 737,2904 740,2954 521,2970"/>
+          <Baseline points="521,2965 740,2949"/>
+          <TextEquiv>
+            <Unicode>Alois</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="13" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401711_6834">
+        <Coords points="780,2812 778,2989 1192,2990 1195,2815"/>
+        <TextLine id="line_1520300013812_327" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="985,2881 1023,2881 1023,2931 985,2931"/>
+          <Baseline points="985,2926 1023,2926"/>
+          <TextEquiv>
+            <Unicode>"</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="13" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235397211_6800">
+        <Coords points="1195,2815 1192,2990 1696,3000 1698,2825"/>
+        <TextLine id="line_1520300042126_335" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1271,2866 1601,2865 1601,2915 1271,2916"/>
+          <Baseline points="1271,2911 1601,2910"/>
+          <TextEquiv>
+            <Unicode>Perling</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="13" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235394429_6766">
+        <Coords points="1698,2825 1696,3000 2039,3010 2039,2837"/>
+        <TextLine id="line_1520300053939_338" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1717,2903 1972,2885 1975,2935 1720,2953"/>
+          <Baseline points="1720,2948 1975,2930"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="13" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235391367_6732">
+        <Coords points="2039,2837 2039,3010 2484,3017 2486,2841"/>
+        <TextLine id="line_1520300123567_346" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2087,2881 2384,2884 2384,2934 2087,2931"/>
+          <Baseline points="2087,2926 2384,2929"/>
+          <TextEquiv>
+            <Unicode>Fraisen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="13" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383913_6664">
+        <Coords points="2659,2848 2661,3019 3082,3028 3085,2855"/>
+        <TextLine id="line_1520300165709_355" custom="readingOrder {index:0;} abbrev {offset:3; length:6;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2696,2885 3046,2888 3046,2938 2696,2935"/>
+          <Baseline points="2696,2930 3046,2933"/>
+          <TextEquiv>
+            <Unicode>30 Oktob.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300155677_354" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2707,2944 3021,2960 3019,3010 2705,2994"/>
+          <Baseline points="2705,2989 3019,3005"/>
+          <TextEquiv>
+            <Unicode>3 Abends</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="13" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235382132_6630">
+        <Coords points="3085,2855 3082,3028 3472,3039 3473,2863"/>
+        <TextLine id="line_1520300188866_362" custom="readingOrder {index:0;} abbrev {offset:2; length:7;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3106,2935 3429,2939 3428,2989 3105,2985"/>
+          <Baseline points="3105,2980 3428,2984"/>
+          <TextEquiv>
+            <Unicode>2 Novemb.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="13" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380460_6596">
+        <Coords points="3473,2863 3472,3039 3767,3047 3768,2872"/>
+        <TextLine id="line_1520300219633_373" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3543,2887 3631,2906 3621,2955 3533,2936"/>
+          <Baseline points="3534,2931 3622,2950"/>
+          <TextEquiv>
+            <Unicode>28</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300216133_372" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3516,2947 3726,2953 3725,3003 3515,2997"/>
+          <Baseline points="3515,2992 3725,2998"/>
+          <TextEquiv>
+            <Unicode>Wochen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="13" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378851_6562">
+        <Coords points="3768,2872 3767,3047 4165,3066 4164,2891"/>
+        <TextLine id="line_1520300239916_380" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3832,2931 4106,2919 4108,2969 3834,2981"/>
+          <Baseline points="3834,2976 4108,2964"/>
+          <TextEquiv>
+            <Unicode>Müller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="13" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235377273_6528">
+        <Coords points="4164,2891 4165,3066 4815,3091 4818,2915"/>
+        <TextLine id="line_1520300263604_387" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4222,2956 4460,2954 4460,3004 4222,3006"/>
+          <Baseline points="4222,3001 4460,2999"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="14" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401773_6837">
+        <Coords points="292,2980 291,3184 776,3184 778,2989"/>
+        <TextLine id="line_1520299996186_321" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="363,3024 617,3013 619,3063 365,3074"/>
+          <Baseline points="365,3069 619,3058"/>
+          <TextEquiv>
+            <Unicode>Schruef</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520299999452_322" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="427,3089 594,3098 649,3098 649,3148 593,3148 425,3139"/>
+          <Baseline points="425,3134 593,3143 649,3143"/>
+          <TextEquiv>
+            <Unicode>Anna</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="14" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401773_6836">
+        <Coords points="778,2989 776,3184 1191,3188 1192,2990"/>
+        <TextLine id="line_1520300017562_328" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="819,3055 1138,3039 1140,3089 821,3105"/>
+          <Baseline points="821,3100 1140,3084"/>
+          <TextEquiv>
+            <Unicode>Gütlerin</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="14" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235397273_6802">
+        <Coords points="1192,2990 1191,3188 1696,3194 1696,3000"/>
+        <TextLine id="line_1520300039204_334" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1256,3042 1685,3047 1684,3097 1255,3092"/>
+          <Baseline points="1255,3087 1684,3092"/>
+          <TextEquiv>
+            <Unicode>Außernzell</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="14" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235394476_6768">
+        <Coords points="1696,3000 1696,3194 2039,3197 2039,3010"/>
+        <TextLine id="line_1520300056720_339" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1778,3051 1953,3055 1952,3105 1777,3101"/>
+          <Baseline points="1777,3096 1952,3100"/>
+          <TextEquiv>
+            <Unicode>ledig</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="14" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235391398_6734">
+        <Coords points="2039,3010 2039,3197 2486,3201 2484,3017"/>
+        <TextLine id="line_1520300120598_345" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2059,3057 2453,3065 2452,3115 2058,3107"/>
+          <Baseline points="2058,3102 2452,3110"/>
+          <TextEquiv>
+            <Unicode>Altersschwäche</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="14" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383960_6666">
+        <Coords points="2661,3019 2656,3195 3081,3200 3082,3028"/>
+        <TextLine id="line_1520300151599_353" custom="readingOrder {index:0;} abbrev {offset:4; length:7;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2692,3062 3051,3059 3051,3109 2692,3112"/>
+          <Baseline points="2692,3107 3051,3104"/>
+          <TextEquiv>
+            <Unicode>17. Novemb.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300148724_352" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2723,3117 3069,3133 3067,3183 2721,3167"/>
+          <Baseline points="2721,3162 3067,3178"/>
+          <TextEquiv>
+            <Unicode>½6 Abends</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="14" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235382163_6632">
+        <Coords points="3082,3028 3081,3200 3471,3208 3472,3039"/>
+        <TextLine id="line_1520300191695_363" custom="readingOrder {index:0;} abbrev {offset:3; length:7;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3109,3101 3446,3104 3446,3154 3109,3151"/>
+          <Baseline points="3109,3146 3446,3149"/>
+          <TextEquiv>
+            <Unicode>19 Novemb.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="14" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380507_6598">
+        <Coords points="3472,3039 3471,3208 3766,3218 3767,3047"/>
+        <TextLine id="line_1520300213211_371" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3559,3068 3646,3068 3646,3118 3559,3118"/>
+          <Baseline points="3559,3113 3646,3113"/>
+          <TextEquiv>
+            <Unicode>84</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300211008_370" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3511,3120 3733,3124 3732,3174 3510,3170"/>
+          <Baseline points="3510,3165 3732,3169"/>
+          <TextEquiv>
+            <Unicode>Jahre</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="14" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378882_6564">
+        <Coords points="3767,3047 3766,3218 4165,3236 4165,3066"/>
+        <TextLine id="line_1520300242525_381" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3842,3113 4079,3114 4079,3164 3842,3163"/>
+          <Baseline points="3842,3158 4079,3159"/>
+          <TextEquiv>
+            <Unicode>Müller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="14" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235377304_6530">
+        <Coords points="4165,3066 4165,3236 4815,3260 4815,3091"/>
+        <TextLine id="line_1520300260635_386" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4262,3105 4549,3147 4604,3177 4580,3220 4533,3195 4255,3155"/>
+          <Baseline points="4256,3150 4535,3190 4582,3216"/>
+          <TextEquiv>
+            <Unicode>provisa</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="15" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401820_6839">
+        <Coords points="291,3184 290,3364 776,3363 776,3184"/>
+        <TextLine id="line_1520300002983_323" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="387,3240 608,3223 611,3273 390,3290"/>
+          <Baseline points="390,3285 611,3268"/>
+          <TextEquiv>
+            <Unicode>Gaissl</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300006405_324" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="533,3280 748,3280 748,3330 533,3330"/>
+          <Baseline points="533,3325 748,3325"/>
+          <TextEquiv>
+            <Unicode>Martin</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="15" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401820_6838">
+        <Coords points="776,3184 776,3363 1192,3362 1191,3188"/>
+        <TextLine id="line_1520300020578_329" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="805,3244 1172,3242 1172,3292 805,3294"/>
+          <Baseline points="805,3289 1172,3287"/>
+          <TextEquiv>
+            <Unicode>Bauerskind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="15" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235397320_6804">
+        <Coords points="1191,3188 1192,3362 1695,3362 1696,3194"/>
+        <TextLine id="line_1520300035860_333" custom="readingOrder {index:0;} unclear {offset:0; length:16;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1210,3233 1676,3228 1676,3278 1210,3283"/>
+          <Baseline points="1210,3278 1676,3273"/>
+          <TextEquiv>
+            <Unicode>Untergriesgraben</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="15" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235394523_6770">
+        <Coords points="1696,3194 1695,3362 2038,3370 2039,3197"/>
+        <TextLine id="line_1520300060501_340" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1722,3232 1963,3222 1965,3272 1724,3282"/>
+          <Baseline points="1724,3277 1965,3267"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="15" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235391445_6736">
+        <Coords points="2039,3197 2038,3370 2486,3370 2486,3201"/>
+        <TextLine id="line_1520300073268_343" custom="readingOrder {index:0;} unclear {offset:0; length:15;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2083,3237 2473,3253 2471,3303 2081,3287"/>
+          <Baseline points="2081,3282 2471,3298"/>
+          <TextEquiv>
+            <Unicode>Lungengeschwürr</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300076252_344" custom="readingOrder {index:1;} gap {offset:1; length:0;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2118,3312 2348,3310 2348,3360 2118,3362"/>
+          <Baseline points="2118,3357 2348,3355"/>
+          <TextEquiv>
+            <Unicode>M</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="15" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235383992_6668">
+        <Coords points="2656,3195 2659,3364 3082,3380 3081,3200"/>
+        <TextLine id="line_1520300144755_351" custom="readingOrder {index:0;} abbrev {offset:4; length:7;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2695,3222 3066,3243 3063,3293 2692,3272"/>
+          <Baseline points="2692,3267 3063,3288"/>
+          <TextEquiv>
+            <Unicode>26. Novemb.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300141302_350" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2716,3290 3015,3290 3015,3340 2716,3340"/>
+          <Baseline points="2716,3335 3015,3335"/>
+          <TextEquiv>
+            <Unicode>6 Abends</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="15" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235382195_6634">
+        <Coords points="3081,3200 3082,3380 3473,3390 3471,3208"/>
+        <TextLine id="line_1520300195726_364" custom="readingOrder {index:0;} abbrev {offset:3; length:4;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3109,3265 3395,3261 3396,3311 3110,3315"/>
+          <Baseline points="3110,3310 3396,3306"/>
+          <TextEquiv>
+            <Unicode>29 Nov.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="15" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380538_6600">
+        <Coords points="3471,3208 3473,3390 3766,3398 3766,3218"/>
+        <TextLine id="line_1520300208805_369" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3543,3238 3611,3239 3610,3289 3542,3288"/>
+          <Baseline points="3542,3283 3610,3284"/>
+          <TextEquiv>
+            <Unicode>2</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300206617_368" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3520,3283 3740,3299 3737,3349 3517,3333"/>
+          <Baseline points="3517,3328 3737,3344"/>
+          <TextEquiv>
+            <Unicode>Jahre</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="15" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378913_6566">
+        <Coords points="3766,3218 3766,3398 4167,3412 4165,3236"/>
+        <TextLine id="line_1520300246135_382" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3866,3273 4126,3287 4124,3337 3864,3323"/>
+          <Baseline points="3864,3318 4124,3332"/>
+          <TextEquiv>
+            <Unicode>Müller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="15" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235377335_6532">
+        <Coords points="4165,3236 4167,3412 4815,3429 4815,3260"/>
+        <TextLine id="line_1520300255088_385" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4216,3282 4453,3294 4451,3344 4214,3332"/>
+          <Baseline points="4214,3327 4451,3339"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="16" col="0" rowSpan="1" colSpan="1" id="TableCell_1520235401867_6841">
+        <Coords points="290,3364 289,3535 774,3535 776,3363"/>
+        <TextLine id="line_1520300008937_325" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="385,3396 649,3387 651,3437 387,3446"/>
+          <Baseline points="387,3441 651,3432"/>
+          <TextEquiv>
+            <Unicode>Pfeffer</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300011655_326" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="566,3438 742,3446 740,3496 564,3488"/>
+          <Baseline points="564,3483 740,3491"/>
+          <TextEquiv>
+            <Unicode>Theres</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="16" col="1" rowSpan="1" colSpan="1" id="TableCell_1520235401867_6840">
+        <Coords points="776,3363 774,3535 1191,3540 1192,3362"/>
+        <TextLine id="line_1520300024828_330" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="793,3404 1152,3401 1192,3432 1159,3470 1134,3448 794,3454"/>
+          <Baseline points="794,3449 1136,3443 1162,3466"/>
+          <TextEquiv>
+            <Unicode>Inwohners¬</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300027891_331" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="883,3468 1062,3467 1062,3517 883,3518"/>
+          <Baseline points="883,3513 1062,3512"/>
+          <TextEquiv>
+            <Unicode>kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="16" col="2" rowSpan="1" colSpan="1" id="TableCell_1520235397367_6806">
+        <Coords points="1192,3362 1191,3540 1694,3545 1695,3362"/>
+        <TextLine id="line_1520300031813_332" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1251,3413 1668,3413 1668,3463 1251,3463"/>
+          <Baseline points="1251,3458 1668,3458"/>
+          <TextEquiv>
+            <Unicode>Außernzell</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="16" col="3" rowSpan="1" colSpan="1" id="TableCell_1520235394554_6772">
+        <Coords points="1695,3362 1694,3545 2034,3551 2038,3370"/>
+        <TextLine id="line_1520300064423_341" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="1724,3417 1971,3404 1973,3454 1726,3467"/>
+          <Baseline points="1726,3462 1973,3449"/>
+          <TextEquiv>
+            <Unicode>Kind</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="16" col="4" rowSpan="1" colSpan="1" id="TableCell_1520235391492_6738">
+        <Coords points="2038,3370 2034,3551 2482,3551 2486,3370"/>
+        <TextLine id="line_1520300068205_342" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="2108,3418 2333,3402 2336,3452 2111,3468"/>
+          <Baseline points="2111,3463 2336,3447"/>
+          <TextEquiv>
+            <Unicode>Fraisen</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="16" col="6" rowSpan="1" colSpan="1" id="TableCell_1520235384038_6670">
+        <Coords points="2659,3364 2658,3550 3081,3566 3082,3380"/>
+        <TextLine id="line_1520300138552_349" custom="readingOrder {index:0;} abbrev {offset:3; length:7;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="2700,3386 3060,3394 3059,3444 2699,3436"/>
+          <Baseline points="2699,3431 3059,3439"/>
+          <TextEquiv>
+            <Unicode>4. Decemb.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300136208_348" custom="readingOrder {index:1;} abbrev {offset:3; length:7;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="2701,3464 3057,3464 3057,3514 2701,3514"/>
+          <Baseline points="2701,3509 3057,3509"/>
+          <TextEquiv>
+            <Unicode>12 Mittags</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="16" col="7" rowSpan="1" colSpan="1" id="TableCell_1520235382226_6636">
+        <Coords points="3082,3380 3081,3566 3472,3581 3473,3390"/>
+        <TextLine id="line_1520300198758_365" custom="readingOrder {index:0;} abbrev {offset:2; length:7;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3120,3436 3390,3449 3388,3499 3118,3486"/>
+          <Baseline points="3118,3481 3388,3494"/>
+          <TextEquiv>
+            <Unicode>6 Decemb.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="16" col="8" rowSpan="1" colSpan="1" id="TableCell_1520235380570_6602">
+        <Coords points="3473,3390 3472,3581 3766,3593 3766,3398"/>
+        <TextLine id="line_1520300204227_367" custom="readingOrder {index:0;}" DU_header="D" DU_row="B" DU_col="S">
+          <Coords points="3566,3420 3610,3420 3610,3470 3566,3470"/>
+          <Baseline points="3566,3465 3610,3465"/>
+          <TextEquiv>
+            <Unicode>8</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <TextLine id="line_1520300201836_366" custom="readingOrder {index:1;}" DU_header="D" DU_row="E" DU_col="S">
+          <Coords points="3525,3460 3657,3470 3654,3520 3522,3510"/>
+          <Baseline points="3522,3505 3654,3515"/>
+          <TextEquiv>
+            <Unicode>Tag</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="16" col="9" rowSpan="1" colSpan="1" id="TableCell_1520235378945_6568">
+        <Coords points="3766,3398 3766,3593 4166,3607 4167,3412"/>
+        <TextLine id="line_1520300248760_383" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="3856,3447 4090,3488 4081,3537 3847,3496"/>
+          <Baseline points="3848,3491 4082,3532"/>
+          <TextEquiv>
+            <Unicode>Müller</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <TableCell row="16" col="10" rowSpan="1" colSpan="1" id="TableCell_1520235377366_6534">
+        <Coords points="4167,3412 4166,3607 4814,3629 4815,3429"/>
+        <TextLine id="line_1520300252416_384" custom="readingOrder {index:0;}" DU_header="D" DU_row="S" DU_col="S">
+          <Coords points="4268,3468 4483,3497 4476,3547 4261,3518"/>
+          <Baseline points="4262,3513 4477,3542"/>
+          <TextEquiv>
+            <Unicode>Kind.</Unicode>
+          </TextEquiv>
+        </TextLine>
+        <CornerPts>0 1 2 3</CornerPts>
+      </TableCell>
+      <SeparatorRegion orient="horizontal 353.1 0.006">
+        <Coords points="298,354 4819,382"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 743.6 0.007">
+        <Coords points="300,745 4819,775"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 936.2 0.009">
+        <Coords points="296,938 4816,978"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 1113.6 0.015">
+        <Coords points="298,1118 4817,1185"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 1276.2 0.016">
+        <Coords points="301,1281 4817,1353"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 1444.3 0.017">
+        <Coords points="301,1449 4813,1524"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 1615.6 0.014">
+        <Coords points="298,1619 4813,1680"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 1781.1 0.018">
+        <Coords points="296,1786 4813,1866"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 1962.9 0.018">
+        <Coords points="293,1968 4816,2049"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 2122.0 0.021">
+        <Coords points="297,2128 4815,2224"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 2284.3 0.021">
+        <Coords points="299,2290 4815,2383"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 2448.3 0.023">
+        <Coords points="297,2455 4814,2560"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 2621.2 0.023">
+        <Coords points="291,2627 4819,2731"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 2785.1 0.024">
+        <Coords points="293,2792 4818,2902"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 2960.1 0.024">
+        <Coords points="292,2967 4815,3077"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 3164.2 0.016">
+        <Coords points="291,3168 4815,3240"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 3339.5 0.016">
+        <Coords points="290,3344 4815,3416"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 3508.6 0.022">
+        <Coords points="289,3515 4814,3615"/>
+      </SeparatorRegion>
+      <!--	HORIZONTAL: Average=1.7%  stdev=0.56%  min=0.6% max=2.4%-->
+      <SeparatorRegion orient="vertical 305.1 -0.004">
+        <Coords points="303,365 289,3535"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 790.7 -0.004">
+        <Coords points="789,364 775,3535"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 1200.0 -0.002">
+        <Coords points="1199,361 1191,3540"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 1694.5 0.001">
+        <Coords points="1694,357 1696,3545"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 2040.3 -0.001">
+        <Coords points="2040,357 2038,3551"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 2478.9 0.002">
+        <Coords points="2479,355 2486,3551"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 2663.9 -0.002">
+        <Coords points="2663,376 2657,3550"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 3083.1 -0.000">
+        <Coords points="3083,376 3082,3566"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 3476.9 -0.001">
+        <Coords points="3476,378 3472,3581"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 3770.4 -0.001">
+        <Coords points="3769,378 3766,3593"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 4168.6 -0.001">
+        <Coords points="4168,378 4164,3607"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 4816.7 -0.000">
+        <Coords points="4816,378 4814,3629"/>
+      </SeparatorRegion>
+      <!--	VERTICAL  : Average=-0.1%  stdev=0.18%  min=-0.4% max=0.2%-->
+    </TableRegion>
+  </Page>
+</PcGts>
