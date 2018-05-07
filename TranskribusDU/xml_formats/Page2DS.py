@@ -181,13 +181,11 @@ class primaAnalysis(Component.Component):
                 
                 
             dsNode.append(node)
-            ## type
-            if line.get('type'):     
-                node.set("type", line.get('type'))            
+            ## attributs
+            for attr in ['type','custom', 'DU_row','DU_header','DU_col']:
+                if line.get(attr):     
+                    node.set(attr, line.get(attr))            
             
-            if line.get('custom'):     
-                node.set("custom", line.get('custom'))
-                
                                   
             sp = self.getPoints(line)
             # polylines
