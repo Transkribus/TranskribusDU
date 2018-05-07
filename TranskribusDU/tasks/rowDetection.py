@@ -124,30 +124,23 @@ class RowDetection(Component.Component):
             lObjects = [txt for cell in col.getCells() for txt in cell.getObjects() ]
             lObjects.sort(key=lambda x:x.getY())
             
-#             for cell in col.getCells():
-#                 print cell
             curChunk=[]
             lChunks = []
-#                 print map(lambda x:x.getAttribute('type'),cell.getObjects())
-#                 print map(lambda x:x.getID(),cell.getObjects())
-#                 cell.getObjects().sort(key=lambda x:x.getY())
-#                 for txt in cell.getObjects():
             for txt in lObjects:
-#                     print txt.getAttribute("type")
-                    if txt.getAttribute("type") == 'RS':
-                        if curChunk != []:
-                            lChunks.append(curChunk)
-                            curChunk=[]
-                        lChunks.append([txt])
-                    elif txt.getAttribute("type") in ['RI', 'RE']:
-                        curChunk.append(txt)
-                    elif txt.getAttribute("type") == 'RB':
-                        if curChunk != []:
-                            lChunks.append(curChunk)
-                        curChunk=[txt]
-                    elif txt.getAttribute("type") == 'RO':
-                        ## add Other as well???
-                        curChunk.append(txt)
+                if txt.getAttribute("DU_row") == 'S':
+                    if curChunk != []:
+                        lChunks.append(curChunk)
+                        curChunk=[]
+                    lChunks.append([txt])
+                elif txt.getAttribute("DU_row") in ['I', 'E']:
+                    curChunk.append(txt)
+                elif txt.getAttribute("DU_row") == 'B':
+                    if curChunk != []:
+                        lChunks.append(curChunk)
+                    curChunk=[txt]
+                elif txt.getAttribute("DU_row") == 'O':
+                    ## add Other as well???
+                    curChunk.append(txt)
                         
             if curChunk != []:
                 lChunks.append(curChunk)
@@ -192,10 +185,11 @@ class RowDetection(Component.Component):
         if everything is centered? 
         """
         rowMiner= tableRowMiner()
+#         print (self.THHighSupport)
         lYcuts = rowMiner.columnMining(table,self.THHighSupport,predefinedCuts)
         lYcuts.sort(key= lambda x:x.getValue())
 #         for c in lYcuts:  print (c, [x.getY() for x in c.getNodes()])
-#         print ('ycuts',lYcuts)
+        print ('ycuts',lYcuts)
 
         # shift up offset / find a better way to do this: integration skewing 
         [ x.setValue(x.getValue()-10) for x in lYcuts ]
@@ -273,9 +267,8 @@ class RowDetection(Component.Component):
                 rowscuts = list(map(lambda r:r.getY(),table.getRows()))
 #                 traceln ('initial cuts:',rowscuts)
                 self.createCells(table)
-#                 self.processRows(table,rowscuts)        
-                self.processRows(table,[])        
-
+                self.processRows(table,rowscuts)        
+# #                 self.processRows(table,[])        
                 coherence = self.computeCoherenceScore(table)
                 traceln ('coherence Score: %f'%(coherence))
     
@@ -311,7 +304,6 @@ class RowDetection(Component.Component):
         self.ODoc = XMLDSDocument()
         self.ODoc.loadFromDom(self.doc,listPages = range(self.firstPage,self.lastPage+1))        
 #         self.ODoc.loadFromDom(self.doc,listPages = range(30,31))        
-
         if self.bYCut:
             self.processYCuts(self.ODoc)
         else:
