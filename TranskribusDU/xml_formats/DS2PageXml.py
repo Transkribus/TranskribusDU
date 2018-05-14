@@ -151,7 +151,7 @@ class DS2PageXMLConvertor(Component):
         except KeyError: 
 #             print DSObject.getName() ," not declared"
             return 
-        domNode= PageXml.createPageXmlNode(pageXmlName,self.pageXmlNS)
+        domNode= PageXml.createPageXmlNode(pageXmlName)
         if DSObject.getID():
             domNode.set("id", "xrce_%s"%DSObject.getID())
         else: self.addXRCEID(domNode)
@@ -269,8 +269,10 @@ class DS2PageXMLConvertor(Component):
         from xml_formats.PageXml import MultiPageXml
         mp = MultiPageXml()
         newDoc = mp.makeMultiPageXmlMemory(list(map(lambda xy:xy[0],lListDocs)))
+        print(outputFileName)
         if outputFileName is None:
             outputFileName = os.path.dirname(self.inputFileName) + os.sep + ".."+os.sep +"col" + os.sep + os.path.basename(self.inputFileName)[:-7] + "_du.mpxml"
+        print(outputFileName)
         res= newDoc.write(outputFileName, encoding="UTF-8",pretty_print=True,xml_declaration=True)
 #         res= newDoc.saveFormatFileEnc(outputFileName, "UTF-8",True)
 #         print res
@@ -320,7 +322,7 @@ if __name__ == "__main__":
 #     print docConv.bMultiPages
     if lPageXml != []:# and docM.getOutputFileName() != "-":
         if docConv.bMultiPages:
-            docConv.storeMultiPageXml(lPageXml)
+            docConv.storeMultiPageXml(lPageXml,docConv.getOutputFileName())
         else:
             docConv.storePageXmlSetofFiles(lPageXml)
 
