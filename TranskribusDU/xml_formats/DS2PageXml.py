@@ -162,14 +162,15 @@ class DS2PageXMLConvertor(Component):
         domNode.append(coordsNode)            
         
         
-        for attr in ['custom', 'structure','col']:
+        for attr in ['custom', 'structure','col','type','DU_row','DU_header','DU_col']:
             if DSObject.hasAttribute(attr):
                 domNode.set(attr, DSObject.getAttribute(attr))
         # if blpoints:  build Baseline        
         
         # type 
-        if DSObject.hasAttribute('type'):
-            domNode.set('type', DSObject.getAttribute('type'))
+#         if DSObject.hasAttribute('type'):
+#             domNode.set('type', DSObject.getAttribute('type'))
+
         # if blpoints:  build Baseline
         # <Baseline points="218,95 280,95"/>
         ## Baseline needs to be left-right!!
