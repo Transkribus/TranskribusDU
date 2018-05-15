@@ -315,6 +315,7 @@ class RowDetection(Component.Component):
     def computeCoherenceScore(self,table):
         """
             input: table with rows, BIEOS tagged textlines
+                                    BIO now !
             output: coherence score
             
             coherence score: float
@@ -327,15 +328,17 @@ class RowDetection(Component.Component):
             for cell in row.getCells():
                 nbTextLines = len(cell.getObjects())
                 nbTotalTextLines += nbTextLines
-                if nbTextLines == 1 and cell.getObjects()[0].getAttribute("type") == 'RS': coherenceScore+=1
+                if nbTextLines == 1 and cell.getObjects()[0].getAttribute("DU_row") == 'B': coherenceScore+=1
                 else: 
                     for ipos, textline in enumerate(cell.getObjects()):
                         if ipos == 0:
-                            if textline.getAttribute("type") in ['RB']: coherenceScore += 1
-                        if ipos == nbTextLines-1:
-                            if textline.getAttribute("type") in ['RE']: coherenceScore += 1
-                        if ipos not in [0, nbTextLines-1]:
-                            if textline.getAttribute("type") in ['RI']: coherenceScore += 1
+                            if textline.getAttribute("DU_row") in ['B']: coherenceScore += 1
+                        else:
+                            if textline.getAttribute("DU_row") in ['I']: coherenceScore += 1                            
+#                         if ipos == nbTextLines-1:
+#                             if textline.getAttribute("DU_row") in ['E']: coherenceScore += 1
+#                         if ipos not in [0, nbTextLines-1]:
+#                             if textline.getAttribute("DU_row") in ['I']: coherenceScore += 1
                         
         if nbTotalTextLines == 0: return 0
         else :return  coherenceScore /nbTotalTextLines
