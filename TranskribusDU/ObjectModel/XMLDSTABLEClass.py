@@ -252,7 +252,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 cell.setParent(self)
             # find the best assignment of each text
             for text in lTexts:
-                cell = text.bestRegionsAssignment(lCells)
+                cell = text.bestRegionsAssignment(lCells,bOnlyBaseline=True)
                 if cell:
                     cell.addObject(text,bDom=True)     
 #                 else:
