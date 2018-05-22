@@ -49,6 +49,7 @@ from xml_formats.PageXml import MultiPageXml
 from util.Polygon import Polygon
 
 lLabelsBIEOS_R  = ['B', 'I', 'E', 'S', 'O']  #O?
+# lLabelsBIEOS_R  = ['RB', 'RI', 'RE', 'RS', 'RO']  #O?
 lLabelsSM_C     = ['M', 'S', 'O']   # single cell, multicells
 #lLabels_OI      = ['O','I']   # inside/outside a table           
 #lLabels_SPAN    = ['rspan','cspan','nospan']
@@ -137,15 +138,16 @@ def addSeparator(root, lCells):
         coord = cell.xpath("./a:%s" % ("Coords"),namespaces={"a":MultiPageXml.NS_PAGE_XML})[0]
         sPoints = coord.get('points')
         plgn = Polygon.parsePoints(sPoints)
-        lT, lR, lB, lL = plgn.partitionSegmentTopRightBottomLeft()
-        
-        #now the top segments contribute to row separator of index: row
-        dRowSep_lSgmt[row].extend(lT)
-        #now the bottom segments contribute to row separator of index: row+rowSpan
-        dRowSep_lSgmt[row+rowSpan].extend(lB)
-        
-        dColSep_lSgmt[col].extend(lL)
-        dColSep_lSgmt[col+colSpan].extend(lR)
+        try:
+            lT, lR, lB, lL = plgn.partitionSegmentTopRightBottomLeft()
+            #now the top segments contribute to row separator of index: row
+            dRowSep_lSgmt[row].extend(lT)
+            #now the bottom segments contribute to row separator of index: row+rowSpan
+            dRowSep_lSgmt[row+rowSpan].extend(lB)
+            
+            dColSep_lSgmt[col].extend(lL)
+            dColSep_lSgmt[col+colSpan].extend(lR)
+        except ValueError: pass
         
     #now make linear regression to draw relevant separators
     def getX(lSegment):
@@ -234,6 +236,12 @@ root=doc.getroot()
 
 lCells= MultiPageXml.getChildByName(root,'TableCell')
 
+# default: O for all cells: all cells must have all tags!
+for cell in lCells:
+    lText = MultiPageXml.getChildByName(cell,'TextLine')
+    [x.set(sDURow,lLabelsBIEOS_R[-1]) for x in lText]
+    [x.set(sDUCol,lLabelsSM_C[-1]) for x in lText]
+    [x.set(sDUHeader,lLabels_HEADER[-1]) for x in lText]
 # ignore "binding" cells
 # dirty...
 lCells = list(filter(lambda x: int(x.get('rowSpan')) < 5, lCells))

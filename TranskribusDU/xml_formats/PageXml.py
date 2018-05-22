@@ -45,7 +45,7 @@ class PageXml:
     sCREATED_ELT        = "Created"
     sLAST_CHANGE_ELT    = "LastChange"
     sCOMMENTS_ELT       = "Comments"
-
+    sTranskribusMetadata_ELT = "TranskribusMetadata"
     sCUSTOM_ATTR = "custom"
     
     sEXT = ".pxml"
@@ -338,7 +338,7 @@ class PageXml:
         
         nd4 = nd3.getnext()
         if nd4 is not None:
-            if etree.QName(nd4.tag).localname != cls.sCOMMENTS_ELT: raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
+            if etree.QName(nd4.tag).localname not in [cls.sCOMMENTS_ELT,cls.sTranskribusMetadata_ELT] : raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
         return domNd, nd1, nd2, nd3, nd4
     _getMetadataNodes = classmethod(_getMetadataNodes)
 

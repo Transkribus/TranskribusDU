@@ -74,6 +74,7 @@ class RowDetection(Component.Component):
         
         self.THHighSupport = 0.20
         self.bYCut = False
+        self.bCellOnly = False
         # for --test
         self.bCreateRef = False
         self.bCreateRefCluster = False
@@ -106,8 +107,9 @@ class RowDetection(Component.Component):
         if "thhighsupport" in dParams:
             self.THHighSupport = dParams["thhighsupport"] * 0.01
          
-        if 'YCut' in dParams: self.bYCut =  dParams["YCut"] 
-        
+        if 'YCut' in dParams: self.bYCut =  dParams["YCut"]
+        if 'bCellOnly' in dParams: self.bCellOnly =  dParams["bCellOnly"]
+          
     def createCells(self, table):
         """
             create new cells using BIESO tags
@@ -267,6 +269,8 @@ class RowDetection(Component.Component):
                 rowscuts = list(map(lambda r:r.getY(),table.getRows()))
 #                 traceln ('initial cuts:',rowscuts)
                 self.createCells(table)
+                if self.bCellOnly:
+                    continue
                 self.processRows(table,rowscuts)        
 # #                 self.processRows(table,[])        
                 coherence = self.computeCoherenceScore(table)
@@ -315,6 +319,7 @@ class RowDetection(Component.Component):
     def computeCoherenceScore(self,table):
         """
             input: table with rows, BIEOS tagged textlines
+                                    BIO now !
             output: coherence score
             
             coherence score: float
@@ -327,15 +332,17 @@ class RowDetection(Component.Component):
             for cell in row.getCells():
                 nbTextLines = len(cell.getObjects())
                 nbTotalTextLines += nbTextLines
-                if nbTextLines == 1 and cell.getObjects()[0].getAttribute("type") == 'RS': coherenceScore+=1
+                if nbTextLines == 1 and cell.getObjects()[0].getAttribute("DU_row") == 'B': coherenceScore+=1
                 else: 
                     for ipos, textline in enumerate(cell.getObjects()):
                         if ipos == 0:
-                            if textline.getAttribute("type") in ['RB']: coherenceScore += 1
-                        if ipos == nbTextLines-1:
-                            if textline.getAttribute("type") in ['RE']: coherenceScore += 1
-                        if ipos not in [0, nbTextLines-1]:
-                            if textline.getAttribute("type") in ['RI']: coherenceScore += 1
+                            if textline.getAttribute("DU_row") in ['B']: coherenceScore += 1
+                        else:
+                            if textline.getAttribute("DU_row") in ['I']: coherenceScore += 1                            
+#                         if ipos == nbTextLines-1:
+#                             if textline.getAttribute("DU_row") in ['E']: coherenceScore += 1
+#                         if ipos not in [0, nbTextLines-1]:
+#                             if textline.getAttribute("DU_row") in ['I']: coherenceScore += 1
                         
         if nbTotalTextLines == 0: return 0
         else :return  coherenceScore /nbTotalTextLines
@@ -785,6 +792,7 @@ if __name__ == "__main__":
     rdc.add_option("--createref", dest="createref", action="store_true", default=False, help="create REF file for component")
     rdc.add_option("--createrefC", dest="createrefCluster", action="store_true", default=False, help="create REF file for component (cluster of textlines)")
     rdc.add_option("--evalC", dest="evalCluster", action="store_true", default=False, help="evaluation using clusters (of textlines)")
+    rdc.add_option("--cell", dest="bCellOnly", action="store_true", default=False, help="generate cell candidate from BIO (no row)")
 
     rdc.add_option("--YC", dest="YCut", action="store_true", default=False, help="use Ycut")
 
