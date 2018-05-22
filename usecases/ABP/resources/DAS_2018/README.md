@@ -26,7 +26,8 @@ Here, we explain how to reproduce our experiments or do your own experiments on 
 
 
 # News
-In the article, the tagging schema used in BIESO. Indeed the BIO schema provides better results for similat information. Just replace S by B and E by I in the Ground truth data (DU_row attribute).
+05/22/2018: In the article, the tagging schema used in BIESO. Indeed the BIO schema provides better results for similat information. Just replace S by B and E by I in the Ground truth data (DU_row attribute).
+
 # Data
 ## WARNING: in the DAS article the first dataset (144 pages) has duplicated pages... The new correct correspoding dataset has 111 pages. It does not change the comparison between tools (new results will be published soon)
 
