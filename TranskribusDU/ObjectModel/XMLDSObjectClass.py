@@ -181,14 +181,25 @@ class  XMLDSObjectClass(XMLObjectClass):
          
          
         
-    def bestRegionsAssignment(self,lRegions):
+    def bestRegionsAssignment(self,lRegions,bOnlyBaseline=False):
         """
             find the best (max overlap for self) region  for self
+            bOnlyBaseline: reduce the height so that baseline position is more important
         """
 
+        if bOnlyBaseline:
+            #backup height
+            Hbackup = self.getHeight()
+            Ybackup= self.getY()
+            self.setHeight(1)
+            self.setY(Hbackup+self.getY())
         lOverlap=[]        
         for region in lRegions:
             lOverlap.append(self.signedRatioOverlap(region))
+        if bOnlyBaseline:
+            #restaure height
+            self.setHeight(Hbackup)
+            self.setY(Ybackup)
         
         if max(lOverlap) == 0: return None
         return lRegions[lOverlap.index(max(lOverlap))]
