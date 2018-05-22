@@ -88,6 +88,7 @@ class Polygon:
             xSum += iTerm * (xprev+x)
             ySum += iTerm * (yprev+y)
             xprev, yprev = x, y
+        if fA == 0.0:raise ValueError("surface == 0.0")
         fA = fA / 2
         xg, yg = xSum/6/fA, ySum/6/fA
         
