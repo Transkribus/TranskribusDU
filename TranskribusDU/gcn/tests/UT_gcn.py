@@ -182,6 +182,7 @@ class UT_gcn(unittest.TestCase):
         #TODO Test on Y too
         self.assertEquals(5,gc.X.shape[0])
         self.assertEquals(3,gc.E.shape[0])
+        #self.fail()
 
 
     def test_predict(self):
@@ -311,7 +312,7 @@ class UT_gcn(unittest.TestCase):
         Wa = tf.eye(node_dim)
         va = tf.ones([2,node_dim])
         # elf.Ssparse, self.Tspars
-        alphas,nH = gcn_model.simple_graph_attention_layer(gcn_model.node_input, Wa, va, gcn_model.Ssparse,
+        alphas,nH = GraphAttNet.simple_graph_attention_layer(gcn_model.node_input, Wa, va, gcn_model.Ssparse,
                                                         gcn_model.Tsparse, gcn_model.Aind, gcn_model.Sshape,
                                                         gcn_model.nb_edge, gcn_model.dropout_p_attn,gcn_model.dropout_p_node)
         alphas_shape = tf.shape(alphas)
@@ -370,7 +371,7 @@ class UT_gcn(unittest.TestCase):
         Wa = tf.eye(node_dim)
         va = tf.ones([2,node_dim])
         # elf.Ssparse, self.Tspars
-        alphas,nH = gcn_model.simple_graph_attention_layer(gcn_model.node_input, Wa, va, gcn_model.Ssparse,
+        alphas,nH = GraphAttNet.simple_graph_attention_layer(gcn_model.node_input, Wa, va, gcn_model.Ssparse,
                                                         gcn_model.Tsparse, gcn_model.Aind, gcn_model.Sshape,
                                                         gcn_model.nb_edge, gcn_model.dropout_p_attn,gcn_model.dropout_p_node,
                                                         add_self_loop=True)
@@ -955,7 +956,35 @@ class UT_gcn(unittest.TestCase):
         print(wHv)
         self.assertSequenceEqual(list(wHv[0]), [100,0.0])
 
+    def test_train_logit_attention(self):
+        #dropout_rate_attention
+        model_dir = 'UT_MODELS'
+        model_name = 'UT_mod1'
 
+        lTrn = _checkFindColDir('./abp_test')
+
+        dLearnerConfig = {'nb_iter': 50,
+                          'lr': 0.001,
+                          'num_layers': 3,
+                          'nconv_edge': 10,
+                          'stack_convolutions': True,
+                          'node_indim': -1,
+                          'mu': 0.0,
+                          'dropout_rate_edge': 0.0,
+                          'dropout_rate_edge_feat': 0.0,
+                          'dropout_rate_node': 0.0,
+                          'ratio_train_val': 0.15,
+                          'dropout_rate_attention':0.2,
+                          'logit_attention':True
+                          # 'activation': tf.nn.tanh, Problem I can not serialize function HERE
+                          }
+
+        doer = DU_ABPTable.DU_ABPTable_ECN(model_name, model_dir, dLearnerConfigArg=dLearnerConfig)
+
+        tstReport = doer.train_save_test(lTrn, lTrn, False, False)
+        acc, _ = tstReport.getClassificationReport()
+        print(acc)
+        self.assertTrue(acc > 0.5)
 
 
         #TODO Test files Too

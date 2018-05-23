@@ -1,7 +1,7 @@
 {
    "ecn_learner_config":
      {
-	"name":"8Lay1Conv",
+	"name":"ecn_logit_attention",
         "dropout_rate_edge": 0.2,
         "dropout_rate_edge_feat": 0.2,
         "dropout_rate_node": 0.2,
@@ -11,9 +11,12 @@
         "nconv_edge": 1,
         "node_indim": -1,
         "num_layers": 8,
+        "sum_attention":true,
         "ratio_train_val": 0.1,
-        "patience":50,
+        "patience":25,
         "activation_name":"tanh",
-        "stack_convolutions": false
+        "stack_convolutions": false,
+        "dropout_rate_attention":0.5,
+        "logit_attention":true
     }
 }

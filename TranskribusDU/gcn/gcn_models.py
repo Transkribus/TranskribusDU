@@ -41,6 +41,38 @@ class MultiGraphNN(object):
     Abstract Class for a Neural Net learned on a graph list
 
     '''
+    def set_learning_options(self, dict_model_config):
+        """
+        Set all learning options that not directly accessible from the constructor
+
+        :param kwargs:
+        :return:
+        """
+        print(dict_model_config)
+        for attrname, val in dict_model_config.items():
+            # We treat the activation function differently as we can not pickle/serialiaze python function
+            if attrname == 'activation_name':
+                if val == 'relu':
+                    self.activation = tf.nn.relu
+                elif val == 'tanh':
+                    self.activation = tf.nn.tanh
+                elif val == 'elu':
+                    self.activation = tf.nn.elu
+                elif val == 'selu':
+                    self.activation = tf.nn.selu
+                elif val== 'leaky_relu':
+                    self.activation = tf.nn.leaky_relu
+                else:
+                    raise Exception('Invalid Activation Function')
+            if attrname == 'stack_instead_add' or attrname == 'stack_convolutions':
+                self.stack_instead_add = val
+            if attrname not in self._setter_variables:
+                try:
+                    print('set', attrname, val)
+                    setattr(self, attrname, val)
+                except AttributeError:
+                    warnings.warn("Ignored options for ECN" + attrname + ':' + val)
+
     def train_lG(self,session,gcn_graph_train):
         '''
         Train an a list of graph
@@ -485,7 +517,7 @@ class EdgeConvNet(MultiGraphNN):
         self.shared_We = False#deprecated
         self.optim_mode=0 #deprecated
         self.init_fixed=False #ignore --for test purpose
-        self.logit_convolve=False#ignore --for test purpose
+
         self.train_Wn0=True #ignore --for test purpose
 
         self.dropout_rate_edge_feat= 0.0
@@ -496,38 +528,16 @@ class EdgeConvNet(MultiGraphNN):
         self.use_conv_weighted_avg=False
         self.use_edge_mlp=False
         self.edge_mlp_dim = 5
-        self.sum_attention=False
+        self.sum_attention = False
+        #Logit Attention
+        self.logit_attention =False
+        self.dropout_rate_attention = 0.0
 
         if node_indim==-1:
             self.node_indim=self.node_dim
         else:
             self.node_indim=node_indim
 
-    def set_learning_options(self,dict_model_config):
-        """
-        Set all learning options that not directly accessible from the constructor
-
-        :param kwargs:
-        :return:
-        """
-        print(dict_model_config)
-        for attrname,val in dict_model_config.items():
-            #We treat the activation function differently as we can not pickle/serialiaze python function
-            if attrname=='activation_name':
-                if val=='relu':
-                    self.activation=tf.nn.relu
-                elif val=='tanh':
-                    self.activation=tf.nn.tanh
-                else:
-                    raise Exception('Invalid Activation Function')
-            if attrname=='stack_instead_add' or attrname=='stack_convolutions':
-                self.stack_instead_add=val
-            if attrname not in self._setter_variables:
-                try:
-                    print('set',attrname,val)
-                    setattr(self,attrname,val)
-                except AttributeError:
-                    warnings.warn("Ignored options for ECN"+attrname+':'+val)
 
 
 
@@ -622,19 +632,6 @@ class EdgeConvNet(MultiGraphNN):
             #Else we take the mean
             P=1.0/(tf.cast(nconv,tf.float32))*tf.add_n(Cops)
             #print('p_add_n',P.get_shape())
-        return P
-
-    @staticmethod
-    def logitconvolve_fixed(pY,Yt,A_indegree):
-        '''
-        Tentative Implement of a fixed logit convolve without taking into account edge features
-        '''
-
-        #warning we should test that Yt is column normalized
-        pY_Yt = tf.matmul(pY,Yt,transpose_b=True)
-
-        #TODO A is dense but shoudl be sparse ....
-        P =tf.matmul(A_indegree,pY_Yt)
         return P
 
 
@@ -888,6 +885,10 @@ class EdgeConvNet(MultiGraphNN):
 
         self.F = tf.placeholder(tf.float32, [None, None], name='F')
 
+        #PlaceHolder for Attention Logit
+        self.dropout_p_node = tf.placeholder(tf.float32, (), name='dropout_prob_N')
+        self.dropout_p_attn = tf.placeholder(tf.float32, (), name='dropout_prob_edges')
+        self.Aind = tf.placeholder(tf.int64, name='Sshape')  # Adjacency indices
 
         std_dev_in = float(1.0 / float(self.node_dim))
 
@@ -928,7 +929,53 @@ class EdgeConvNet(MultiGraphNN):
         else:
             self.create_model_sum_convolutions()
 
-        self.logits = tf.add(tf.matmul(self.hidden_layers[-1], self.W_classif), self.B_classif)
+        #Add a last layer with GAT-convolution
+        if False and prelogit_attention:
+            raise NotImplementedError
+            if self.dropout_rate_attention>0 or self.dropout_rate_node>0:
+                prelogit_dropout=True
+            else:
+                prelogit_dropout = False
+
+            print('Creating Logit Attention')
+            for i in [1]:
+                Wprelogit_shape = self.hidden_layers[-1].get_shape().as_list()
+                #TODO This can change the logit size ...
+                logits_a = init_glorot([Wprelogit_shape[1],self.node_dim], name='Logita' + '_' + str(i))
+                via = init_glorot([2, int(self.n_classes)], name='LogitA' + '_' + str(i))
+                _, nL = GraphAttNet.simple_graph_attention_layer(self.hidden_layers[-1], logits_a, via, self.Ssparse,
+                                                                 self.Tsparse,
+                                                                 self.Aind,
+                                                                 self.Sshape, self.nb_edge, self.dropout_p_attn,
+                                                                 self.dropout_p_node,
+                                                                 use_dropout=logit_dropout, add_self_loop=False)
+
+        if self.logit_attention:
+            if self.dropout_rate_attention>0 or self.dropout_rate_node>0:
+                logit_dropout=True
+            else:
+                logit_dropout = False
+
+            #I should dropout out this one too in order to learn from the neighbors
+            out=[tf.add(tf.matmul(self.hidden_layers[-1], self.W_classif), self.B_classif)]
+            #Maybe Instead of doing that in the logit add an gat layer before that before the logit
+            #Could be simpler
+            print('Creating Logit Attention')
+            for i in [1]:
+                Wclassif_shape =self.W_classif.get_shape().as_list()
+                logits_a = init_glorot(Wclassif_shape,name='Logita' + '_' + str(i))
+                via = init_glorot([2, int(self.n_classes)], name='LogitA' + '_' + str(i))
+                _, nL = GraphAttNet.simple_graph_attention_layer(self.hidden_layers[-1], logits_a, via, self.Ssparse,
+                                                                 self.Tsparse,
+                                                                 self.Aind,
+                                                                 self.Sshape, self.nb_edge, self.dropout_p_attn,
+                                                                 self.dropout_p_node,
+                                                                 use_dropout=logit_dropout, add_self_loop=False)
+                out.append(nL)
+            print('OUT Logit',out)
+            self.logits = tf.add_n(out)
+        else:
+            self.logits = tf.add(tf.matmul(self.hidden_layers[-1], self.W_classif), self.B_classif)
         cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
         # Global L2 Regulization
         self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(self.W_classif)
@@ -1301,6 +1348,8 @@ class EdgeConvNet(MultiGraphNN):
         for i in range(n_iter):
             #print('Train',X.shape,EA.shape)
             #print('DropoutEdges',self.dropout_rate_edge)
+            # Aind needed for Attention Logit
+            Aind = np.array(np.stack([graph.Sind[:, 0], graph.Tind[:, 1]], axis=-1), dtype='int64')
             feed_batch = {
 
                 self.nb_node: graph.X.shape[0],
@@ -1315,7 +1364,10 @@ class EdgeConvNet(MultiGraphNN):
                 self.dropout_p_node: self.dropout_rate_node,
                 self.dropout_p_edge: self.dropout_rate_edge,
                 self.dropout_p_edge_feat: self.dropout_rate_edge_feat,
-                #self.NA_indegree:graph.NA_indegree
+                #Logit Attention Variable
+                self.Aind: Aind,
+                self.dropout_p_node: self.dropout_rate_node,
+                self.dropout_p_attn: self.dropout_rate_attention,
             }
 
             Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
@@ -1332,6 +1384,8 @@ class EdgeConvNet(MultiGraphNN):
         :param verbose:
         :return:
         '''
+        # Aind needed for Attention Logit
+        Aind = np.array(np.stack([graph.Sind[:, 0], graph.Tind[:, 1]], axis=-1), dtype='int64')
 
         feed_batch = {
 
@@ -1349,6 +1403,8 @@ class EdgeConvNet(MultiGraphNN):
             self.dropout_p_node: 0.0,
             self.dropout_p_edge: 0.0,
             self.dropout_p_edge_feat: 0.0,
+            self.Aind: Aind,
+            self.dropout_p_attn: 0.0,
             #self.NA_indegree: graph.NA_indegree
         }
 
@@ -1366,6 +1422,10 @@ class EdgeConvNet(MultiGraphNN):
         :param verbose:
         :return:
         '''
+
+        # Aind needed for Attention Logit
+        Aind = np.array(np.stack([graph.Sind[:, 0], graph.Tind[:, 1]], axis=-1), dtype='int64')
+
         feed_batch = {
             self.nb_node: graph.X.shape[0],
             self.nb_edge: graph.F.shape[0],
@@ -1381,7 +1441,8 @@ class EdgeConvNet(MultiGraphNN):
             self.dropout_p_node: 0.0,
             self.dropout_p_edge: 0.0,
             self.dropout_p_edge_feat: 0.0,
-            #self.NA_indegree: graph.NA_indegree
+            self.Aind: Aind,
+            self.dropout_p_attn: 0.0,
         }
         Ops = session.run([self.pred], feed_dict=feed_batch)
         if verbose:
@@ -1396,6 +1457,9 @@ class EdgeConvNet(MultiGraphNN):
         :param verbose:
         :return:
         '''
+        # Aind needed for Attention Logit
+        Aind = np.array(np.stack([graph.Sind[:, 0], graph.Tind[:, 1]], axis=-1), dtype='int64')
+
         feed_batch = {
             self.nb_node: graph.X.shape[0],
             self.nb_edge: graph.F.shape[0],
@@ -1411,6 +1475,8 @@ class EdgeConvNet(MultiGraphNN):
             self.dropout_p_node: 0.0,
             self.dropout_p_edge: 0.0,
             self.dropout_p_edge_feat: 0.0,
+            self.Aind: Aind,
+            self.dropout_p_attn: 0.0,
             #self.NA_indegree: graph.NA_indegree
         }
         Ops = session.run([self.predict_proba], feed_dict=feed_batch)
@@ -1849,32 +1915,7 @@ class GraphAttNet(MultiGraphNN):
         else:
             self.node_indim=node_indim
 
-    #TODO GENERIC Could be move in MultigraphNN
-    def set_learning_options(self,dict_model_config):
-        """
-        Set all learning options that not directly accessible from the constructor
 
-        :param kwargs:
-        :return:
-        """
-        print(dict_model_config)
-        for attrname,val in dict_model_config.items():
-            #We treat the activation function differently as we can not pickle/serialiaze python function
-            if attrname=='activation_name':
-                if val=='relu':
-                    self.activation=tf.nn.relu
-                elif val=='tanh':
-                    self.activation=tf.nn.tanh
-                else:
-                    raise Exception('Invalid Activation Function')
-            if attrname=='stack_instead_add' or attrname=='stack_convolutions':
-                self.stack_instead_add=val
-            if attrname not in self._setter_variables:
-                try:
-                    print('set',attrname,val)
-                    setattr(self,attrname,val)
-                except AttributeError:
-                    warnings.warn("Ignored options for ECN"+attrname+':'+val)
 
     def dense_graph_attention_layer(self,H,W,A,nb_node,dropout_attention,dropout_node,use_dropout=False):
         '''
@@ -1929,7 +1970,8 @@ class GraphAttNet(MultiGraphNN):
                 return alphas, alphasP
 
     #TODO Change the transpose of the A parameter
-    def simple_graph_attention_layer(self,H,W,A,S,T,Adjind,Sshape,nb_edge,
+    @staticmethod
+    def simple_graph_attention_layer(H,W,A,S,T,Adjind,Sshape,nb_edge,
                                      dropout_attention,dropout_node,
                                      use_dropout=False,add_self_loop=False,attn_type=0):
         '''
@@ -2060,7 +2102,7 @@ class GraphAttNet(MultiGraphNN):
                 H0 = tf.matmul(self.node_input, Wa)
                 attns0.append(H0)
 
-            _, nH = self.simple_graph_attention_layer(self.node_input, Wa, va, self.Ssparse, self.Tsparse, self.Aind,
+            _, nH = GraphAttNet.simple_graph_attention_layer(self.node_input, Wa, va, self.Ssparse, self.Tsparse, self.Aind,
                                                       self.Sshape, self.nb_edge, self.dropout_p_attn,
                                                       self.dropout_p_node,
                                                       use_dropout=self.use_dropout, add_self_loop=True)
@@ -2081,7 +2123,7 @@ class GraphAttNet(MultiGraphNN):
                                       name='Wa' + str(i) + '_' + str(a))
 
                 via = init_glorot([2, int(self.node_indim)], name='va' + str(i) + '_' + str(a))
-                _, nH = self.simple_graph_attention_layer(self.hidden_layer[-1], Wia, via, self.Ssparse, self.Tsparse,
+                _, nH = GraphAttNet.simple_graph_attention_layer(self.hidden_layer[-1], Wia, via, self.Ssparse, self.Tsparse,
                                                           self.Aind,
                                                           self.Sshape, self.nb_edge, self.dropout_p_attn,
                                                           self.dropout_p_node,
@@ -2097,7 +2139,7 @@ class GraphAttNet(MultiGraphNN):
             logits_a = init_glorot([int(self.node_indim * self.nb_attention), int(self.n_classes)],
                                    name='Logita' + '_' + str(a))
             via = init_glorot([2, int(self.n_classes)], name='LogitA' + '_' + str(a))
-            _, nL = self.simple_graph_attention_layer(self.hidden_layer[-1], logits_a, via, self.Ssparse, self.Tsparse,
+            _, nL = GraphAttNet.simple_graph_attention_layer(self.hidden_layer[-1], logits_a, via, self.Ssparse, self.Tsparse,
                                                       self.Aind,
                                                       self.Sshape, self.nb_edge, self.dropout_p_attn,
                                                       self.dropout_p_node,
@@ -2135,7 +2177,7 @@ class GraphAttNet(MultiGraphNN):
             va = init_glorot([2, int(self.node_dim)], name='va0' + str(a))
 
 
-            _, nH = self.simple_graph_attention_layer(H0, I, va, self.Ssparse, self.Tsparse, self.Aind,
+            _, nH = GraphAttNet.simple_graph_attention_layer(H0, I, va, self.Ssparse, self.Tsparse, self.Aind,
                                                       self.Sshape, self.nb_edge, self.dropout_p_attn,
                                                       self.dropout_p_node,
                                                       use_dropout=self.use_dropout, add_self_loop=False,attn_type=self.attn_type)
@@ -2160,7 +2202,7 @@ class GraphAttNet(MultiGraphNN):
 
             for a in range(self.nb_attention):
                 via = init_glorot([2, int(self.node_indim)], name='va' + str(i) + '_' + str(a))
-                _, nH = self.simple_graph_attention_layer(Hi, Ia, via, self.Ssparse, self.Tsparse,
+                _, nH = GraphAttNet.simple_graph_attention_layer(Hi, Ia, via, self.Ssparse, self.Tsparse,
                                                           self.Aind,
                                                           self.Sshape, self.nb_edge, self.dropout_p_attn,
                                                           self.dropout_p_node,
