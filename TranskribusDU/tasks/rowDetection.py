@@ -178,17 +178,31 @@ class RowDetection(Component.Component):
             col.setObjectsList(lNewCells[:])
             [table.addCell(c) for c in lNewCells]        
         
-        
+    
+    
+    def mineTableTypography(self,table):
+        """
+            find rows and columns patterns in terms of typographical position
+            
+            input: a set of rows  (table)
+            action: seq mining of rows 
+            output: pattern
+        """
+        for row in table.getRows(): row.mineTypography()
 
     def processRows(self,table,predefinedCuts=[]):
         """
         apply mining to get Y cuts for rows
         
-        if everything is centered? 
+        if everything is centered?
+        try thnum= [5,10,20,30,40,50] and keep better coherence!
+        
+        then ajust skewing ? 
         """
         rowMiner= tableRowMiner()
 #         print (self.THHighSupport)
-        lYcuts = rowMiner.columnMining(table,self.THHighSupport,predefinedCuts)
+        thnum = 15  # must be correlated with leading/text height? 
+        lYcuts = rowMiner.columnMining(table,thnum,self.THHighSupport,predefinedCuts)
         lYcuts.sort(key= lambda x:x.getValue())
 #         for c in lYcuts:  print (c, [x.getY() for x in c.getNodes()])
         print ('ycuts',lYcuts)
@@ -253,6 +267,24 @@ class RowDetection(Component.Component):
 #                     print (myRow)
 #                     myRow.tagMe(ds_xml.sROW)
 
+
+    
+    
+    def modifyRows(self,table):
+        """
+            add/remove cuts to see the impact?
+            (self-organizing?)
+            
+            
+            simply try several 
+        """    
+        
+        initialRows = table.getRows()[:]
+        #get cuts o be added? 
+        
+        
+        
+
     def findRowsInDoc(self,ODoc):
         """
         find rows
@@ -267,14 +299,15 @@ class RowDetection(Component.Component):
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
             for table in lTables:
                 rowscuts = list(map(lambda r:r.getY(),table.getRows()))
-#                 traceln ('initial cuts:',rowscuts)
+                traceln ('initial cuts:',rowscuts)
                 self.createCells(table)
                 if self.bCellOnly:
                     continue
-                self.processRows(table,rowscuts)        
-# #                 self.processRows(table,[])        
+#                 self.processRows(table,rowscuts)        
+                self.processRows(table,[])        
                 coherence = self.computeCoherenceScore(table)
                 traceln ('coherence Score: %f'%(coherence))
+                table.tagMe()
     
     def run(self,doc):
         """
@@ -793,6 +826,7 @@ if __name__ == "__main__":
     rdc.add_option("--createrefC", dest="createrefCluster", action="store_true", default=False, help="create REF file for component (cluster of textlines)")
     rdc.add_option("--evalC", dest="evalCluster", action="store_true", default=False, help="evaluation using clusters (of textlines)")
     rdc.add_option("--cell", dest="bCellOnly", action="store_true", default=False, help="generate cell candidate from BIO (no row)")
+    rdc.add_option("--nocolumn", dest="bNoColumn", action="store_true", default=False, help="no existing table/colunm)")
 
     rdc.add_option("--YC", dest="YCut", action="store_true", default=False, help="use Ycut")
 
