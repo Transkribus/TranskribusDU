@@ -183,7 +183,7 @@
       </TableCell>
       <TableCell row="0" col="5" rowSpan="17" colSpan="1" id="TableCell_1509696591373_6995">
         <Coords points="2349,174 2348,516 2351,690 2351,864 2355,1058 2354,1231 2357,1428 2359,1616 2357,1777 2359,1957 2360,2137 2362,2301 2359,2468 2360,2674 2366,2834 2367,2985 2364,3163 2367,3458 2623,3462 2616,3145 2622,2995 2620,2832 2614,2672 2612,2466 2608,2304 2607,2119 2606,1948 2604,1775 2594,1617 2594,1412 2590,1226 2589,1049 2582,866 2581,702 2576,521 2566,176"/>
-        <TextLine id="line_1509696436245_6993" custom="readingOrder {index:0;}">
+        <TextLine id="line_1509696436245_6993" custom="readingOrder {index:0;}" DU_row="O" DU_col="O" DU_header="O">
           <Coords points="2526,3232 2517,2658 2567,2657 2576,3231"/>
           <Baseline points="2571,3231 2562,2657"/>
           <TextEquiv>
@@ -2322,6 +2322,98 @@
         <Coords points="4215,3128 4224,3449 4714,3452 4720,3118"/>
         <CornerPts>0 1 2 3</CornerPts>
       </TableCell>
+      <SeparatorRegion orient="horizontal 192.6 -0.008">
+        <Coords points="184,191 4717,155"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 533.3 -0.007">
+        <Coords points="184,532 4720,501"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 702.7 -0.003">
+        <Coords points="184,702 4717,688"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 884.5 -0.009">
+        <Coords points="185,882 4719,841"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 1076.8 -0.010">
+        <Coords points="191,1074 4719,1030"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 1256.6 -0.013">
+        <Coords points="192,1254 4722,1195"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 1458.1 -0.014">
+        <Coords points="199,1455 4722,1391"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 1638.9 -0.008">
+        <Coords points="200,1637 4723,1602"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 1798.1 -0.007">
+        <Coords points="202,1796 4719,1767"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 1997.3 -0.016">
+        <Coords points="203,1994 4722,1922"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 2175.7 -0.021">
+        <Coords points="201,2171 4716,2077"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 2325.7 -0.011">
+        <Coords points="202,2323 4715,2274"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 2488.1 -0.008">
+        <Coords points="203,2486 4718,2449"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 2704.9 -0.013">
+        <Coords points="205,2702 4718,2642"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 2875.8 -0.017">
+        <Coords points="206,2872 4727,2793"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 3025.6 -0.012">
+        <Coords points="208,3023 4724,2967"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 3190.5 -0.014">
+        <Coords points="203,3187 4720,3122"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="horizontal 3467.2 -0.004">
+        <Coords points="206,3466 4714,3449"/>
+      </SeparatorRegion>
+      <!--	HORIZONTAL: Average=-1.1%  stdev=0.46%  min=-2.1% max=-0.3%-->
+      <SeparatorRegion orient="vertical 189.0 0.005">
+        <Coords points="190,190 208,3468"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 637.9 0.005">
+        <Coords points="638,185 656,3464"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 1162.9 0.007">
+        <Coords points="1164,180 1187,3461"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 1545.0 0.004">
+        <Coords points="1545,177 1560,3461"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 1824.5 0.008">
+        <Coords points="1826,175 1853,3461"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 2347.3 0.006">
+        <Coords points="2348,174 2367,3458"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 2570.1 0.016">
+        <Coords points="2572,176 2627,3462"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 2979.7 0.016">
+        <Coords points="2982,173 3034,3456"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 3453.9 0.018">
+        <Coords points="3456,163 3514,3454"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 3649.2 0.019">
+        <Coords points="3652,166 3714,3454"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 4155.9 0.019">
+        <Coords points="4158,159 4223,3449"/>
+      </SeparatorRegion>
+      <SeparatorRegion orient="vertical 4719.1 0.000">
+        <Coords points="4719,154 4720,3452"/>
+      </SeparatorRegion>
+      <!--	VERTICAL  : Average=1.0%  stdev=0.64%  min=0.0% max=1.9%-->
       <SeparatorRegion orient="horizontal 192.6 -0.008">
         <Coords points="184,191 4717,155"/>
       </SeparatorRegion>
