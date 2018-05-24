@@ -72,7 +72,7 @@ class RowDetection(Component.Component):
 
         self.do2DS= False
         
-        self.THHighSupport = 0.33
+        self.THHighSupport = 0.20
         self.bYCut = False
         self.bCellOnly = False
         # for --test
@@ -208,7 +208,7 @@ class RowDetection(Component.Component):
         print ('ycuts',lYcuts)
 
         # shift up offset / find a better way to do this: integration skewing 
-        [ x.setValue(x.getValue()-10) for x in lYcuts ]
+        [ x.setValue(x.getValue()-5) for x in lYcuts ]
         table.createRowsWithCuts(lYcuts)
         table.reintegrateCellsInColRow()
 
