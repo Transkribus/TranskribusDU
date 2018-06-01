@@ -37,28 +37,64 @@ from common.trace import traceln
 
 from crf.Graph_MultiPageXml import Graph_MultiPageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
-from DU_CRF_Task import DU_CRF_Task
+from tasks.DU_CRF_Task import DU_CRF_Task
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_T_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 
-from DU_BAR import main
+from tasks.DU_BAR import main
  
 class DU_BAR_sem(DU_CRF_Task):
     """
     We will do a typed CRF model for a DU task
     , with the below labels 
     """
-    sLabeledXmlFilenamePattern = "*.du_mpxml"
+    sLabeledXmlFilenamePattern = "*.bar_mpxml"
 
+
+    #=== CONFIGURATION ====================================================================
+    @classmethod
+    def getConfiguredGraphClass(cls):
+        """
+        In this class method, we must return a configured graph class
+        """
+        #DEFINING THE CLASS OF GRAPH WE USE
+        DU_GRAPH = Graph_MultiPageXml
+
+        lLabels1 = ['heading', 'header', 'page-number', 'resolution-number', 'resolution-marginalia', 'resolution-paragraph', 'other']
+        
+        #the converter changed to other unlabelled TextRegions or 'marginalia' TRs
+        lIgnoredLabels1 = None
+        
+        """
+        if you play with a toy collection, which does not have all expected classes, you can reduce those.
+        """
+        
+#         lActuallySeen = None
+#         if lActuallySeen:
+#             print( "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING")
+#             lIgnoredLabels  = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
+#             lLabels         = [lLabels[i] for i in lActuallySeen ]
+#             print( len(lLabels)          , lLabels)
+#             print( len(lIgnoredLabels)   , lIgnoredLabels)
+
+        nt1 = NodeType_PageXml_type_woText("sem"                   #some short prefix because labels below are prefixed with it
+                              , lLabels1
+                              , lIgnoredLabels1
+                              , False    #no label means OTHER
+                              , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
+                              )
+        nt1.setLabelAttribute("DU_sem")
+        nt1.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
+                          , "./pc:TextEquiv")       #how to get their text
+                       )
+        DU_GRAPH.addNodeType(nt1)
+            
+        return DU_GRAPH
+
+    
     # ===============================================================================================================
-    #DEFINING THE CLASS OF GRAPH WE USE
-    DU_GRAPH = Graph_MultiPageXml
     
 
-    lLabels1 = ['heading', 'header', 'page-number', 'resolution-number', 'resolution-marginalia', 'resolution-paragraph', 'other']
-    
-    #the converter changed to other unlabelled TextRegions or 'marginalia' TRs
-    lIgnoredLabels1 = None
     
     # """
     # if you play with a toy collection, which does not have all expected classes, you can reduce those.
@@ -73,24 +109,14 @@ class DU_BAR_sem(DU_CRF_Task):
     #     print len(lIgnoredLabels)   , lIgnoredLabels
     #     nbClass = len(lLabels) + 1  #because the ignored labels will become OTHER
     
-    nt1 = NodeType_PageXml_type_woText("sem"                   #some short prefix because labels below are prefixed with it
-                          , lLabels1
-                          , lIgnoredLabels1
-                          , False    #no label means OTHER
-                          , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
-                          )
-    nt1.setLabelAttribute("DU_sem")
-    nt1.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
-                      , "./pc:TextEquiv")       #how to get their text
-                   )
-    DU_GRAPH.addNodeType(nt1)
+
     
     #=== CONFIGURATION ====================================================================
     def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
         
         DU_CRF_Task.__init__(self
                      , sModelName, sModelDir
-                     , self.DU_GRAPH
+                     , dFeatureConfig = {  }
                      , dLearnerConfig = {
                                    'C'                : .1   if C               is None else C
                                  , 'njobs'            : 8    if njobs           is None else njobs
@@ -115,7 +141,7 @@ class DU_BAR_sem(DU_CRF_Task):
 #                          }
                      )
         
-        traceln("- classes: ", self.DU_GRAPH.getLabelNameList())
+        traceln("- classes: ", self.getGraphClass().getLabelNameList())
 
         self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
         
