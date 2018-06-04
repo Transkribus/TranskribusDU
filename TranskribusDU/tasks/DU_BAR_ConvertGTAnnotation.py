@@ -59,7 +59,7 @@ class DU_BAR_Convert:
     These new annotations are store in @DU_sem and @DU_sgm
     """
     sXml_HumanAnnotation_Extension   = ".mpxml"
-    sXml_MachineAnnotation_Extension = ".du_mpxml"
+    sXml_MachineAnnotation_Extension = ".bar_mpxml"
     
     sMetadata_Creator  = "TranskribusDU/usecases/BAR/DU_ConvertGTAnnotation.py"
     sMetadata_Comments = "Converted human annotation into semantic and segmentation annotation. See attributes @DU_sem and @DU_sgm."
@@ -81,7 +81,8 @@ class DU_BAR_Convert:
                      "marginalia"   : sOther,
                      "p"            :"resolution-paragraph",
                      "m"            :"resolution-marginalia",
-                     ""             :"resolution-number"
+                     ""             :"resolution-number",
+                     None           : sOther    #for strange things
                      }
     creResolutionHumanLabel = re.compile("([mp]?)([0-9]+.?)")  #e.g. p1 m23 456 456a 
     
@@ -101,7 +102,7 @@ class DU_BAR_Convert:
         
         g = Graph_MultiPageXml()
         
-        doc = etree.parse(sFilename, encodingg='utf-8')
+        doc = etree.parse(sFilename)
 
         #the Heigh/Ho annotation runs over consecutive pages, so we keep those values accross pages
         self._initSegmentationLabel()
@@ -115,7 +116,13 @@ class DU_BAR_Convert:
         assert sFilename.endswith(self.sXml_HumanAnnotation_Extension)
         
         sDUFilename = sFilename[:-len(self.sXml_HumanAnnotation_Extension)] + self.sXml_MachineAnnotation_Extension
-        doc.save(sDUFilename,encoding='utf-8',pretty_print=True)
+#         doc.save(sDUFilename, encoding='utf-8', pretty_print=True)
+        doc.write(sDUFilename,
+                  xml_declaration=True,
+                  encoding="utf-8",
+                  pretty_print=True
+                  #compression=0,  #0 to 9
+                  )
         
 #         doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
 #         doc.freeDoc()     
@@ -345,12 +352,22 @@ class DU_BAR_Convert_BIES(DU_BAR_Convert):
                         bCurrentIsAStart = False
                 else:
                     o = self.creResolutionHumanLabel.match(lbl)
-                    if not o: raise ValueError("%s is not a valid human annotation" % lbl)
-                    semLabel = self.dAnnotMapping[o.group(1)]   #"" for the resolution number
-                     
-                    #Here we have a resolution number!
-                    sResoNum = o.group(2)
-                    if not sResoNum: raise ValueError("%s is not a valid human annotation - missing resolution number" % lbl)
+                    if not o:
+                    
+                        if False:  # strict
+                            raise ValueError("%s is not a valid human annotation" % lbl)
+                        else:
+                            # relaxed
+                            print(" ** WARNING ** strange annotation on node id=%s : '%s'"%(nd.get("id"), lbl))
+                            semLabel = self.dAnnotMapping[None]                          
+                            #Here we have a resolution number!
+                            sResoNum = self._prevNum
+                    else:
+                        semLabel = self.dAnnotMapping[o.group(1)]   #"" for the resolution number
+                        
+                        #Here we have a resolution number!
+                        sResoNum = o.group(2)
+                        if not sResoNum: raise ValueError("%s is not a valid human annotation - missing resolution number" % lbl)
                      
                     if self._prevNum != False and self._prevNum != sResoNum:
                         #we got a new number, so switching segmentation label!  
@@ -359,6 +376,7 @@ class DU_BAR_Convert_BIES(DU_BAR_Convert):
                         #either same number or switching already done due to a heading
                         bCurrentIsAStart = False
                     self._prevNum = sResoNum
+
  
                  
             except PageXmlException:

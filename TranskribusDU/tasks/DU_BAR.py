@@ -35,7 +35,7 @@ except ImportError:
 from common.trace import traceln
 from tasks import _checkFindColDir, _exit
 
-from DU_CRF_Task import DU_CRF_Task
+from tasks.DU_CRF_Task import DU_CRF_Task
 
 
 def main(DU_BAR):
@@ -101,13 +101,13 @@ def main(DU_BAR):
         #-------------------
         
     if lFold:
-        loTstRpt = doer.nfold_Eval(lFold, 3, .25, None)
+        loTstRpt = doer.nfold_Eval(lFold, 3, .25, None, options.pkl)
         import crf.Model
         sReportPickleFilename = os.path.join(sModelDir, sModelName + "__report.txt")
         traceln("Results are in %s"%sReportPickleFilename)
         crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
     elif lTrn:
-        doer.train_save_test(lTrn, lTst, options.warm)
+        doer.train_save_test(lTrn, lTst, options.warm, options.pkl)
         try:    traceln("Baseline best estimator: %s"%doer.bsln_mdl.best_params_)   #for GridSearch
         except: pass
         traceln(" --- CRF Model ---")
@@ -118,8 +118,13 @@ def main(DU_BAR):
         traceln(tstReport)
     
     if lRun:
-        doer.load()
-        lsOutputFilename = doer.predict(lRun,sDocId)
+        if options.storeX or options.applyY:
+            try: doer.load() 
+            except: pass    #we only need the transformer
+            lsOutputFilename = doer.runForExternalMLMethod(lRun, options.storeX, options.applyY)
+        else:
+            doer.load()
+            lsOutputFilename = doer.predict(lRun)
         traceln("Done, see in:\n  %s"%lsOutputFilename)
 
 if __name__ == "__main__":
