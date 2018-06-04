@@ -154,6 +154,9 @@ class NodeType_PageXml(NodeType):
 #                 x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
 
                 x1,y1,x2,y2 = plg.getBoundingBox()
+            except ValueError:
+                x1,y1,x2,y2 = plg.getBoundingBox()
+                
                 
             #we reduce a bit this rectangle, to ovoid overlap
             if not(self.BBoxDeltaFun is None):

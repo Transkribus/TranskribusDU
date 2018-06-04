@@ -107,7 +107,7 @@ class tableRowMiner(Component.Component):
         feature.setType(featureObject.NUMERICAL)
         return feature
     
-    def columnMining(self,table,th,predefinedCuts=[]):
+    def columnMining(self,table,thnum, th,predefinedCuts=[]):
         """
             for a table: take itemset=colmun, item=cell(Y) + separator
             - test: is a same rowgrid for all pages: row of fixed positions, size
@@ -118,13 +118,16 @@ class tableRowMiner(Component.Component):
         PREPRO: get the Y of overlaping separators for each col
             
         """
-
-     
+        if thnum != None:
+            self.THNUMERICAL = thnum
+        
         lElts=  table.getColumns() #getAllNamedObjects(XMLDSTABLECOLUMNClass)
         for elt in lElts:
             # how to add separator?
 #             for c in elt.getCells():c.setHeight()
+            elt.resetFeatures()
             elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['y'],myLevel=XMLDSTABLECELLClass)
+
             ## add predefinedCuts here
             elt.computeSetofFeatures()
             for prevFea in predefinedCuts:
