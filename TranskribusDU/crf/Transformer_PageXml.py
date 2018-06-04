@@ -261,12 +261,15 @@ class EdgeTransformerByClassIndex(Transformer):
     """
     We are interested only in 1 class of edge
     """
-    def __init__(self, n, bMirrorPage=True):
+    def __init__(self, n, bMirrorPage=True, bMultiPage=True):
         Transformer.__init__(self)
         if bMirrorPage:
             self._edgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge, CrossMirrorPageEdge][n]
         else:
-            self._edgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge][n]
+            if bMultiPage:
+                self._edgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge][n]
+            else:   
+                self._edgeClass = [HorizontalEdge, VerticalEdge][n]
 
 class EdgeTransformerSourceText(EdgeTransformerByClassIndex):
     """
@@ -300,12 +303,15 @@ class EdgeTransformerClassShifter(Transformer):
     
     lDefaultEdgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge]
     
-    def __init__(self, bMirrorPage=True):
+    def __init__(self, bMirrorPage=True, bMultiPage=True):
         Transformer.__init__(self)
         if bMirrorPage:
             lEdgeClass = self.lDefaultEdgeClass + [CrossMirrorPageEdge] #this makes a copy
         else:
-            lEdgeClass = list(self.lDefaultEdgeClass)                   #list(..) to make a copy
+            if bMultiPage:
+                lEdgeClass = list(self.lDefaultEdgeClass)
+            else:
+                lEdgeClass = list(self.lDefaultEdgeClass[0:2])
 
             
         self._nbEdgeFeat = self.nbFEAT * len(lEdgeClass)

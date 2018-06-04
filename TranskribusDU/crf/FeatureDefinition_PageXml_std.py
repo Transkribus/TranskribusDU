@@ -33,25 +33,34 @@ import numpy as np
 from sklearn.pipeline import Pipeline, FeatureUnion
 #not robust to empty arrays, so use our robust intermediary class instead
 #from sklearn.preprocessing import StandardScaler
-from crf.Transformer import RobustStandardScaler as StandardScaler
+from crf.Transformer import EmptySafe_QuantileTransformer as QuantileTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from crf.Transformer import TransformerListByType
+
 from crf.Transformer import SparseToDense
-from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen, NodeTransformerXYWH, NodeTransformerNeighbors, Node1HotFeatures
-from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector, EdgeTransformerSourceText, EdgeTransformerTargetText
+
+from crf.Transformer_PageXml import NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures
+from crf.Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures_v2, EdgeNumericalSelector
+from crf.Transformer_PageXml import NodeTransformerTextEnclosed, NodeTransformerTextLen
+from crf.Transformer_PageXml import EdgeTransformerSourceText, EdgeTransformerTargetText
 from crf.PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 
 from .FeatureDefinition import FeatureDefinition
 
 class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
+
+    n_QUANTILES = 16
     
     def __init__(self, n_tfidf_node=None, t_ngrams_node=None, b_tfidf_node_lc=None
-                     , n_tfidf_edge=None, t_ngrams_edge=None, b_tfidf_edge_lc=None): 
+                     , n_tfidf_edge=None, t_ngrams_edge=None, b_tfidf_edge_lc=None
+                     , bMirrorPage=True, bMultiPage=True): 
         FeatureDefinition.__init__(self)
         
         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
         self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc = n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc
-
+        self.bMirrorPage = bMirrorPage
+        self.bMultiPage  = bMultiPage
         tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=self.n_tfidf_node
                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
                                                                                   , dtype=np.float64)
@@ -69,17 +78,19 @@ class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
                                     , 
                                     ("textlen", Pipeline([
                                                          ('selector', NodeTransformerTextLen()),
-                                                         ('textlen', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ('textlen', QuantileTransformer(n_quantiles=self.n_QUANTILES, copy=False))  #use in-place scaling
                                                          ])
                                        )
                                     , ("xywh", Pipeline([
-                                                         ('selector', NodeTransformerXYWH()),
-                                                         ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ('selector', NodeTransformerXYWH_v2()),
+                                                         #v1 ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ('xywh', QuantileTransformer(n_quantiles=self.n_QUANTILES, copy=False))  #use in-place scaling
                                                          ])
                                        )
                                     , ("neighbors", Pipeline([
                                                          ('selector', NodeTransformerNeighbors()),
-                                                         ('neighbors', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         #v1 ('neighbors', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ('neighbors', QuantileTransformer(n_quantiles=self.n_QUANTILES, copy=False))  #use in-place scaling
                                                          ])
                                        )
                                     , ("1hot", Pipeline([
@@ -107,16 +118,17 @@ class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
                                                          ])
                                         )
                                     , ("boolean", Pipeline([
-                                                         ('boolean', EdgeBooleanFeatures())
+                                                         ('boolean', EdgeBooleanFeatures_v2())
                                                          ])
                                         )
                                     , ("numerical", Pipeline([
                                                          ('selector', EdgeNumericalSelector()),
-                                                         ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         #v1 ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ('numerical', QuantileTransformer(n_quantiles=self.n_QUANTILES, copy=False))  #use in-place scaling
                                                          ])
                                         )
                                     , ("sourcetext0", Pipeline([
-                                                       ('selector', EdgeTransformerSourceText(0)),
+                                                       ('selector', EdgeTransformerSourceText(0, bMirrorPage=bMirrorPage, bMultiPage=bMultiPage)),
                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
                                                                                  , dtype=np.float64)),
@@ -124,7 +136,7 @@ class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
                                                        ])
                                        )
                                     , ("targettext0", Pipeline([
-                                                       ('selector', EdgeTransformerTargetText(0)),
+                                                       ('selector', EdgeTransformerTargetText(0, bMirrorPage=bMirrorPage, bMultiPage=bMultiPage)),
                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge
                                                                                  #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
@@ -133,7 +145,7 @@ class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
                                                        ])
                                        )
                                     , ("sourcetext1", Pipeline([
-                                                       ('selector', EdgeTransformerSourceText(1)),
+                                                       ('selector', EdgeTransformerSourceText(1, bMirrorPage=bMirrorPage, bMultiPage=bMultiPage)),
                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
                                                                                  , dtype=np.float64)),
@@ -141,7 +153,7 @@ class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
                                                        ])
                                        )
                                     , ("targettext1", Pipeline([
-                                                       ('selector', EdgeTransformerTargetText(1)),
+                                                       ('selector', EdgeTransformerTargetText(1, bMirrorPage=bMirrorPage, bMultiPage=bMultiPage)),
                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge
                                                                                  #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
@@ -149,16 +161,18 @@ class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
                                                        ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
                                                        ])
                                        )
-                                    , ("sourcetext2", Pipeline([
-                                                       ('selector', EdgeTransformerSourceText(2)),
+                                    ]
+        if bMultiPage:
+            lEdgeFeature.extend([("sourcetext2", Pipeline([
+                                                       ('selector', EdgeTransformerSourceText(2, bMirrorPage=bMirrorPage, bMultiPage=bMultiPage)),
                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge  #(2,6)
                                                                                  , dtype=np.float64)),
                                                        ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
                                                        ])
                                        )
-                                    , ("targettext2", Pipeline([
-                                                       ('selector', EdgeTransformerTargetText(2)),
+                                , ("targettext2", Pipeline([
+                                                       ('selector', EdgeTransformerTargetText(2, bMirrorPage=bMirrorPage, bMultiPage=bMultiPage)),
                                                        ('tfidf', TfidfVectorizer(lowercase=self.b_tfidf_edge_lc, max_features=self.n_tfidf_edge
                                                                                  , analyzer = 'char', ngram_range=self.t_ngrams_edge
                                                                                  #, analyzer = 'word', ngram_range=self.tEDGE_NGRAMS
@@ -166,7 +180,7 @@ class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
                                                        ('todense', SparseToDense())  #pystruct needs an array, not a sparse matrix
                                                        ])
                                        )                        
-                        ]
+                        ])
                         
         edge_transformer = FeatureUnion( lEdgeFeature )
           
@@ -183,7 +197,12 @@ class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
         JL
         """
         self._node_transformer.transformer_list[0][1].steps[1][1].stop_words_ = None   #is 1st in the union...
-        for i in [2, 3, 4, 5, 6, 7]:
+        
+        if self.bMirrorPage:
+            imax = 9
+        else:
+            imax = 7
+        for i in range(3, imax):
             self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
         return self._node_transformer, self._edge_transformer        
 
