@@ -148,7 +148,6 @@ class primaAnalysis(Component.Component):
         if lPoints!= []:
 #             sp = lPoints[0].text.replace(' ',',')
             sp = lPoints[0].replace(' ',',')
-
             if sp != "":
                 scaledP=  map(lambda x: 72.0* float(x) / self.dpi,sp.split(','))
                 scaledP = str(list(scaledP))[1:-1].replace(' ','')
@@ -318,6 +317,9 @@ class primaAnalysis(Component.Component):
 #         xpath  = "./a:%s" % ("TableCell")
 #         ctxt.setContextNode(tableNode)
         lCells = tableNode.xpath("./a:%s" % ("TableCell"),namespaces={"a":self.xmlns})
+        sp = self.getPoints(tableNode)
+        dstable.set('points',sp)
+        
         for cell in lCells:
             cellNode = etree.Element(ds_xml.sCELL)
             dstable.append(cellNode)
