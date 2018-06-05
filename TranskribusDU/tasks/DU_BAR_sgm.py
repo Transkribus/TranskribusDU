@@ -35,32 +35,78 @@ except ImportError:
 
 from common.trace import traceln
 
-from crf.Graph_MultiPageXml import Graph_MultiContinousPageXml
-from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
-from DU_CRF_Task import DU_CRF_Task
+from crf.Graph_MultiPageXml import Graph_MultiPageXml
+from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
+from crf.NodeType_PageXml   import NodeType_PageXml_type_woText, NodeType_PageXml_type
+from tasks.DU_CRF_Task import DU_CRF_Task
+from crf.FeatureDefinition_PageXml_std import FeatureDefinition_PageXml_StandardOnes
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_T_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 
-from DU_BAR import main
+from tasks.DU_BAR import main
  
 class DU_BAR_sgm(DU_CRF_Task):
     """
     We will do a typed CRF model for a DU task
     , with the below labels 
     """
-    sLabeledXmlFilenamePattern = "*.du_mpxml"
+    sLabeledXmlFilenamePattern = "*.bar_mpxml"
 
+    bHTR     = True  # do we have text from an HTR?
+    bPerPage = True # do we work per document or per page?
+    
+    #=== CONFIGURATION ====================================================================
+    @classmethod
+    def getConfiguredGraphClass(cls):
+        """
+        In this class method, we must return a configured graph class
+        """
+        #DEFINING THE CLASS OF GRAPH WE USE
+        if cls.bPerPage:
+            DU_GRAPH = Graph_MultiSinglePageXml  # consider each age as if indep from each other
+        else:
+            DU_GRAPH = Graph_MultiPageXml
+
+        lLabels2 = ['B', 'I', 'E']  #we never see any S...  , 'S']
+        
+        #the converter changed to other unlabelled TextRegions or 'marginalia' TRs
+        lIgnoredLabels2 = None
+        
+        """
+        if you play with a toy collection, which does not have all expected classes, you can reduce those.
+        """
+        
+#         lActuallySeen = None
+#         if lActuallySeen:
+#             print( "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING")
+#             lIgnoredLabels  = [lLabels[i] for i in range(len(lLabels)) if i not in lActuallySeen]
+#             lLabels         = [lLabels[i] for i in lActuallySeen ]
+#             print( len(lLabels)          , lLabels)
+#             print( len(lIgnoredLabels)   , lIgnoredLabels)
+        if cls.bHTR:
+            ntClass = NodeType_PageXml_type
+        else:
+            #ignore text
+            ntClass = NodeType_PageXml_type_woText
+                         
+        nt2 = ntClass("sgm"                   #some short prefix because labels below are prefixed with it
+                              , lLabels2
+                              , lIgnoredLabels2
+                              , False    #no label means OTHER
+                              , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
+                              )
+        nt2.setLabelAttribute("DU_sgm")
+        nt2.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
+                          , "./pc:TextEquiv")       #how to get their text
+                       )
+        DU_GRAPH.addNodeType(nt2)
+            
+        return DU_GRAPH
+
+    
     # ===============================================================================================================
-    #DEFINING THE CLASS OF GRAPH WE USE
-    DU_GRAPH = Graph_MultiContinousPageXml
     
 
-    #lLabels2 = ['heigh', 'ho', 'other']
-    #lLabels2 = ['heigh', 'ho']
-    lLabels2 = ['B', 'I', 'E']  #we never see any S...  , 'S']
-
-    # Some TextRegion have no segmentation label at all, and were labelled'other' by the converter
-    lIgnoredLabels2 = None
     
     # """
     # if you play with a toy collection, which does not have all expected classes, you can reduce those.
@@ -75,24 +121,25 @@ class DU_BAR_sgm(DU_CRF_Task):
     #     print len(lIgnoredLabels)   , lIgnoredLabels
     #     nbClass = len(lLabels) + 1  #because the ignored labels will become OTHER
     
-    nt2 = NodeType_PageXml_type_woText("sgm"                   #some short prefix because labels below are prefixed with it
-                          , lLabels2
-                          , lIgnoredLabels2
-                          , False    #no label means OTHER
-                          , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
-                          )
-    nt2.setLabelAttribute("DU_sgm")
-    nt2.setXpathExpr( (".//pc:TextRegion"        #how to find the nodes
-                      , "./pc:TextEquiv")       #how to get their text
-                   )
-    DU_GRAPH.addNodeType(nt2)
+
     
     #=== CONFIGURATION ====================================================================
     def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
         
+        if self.bHTR:
+            cFeatureDefinition = FeatureDefinition_PageXml_StandardOnes
+            dFeatureConfig = { 'bMultiPage':False, 'bMirrorPage':False  
+                              , 'n_tfidf_node':500, 't_ngrams_node':(2,4), 'b_tfidf_node_lc':False
+                              , 'n_tfidf_edge':250, 't_ngrams_edge':(2,4), 'b_tfidf_edge_lc':False }
+        else:
+            cFeatureDefinition = FeatureDefinition_PageXml_StandardOnes_noText
+            dFeatureConfig = { 'bMultiPage':False, 'bMirrorPage':False  
+                              , 'n_tfidf_node':None, 't_ngrams_node':None, 'b_tfidf_node_lc':None
+                              , 'n_tfidf_edge':None, 't_ngrams_edge':None, 'b_tfidf_edge_lc':None }
+        
         DU_CRF_Task.__init__(self
                      , sModelName, sModelDir
-                     , self.DU_GRAPH
+                     , dFeatureConfig = dFeatureConfig
                      , dLearnerConfig = {
                                    'C'                : .1   if C               is None else C
                                  , 'njobs'            : 8    if njobs           is None else njobs
@@ -103,7 +150,7 @@ class DU_BAR_sgm(DU_CRF_Task):
                                  , 'max_iter'         : 1000 if max_iter        is None else max_iter
                          }
                      , sComment=sComment
-                     , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
+                     , cFeatureDefinition=cFeatureDefinition
 #                     , cFeatureDefinition=FeatureDefinition_T_PageXml_StandardOnes_noText
 #                      , dFeatureConfig = {
 #                          #config for the extractor of nodes of each type
@@ -117,7 +164,7 @@ class DU_BAR_sgm(DU_CRF_Task):
 #                          }
                      )
         
-        traceln("- classes: ", self.DU_GRAPH.getLabelNameList())
+        traceln("- classes: ", self.getGraphClass().getLabelNameList())
 
         self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
         
