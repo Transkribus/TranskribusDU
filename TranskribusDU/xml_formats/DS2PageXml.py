@@ -284,12 +284,11 @@ class DS2PageXMLConvertor(Component):
             conversion
         """
         ODoc =XMLDSDocument()
-        ODoc.lastPage=1
+#         ODoc.lastPage=1
         ODoc.loadFromDom(domDoc)
         lPageXmlDoc=[]
         lPages= ODoc.getPages()
         for page in lPages:
-#             print("%s %s"%(page, page.getAttribute('imageFilename')))
             try:filename = os.path.basename(page.getAttribute('imageFilename'))
             except:filename="fakename"
             pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='NLE', filename =filename, imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
