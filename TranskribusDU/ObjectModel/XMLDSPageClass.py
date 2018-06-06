@@ -98,11 +98,11 @@ class  XMLDSPageClass(XMLDSObjectClass):
         # get properties
         for  prop in domNode.keys():
             self.addAttribute(prop,domNode.get(prop))
+            if prop =='x': self._x= float(domNode.get(prop))
+            elif prop =='y': self._y = float(domNode.get(prop))
+            elif prop =='height': self._h = float(domNode.get(prop))
+            elif prop =='width': self.setWidth(float(domNode.get(prop)))            
             
-#         ctxt = domNode.doc.xpathNewContext()
-#         ctxt.setContextNode(domNode)
-#         ldomElts = ctxt.xpathEval('./*')
-#         ctxt.xpathFreeContext()
         ldomElts = domNode.findall('./*')
         for elt in ldomElts:
             ### GT elt
