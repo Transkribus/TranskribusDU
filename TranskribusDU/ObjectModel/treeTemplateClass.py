@@ -13,8 +13,11 @@ from __future__ import absolute_import
 from __future__ import  print_function
 from __future__ import unicode_literals
 
-from .templateClass import templateClass
 import numpy as np
+from scipy.optimize import linear_sum_assignment
+
+from .templateClass import templateClass
+from spm.frechet import frechetDist
 
 class treeTemplateClass(templateClass):
     """
@@ -119,6 +122,30 @@ class treeTemplateClass(templateClass):
         return None  
                 
     
+    def findBestMatch2(self,lRegCuts,lCuts):
+        """
+            best match using hungarian
+            add a threshold!
+        """
+        cost_matrix=np.zeros((len(lRegCuts),len(lCuts)),dtype=float)
+        
+        for a,refx in enumerate(lRegCuts):
+            for b,x in enumerate(lCuts):
+                dist = refx.getDistance(x)
+                cost_matrix[a,b]=dist
+            
+        r1,r2 = linear_sum_assignment(cost_matrix)
+        
+        ltobeDel=[]
+        for a,i in enumerate(r2):
+            #if cost is too high: cut the assignment?
+            if cost_matrix[a,i] > 100:
+#                 print (a,i,lRegCuts[a],lCuts[i], cost_matrix[a,i], 'deleted')
+                ltobeDel.append(a)
+        r2[ltobeDel]=False
+        r1[ltobeDel]=False
+        # score Fréchet distance etween two mapped sequences    
+        return r1,r2,None
     
     def findBestMatch(self,lRegCuts,lCuts):
         """
@@ -189,15 +216,22 @@ class treeTemplateClass(templateClass):
         states,score =  d.Decode(np.arange(len(lCuts)))
 #         print "dec",score, states 
 #         print map(lambda x:(x,x.getCanonical().getWeight()),lCuts)
-#         print states
+        print (states, type(states[0]))
 #         for i,si in enumerate(states):
 #             print lCuts[si],si
 #             print obs[si,:]
         
         # return the best alignment with template
         return states, score                
+             
+             
+    def computeScore(self,p,q):
+        d =frechetDist(list(map(lambda x:(x.getValue(),0),p)),list(map(lambda x:(x.getValue(),0),q)))
+#         print (d,list(map(lambda x:(x.getValue(),0),p)),list(map(lambda x:x.getValue(),q)))
+        return 1/(0.1 + frechetDist(list(map(lambda x:(x.getValue(),0),p)),list(map(lambda x:(x.getValue(),0),q))))
+        
                 
-    def computeScore(self,patLen,lReg,lMissed,lCuts):
+    def computeScoreold(self,patLen,lReg,lMissed,lCuts):
         """
             it seems better not to use canonical: thus score better reflects the page 
             
@@ -256,25 +290,20 @@ class treeTemplateClass(templateClass):
             return None,None,-1
         
 #         print self.getPattern(), lobjectFeatures
-        self.getPattern().sort(key=lambda x:x.getValue())
+        try:  self.getPattern().sort(key=lambda x:x.getValue())
+        except: pass ## P3 < to be defined for featureObject
 #         print self.getPattern(), anobject, lobjectFeatures
-        bestReg, curScore = self.findBestMatch(self.getPattern(), lobjectFeatures)
+        foundReg,bestReg, _ = self.findBestMatch2(self.getPattern(), lobjectFeatures)
+
+#         bestReg, _ = self.findBestMatch(self.getPattern(), lobjectFeatures)
 #         print bestReg, curScore
-        ltmp = self.getPattern()[:]
-        ltmp.append('EMPTY')
-        lMissingIndex = list(filter(lambda x: x not in bestReg, range(0,len(self.getPattern())+1)))
-        lMissing = np.array(ltmp)[lMissingIndex].tolist()
-        lMissing = list(filter(lambda x: x!= 'EMPTY',lMissing))
-        result = np.array(ltmp)[bestReg].tolist()
-        lFinres= list(filter(lambda xy: xy[0]!= 'EMPTY',zip(result, lobjectFeatures)))
-#         print map(lambda x:(x,x.getWeight()),self.getPattern())
-        if lFinres != []:
-            lFinres =  self.selectBestUniqueMatch(lFinres)
-#             print lFinres
-            score1 = self.computeScore(len(self.getPattern()), lFinres, lMissing,lobjectFeatures)
-        # for estimating missing?
-#         self.selectBestAnchor(lFinres)
-            return lFinres,lMissing,score1
+        if bestReg != []:
+            lFinres = list(zip([(lobjectFeatures[i]) for i in bestReg], ([self.getPattern()[i] for i in foundReg])))
+#             print (lFinres)
+#             score1 = self.computeScore(len(self.getPattern()), lFinres, [],lobjectFeatures)
+            score1 = self.computeScore([(lobjectFeatures[i]) for i in bestReg], lobjectFeatures)
+
+            return lFinres,None,score1
         else:
             return None,None,-1
         
