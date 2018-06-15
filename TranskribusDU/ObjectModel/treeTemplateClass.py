@@ -139,11 +139,12 @@ class treeTemplateClass(templateClass):
         ltobeDel=[]
         for a,i in enumerate(r2):
             #if cost is too high: cut the assignment?
+#             print (a,i,lRegCuts[a],lCuts[i], cost_matrix[a,i], 'deleted')
             if cost_matrix[a,i] > 100:
-#                 print (a,i,lRegCuts[a],lCuts[i], cost_matrix[a,i], 'deleted')
                 ltobeDel.append(a)
-        r2[ltobeDel]=False
-        r1[ltobeDel]=False
+        r2 = np.delete(r2,ltobeDel)
+        r2 = np.delete(r1,ltobeDel)
+#         print ('\t',r1,r2,lRegCuts,lCuts)
         # score Fréchet distance etween two mapped sequences    
         return r1,r2,None
     
@@ -227,8 +228,10 @@ class treeTemplateClass(templateClass):
              
     def computeScore(self,p,q):
         d =frechetDist(list(map(lambda x:(x.getValue(),0),p)),list(map(lambda x:(x.getValue(),0),q)))
-#         print (d,list(map(lambda x:(x.getValue(),0),p)),list(map(lambda x:x.getValue(),q)))
-        return 1/(0.1 + frechetDist(list(map(lambda x:(x.getValue(),0),p)),list(map(lambda x:(x.getValue(),0),q))))
+        print (d,list(map(lambda x:(x.getValue(),0),p)),list(map(lambda x:x.getValue(),q)))
+        if d == 0:
+            return 1
+        return 1/(frechetDist(list(map(lambda x:(x.getValue(),0),p)),list(map(lambda x:(x.getValue(),0),q))))
         
                 
     def computeScoreold(self,patLen,lReg,lMissed,lCuts):
@@ -301,7 +304,7 @@ class treeTemplateClass(templateClass):
             lFinres = list(zip([(lobjectFeatures[i]) for i in bestReg], ([self.getPattern()[i] for i in foundReg])))
 #             print (lFinres)
 #             score1 = self.computeScore(len(self.getPattern()), lFinres, [],lobjectFeatures)
-            score1 = self.computeScore([(lobjectFeatures[i]) for i in bestReg], lobjectFeatures)
+            score1 = self.computeScore([self.getPattern()[i] for i in bestReg], lobjectFeatures)
 
             return lFinres,None,score1
         else:
