@@ -2,9 +2,9 @@
 
 """
 
-    taggerChrono.py
+    taggerIEmerge.py
 
-    task: recognition of a chronological sequence of dates
+    task: recognition of multi ouptuts classes
         
     H. Déjean
     
@@ -357,10 +357,9 @@ class DeepTagger():
         inputs = Input(shape=(self.max_sentence_len, self.max_features))
 
         x = Masking(mask_value=0)(inputs)
-        x = Bidirectional(LSTM(self.hiddenSize,return_sequences = True))(x) 
-        x = Dropout(0.5)(x)
+        x = Bidirectional(LSTM(self.hiddenSize,return_sequences = True, dropout=0.5), merge_mode='concat')(x)
         
-        x = TimeDistributed(Dense(self.lnbClasses[0], activation='softmax'))(x)
+#         x = TimeDistributed(Dense(self.lnbClasses[0], activation='softmax'))(x)
         out1 = TimeDistributed(Dense(self.lnbClasses[0], activation='softmax'),name='M')(x)
         out2 = TimeDistributed(Dense(self.lnbClasses[1], activation='softmax'),name='spec')(x)
         out3 = TimeDistributed(Dense(self.lnbClasses[2], activation='softmax'),name='gen')(x)
