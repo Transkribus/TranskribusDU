@@ -36,13 +36,16 @@ class  XMLDSLINEClass(XMLDSObjectClass):
         self.setNode(domNode)
         
         # get properties
+#         for prop in domNode.keys():
+#             self.addAttribute(prop,domNode.get(prop))
+            
         for prop in domNode.keys():
             self.addAttribute(prop,domNode.get(prop))
-            
-#         ctxt = domNode.doc.xpathNewContext()
-#         ctxt.setContextNode(domNode)
-#         ldomElts = ctxt.xpathEval('./%s'%(ds_xml.sTEXT))
-#         ctxt.xpathFreeContext()
+            if prop =='x': self._x= float(domNode.get(prop))
+            elif prop =='y': self._y = float(domNode.get(prop))
+            elif prop =='height': self._h = float(domNode.get(prop))
+            elif prop =='width': self.setWidth(float(domNode.get(prop)))
+        
         ldomElts = domNode.findall('./%s'%(ds_xml.sTEXT))
         for elt in ldomElts:
             myObject= XMLDSTEXTClass(elt)
