@@ -119,19 +119,25 @@ def evalPartitions(x,y,th):
     cntMissed = abs(len(lRef)-len(y))
     return cntOk,cntErr,cntMissed
     
-
-if __name__ == '__main__':
+    
+def test_samples():
     ref = [[0,1,2,3] ,[4,5,6,7],[8,9,10],[11,12],[13,14,15,16,17]]
     run = [[0,1,2],[3],[4,5,6,7],[8,9,10],[11,12],[13,14],[15,16,17]]
-#     ref = [[0,1],[2,3],[4,5]]
-#     run = ref
-#     run = [[0,1],[2],[3],[4,5]]
     
-    for th in [ x*0.01 for x in  range(50,105,5)]:
-        ok, err, miss = evalPartitions(run, ref, th)
-        print (th, ok,err,miss)
+#     for th in [ x*0.01 for x in  range(50,105,5)]:
+#         ok, err, miss = evalPartitions(run, ref, th)
+#         print (th, ok,err,miss)
     
     #1.0 3 4 2   
-    assert ((3,4,2) ==  evalPartitions(run, ref, 0.8))
+    assert (3,4,2) ==  evalPartitions(run, ref, 0.8)
     # 0.8 3 4 2
+
+
+    ref= [['a','b'],['c'],['d','e']]
+    run= [['a','b'],['c','e'],['d','e']]
+#     ok, err, miss = evalPartitions(run, ref, 0.8)
+    assert  (2,1,1) == evalPartitions(run, ref, 0.8)
+
+
+    
     
