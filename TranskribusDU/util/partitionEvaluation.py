@@ -126,7 +126,7 @@ def evalPartitions(x,y,th,distf):
         return cntOk,cntErr,cntMissed, lFound,lErr,lMissed
     elif len(x) == 1:
         ltemp = [(x[0],yy,1-distf(x[0],yy)) for yy in y]
-        print (ltemp)
+#         print (ltemp)
     else:
         _, cost, _, path = dtw(x, y, distf)
         ltemp=[]
@@ -137,7 +137,7 @@ def evalPartitions(x,y,th,distf):
     for i,j,c in ltemp :
         # when multi matching for a ref: take the best score (first taken if same score) 
         if c >= th and j not in map(lambda x:x[1],lFound) and i not in map(lambda x:x[0],lFound):
-            print (i,j,c)
+#             print (i,j,c)
             lFound.append((i,j))
     lMissed  = list(filter (lambda e: e not in map(lambda x:x[1],lFound),y))
     lErr  = list(filter (lambda e: e not in  map(lambda x:x[0],lFound),x))
