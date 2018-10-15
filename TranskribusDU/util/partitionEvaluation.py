@@ -6,7 +6,7 @@
     
     generate Layout annotated data 
     
-    copyright Naver Labs 2017
+    copyright Naver Labs 2018
     READ project 
 
     This program is free software: you can redistribute it and/or modify
@@ -31,6 +31,7 @@
     DTW: https://github.com/pierre-rouanet/dtw
     """
 from numpy import array, zeros, argmin, inf
+from shapely.ops import cascaded_union
 
 def dtw(x, y, dist, warp=1):
     """
@@ -86,14 +87,25 @@ def _traceback(D):
     return array(p), array(q)
 
 def jaccard(x,y):
-    J = 1 - (len(set(x).intersection(y)) /(len((set(x+y)))))
-    return J
+    """
+        intersection over union (set)
+        returns a cost (1-distance)!
+    """
+    return  1 - (len(set(x).intersection(y)) /(len((set(x+y)))))
 
 
-def evalPartitions(x,y,th):
+def iuo(x,y):
+    """
+        intersection over union (area)
+        returns a cost (1-distance)
+    """ 
+#     print (x.bounds,y.bounds,x.intersection(y).area,cascaded_union([x,y]).area , x.intersection(y).area /cascaded_union([x,y]).area)
+    return  1 - x.intersection(y).area /cascaded_union([x,y]).area
+ 
+def evalPartitions(x,y,th,distf):
     """
         Compare two lists of lists(partitions)
-        Use DTW for matching, jaccard distance as dist(i,j)
+        Use DTW for matching, jaccard/iuo distance as dist(i,j)
         :param list x: generated list of partitions
         :param list y: reference list of partitions
         :param th: int
@@ -101,43 +113,60 @@ def evalPartitions(x,y,th):
         
         for each pair: take pair those score >= TH. If several, take the first(sic)
         compute cntOk , cntErr , cntMissed from these pairs
+
     """
-    _, cost, _, path = dtw(x, y, jaccard)
-    lRun=[]
-    lRef = []
-    ltemp=[]
-    [ltemp.append((x[i],y[j],1 - cost[i][j])) for i,j in zip(path[0],path[1]) ]
+#     print ("xx",len(x),len(y))
+    if x == []: 
+        cntOk = 0
+        cntErr = 0
+        cntMissed = len(y)
+        lFound = []
+        lErr= []
+        lMissed = y
+        return cntOk,cntErr,cntMissed, lFound,lErr,lMissed
+    elif len(x) == 1:
+        ltemp = [(x[0],yy,1-distf(x[0],yy)) for yy in y]
+        print (ltemp)
+    else:
+        _, cost, _, path = dtw(x, y, distf)
+        ltemp=[]
+        [ltemp.append((x[i],y[j],1 - cost[i][j])) for i,j in zip(path[0],path[1]) ]
+    
+    lFound = []
     ltemp.sort(key=lambda xyc:xyc[2],reverse=True)
     for i,j,c in ltemp :
         # when multi matching for a ref: take the best score (first taken if same score) 
-        if c >= th and j not in lRef:
-            lRun.append(i)
-            lRef.append(j)
-
-    cntOk = len(lRef)
-    cntErr = abs(len(lRef)- len(x))
-    cntMissed = abs(len(lRef)-len(y))
-    return cntOk,cntErr,cntMissed
+        if c >= th and j not in map(lambda x:x[1],lFound) and i not in map(lambda x:x[0],lFound):
+            print (i,j,c)
+            lFound.append((i,j))
+    lMissed  = list(filter (lambda e: e not in map(lambda x:x[1],lFound),y))
+    lErr  = list(filter (lambda e: e not in  map(lambda x:x[0],lFound),x))
+    cntOk = len(lFound)
+    cntErr = abs(len(lFound)- len(x))
+    cntMissed = abs(len(lFound)-len(y))
+#         ss
+    return cntOk,cntErr,cntMissed, lFound,lErr,lMissed
     
     
 def test_samples():
+    
     ref = [[0,1,2,3] ,[4,5,6,7],[8,9,10],[11,12],[13,14,15,16,17]]
     run = [[0,1,2],[3],[4,5,6,7],[8,9,10],[11,12],[13,14],[15,16,17]]
-    
+    run = [[0,1,2,3,4,5,6,7,8,9]]
 #     for th in [ x*0.01 for x in  range(50,105,5)]:
 #         ok, err, miss = evalPartitions(run, ref, th)
 #         print (th, ok,err,miss)
-    
     #1.0 3 4 2   
-    assert (3,4,2) ==  evalPartitions(run, ref, 0.8)
+    assert (3,4,2,None,None,None) ==  evalPartitions(run, ref, 0.8, jaccard)
     # 0.8 3 4 2
 
 
     ref= [['a','b'],['c'],['d','e']]
-    run= [['a','b'],['c','e'],['d','e']]
+    run= [['a','b'],['c','e'],['d','e'],[]]
 #     ok, err, miss = evalPartitions(run, ref, 0.8)
-    assert  (2,1,1) == evalPartitions(run, ref, 0.8)
+    assert  (2,2,1,_,_,_) == evalPartitions(run, ref, 0.8,jaccard)
 
-
+if __name__ == "__main__":
+    test_samples()
     
     
