@@ -162,6 +162,11 @@ class PageXml:
 #         return lNd
     getChildByName = classmethod(getChildByName)
     
+    @classmethod
+    def getAncestorByName(cls, elt, sName):
+        return elt.xpath("ancestor::pc:%s"%sName, namespaces={"pc":cls.NS_PAGE_XML})
+        
+    
     def getCustomAttr(cls, nd, sAttrName, sSubAttrName=None):
         """
         Read the custom attribute, parse it, and extract the 1st or 1st and 2nd key value
