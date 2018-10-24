@@ -3,8 +3,12 @@
 """
     Annotate textlines  for Table understanding (finding rows and columns)
     
-    Additionnally, it creates the horizontal graphical lines of the table.
-    (by adding TableHLine elements in an element TableGraphicalLine of TableRegion)
+    It tags the table header, vs data, vs other stuff.
+    
+    It ignore the binding cells (hack: rowspan >= 5 means binding...)
+    It then reads the cell borders, and does a linear interpolation by row to produce 
+    the horizontal graphical lines of the table.
+    It adds a TableHLine elements in an element TableGraphicalLine of TableRegion.
     
     Copyright Naver Labs Europe 2017 
     H. Déjean
@@ -47,18 +51,22 @@ except ImportError:
 
 from xml_formats.PageXml import MultiPageXml 
 from util.Polygon import Polygon
+from common.trace import traceln
 
 lLabelsBIEOS_R  = ['B', 'I', 'E', 'S', 'O']  #O?
-# lLabelsBIEOS_R  = ['RB', 'RI', 'RE', 'RS', 'RO']  #O?
 lLabelsSM_C     = ['M', 'S', 'O']   # single cell, multicells
 #lLabels_OI      = ['O','I']   # inside/outside a table           
 #lLabels_SPAN    = ['rspan','cspan','nospan']
 lLabels_HEADER  = ['D','CH', 'O']
 
 
-sDURow= "DU_row"
-sDUCol= 'DU_col'
+sDURow    = "DU_row"
+sDUCol    = 'DU_col'
 sDUHeader = 'DU_header'
+
+class TableAnnotationException(Exception):
+    pass
+
 
 def tag_DU_row_col_header(lCells, maxRowSpan):
     """
@@ -69,14 +77,13 @@ def tag_DU_row_col_header(lCells, maxRowSpan):
     
         lText = MultiPageXml.getChildByName(cell,'TextLine')
          
-    #     # header wise
-        
+        # HEADER WISE: D CH O
         if int(cell.get('row')) < maxRowSpan:
             [x.set(sDUHeader,lLabels_HEADER[1]) for x in lText]
         else:
             [x.set(sDUHeader,lLabels_HEADER[0]) for x in lText]
         
-        # ROW WISE
+        # ROW WISE: B I E S O
         if len(lText) == 0:
             pass
         if len(lText) == 1:
@@ -90,9 +97,7 @@ def tag_DU_row_col_header(lCells, maxRowSpan):
     #         MultiPageXml.setCustomAttr(lText[-1],"table","rtype",lLabelsBIEOS_R[2])
     #         [MultiPageXml.setCustomAttr(x,"table","rtype",lLabelsBIEOS_R[1]) for x in lText[1:-1]]    
         
-        
-        
-        #COLUM WISE
+        #COLUM WISE: M S O 
         lCoords = cell.xpath("./a:%s" % ("Coords"),namespaces={"a":MultiPageXml.NS_PAGE_XML})       
         coord= lCoords[0]
         sPoints=coord.get('points')
@@ -106,14 +111,20 @@ def tag_DU_row_col_header(lCells, maxRowSpan):
             lsPair = sPoints.split(' ')
             lXY = list()
             for sPair in lsPair:
-                (sx,sy) = sPair.split(',')
-                lXY.append( (int(sx), int(sy)) )
+                try:
+                    (sx,sy) = sPair.split(',')
+                    lXY.append( (int(sx), int(sy)) )
+                except ValueError:
+                    traceln("WARNING: invalid coord in TextLine id=%s  IGNORED"%txt.get("id"))
             ## HOW to define a CM element!!!!
-            (x1,y1,x2,y2) = Polygon(lXY).getBoundingBox()
-            if x2> cx2 and (x2 - cx2) > 0.75 * (cx2 - x1):
-                txt.set(sDUCol,lLabelsSM_C[0])
+            if lXY:
+                (x1,y1,x2,y2) = Polygon(lXY).getBoundingBox()
+                if x2> cx2 and (x2 - cx2) > 0.75 * (cx2 - x1):
+                    txt.set(sDUCol,lLabelsSM_C[0])
+                else:
+                    txt.set(sDUCol,lLabelsSM_C[1])
             else:
-                txt.set(sDUCol,lLabelsSM_C[1])
+                txt.set(sDUCol,lLabelsSM_C[-1])
                 
     # textline outside table
     lRegions= MultiPageXml.getChildByName(root,'TextRegion')
@@ -122,6 +133,7 @@ def tag_DU_row_col_header(lCells, maxRowSpan):
         [x.set(sDURow,lLabelsBIEOS_R[-1]) for x in lText]
         [x.set(sDUCol,lLabelsSM_C[-1]) for x in lText]
         [x.set(sDUHeader,lLabels_HEADER[-1]) for x in lText]
+        
     return
 
 def addSeparator(root, lCells):
@@ -140,14 +152,17 @@ def addSeparator(root, lCells):
         plgn = Polygon.parsePoints(sPoints)
         try:
             lT, lR, lB, lL = plgn.partitionSegmentTopRightBottomLeft()
-            #now the top segments contribute to row separator of index: row
-            dRowSep_lSgmt[row].extend(lT)
-            #now the bottom segments contribute to row separator of index: row+rowSpan
-            dRowSep_lSgmt[row+rowSpan].extend(lB)
-            
-            dColSep_lSgmt[col].extend(lL)
-            dColSep_lSgmt[col+colSpan].extend(lR)
-        except ValueError: pass
+        except ZeroDivisionError:
+            traceln("ERROR: cell %s row=%d col=%d has empty area and is IGNORED"
+                    % (cell.get("id"), row, col))
+            continue
+        #now the top segments contribute to row separator of index: row
+        dRowSep_lSgmt[row].extend(lT)
+        #now the bottom segments contribute to row separator of index: row+rowSpan
+        dRowSep_lSgmt[row+rowSpan].extend(lB)
+        
+        dColSep_lSgmt[col].extend(lL)
+        dColSep_lSgmt[col+colSpan].extend(lR)
         
     #now make linear regression to draw relevant separators
     def getX(lSegment):
@@ -164,10 +179,13 @@ def addSeparator(root, lCells):
             lY.append(y2)
         return lY
 
-    ndTR = MultiPageXml.getChildByName(root,'TableRegion')[0]
+    try:
+        ndTR = MultiPageXml.getChildByName(root,'TableRegion')[0]
+    except IndexError:
+        raise TableAnnotationException("No TableRegion!!! ")
 
     lB = []
-    for irow, lSegment in dRowSep_lSgmt.items():
+    for row, lSegment in dRowSep_lSgmt.items():
         X = getX(lSegment)
         Y = getY(lSegment)
         #sum(l,())
@@ -184,6 +202,7 @@ def addSeparator(root, lCells):
         
         ndSep = MultiPageXml.createPageXmlNode("SeparatorRegion")
         ndSep.set("orient", "horizontal %.1f %.3f" % (a,b))
+        ndSep.set("row", "%d" % row)
         ndTR.append(ndSep)
         ndCoord = MultiPageXml.createPageXmlNode("Coords")
         MultiPageXml.setPoints(ndCoord, [(xmin, y1), (xmax, y2)])
@@ -196,7 +215,7 @@ def addSeparator(root, lCells):
     print(sStat)
     
     lB = []
-    for icol, lSegment in dColSep_lSgmt.items():
+    for col, lSegment in dColSep_lSgmt.items():
         X = getX(lSegment)
         Y = getY(lSegment)
         #sum(l,())
@@ -213,6 +232,7 @@ def addSeparator(root, lCells):
         x2 = a + b * ymax 
         ndSep = MultiPageXml.createPageXmlNode("SeparatorRegion")
         ndSep.set("orient", "vertical %.1f %.3f" % (a,b))
+        ndSep.set("col", "%d" % col)
         ndTR.append(ndSep)
         ndCoord = MultiPageXml.createPageXmlNode("Coords")
         MultiPageXml.setPoints(ndCoord, [(x1, ymin), (x2, ymax)])
@@ -224,37 +244,106 @@ def addSeparator(root, lCells):
     print(sStat)
         
     return
+
+def computeMaxRowSpan(lCells):
+    """
+        compute maxRowSpan for Row 0
+        ignore cells for which rowspan = #row
+    """
+    nbRows = max(int(x.get('row')) for x in lCells)
+    try: 
+        return max(int(x.get('rowSpan')) for x in filter(lambda x: x.get('row') == "0" and x.get('rowSpan') != str(nbRows+1), lCells))
+    except ValueError :return 1
+    
 # ------------------------------------------------------------------
-#load mpxml 
-sFilename = sys.argv[1]
-sOutFilename = sys.argv[2]
+if __name__ == "__main__":
+    try:
+        if len(sys.argv) == 3: 
+            # COMPATIBILITY MODE
+            #load mpxml 
+            sFilename = sys.argv[1]
+            sOutFilename = sys.argv[2]
+            lsFilename = [sFilename]
+            lsOutFilename = [sOutFilename]
+        else:
+            #we expect a folder 
+            sInput = sys.argv[1]
+            if os.path.isdir(sInput):
+                lsFilename = [os.path.join(sInput, "col", s) for s in os.listdir(os.path.join(sInput, "col")) if s.endswith(".pxml") and s[-7] in "0123456789"]
+                lsFilename.sort()
+                lsOutFilename = [ os.path.dirname(s) + os.sep + "b_" + os.path.basename(s) for s in lsFilename]
+            else:
+                print("%s is not a folder"%sys.argv[1])
+                raise IndexError()
+    except IndexError:
+        print("Usage: %s ( input-file output-file | folder )" % sys.argv[0])
+        exit(1)
+            
+    print(lsFilename)
+    print("%d files to be processed" % len(lsFilename))
+    print(lsOutFilename)
 
-#for the pretty printer to format better...
-parser = etree.XMLParser(remove_blank_text=True)
-doc = etree.parse(sFilename, parser)
-root=doc.getroot()
+    #for the pretty printer to format better...
+    parser = etree.XMLParser(remove_blank_text=True)
+    for sFilename, sOutFilename in zip(lsFilename, lsOutFilename):
+        doc = etree.parse(sFilename, parser)
+        root = doc.getroot()
+        lPages = MultiPageXml.getChildByName(root,'Page')
+        for page in lPages:
 
-lCells= MultiPageXml.getChildByName(root,'TableCell')
-
-# default: O for all cells: all cells must have all tags!
-for cell in lCells:
-    lText = MultiPageXml.getChildByName(cell,'TextLine')
-    [x.set(sDURow,lLabelsBIEOS_R[-1]) for x in lText]
-    [x.set(sDUCol,lLabelsSM_C[-1]) for x in lText]
-    [x.set(sDUHeader,lLabels_HEADER[-1]) for x in lText]
-# ignore "binding" cells
-# dirty...
-lCells = list(filter(lambda x: int(x.get('rowSpan')) < 5, lCells))
-
-# FOR COLUMN HEADER: get max(cell[0,i].span)
-maxRowSpan = max(int(x.get('rowSpan')) for x in filter(lambda x: x.get('row') == "0", lCells))
-
-tag_DU_row_col_header(lCells, maxRowSpan)
-
-addSeparator(root, lCells)
-
-doc.write(sOutFilename, encoding='utf-8',pretty_print=True,xml_declaration=True)
-print('annotation done for %s'%sys.argv[1])
+            lCells= MultiPageXml.getChildByName(page,'TableCell')
+            if not lCells:
+                traceln("ERROR: no TableCell - SKIPPING THIS FILE!!!")
+                continue
+            
+            # default: O for all cells: all cells must have all tags!
+            for cell in lCells:
+                lText = MultiPageXml.getChildByName(cell,'TextLine')
+                [x.set(sDURow,lLabelsBIEOS_R[-1]) for x in lText]
+                [x.set(sDUCol,lLabelsSM_C[-1]) for x in lText]
+                [x.set(sDUHeader,lLabels_HEADER[-1]) for x in lText]
+                
+            
+            if False:
+                # Oct' 2018 RV and JL decided that we keep the binding TextLine (if any!)
+                # ignore "binding" cells
+                # dirty...
+                # lCells = list(filter(lambda x: int(x.get('rowSpan')) < 5, lCells))
+                # less dirty
+                maxrow = max(int(x.get('row')) for x in lCells)
+                binding_rowspan = max(5, maxrow * 0.8) 
+                traceln(" - max row = %d  => considering rowspan > %d as binding cells"
+                        % (maxrow, binding_rowspan))
+                lValidCell, lBindingCell = [], []
+                for ndCell in lCells:
+                    if int(ndCell.get('rowSpan')) < binding_rowspan:
+                        lValidCell.append(ndCell)
+                    else:
+                        lBindingCell.append(ndCell)
+                nDiscarded = len(lBindingCell)
+                if nDiscarded > 1: traceln("****************   WARNING  ****************")
+                traceln(" - %d cells discarded as binding cells" % nDiscarded)
+                for ndCell in lBindingCell:
+                    ndCell.set("type", "table-binding")
+                lCells = lValidCell
+                
+            # FOR COLUMN HEADER: get max(cell[0,i].span)
+    #         try:
+    #             maxRowSpan = max(int(x.get('rowSpan')) for x in filter(lambda x: x.get('row') == "0", lCells))
+    #         except ValueError:
+    #             maxRowSpan = 1
+            maxRowSpan = computeMaxRowSpan(lCells)
+            tag_DU_row_col_header(lCells, maxRowSpan)
+            
+            try:
+                addSeparator(page, lCells)
+                doc.write(sOutFilename, encoding='utf-8',pretty_print=True,xml_declaration=True)
+#                 print('annotation done for %s  --> %s' % (sFilename, sOutFilename))
+            except TableAnnotationException:
+                traceln("No Table region in file ", sFilename, "  IGNORED!!")
+                sys.exit(1)
+        print('annotation done for %s  --> %s' % (sFilename, sOutFilename))
+        del doc
 
 
 
