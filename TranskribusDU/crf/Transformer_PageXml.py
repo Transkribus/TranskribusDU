@@ -434,7 +434,7 @@ class Edge1HotFeatures_noText(EdgeTransformerClassShifter):
             
     def transform(self, lEdge):
         #a = np.zeros( ( len(lEdge), 3 + 17*3 ) , dtype=np.float64)
-        a = np.zeros( ( len(lEdge), self._nbEdgeFeat), dtype=np.float64)
+        a = np.zeros( ( len(lEdge), self.nbFEAT), dtype=np.float64)
         for i, edge in enumerate(lEdge):
             #-- vertical / horizontal / virtual / cross-page / not-neighbor
             a[i, :] = (1, self._dEdgeClassIndexShift[edge.__class__])
