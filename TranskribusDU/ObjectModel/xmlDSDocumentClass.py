@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(os.path.abspath(sys.argv[0])))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 
 from .xmlDocumentClass import XMLDocument
-from .XMLDSObjectClass import XMLDSObjectClass
+# from .XMLDSObjectClass import XMLDSObjectClass
 from .XMLDSPageClass import XMLDSPageClass
 
 from config import ds_xml_def as ds_xml
@@ -58,7 +58,7 @@ class  XMLDSDocument(XMLDocument):
                 myPage.setNumber(int(page.get('number')))
                 self.addPage(myPage)
 #                 self.getRootObject()._lObjects = self.getPages()
-                myPage.fromDom(page,['COLUMN','TABLE','REGION','BLOCK',ds_xml.sLINE_Elt,ds_xml.sTEXT,'BASELINE','GRAPHELT','SeparatorRegion'])
+                myPage.fromDom(page,['PARAGRAPH','COLUMN','TABLE','REGION','BLOCK','BOX',ds_xml.sLINE_Elt,ds_xml.sTEXT,'BASELINE','GRAPHELT','SeparatorRegion'])
 
     
     def loadFromDom(self,docDom = None,pageTag='PAGE',listPages = []):

@@ -35,9 +35,10 @@ from .XMLDSObjectClass import XMLDSObjectClass
 from .XMLDSCELLClass import XMLDSTABLECELLClass
 from .XMLDSTableColumnClass import XMLDSTABLECOLUMNClass
 from .XMLDSTableRowClass import XMLDSTABLEROWClass
+from .XMLDSTEXTClass import XMLDSTEXTClass
 
 from config import ds_xml_def as ds_xml
-
+from copy import deepcopy
 import numpy as np
 
 class  XMLDSTABLEClass(XMLDSObjectClass):
@@ -90,14 +91,16 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         """
             add a  cell
             update row and col data structure? no 
-            but insert cell  at the rihht position
+            but insert cell  at the right position
         """
         self._lcells.append(cell)
         self.addObject(cell)
         
     def delCell(self,cell):
-        try:self._lcells.remove(cell)
-        except:pass
+        try:
+            self._lcells.remove(cell)
+#             self._lObjects.remove(cell)
+        except:pass #print ('cell already deleted?',cell)
 
 
     def getNbRows(self): 
@@ -128,8 +131,6 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
             for cell in row.getCells():
                 print(cell, cell.getFields(),end='')
             print()
-                
-    
       
     def addColumn(self,col):
         """
@@ -148,9 +149,28 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         return col
     
     
+    def eraseColumns(self):
+        """
+            delete all columns
+        """
+        self._lcolumns = []
+        self._nbCols= None
+
+    def eraseRows(self):
+        """
+            delete all rows
+        """
+        self._lrows = []
+        self._nbRows= None
+        
+    def tagMe(self,sLabel=None):
+        super(XMLDSTABLEClass,self).tagMe(sLabel)
+        for r in self.getRows():r.tagMe()
+        for c in self.getColumns():c.tagMe()
+    
     def createRowsWithCuts(self,lYCuts,bTakeAll=False):
         """
-            input: a table and cells
+            input: horizontal lcuts
             output: list of rows populated with appropriate cells  (main overlap)
         """
         if lYCuts == []:
@@ -158,7 +178,8 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         
         #reinit rows? yes
         self._lrows = []
-        lCells =self.getCells()
+        self._nbRows = None
+#         lCells =self.getCells()
         prevCut = self.getY()
         # 
         try:lYCuts = map(lambda x:x.getValue(),lYCuts)
@@ -166,23 +187,17 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
             
         irowIndex = 0
         for irow,cut in enumerate(lYCuts):
+            cut = cut-10
             row= XMLDSTABLEROWClass(irowIndex)
             row.setParent(self)
-            row.addAttribute('y',prevCut)
+            row.setY(prevCut)
             # row too narow from table border
 #             if cut.getValue()-prevCut > 0:
             if bTakeAll or cut - prevCut > 0:
 #                 row.addAttribute('height',cut.getValue()-prevCut)
-                row.addAttribute('height',cut - prevCut)
-                row.addAttribute('x',self.getX())
-                row.addAttribute('width',self.getWidth())
-                row.tagMe()
-                for c in lCells:
-                    if c.overlap(row):
-                        row.addObject(c)      
-                        c.setIndex(irowIndex,c.getIndex()[1])
-#                         print irow,c.getIndex()
-                        row.addCell(c)
+                row.setHeight(cut - prevCut)
+                row.setX(self.getX())
+                row.setWidth(self.getWidth())
                 self.addRow(row)
                 irowIndex+=1                
             else:
@@ -195,23 +210,57 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
 
         row= XMLDSTABLEROWClass(irowIndex)
         row.setParent(self)
-        row.addAttribute('y',prevCut)
-        row.addAttribute('height',self.getY2()-prevCut)
-        row.addAttribute('x',self.getX())
-        row.addAttribute('width',self.getWidth())
+        row.setY(prevCut)
+        row.setHeight(self.getY2()-prevCut)
+        row.setX(self.getX())
+        row.setWidth(self.getWidth())
         row.addAttribute('index',row.getIndex())
-
-        row.tagMe()
-        
-        for c in lCells:
-            if c.overlap(row):
-                row.addObject(c)      
-                c.setIndex(irow,c.getIndex()[1])
-                row.addCell(c)
         self.addRow(row)        
         
         ##  recreate correctly cells : nb cells: #rows x #col
-    
+        
+        
+        
+        
+
+    def testPopulate0(self):
+        """
+            test shapely library
+            Take the cells and populate with textlines 
+        """
+        lpcell = [cell.toPolygon() for cell in self.getCells()]
+        for text in self.getAllNamedObjects(XMLDSTEXTClass):
+            for pcell in lpcell:
+                pcell.intersection(text.toPolygon())
+                        
+    def testPopulate(self):
+        """
+            test shapely library
+            Take the cells and populate with textlines 
+        """
+#         return self.testPopulate0()
+        from rtree import index
+        
+#         print (len(self.getCells()))
+#         # create cell index
+        lIndCells =   index.Index()
+        for pos, cell  in enumerate(self.getCells()):
+            lIndCells.insert(pos, cell.toPolygon().bounds)
+
+        for text in self.getAllNamedObjects(XMLDSTEXTClass):
+            ll  = list(lIndCells.intersection(text.toPolygon().bounds))
+            bestcell = None
+            bestarea = 0
+            if ll != []:
+                print (text.getAttribute("id"),[self.getCells()[i] for i in ll])
+                for i,x in enumerate(ll): 
+                    a =  text.toPolygon().intersection(self.getCells()[x].toPolygon()).area
+                    if a  > bestarea:
+                        bestarea = a 
+                        bestcell = x
+                print (text.getAttribute("id"),self.getCells()[bestcell],bestarea,text.toPolygon().area)
+                
+        
     def reintegrateCellsInColRow(self):
         """
             after createRowsWithCuts, need for refitting cells in the rows (and merge them)
@@ -223,41 +272,132 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
             3- assign text to best cell
             
             
-               ## populate regions
-        for subObject in self.getAllNamedObjects(tagLevel):
-            region= subObject.bestRegionsAssignment(self.getVerticalObjects(Template))
-            if region:
-                region.addObject(subObject)
+        
+        """
+        
+#         import numpy as np
+        from shapely.geometry import Polygon as pp
+#         from shapely.ops import cascaded_union
+        from rtree import index
+        
+        txtidx = index.Index()
+        lTxt = []
+        lReverseIndex  = {}
+#         # Populate R-tree index with bounds of grid cells
+        for pos, txt  in enumerate([txt for col in self.getColumns() for txt in col.getObjects()]):
+            # assuming cell is a shapely object
+            cc  = pp( [(txt.getX(),txt.getY()),(txt.getX2(),txt.getY()),(txt.getX2(),txt.getY2()), ((txt.getX(),txt.getY2()))] )
+            lTxt.append(cc)
+            txtidx.insert(pos, cc.bounds)
+            lReverseIndex[cc.bounds] = txt       
+        
+        
+#         for cell in self.getCellsbyColumns():
+        lCells = []
+        for icol,col in enumerate(self.getColumns()):
+            lcolTexts = []
+            [ lcolTexts.extend(colcell.getObjects()) for colcell in col.getObjects()]
+            # texts tagged OTHER as well?
+            sPoints = col.getAttribute('points').replace(' ',',')
+            spoints = ' '.join("%s,%s"%((x,y)) for x,y in zip(*[iter(sPoints.split(','))]*2))
+            it_sXsY = (sPair.split(',') for sPair in spoints.split(' '))
+            polycol = pp( ((float(sx), float(sy)) for sx, sy in it_sXsY))
+            rowCells = [] 
+            for irow, row in enumerate(self.getRows()):
+#                 print (irow)
+                polyrow = pp([(row.getX(), row.getY()),(row.getX2(),row.getY()), (row.getX2(),row.getY2()), (row.getX(),row.getY2())])
+                if polycol.is_valid and polyrow.is_valid and polycol.intersection(polyrow).area> 1 :#(polyrow.area*0.25):
+                    cell=XMLDSTABLECELLClass()
+                    rowCells.append(cell)                    
+#                     print (irow,icol,polycol.intersection(polyrow).bounds)
+                    inter  = polycol.intersection(polyrow)
+                    ll = list(inter.exterior.coords)
+#                     print(list("%s,%s"%(x,y) for x,y in ll))                    
+                    x,y,x2,y2 = inter.bounds
+                    cell.setXYHW(x,y, y2-y,x2-x)
+                    cell.addAttribute('points', ",".join(list("%s,%s"%(x,y) for x,y in ll)))
+#                     cell.setXYHW(col.getX(),row.getY(), row.getY2() - row.getY(),col.getX2() - col.getX())
+                    cell.setIndex(irow, icol)
+                    cell.setPage(self.getPage())
+                    cell.setParent(self)
+                else:
+                    cell=XMLDSTABLECELLClass()
+                    rowCells.append(cell)                    
+                    cell.setXYHW(col.getX(),row.getY(), row.getY2() - row.getY(),col.getX2() - col.getX())
+                    cell.setIndex(irow, icol)
+                    cell.setPage(self.getPage())
+                    cell.setParent(self)
+                ## spanning information missing!!!!
             
+#             coltxt = cascaded_union([lTxt[pos] for pos in txtidx.intersection(polycol.bounds)])
+#             coltxt = [lCells[pos] for pos in txtidx.intersection(polycol.bounds)]
+#             for txt in coltxt: 
+#                 if polycol.intersection(txt).area > 0.5:
+            
+            for text in lcolTexts:
+                cell = text.bestRegionsAssignment(rowCells,bOnlyBaseline=False)
+                if cell:
+                    cell.addObject(text,bDom=True)     
+
+            lCells.extend(rowCells)
+        #delete fake cells
+        for cell in self.getCells():
+#             cell.getNode().unlinkNode()
+            if cell.getNode().getparent() is not None:
+                cell.getNode().getparent().remove(cell.getNode())
+            del cell
+        
+        #update with real cells
+        self._lcells = lCells
+    
+        # DOM tagging
+        for cell in self.getCells():
+            cell.tagMe2()
+            for o in cell.getObjects():
+#                 print o, o.getContent(),o.getParent(), o.getParent().getNode()
+                try:o.tagMe()
+                except AttributeError:pass
+        
+        # update rows!!!!
+        self.buildRowFromCells()
+            
+    def reintegrateCellsInColRowold(self):
+        """
+            after createRowsWithCuts, need for refitting cells in the rows (and merge them)
+            
+            1- create new regular cells from rows and columns 
+            2- for each cell:
+                for each text: compute overlap
+                    store best for text
+            3- assign text to best cell
+            
+            
+        
         """
         
 #         for cell in self.getCellsbyColumns():
 #         print self.getNbRows(), self.getNbColumns()
         lCells = []
         for icol,col in enumerate(self.getColumns()):
-            lTexts = []
-            [ lTexts.extend(colcell.getObjects()) for colcell in col.getObjects()]
-            # texts tagged OTHER as well? 
+            lcolTexts = []
+            [ lcolTexts.extend(colcell.getObjects()) for colcell in col.getObjects()]
+            # texts tagged OTHER as well?
+            rowCells = [] 
             for irow, row in enumerate(self.getRows()):
-#                 print icol,irow,row, row.getObjects()
-#                 print 'cell:', col.getX(),row.getY(),col.getX2(),row.getY2()
                 cell=XMLDSTABLECELLClass()
-                lCells.append(cell)
-                cell.addAttribute('x',col.getX())
-                cell.addAttribute('y',row.getY())
-                cell.addAttribute('height',row.getY2() - row.getY())
-                cell.addAttribute('width',col.getX2() - col.getX())
+                rowCells.append(cell)
+                cell.setXYHW(col.getX(),row.getY(), row.getY2() - row.getY(),col.getX2() - col.getX())
                 cell.setIndex(irow, icol)
                 cell.setPage(self.getPage())
                 cell.setParent(self)
-            # find the best assignment of each text
-            for text in lTexts:
-                cell = text.bestRegionsAssignment(lCells,bOnlyBaseline=True)
+                ## spanning information missing!!!!
+                
+            for text in lcolTexts:
+                cell = text.bestRegionsAssignment(rowCells,bOnlyBaseline=False)
                 if cell:
                     cell.addObject(text,bDom=True)     
-#                 else:
-#                     print text,text.getX(),text.getY(),cell
-        
+
+            lCells.extend(rowCells)
         #delete fake cells
         for cell in self.getCells():
 #             cell.getNode().unlinkNode()
@@ -304,7 +444,6 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         
         for row in self.getRows():
             row.resizeMe(XMLDSTABLECELLClass)
-#             print row.tagMe(row.tagname)
                 
     def buildColumnFromCells(self):
         """
@@ -313,6 +452,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         self.getCells().sort(key=(lambda x:x.getIndex()[1]))
         self._lcolumns= []
         for cell in self.getCells():
+#             print (cell, cell.getRowSpan(), cell.getColSpan(), cell.getObjects())
             _,jcol= cell.getIndex()
             try: col = self.getColumns()[jcol]
             except IndexError:
@@ -322,10 +462,11 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
 #                 print col.getPage(), self.getPage()
             if col is not None:col.addCell(cell)
             
-#         print self.getColumns()
         
         for col in self.getColumns():
-            col.resizeMe(XMLDSTABLECELLClass)
+            try:
+                col.resizeMe(XMLDSTABLECELLClass)
+            except:pass
 #             node = col.tagMe(col.tagname)
 
 
@@ -339,46 +480,56 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
 #         print 'nb cells:' , len(self.getCells())
         # first despan RowSpan cells
         self.getCells().sort(key=(lambda x:x.getIndex()[0]))
+        lNewCells = []
         for cell in self.getCells():
             # create new non-spanned cell if needed
 #             print cell, cell.getRowSpan(), cell.getColSpan()
-            iRowSpan = 1
-            while iRowSpan < cell.getRowSpan():
+            iRowSpan = cell.getIndex()[0]
+            while iRowSpan < cell.getIndex()[0] + cell.getRowSpan():
 #                 print 'row:', cell, cell.getRowSpan(),iRowSpan
                 newCell = XMLDSTABLECELLClass(cell.getNode())
                 newCell.setName(XMLDSTABLECELLClass.name)
                 newCell.setPage(self.getPage())
                 newCell.setParent(self)
                 newCell.setObjectsList(cell.getObjects())
-                newCell._lAttributes = cell.getAttributes().copy()
-                newCell.addAttribute('rowSpan',1)
-                newCell.setIndex(cell.getIndex()[0]+iRowSpan, cell.getIndex()[1])
+                newCell._lAttributes = deepcopy(cell.getAttributes())
+                newCell.copyXYHW(cell)
+                newCell.addAttribute('rowSpan',newCell.getRowSpan())
+#                 newCell.setIndex(newCell.getIndex()[0]+iRowSpan, newCell.getIndex()[1])
+                newCell.setIndex(iRowSpan, cell.getIndex()[1])
                 newCell.setSpannedCell(cell)
-                cell.setSpannedCell(cell)
+#                 cell.setSpannedCell(cell)
                 newCell.bDeSpannedRow = True
-                self.addCell(newCell)
+                lNewCells.append(newCell)
                 iRowSpan +=1
+
         # col span
         #sort them by col?
-        self.getCells().sort(key=(lambda x:x.getIndex()[1]))
-        for cell in self.getCells():
+#         self.getCells().sort(key=(lambda x:x.getIndex()[1]))
+        lNewCells.sort(key=(lambda x:x.getIndex()[1]))
+        lNewCells2 = []
+        for cell in lNewCells: #self.getCells():
             # create new non-spanned cell if needed
-            iColSpan = 1
-            while iColSpan < cell.getColSpan():
-#                 print 'col:', cell, cell.getColSpan(), iColSpan
+            iColSpan = cell.getIndex()[1]
+            while iColSpan < cell.getIndex()[1] + cell.getColSpan():
                 newCell = XMLDSTABLECELLClass(cell.getNode())
                 newCell.setName(XMLDSTABLECELLClass.name)
                 newCell.setParent(self)
-                newCell._lAttributes = cell.getAttributes().copy()
+                newCell._lAttributes = deepcopy(cell.getAttributes())
+                newCell.copyXYHW(cell)
                 newCell.setObjectsList(cell.getObjects())
-                newCell.addAttribute('colSpan',1)
-                newCell.setIndex(cell.getIndex()[0], cell.getIndex()[1]+iColSpan)
+                newCell.addAttribute('colSpan',newCell.getColSpan())
+#                 newCell.setIndex(newCell.getIndex()[0], newCell.getIndex()[1]+iColSpan)
+                newCell.setIndex(cell.getIndex()[0], iColSpan)
                 newCell.setSpannedCell(cell)
-                cell.setSpannedCell(cell)
+#                 cell.setSpannedCell(cell)
                 newCell.bDeSpannedCol = True
-                self.addCell(newCell)
+#                 cell.bDeSpannedCol = True
+                lNewCells2.append(newCell)
 #                 print '\tnex col cell:',newCell, iColSpan+1, cell.getColSpan()
                 iColSpan +=1
+#         self.getCells().extend(lNewCells)
+        self._lcells = lNewCells
 #         print '-- nb cells:', len(self.getCells())
         
     def assignElementsToCells(self):
@@ -461,6 +612,11 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         # get properties
         for prop in domNode.keys():
             self.addAttribute(prop,domNode.get(prop))
+            if prop =='x': self._x= float(domNode.get(prop))
+            elif prop =='y': self._y = float(domNode.get(prop))
+            elif prop =='height': self._h = float(domNode.get(prop))
+            elif prop =='width': self.setWidth(float(domNode.get(prop)))
+                    
             
 #         ctxt = domNode.doc.xpathNewContext()
 #         ctxt.setContextNode(domNode)
@@ -474,12 +630,14 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
             myObject.setPage(self.getPage())
             myObject.fromDom(elt)   
         
-        self._lspannedCells = self._lcells[:]
+#         self._lspannedCells = self._lcells[:]
         
         self.buildColumnRowFromCells()
         self.buildColumnFromCells()
         self.buildRowFromCells()
         self.getCellsbyRow()
+
+
 #         self.displayPerRow()
 #         print  self.getNbRows(), self.getNbColumns()
         

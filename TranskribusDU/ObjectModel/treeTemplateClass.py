@@ -122,6 +122,67 @@ class treeTemplateClass(templateClass):
         return None  
                 
     
+    def findBestMatch3(self,lRegCuts,lCuts):
+        """
+            lcs!
+        """
+        # Dynamic programming implementation of LCS problem
+ 
+        # Returns length of LCS for X[0..m-1], Y[0..n-1] 
+        def lcs(X, Y, m, n):
+            L = [[0 for x in range(n+1)] for x in range(m+1)]
+         
+            # Following steps build L[m+1][n+1] in bottom up fashion. Note
+            # that L[i][j] contains length of LCS of X[0..i-1] and Y[0..j-1] 
+            for i in range(m+1):
+                for j in range(n+1):
+                    if i == 0 or j == 0:
+                        L[i][j] = 0
+                    elif X[i-1] == Y[j-1]:
+                        L[i][j] = L[i-1][j-1] + 1
+                    else:
+                        L[i][j] = max(L[i-1][j], L[i][j-1])
+         
+            # Following code is used to print LCS
+            index = L[m][n]
+            # Create a character array to store the lcs string
+            lcs = [""] * (index+1)
+            lcs[index] = ""
+            lmapping=[]
+            # Start from the right-most-bottom-most corner and
+            # one by one store characters in lcs[]
+            i = m
+            j = n
+            while i > 0 and j > 0:
+         
+                # If current character in X[] and Y are same, then
+                # current character is part of LCS
+                if X[i-1] == Y[j-1]:
+                    lcs[index-1] = X[i-1]
+                    lmapping.append((i-1,j-1))
+                    i-=1
+                    j-=1
+                    index-=1
+         
+                # If not same, then find the larger of two and
+                # go in the direction of larger value
+                elif L[i-1][j] > L[i][j-1]:
+                    i-=1
+                else:
+                    j-=1
+         
+#             print ("LCS of " , X , " and " , Y , " is " ,lcs,[(lRegCuts[x],lCuts[y]) for x,y in lmapping]) 
+#             xx =[(lRegCuts[x],lCuts[y]) for x,y in lmapping]
+            lmapping.reverse()
+            return lmapping
+        
+#         print (lRegCuts,lCuts,lcs(lRegCuts,lCuts,len(lRegCuts),len(lCuts)))
+        lmap = lcs(lRegCuts,lCuts,len(lRegCuts),len(lCuts))
+        if lmap ==[]: return [],[],None
+        reg,cut = list(zip(*lmap))
+#         print (reg,cut)
+        return reg, cut, None
+        
     def findBestMatch2(self,lRegCuts,lCuts):
         """
             best match using hungarian
@@ -129,9 +190,15 @@ class treeTemplateClass(templateClass):
         """
         cost_matrix=np.zeros((len(lRegCuts),len(lCuts)),dtype=float)
         
+#         print (lRegCuts,lCuts)
+#         print ([(x,x.getWeight()) for x in lRegCuts])
+#         print ([(x,x.getWeight()) for x in lCuts])
         for a,refx in enumerate(lRegCuts):
             for b,x in enumerate(lCuts):
-                dist = refx.getDistance(x)
+                dist = refx.getDistance(x)  # /  abs(x.getWeight() + refx.getWeight())
+#                 except ZeroDivisionError:
+#                     print (x,x.getWeight())
+#                     dist =1000
                 cost_matrix[a,b]=dist
             
         r1,r2 = linear_sum_assignment(cost_matrix)
@@ -139,13 +206,14 @@ class treeTemplateClass(templateClass):
         ltobeDel=[]
         for a,i in enumerate(r2):
             #if cost is too high: cut the assignment?
-#             print (a,i,lRegCuts[a],lCuts[i], cost_matrix[a,i], 'deleted')
+#             print (a,i,r1,r2,lRegCuts[a],lCuts[i], cost_matrix[a,i])
             if cost_matrix[a,i] > 100:
                 ltobeDel.append(a)
         r2 = np.delete(r2,ltobeDel)
-        r2 = np.delete(r1,ltobeDel)
-#         print ('\t',r1,r2,lRegCuts,lCuts)
-        # score Fréchet distance etween two mapped sequences    
+        r1 = np.delete(r1,ltobeDel)
+#         print("wwww",r1,r2)
+        # score Fréchet distance etween two mapped sequences
+#         self.findBestMatch3(lRegCuts, lCuts)    
         return r1,r2,None
     
     def findBestMatch(self,lRegCuts,lCuts):
@@ -217,7 +285,7 @@ class treeTemplateClass(templateClass):
         states,score =  d.Decode(np.arange(len(lCuts)))
 #         print "dec",score, states 
 #         print map(lambda x:(x,x.getCanonical().getWeight()),lCuts)
-        print (states, type(states[0]))
+#         print (states, type(states[0]))
 #         for i,si in enumerate(states):
 #             print lCuts[si],si
 #             print obs[si,:]
@@ -227,16 +295,27 @@ class treeTemplateClass(templateClass):
              
              
     def computeScore(self,p,q):
+        """
+            input: two lists of pairwise features
+              does not work !!!
+              
+             -> must take into account self and other (not fearures)   
+        """
+        
+        return 1/(1+sum(x.getDistance(y) for x,y in zip(p,q)))
+            
+        
+#         return p[0].getDistance(q[0])
         d =frechetDist(list(map(lambda x:(x.getValue(),0),p)),list(map(lambda x:(x.getValue(),0),q)))
-        print (d,list(map(lambda x:(x.getValue(),0),p)),list(map(lambda x:x.getValue(),q)))
+#         print ("***",d,list(map(lambda x:(x.getValue(),0),p)),list(map(lambda x:(x.getValue(),0),q)))
         if d == 0:
-            return 1
+            return 1.0
         return 1/(frechetDist(list(map(lambda x:(x.getValue(),0),p)),list(map(lambda x:(x.getValue(),0),q))))
         
                 
     def computeScoreold(self,patLen,lReg,lMissed,lCuts):
         """
-            it seems better not to use canonical: thus score better reflects the page 
+            it seems better not to use canonical: thus score bet    ter reflects the page 
             
             also for REF 130  129 is better than 150
         """
@@ -283,39 +362,40 @@ class treeTemplateClass(templateClass):
     def registration(self,anobject):
         """
             'register': match  the model to an object
-            can only a terminal template 
+            can only be a terminal template 
         """
         lobjectFeatures = anobject.lFeatureForParsing
 #         lobjectFeatures = anobject._fullFeaturesx
 #         print "?",anobject, lobjectFeatures, self
         # empty object
-        if lobjectFeatures == []:
+        if lobjectFeatures == [] or lobjectFeatures is None:
             return None,None,-1
         
 #         print self.getPattern(), lobjectFeatures
         try:  self.getPattern().sort(key=lambda x:x.getValue())
         except: pass ## P3 < to be defined for featureObject
-#         print self.getPattern(), anobject, lobjectFeatures
-        foundReg,bestReg, _ = self.findBestMatch2(self.getPattern(), lobjectFeatures)
+#         print ('\t',self.getPattern(), anobject, lobjectFeatures)
+        foundReg, bestReg, _ = self.findBestMatch3(self.getPattern(), lobjectFeatures)
 
 #         bestReg, _ = self.findBestMatch(self.getPattern(), lobjectFeatures)
 #         print bestReg, curScore
-        if bestReg != []:
-            lFinres = list(zip([(lobjectFeatures[i]) for i in bestReg], ([self.getPattern()[i] for i in foundReg])))
-#             print (lFinres)
-#             score1 = self.computeScore(len(self.getPattern()), lFinres, [],lobjectFeatures)
-            score1 = self.computeScore([self.getPattern()[i] for i in bestReg], lobjectFeatures)
+        if len(bestReg) > 0:
+            lFinres = list ( zip([(lobjectFeatures[i]) for i in bestReg], ([self.getPattern()[i] for i in foundReg])) )
+            score1 = self.computeScore([(self.getPattern()[i]) for i in foundReg], [(lobjectFeatures[i]) for i in bestReg])
+#             score1 = self.computeScore(self.getPattern(), lobjectFeatures)
+#             print ('\t\t',score1)
+            #  how much of the element is covered ? use weight for this
+            w1 = sum([x.getWeight() for x in [(lobjectFeatures[i]) for i in bestReg]])
+            w2 = sum([x.getWeight() for x in lobjectFeatures])
+                      
+#             score1 = score1 * ( len(foundReg) + len(bestReg) ) / (len(self.getPattern()) + len(lobjectFeatures))
+            score1 = score1 * (w1/w2)
 
-            return lFinres,None,score1
+#             score1 =  (2 * len(foundReg) ) / (len(self.getPattern()) + len(lobjectFeatures))
+
+            return lFinres, None, score1
         else:
             return None,None,-1
-        
-
-
-
-
-
-
 
 
 

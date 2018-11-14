@@ -394,6 +394,44 @@ class KerasTagger(taggerClass):
 
         return res
     
+class KerasTagger2(taggerClass):
+    """
+        see taggerTrainKeras
+            -> use directly DeepTagger?
+    """ 
+    def __init__(self,name):
+        taggerClass.__init__(self, name)
+        self.myTagger = DeepTagger()
+        self.myTagger.bPredict = True
+#         self.myTagger.sModelName = None
+#         self.myTagger.dirName = 'IE
+#         self.myTagger.loadModels()
+    
+    def loadResources(self,sModelName,dirName):
+        # location from sModeName, dirName
+        self.myTagger.sModelName = sModelName
+        self.myTagger.bAttentionLayer = sModelName[-3:] == 'att'
+        self.myTagger.dirName = dirName        
+        self.myTagger.loadModels()
+    
+    def runMe(self,documentObject):
+        '''
+            delete '.' because of location in GT
+        '''
+#         res = self.myTagger.predict([documentObject.getContent()])
+#         return res
+    
+        if documentObject.getContent() is None:
+            return []
+        if self.myTagger.bMultiType:
+            res = self.myTagger.predict_multiptype([documentObject.getContent()])
+        else:
+#             res = self.myTagger.predict([documentObject.getContent().replace('.','')])
+            res = self.myTagger.predict([documentObject.getContent()])
+
+        return res    
+    
+    
 class CRFTagger(taggerClass):
     """
         

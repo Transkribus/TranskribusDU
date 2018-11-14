@@ -97,6 +97,10 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
         # get properties
         for prop in domNode.keys():
             self.addAttribute(prop,domNode.get(prop))
+            if prop =='x': self._x= float(domNode.get(prop))
+            elif prop =='y': self._y = float(domNode.get(prop))
+            elif prop =='height': self._h = float(domNode.get(prop))
+            elif prop =='width': self.setWidth(float(domNode.get(prop)))            
             
         self.setIndex(int(self.getAttribute('row')),int(self.getAttribute('col')))
         

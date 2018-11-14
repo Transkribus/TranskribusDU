@@ -16,7 +16,7 @@ from __future__ import unicode_literals
 
 from .XMLObjectClass import XMLObjectClass
 from config import ds_xml_def as ds_xml
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon,LineString
 from lxml import etree
 
 class  XMLDSObjectClass(XMLObjectClass):
@@ -79,6 +79,8 @@ class  XMLDSObjectClass(XMLObjectClass):
         points="375.12,98.88,924.0,101.52,924.0,113.52,375.12,110.88" 
         """
         x  = [float(x) for x in self.getAttribute("points").split(',')]
+        if len(x) <3*2:
+            return   LineString(list(zip(*[iter(x)]*2)))
 #         print(list( zip(*[iter(x)]*2)))
         return   Polygon(list(zip(*[iter(x)]*2)))
         return Polygon( [(self.getX(),self.getY()),(self.getX2(),self.getY()),(self.getX2(),self.getY2()), ((self.getX(),self.getY2()))] )
@@ -230,6 +232,7 @@ class  XMLDSObjectClass(XMLObjectClass):
         for region in lRegions:
 #             lOverlap.append(self.signedRatioOverlap(region))
             lOverlap.append(self.signedRatioOverlapY(region))
+#             print(self.getX(),self.getWidth(),region, self.signedRatioOverlapX(region))
 
         if bOnlyBaseline:
             #restaure height

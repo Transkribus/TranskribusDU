@@ -58,10 +58,6 @@ class  XMLDSGRAPHLINEClass(XMLDSObjectClass):
 #             self.setAngle(a)
 #             ymax = a * self.getX2() +b
 #             ymin = a*self.getX() + b
-#             import libxml2
-#             verticalSep  = libxml2.newNode('PAGEBORDER')
-#             verticalSep.setProp('points', '%f,%f,%f,%f'%(self.getX(),ymin,self.getX2(),ymax))         
-#             self.getParent().getNode().addChild(verticalSep)
             
     """
         TO simulate 'DS' objects
@@ -79,6 +75,7 @@ class  XMLDSGRAPHLINEClass(XMLDSObjectClass):
     
     
     def setPoints(self,lp): self.lPoints = lp
+    def getPoints(self): return self.lPoints 
     
     def fromDom(self,domNode):
         """

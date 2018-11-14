@@ -86,8 +86,8 @@ class sequenceAPI():
     def addCanonicalFeatures(self,f ):
         if self._canonicalFeatures is None:
             self._canonicalFeatures=[]
-        if f not in self._canonicalFeatures:
-            self._canonicalFeatures.append(f)
+#         if f not in self._canonicalFeatures:
+        self._canonicalFeatures.append(f)
             
         
         
