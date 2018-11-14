@@ -71,8 +71,8 @@ class RowDetection(Component.Component):
                       then look for elements belonging  to several rows
     """
     usage = "" 
-    version = "v.1.0"
-    description = "description: rowDetection"
+    version = "v.1.1"
+    description = "description: rowDetection from BIO textlines"
 
     #--- INIT -------------------------------------------------------------------------------------------------------------    
     def __init__(self):
