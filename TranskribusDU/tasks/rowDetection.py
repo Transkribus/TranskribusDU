@@ -58,8 +58,7 @@ from shapely import affinity
 from shapely.ops import cascaded_union
 
 
-BTAG='S'
-STAG= 'SS'
+
 class RowDetection(Component.Component):
     """
         row detection
@@ -94,6 +93,8 @@ class RowDetection(Component.Component):
         self.bCreateRef = False
         self.bCreateRefCluster = False
         
+        self.BTAG= 'B'
+        self.STAG = 'S'
         self.bNoTable = False
         self.bEvalCluster=False
         self.evalData = None
@@ -126,7 +127,10 @@ class RowDetection(Component.Component):
                         
         if "thhighsupport" in dParams:
             self.THHighSupport = dParams["thhighsupport"] * 0.01
-         
+        
+        if 'BTAG' in dParams: self.BTAG =  dParams["BTAG"]
+        if 'STAG' in dParams: self.STAG =  dParams["STAG"]
+        
         if 'YCut' in dParams: self.bYCut =  dParams["YCut"]
         if 'bCellOnly' in dParams: self.bCellOnly =  dParams["bCellOnly"]
           
@@ -157,16 +161,17 @@ class RowDetection(Component.Component):
             curChunk=[]
             lChunks = []
             for txt in lObjects:
+                # do no yse it for the moment
                 if  txt.getAttribute("DU_col") == 'Mx':
                     lSkipped.append(txt)
-                elif txt.getAttribute("DU_row") == STAG:
+                elif txt.getAttribute("DU_row") == self.STAG:
                     if curChunk != []:
                         lChunks.append(curChunk)
                         curChunk=[]
                     lChunks.append([txt])
                 elif txt.getAttribute("DU_row") in ['I', 'E']:
                     curChunk.append(txt)
-                elif txt.getAttribute("DU_row") == BTAG:
+                elif txt.getAttribute("DU_row") == self.BTAG:
                     if curChunk != []:
                         lChunks.append(curChunk)
                     curChunk=[txt]
@@ -1420,11 +1425,11 @@ class RowDetection(Component.Component):
             for cell in row.getCells():
                 nbTextLines = len(cell.getObjects())
                 nbTotalTextLines += nbTextLines
-                if nbTextLines == 1 and cell.getObjects()[0].getAttribute("DU_row") == STAG: coherenceScore+=1
+                if nbTextLines == 1 and cell.getObjects()[0].getAttribute("DU_row") == self.STAG: coherenceScore+=1
                 else: 
                     for ipos, textline in enumerate(cell.getObjects()):
                         if ipos == 0:
-                            if textline.getAttribute("DU_row") in [BTAG]: coherenceScore += 1
+                            if textline.getAttribute("DU_row") in [self.BTAG]: coherenceScore += 1
                         else:
                             if textline.getAttribute("DU_row") in ['I']: coherenceScore += 1                            
 #                         if ipos == nbTextLines-1:
@@ -2145,6 +2150,8 @@ if __name__ == "__main__":
 #     rdc.add_option("--raw", dest="bRaw", action="store_true", default=False, help="no existing table/colunm)")
 
     rdc.add_option("--YC", dest="YCut", action="store_true", default=False, help="use Ycut")
+    rdc.add_option("--BTAG", dest="BTAG", action="store", default='B',type="string", help="BTAG = B or S")
+    rdc.add_option("--STAG", dest="STAG", action="store", default='S',type="string", help="STAG = S or None")
 
     rdc.add_option("--thhighsupport", dest="thhighsupport", action="store", type="int", default=33,help="TH for high support", metavar="NN")
 
