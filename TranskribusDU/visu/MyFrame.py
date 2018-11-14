@@ -218,7 +218,9 @@ class MyFrame(wx.Frame):
 
     def __do_layout_sizer3(self):
         #self.lDecoSizer = []
-        self.sizer_3.AddSpacer( (20,20))
+#         self.sizer_3.AddSpacer( (20,20))
+        self.sizer_3.AddSpacer( 20)
+
         for chkbx, butPrev, butNext in self.ltCheckboxObjects:
             sz = wx.BoxSizer(wx.HORIZONTAL)
             self.sizer_3.Add(sz, 0, wx.ALL|wx.ADJUST_MINSIZE, 5)
@@ -249,7 +251,7 @@ class MyFrame(wx.Frame):
         wildcard = "All files (*.*)|*.*|XML (*.xml; *.xml.gz)|*.xml;*.xml.gz|PageXml (*.pxml; *.mpxml)|*.pxml; *.mpxml"
         dlg = wx.FileDialog(self, message="Choose a model", 
                             wildcard=wildcard, defaultDir=curdir,
-                            style=wx.OPEN | wx.CHANGE_DIR)
+                            style=wx.FD_OPEN | wx.FD_CHANGE_DIR)
         dlg.CenterOnScreen()
         val = dlg.ShowModal()
         if val == wx.ID_OK:
