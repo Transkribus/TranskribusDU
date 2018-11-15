@@ -43,8 +43,8 @@ from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from tasks.DU_CRF_Task import DU_CRF_Task
 
-#from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
-from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
+#from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
+from crf.FeatureDefinition_PageXml_std_noText_v4 import FeatureDefinition_PageXml_StandardOnes_noText_v4
 
 import json
 
@@ -128,7 +128,7 @@ class DU_ABPTable(DU_CRF_Task):
                          }
                      , sComment= sComment
                      #,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
-                     ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
+                     ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v4
                      )
         
         #self.setNbClass(3)     #so that we check if all classes are represented in the training set
@@ -233,7 +233,7 @@ try:
                                          ,
                                          dLearnerConfig=dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
                                          , sComment=sComment
-                                         , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3,
+                                         , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v4,
                                           cModelClass=gcn.DU_Model_ECN.DU_Ensemble_ECN
                                          )
 
@@ -245,7 +245,7 @@ try:
                                          , dFeatureConfig={}
                                          , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
                                          , sComment= sComment
-                                         , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
+                                         , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v4
                                          )
 
                 #if options.bBaseline:
@@ -362,7 +362,7 @@ try:
                                      , dFeatureConfig={}
                                      , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
                                      , sComment=sComment
-                                     , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
+                                     , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v4
                                      , cModelClass=DU_Model_GAT
                                      )
 
