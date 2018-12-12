@@ -88,6 +88,7 @@ def tag_DU_row_col_header(lCells, maxRowSpan):
             pass
         if len(lText) == 1:
             lText[0].set(sDURow,lLabelsBIEOS_R[3])
+            
         elif len(lText) > 1:
     #         lText.sort(key=lambda x:float(x.prop('y')))
             lText[0].set(sDURow,lLabelsBIEOS_R[0])
@@ -130,9 +131,9 @@ def tag_DU_row_col_header(lCells, maxRowSpan):
     lRegions= MultiPageXml.getChildByName(root,'TextRegion')
     for region in lRegions:
         lText =  MultiPageXml.getChildByName(region,'TextLine')
-        [x.set(sDURow,lLabelsBIEOS_R[-1]) for x in lText]
-        [x.set(sDUCol,lLabelsSM_C[-1]) for x in lText]
-        [x.set(sDUHeader,lLabels_HEADER[-1]) for x in lText]
+        [x.set(sDURow,lLabelsBIEOS_R[-1]) for x in lText if x.getparent() == region]
+        [x.set(sDUCol,lLabelsSM_C[-1]) for x in lText if x.getparent() == region]
+        [x.set(sDUHeader,lLabels_HEADER[-1]) for x in lText if x.getparent() == region]
         
     return
 
