@@ -52,7 +52,7 @@ class DS2PageXMLConvertor(Component):
     
         self.dpi = 300
 
-        self.xrce_id=10000        
+        self.nle_id=10000        
         
         self.storagePath = ''
         
@@ -155,8 +155,8 @@ class DS2PageXMLConvertor(Component):
 #         print (DSObject.getName())
         domNode= PageXml.createPageXmlNode(pageXmlName)
         if DSObject.getID():
-            domNode.set("id", "xrce_%s"%DSObject.getID())
-        else: self.addXRCEID(domNode)
+            domNode.set("id", "nle_%s"%DSObject.getID())
+        else: self.addNLEID(domNode)
         pageXmlParentNode.append(domNode)
         coordsNode = etree.Element('{%s}Coords'%(self.pageXmlNS))
 #         coordsNode.setNs(self.pageXmlNS)
@@ -205,8 +205,8 @@ class DS2PageXMLConvertor(Component):
             cornerNode.text = "0 1 2 3"
 #             cornerNode.setNs(self.pageXmlNS)
             domNode.append(cornerNode)    
-            coordsNode.set('colSpan',str(DSObject.getColSpan()))
-            coordsNode.set('rowSpan',str(DSObject.getRowSpan()))
+            domNode.set('colSpan',str(DSObject.getColSpan()))
+            domNode.set('rowSpan',str(DSObject.getRowSpan()))
             
         
         #process objects
@@ -214,9 +214,9 @@ class DS2PageXMLConvertor(Component):
             self.convertDSObject(subobject, domNode)
         
         
-    def addXRCEID(self,node):
-        node.set("id", "xrce_%d"%self.xrce_id)  
-        self.xrce_id += 1
+    def addNLEID(self,node):
+        node.set("id", "nle_%d"%self.nle_id)  
+        self.nle_id += 1
         
         
     
