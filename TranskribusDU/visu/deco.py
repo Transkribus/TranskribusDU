@@ -7,7 +7,7 @@ import types, os
 from lxml import etree
 #import cStringIO
 import wx
-
+from dask.array.creation import eye
 
 sEncoding = "utf-8"
 
@@ -89,7 +89,7 @@ class Deco:
     
     def xpathError(self, node, xpExpr, eExcpt, sMsg=""):
         """report an xpath error"""
-        iMaxLen = 200 #to truncate the node serialization
+        iMaxLen = 200 # to truncate the node serialization
         print "-"*60
         print "--- XPath ERROR on class %s"%self.__class__
         print "---   xpath=%s" % xpExpr
@@ -304,16 +304,42 @@ class DecoText(DecoBBXYWH):
         iFontSize = self.xpathToInt(node, self.xpFontSize, 8)
         sFontColor = self.xpathToStr(node, self.xpFontColor, 'BLACK')
         x,y,w,h,inc = self.runXYWHI(node)
-        obj = wxh.AddScaledTextBox(txt, (x, -y-h/2.0),
-                                   Size=iFontSize,
-                                   Family=wx.ROMAN, Position='cl',
-                                   Color=sFontColor, PadSize=0, LineColor=None)
-        lo.append(obj)
+        # obj = wxh.AddScaledTextBox(txt, (x, -y-h/2.0),
+#                                    Size=iFontSize,
+#                                    Family=wx.ROMAN, Position='cl',
+#                                    Color=sFontColor, PadSize=0, LineColor=None)
+        
+        # FONTFAMILY_TELETYPE
+        # FONTFAMILY_ROMAN
+        dc = wx.ScreenDC()
+        dc.SetFont(wx.Font(iFontSize, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+        Ey, Ex = dc.GetTextExtent("x")
+        # FontScale = iFontSize/Ex
+        if txt[:2] == "3)":
+            #FontScale = iFontSize/E[1]
+            for i, c in enumerate(txt):
+                obj = wxh.AddScaledText(c, (x, -y - Ey / 2),
+                                           Size=iFontSize
+        #                                    , Family=wx.ROMAN
+                                           , Family=wx.FONTFAMILY_TELETYPE
+                                           , Position='bl'
+                                           , Color=sFontColor)
+                # x += Ex / 2
+                x += dc.GetTextExtent("c")[1]/2
+            lo.append(obj)
+            del dc
+        else:
+            obj = wxh.AddScaledText(txt, (x, -y - Ey / 2 ), Size=iFontSize
+                                       , Family=wx.FONTFAMILY_TELETYPE
+                                       , Position='bl'
+                                       , Color=sFontColor)
+            lo.append(obj)
         return lo
     
     def getText(self, wxh, node):
         return self.xpathToStr(node, self.xpContent, "")
-    
+
+
 class DecoUnicodeChar(DecoText):
     """A character encoded in Unicode
     We assume the unicode index is given in a certain base, e.g. 10 or 16
@@ -330,7 +356,6 @@ class DecoUnicodeChar(DecoText):
             print "DecoUnicodeChar: ERROR: base=%d code=%s"%(self.base, sEncodedText)
             return ""
 
-        
 
 class DecoImageBox(DecoRectangle):
     """An image with a box around it
@@ -485,6 +510,325 @@ class DecoLine(Deco):
                                         , LineColor=sLineColor)
             lo.append(obj)
         return lo
+
+
+class DecoREAD(Deco):
+    """
+    READ PageXml has a special way to encode coordinates.
+    like:
+        <Coords points="985,390 1505,390 1505,440 985,440"/>
+
+    or
+        <Baseline points="985,435 1505,435"/>
+    """    
+    def __init__(self, cfg, sSurname, xpCtxt):
+        Deco.__init__(self, cfg, sSurname, xpCtxt)
+        self.xpCoords = cfg.get(sSurname, "xpath_lxy")
+
+    def _getCoordList(self, node):
+        sCoords = self.xpathToStr(node, self.xpCoords, "")
+        try:
+            ltXY = []
+            for _sPair in sCoords.split(' '):
+                (sx, sy) = _sPair.split(',')
+                ltXY.append((int(sx), int(sy)))
+        except Exception, e:
+            print "ERROR: polyline coords are bad: '%s'"%sCoords
+            raise e        
+        return ltXY
+    
+    def _coordList_to_BB(self, ltXY):
+        """
+        return (x1, y1), (x2, y2)
+        """
+        lX = [_x for _x,_y in ltXY]
+        lY = [_y for _x,_y in ltXY]
+        return (min(lX), max(lY)), (max(lX), min(lY))
+    
+    
+class DecoREADTextLine(DecoREAD):
+    """A TextLine as defined by the PageXml format of the READ project
+    <TextLine id="line_1551946877389_284" custom="readingOrder {index:0;} Item-name {offset:0; length:11;} Item-price {offset:12; length:2;}">
+        <Coords points="985,390 1505,390 1505,440 985,440"/>
+        <Baseline points="985,435 1505,435"/>
+        <TextEquiv>
+            <Unicode>Salgadinhos    12</Unicode>
+        </TextEquiv>
+    </TextLine>
+    """
+    def __init__(self, cfg, sSurname, xpCtxt):
+        DecoREAD.__init__(self, cfg, sSurname, xpCtxt)
+        self.xpContent  = cfg.get(sSurname, "xpath_content")
+        self.xpFontColor = cfg.get(sSurname, "xpath_font_color")
+        self.xpFit = cfg.get(sSurname, "xpath_fit_text_size").lower()
+
+    def __str__(self):
+        s = "%s="%self.__class__
+        return s
+    
+    def _getFontSize(self, node, ltXY, txt, Family=wx.FONTFAMILY_TELETYPE):
+        """
+        compute the font size so as to fit the polygon
+        
+        and the extent of the 'x' character for this font size
+        return iFontSize, ExtentX, ExtentY
+        """
+        (x1, y1), (x2, y2) = self._coordList_to_BB(ltXY)
+        
+        dc = wx.ScreenDC()
+        # compute for font size of 24 and do proportional
+        dc.SetFont(wx.Font(24, Family, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+        Ex, Ey = dc.GetTextExtent("x")
+        iFontSizeX = 24 * abs(x2-x1) / Ex / len(txt)
+        iFontSizeY = 24 * abs(y2-y1) / Ey
+        sFit = self.xpathToStr(node, self.xpFit, 'xy')
+        if sFit == "x":
+            iFontSize = iFontSizeX
+        elif sFit == "y":
+            iFontSize = iFontSizeY
+        else:
+            iFontSize = min(iFontSizeX, iFontSizeY)
+        dc.SetFont(wx.Font(iFontSize, Family, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+        Ex, Ey = dc.GetTextExtent("x")
+        del dc
+        
+        return iFontSize, Ex, Ey
+
+    def draw(self, wxh, node):
+        """draw itself using the wx handle
+        return a list of created WX objects"""
+
+        lo = []
+        
+        #add the text itself
+        txt = self.getText(wxh, node)
+        
+        sFontColor = self.xpathToStr(node, self.xpFontColor, 'BLACK')
+
+        # Position and computation of font size
+        ltXY = self._getCoordList(node)
+        
+        iFontSize, Ex, Ey = self._getFontSize(node, ltXY, txt, Family=wx.FONTFAMILY_TELETYPE)
+        
+        x, y = ltXY[0] 
+        obj = wxh.AddScaledText(txt, (x, -y+iFontSize/6), Size=iFontSize
+                                       , Family=wx.FONTFAMILY_TELETYPE
+                                       , Position='tl'
+                                       , Color=sFontColor)
+        lo.append(obj)
+        return lo
+    
+    def getText(self, wxh, node):
+        return self.xpathToStr(node, self.xpContent, "")
+
+
+class READ_custom:
+    """
+    Everything related to the PageXML custom attribute
+    """
+    @classmethod
+    def parseCustomAttr(cls, s):
+        """
+        The custom attribute contains data in a CSS style syntax.
+        We parse this syntax here and return a dictionary of dictionary
+        
+        Example:
+        parseCustomAttr( "readingOrder {index:4;} structure {type:catch-word;}" )
+            --> { 'readingOrder': { 'index':'4' }, 'structure':{'type':'catch-word'} }
+        """
+        dic = dict()
+        
+        s = s.strip()
+        lChunk = s.split('}')
+        if lChunk:
+            for chunk in lChunk:    #things like  "a {x:1"
+                chunk = chunk.strip()
+                if not chunk: continue
+                
+                try:
+                    sNames, sValues = chunk.split('{')   #things like: ("a,b", "x:1 ; y:2")
+                except Exception:
+                    raise ValueError("Expected a '{' in '%s'"%chunk)
+                
+                #the dictionary for that name
+                dicValForName = dict()
+                
+                lsKeyVal = sValues.split(';') #things like  "x:1"
+                for sKeyVal in lsKeyVal:
+                    if not sKeyVal.strip(): continue  #empty
+                    try:
+                        sKey, sVal = sKeyVal.split(':')
+                    except Exception:
+                        raise ValueError("Expected a comma-separated string, got '%s'"%sKeyVal)
+                    dicValForName[sKey.strip()] = sVal.strip()
+                
+                lName = sNames.split(',')
+                for name in lName:
+                    dic[name.strip()] = dicValForName
+        return dic
+        
+class DecoREADTextLine_custom_offset(DecoREADTextLine, READ_custom):
+    """
+    Here we show the annotation by offset found in the custom attribute
+    """
+    def __init__(self, cfg, sSurname, xpCtxt):
+        DecoREADTextLine.__init__(self, cfg, sSurname, xpCtxt)
+        self.xpLabel     = cfg.get(sSurname, "xpath_label")
+        self.xpLineColor = cfg.get(sSurname, "xpath_LineColor")
+        self.xpBackgroundColor = cfg.get(sSurname, "xpath_background_color")
+
+    def draw(self, wxh, node):
+        """
+        draw itself using the wx handle
+        return a list of created WX objects
+        """
+
+        lo = []
+        
+        #add the text itself
+        txt = self.getText(wxh, node)
+        
+        sFontColor = self.xpathToStr(node, self.xpFontColor, 'BLACK')
+        sLineColor = self.xpathToStr(node, self.xpLineColor, "#000000")
+        sBackgroundColor = self.xpathToStr(node, self.xpBackgroundColor, "#000000")
+
+        # Position and computation of font size
+        ltXY = self._getCoordList(node)
+        
+        iFontSize, Ex, Ey = self._getFontSize(node, ltXY, txt
+                                              , Family=wx.FONTFAMILY_TELETYPE)
+        
+        dCustom = self.parseCustomAttr(node.get("custom"))
+        try:
+            _dLabel = dCustom[self.xpathToStr(node, self.xpLabel, "")]
+            iOffset = int(_dLabel["offset"])
+            iLength = int(_dLabel["length"])
+        except KeyError:
+            iOffset = 0
+            iLength = 0
+
+        # some annotation ?
+        if iLength > 0:        
+            x, y = ltXY[0] 
+            x += Ex * iOffset
+        
+            obj = wxh.AddScaledTextBox(txt[iOffset:iOffset+iLength]
+                                       , (x, -y+iFontSize/6)
+                                       , Size=iFontSize
+                                       , Family=wx.FONTFAMILY_TELETYPE
+                                       , Position='tl'
+                                       , Color=sFontColor
+                                       , LineColor=sLineColor
+                                       , BackgroundColor=sBackgroundColor)
+            lo.append(obj)
+        return lo
+    
+
+class DecoPolyLine(DecoREAD):
+    """A polyline along 
+    x1,y1,x2,y2, ...,xn,yn
+        or
+    x1,y1 x2,y2 .... xn,yn
+    
+    Example of config:
+        [TextLine]
+        type=DecoPolyLine
+        xpath=.//TextLine/Coords
+        xpath_lxy=@points
+        xpath_LineColor="RED"
+        xpath_FillStyle="Solid"
+    
+    JL Meunier - March 2016
+    """
+    
+    def __init__(self, cfg, sSurname, xpCtxt):
+        DecoREAD.__init__(self, cfg, sSurname, xpCtxt)
+        #now get the xpath expressions that let us find the rectangle line and fill colors
+        self.xpLineWidth = cfg.get(sSurname, "xpath_LineWidth")
+        self.xpLineColor = cfg.get(sSurname, "xpath_LineColor")
+        #cached values
+        self._node = None         
+        self._lxy = None        
+
+    def __str__(self):
+        s = "%s="%self.__class__
+        s += "+(coords=%s)" % (self.xpCoords)
+        return s
+
+    def draw(self, wxh, node):
+        """draw itself using the wx handle
+        return a list of created WX objects"""
+#        print node.serialize()
+#        print self.xpX
+#        for n in node.xpathEval(self.xpX): print n.serialize()
+        lo = DecoREAD.draw(self, wxh, node)
+        
+        if self._node != node: 
+            self._lxy = self._getCoordList(node)
+            self._node = node
+        
+        if self._lxy:
+            sLineColor = self.xpathToStr(node, self.xpLineColor, "#000000")
+            iLineWidth = self.xpathToInt(node, self.xpLineWidth, 1)
+            for (x1, y1), (x2, y2) in zip(self._lxy, self._lxy[1:]):
+                #draw a line
+                obj = wxh.AddLine( [(x1, -y1), (x2, -y2)]
+                                            , LineWidth=iLineWidth
+                                            , LineColor=sLineColor)
+                lo.append(obj)             
+        return lo
+
+
+class DecoClosedPolyLine(DecoPolyLine):
+    """A polyline that closes automatically the shape
+    JL Meunier - September 2016
+    """
+    def __init__(self, cfg, sSurname, xpCtxt):
+        DecoPolyLine.__init__(self, cfg, sSurname, xpCtxt)
+        
+    def _getCoordList(self, node):
+        lCoord = DecoPolyLine._getCoordList(self, node)
+        if lCoord: lCoord.append(lCoord[0])
+        return lCoord
+
+        
+class DecoTextPolyLine(DecoPolyLine, DecoText):
+    """A polyline that closes automatically the shape
+    JL Meunier - September 2016
+    """
+    def __init__(self, cfg, sSurname, xpCtxt):
+        DecoPolyLine.__init__(self, cfg, sSurname, xpCtxt)
+        DecoText          .__init__(self, cfg, sSurname, xpCtxt)
+        self.xpX_Inc = cfg.get(sSurname, "xpath_x_incr")  #to shift the text
+        self.xpY_Inc = cfg.get(sSurname, "xpath_y_incr")  #to shift the text
+            
+    def draw(self, wxh, node):
+
+        lo = Deco.draw(self, wxh, node)
+        
+        if self._node != node: 
+            self._lxy = self._getCoordList(node)
+            self._node = node
+        
+        #lo = DecoClosedPolyLine.draw(self, wxh, node)
+        
+        #add the text itself
+        x, y = self._lxy[0]
+        
+        x_inc = self.xpathToInt(node, self.xpX_Inc, 0, False)        
+        y_inc = self.xpathToInt(node, self.xpY_Inc, 0, False)        
+        
+        txt = self.xpathToStr(node, self.xpContent, "")
+        iFontSize = self.xpathToInt(node, self.xpFontSize, 8)
+        sFontColor = self.xpathToStr(node, self.xpFontColor, 'BLACK')
+        
+        obj = wxh.AddScaledTextBox(txt, (x+x_inc, -y-y_inc),
+                                   Size=iFontSize,
+                                   Family=wx.ROMAN, Position='tl',
+                                   Color=sFontColor, PadSize=0, LineColor=None)
+        lo.append(obj)    
+        return lo
+
     
 class DecoLink(Deco):
     """A link from x1,y1 to x2,y2
@@ -539,131 +883,7 @@ class DecoLink(Deco):
             lo.append(obj)
         return lo
     
-    
-class DecoPolyLine(Deco):
-    """A polyline along 
-    x1,y1,x2,y2, ...,xn,yn
-        or
-    x1,y1 x2,y2 .... xn,yn
-    
-    Example of config:
-        [TextLine]
-        type=DecoPolyLine
-        xpath=.//TextLine/Coords
-        xpath_lxy=@points
-        xpath_LineColor="RED"
-        xpath_FillStyle="Solid"
-    
-    JL Meunier - March 2016
-    """
-    
-    def __init__(self, cfg, sSurname, xpCtxt):
-        Deco.__init__(self, cfg, sSurname, xpCtxt)
-        self.xpCoords = cfg.get(sSurname, "xpath_lxy")
-        #now get the xpath expressions that let us find the rectangle line and fill colors
-        self.xpLineWidth = cfg.get(sSurname, "xpath_LineWidth")
-        self.xpLineColor = cfg.get(sSurname, "xpath_LineColor")
-        #cached values
-        self._node = None         
-        self._lxy = None        
-
-    def __str__(self):
-        s = "%s="%self.__class__
-        s += "+(coords=%s)" % (self.xpCoords)
-        return s
-
-    def _getCoordList(self, node):
-        sCoords = self.xpathToStr(node, self.xpCoords, "")
-        lCoord = sCoords.replace(" ", ",").split(',')
-        try:
-            return map(Deco.toInt, lCoord)
-        except Exception, e:
-            print "ERROR: polyline coords are bad: '%s'"%sCoords
-            raise e        
-        
-    def draw(self, wxh, node):
-        """draw itself using the wx handle
-        return a list of created WX objects"""
-#        print node.serialize()
-#        print self.xpX
-#        for n in node.xpathEval(self.xpX): print n.serialize()
-        lo = Deco.draw(self, wxh, node)
-        
-        if self._node != node: 
-            self._lxy = self._getCoordList(node)
-            self._node = node
-        
-        if self._lxy:
-            sLineColor = self.xpathToStr(node, self.xpLineColor, "#000000")
-            iLineWidth = self.xpathToInt(node, self.xpLineWidth, 1)
-            x1, y1, i, imax = self._lxy[0], self._lxy[1], 2, len(self._lxy)
-            while i < imax:
-                x2 = self._lxy[i]
-                i += 1
-                try:
-                    y2 = self._lxy[i]
-                    i += 1
-                    #draw a line
-                    obj = wxh.AddLine( [(x1, -y1), (x2, -y2)]
-                                                , LineWidth=iLineWidth
-                                                , LineColor=sLineColor)
-                    lo.append(obj)             
-                except IndexError:
-                    break
-                x1, y1 = x2, y2       
-
-        return lo
-      
-class DecoClosedPolyLine(DecoPolyLine):
-    """A polyline that closes automatically the shape
-    JL Meunier - September 2016
-    """
-    def __init__(self, cfg, sSurname, xpCtxt):
-        DecoPolyLine.__init__(self, cfg, sSurname, xpCtxt)
-        
-    def _getCoordList(self, node):
-        lCoord = DecoPolyLine._getCoordList(self, node)
-        if lCoord:
-            lCoord = lCoord + lCoord[:2]
-        return lCoord
-        
-class DecoTextPolyLine(DecoPolyLine, DecoText):
-    """A polyline that closes automatically the shape
-    JL Meunier - September 2016
-    """
-    def __init__(self, cfg, sSurname, xpCtxt):
-        DecoPolyLine.__init__(self, cfg, sSurname, xpCtxt)
-        DecoText          .__init__(self, cfg, sSurname, xpCtxt)
-        self.xpX_Inc = cfg.get(sSurname, "xpath_x_incr")  #to shift the text
-        self.xpY_Inc = cfg.get(sSurname, "xpath_y_incr")  #to shift the text
-            
-    def draw(self, wxh, node):
-
-        lo = Deco.draw(self, wxh, node)
-        
-        if self._node != node: 
-            self._lxy = self._getCoordList(node)
-            self._node = node
-        
-        #lo = DecoClosedPolyLine.draw(self, wxh, node)
-        
-        #add the text itself
-        x, y = self._lxy[0], self._lxy[1]
-        
-        x_inc = self.xpathToInt(node, self.xpX_Inc, 0, False)        
-        y_inc = self.xpathToInt(node, self.xpY_Inc, 0, False)        
-        
-        txt = self.xpathToStr(node, self.xpContent, "")
-        iFontSize = self.xpathToInt(node, self.xpFontSize, 8)
-        sFontColor = self.xpathToStr(node, self.xpFontColor, 'BLACK')
-        
-        obj = wxh.AddScaledTextBox(txt, (x+x_inc, -y-y_inc),
-                                   Size=iFontSize,
-                                   Family=wx.ROMAN, Position='tl',
-                                   Color=sFontColor, PadSize=0, LineColor=None)
-        lo.append(obj)    
-        return lo
-        
+         
 class DecoClickableRectangleSetAttr(DecoBBXYWH):
     """A rectangle
     clicking on it add/remove an attribute
