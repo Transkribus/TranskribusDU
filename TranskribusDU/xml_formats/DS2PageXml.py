@@ -52,11 +52,11 @@ class DS2PageXMLConvertor(Component):
     
         self.dpi = 300
 
-        self.xrce_id=10000        
+        self.nle_id=10000        
         
         self.storagePath = ''
         
-        self.dTagNameMapping = {'PAGE':'Page','TEXT':'TextLine', 'LINE':'TextLine','COLUMN':'TextRegion','REGION':'TextRegion','BLOCK':'TextRegion','GRAPHELT':'LineDrawingRegion','TABLE':'TableRegion','CELL':'TableCell'} 
+        self.dTagNameMapping = {'PAGE':'Page','TEXT':'TextLine', 'LINE':'TextLine','COLUMN':'TextRegion','REGION':'TextRegion','BLOCK':'TextRegion','GRAPHELT':'LineDrawingRegion','TABLE':'TableRegion','CELL':'TableCell','SeparatorRegion':'SeparatorRegion'} 
 
         self.pageXmlNS = None
         
@@ -111,7 +111,8 @@ class DS2PageXMLConvertor(Component):
         lx= list(map(lambda x:1.0*float(x)*self.dpi/72.0, lPoints))
         # order left right 
         xx =  list(zip(lx[0::2], lx[1::2]))
-        xx.sort(key=lambda xy:xy[0])
+#         xx.sort(key=lambda xy:xy[0])
+#         print (sPoints, xx,' '.join(["%d,%d"%(xa,ya) for xa,ya  in xx]))
         return ' '.join(["%d,%d"%(xa,ya) for xa,ya  in xx])
         
     def convertDSObject(self,DSObject,pageXmlParentNode):
@@ -149,18 +150,21 @@ class DS2PageXMLConvertor(Component):
         try:
             pageXmlName= self.dTagNameMapping[DSObject.getName()]
         except KeyError: 
-#             print DSObject.getName() ," not declared"
+            print (DSObject.getName() ," not declared")
             return 
+#         print (DSObject.getName())
         domNode= PageXml.createPageXmlNode(pageXmlName)
         if DSObject.getID():
-            domNode.set("id", "xrce_%s"%DSObject.getID())
-        else: self.addXRCEID(domNode)
+            domNode.set("id", "nle_%s"%DSObject.getID())
+        else: self.addNLEID(domNode)
         pageXmlParentNode.append(domNode)
         coordsNode = etree.Element('{%s}Coords'%(self.pageXmlNS))
 #         coordsNode.setNs(self.pageXmlNS)
-        coordsNode.set('points', self.BB2Polylines(DSObject.getX(),DSObject.getY(), DSObject.getHeight(),DSObject.getWidth()))        
+        if DSObject.hasAttribute('points'):
+            coordsNode.set('points',self.DSPoint2PagePoints(DSObject.getAttribute('points')))    
+        else:     
+            coordsNode.set('points', self.BB2Polylines(DSObject.getX(),DSObject.getY(), DSObject.getHeight(),DSObject.getWidth()))     
         domNode.append(coordsNode)            
-        
         
         for attr in ['custom', 'structure','col','type','DU_row','DU_header','DU_col']:
             if DSObject.hasAttribute(attr):
@@ -201,8 +205,8 @@ class DS2PageXMLConvertor(Component):
             cornerNode.text = "0 1 2 3"
 #             cornerNode.setNs(self.pageXmlNS)
             domNode.append(cornerNode)    
-            coordsNode.set('colSpan',str(DSObject.getColSpan()))
-            coordsNode.set('rowSpan',str(DSObject.getRowSpan()))
+            domNode.set('colSpan',str(DSObject.getColSpan()))
+            domNode.set('rowSpan',str(DSObject.getRowSpan()))
             
         
         #process objects
@@ -210,9 +214,9 @@ class DS2PageXMLConvertor(Component):
             self.convertDSObject(subobject, domNode)
         
         
-    def addXRCEID(self,node):
-        node.set("id", "xrce_%d"%self.xrce_id)  
-        self.xrce_id += 1
+    def addNLEID(self,node):
+        node.set("id", "nle_%d"%self.nle_id)  
+        self.nle_id += 1
         
         
     
@@ -236,7 +240,7 @@ class DS2PageXMLConvertor(Component):
         for DSObject in lElts:
             self.convertDSObject(DSObject,pageXmlPageNODE)
 
-#         # get graphelt elements
+# #         # get graphelt elements
         lElts= OPage.getAllNamedObjects(XMLDSGRAPHLINEClass)
         for DSObject in lElts:
             self.convertDSObject(DSObject,pageXmlPageNODE)
