@@ -4,6 +4,7 @@ A class that reflect a decoration to be made on certain XML node using WX
 """
 
 import types, os
+from collections import defaultdict
 from lxml import etree
 #import cStringIO
 import wx
@@ -581,7 +582,7 @@ class DecoREADTextLine(DecoREAD):
         Ex, Ey = dc.GetTextExtent("x")
         iFontSizeX = 24 * abs(x2-x1) / Ex / len(txt)
         iFontSizeY = 24 * abs(y2-y1) / Ey
-        sFit = self.xpathToStr(node, self.xpFit, 'xy')
+        sFit = self.xpathToStr(node, self.xpFit, 'xy', bShowError=False)
         if sFit == "x":
             iFontSize = iFontSizeX
         elif sFit == "y":
@@ -630,13 +631,13 @@ class READ_custom:
     def parseCustomAttr(cls, s, bNoCase=True):
         """
         The custom attribute contains data in a CSS style syntax.
-        We parse this syntax here and return a dictionary of dictionary
+        We parse this syntax here and return a dictionary of list of dictionary
         
         Example:
         parseCustomAttr( "readingOrder {index:4;} structure {type:catch-word;}" )
-            --> { 'readingOrder': { 'index':'4' }, 'structure':{'type':'catch-word'} }
+            --> { 'readingOrder': [{ 'index':'4' }], 'structure':[{'type':'catch-word'}] }
         """
-        dic = dict()
+        dic = defaultdict(list)
         
         s = s.strip()
         lChunk = s.split('}')
@@ -666,7 +667,7 @@ class READ_custom:
                 lName = sNames.split(',')
                 for name in lName:
                     name = name.strip().lower() if bNoCase else name.strip()
-                    dic[name] = dicValForName
+                    dic[name].append(dicValForName)
         return dic
         
 class DecoREADTextLine_custom_offset(DecoREADTextLine, READ_custom):
@@ -701,28 +702,50 @@ class DecoREADTextLine_custom_offset(DecoREADTextLine, READ_custom):
                                               , Family=wx.FONTFAMILY_TELETYPE)
         
         dCustom = self.parseCustomAttr(node.get("custom"), bNoCase=True)
+#         try:
+#             _ldLabel = dCustom[self.xpathToStr(node, self.xpLabel, "").lower()]
+#             iOffset = int(_dLabel["offset"])
+#             iLength = int(_dLabel["length"])
+#         except KeyError:
+#             iOffset = 0
+#             iLength = 0
+# 
+#         # some annotation ?
+#         if iLength > 0:        
+#             x, y = ltXY[0] 
+#             x += Ex * iOffset
+#         
+#             obj = wxh.AddScaledTextBox(txt[iOffset:iOffset+iLength]
+#                                        , (x, -y+iFontSize/6)
+#                                        , Size=iFontSize
+#                                        , Family=wx.FONTFAMILY_TELETYPE
+#                                        , Position='tl'
+#                                        , Color=sFontColor
+#                                        , LineColor=sLineColor
+#                                        , BackgroundColor=sBackgroundColor)
+#             lo.append(obj)
         try:
-            _dLabel = dCustom[self.xpathToStr(node, self.xpLabel, "").lower()]
-            iOffset = int(_dLabel["offset"])
-            iLength = int(_dLabel["length"])
-        except KeyError:
-            iOffset = 0
-            iLength = 0
-
-        # some annotation ?
-        if iLength > 0:        
-            x, y = ltXY[0] 
-            x += Ex * iOffset
-        
-            obj = wxh.AddScaledTextBox(txt[iOffset:iOffset+iLength]
-                                       , (x, -y+iFontSize/6)
+            x0, y0 = ltXY[0] 
+            _ldLabel = dCustom[self.xpathToStr(node, self.xpLabel, "").lower()]
+            for _dLabel in _ldLabel:
+                try:
+                    iOffset = int(_dLabel["offset"])
+                    iLength = int(_dLabel["length"])
+                    x = x0 + Ex * iOffset
+                    y = -y0+iFontSize/6
+                    obj = wxh.AddScaledTextBox(txt[iOffset:iOffset+iLength]
+                                       , (x, y)
                                        , Size=iFontSize
                                        , Family=wx.FONTFAMILY_TELETYPE
                                        , Position='tl'
                                        , Color=sFontColor
                                        , LineColor=sLineColor
                                        , BackgroundColor=sBackgroundColor)
-            lo.append(obj)
+                    lo.append(obj)
+                except KeyError:
+                    pass
+        except KeyError:
+            pass
         return lo
     
 
