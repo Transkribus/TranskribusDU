@@ -627,7 +627,7 @@ class READ_custom:
     Everything related to the PageXML custom attribute
     """
     @classmethod
-    def parseCustomAttr(cls, s):
+    def parseCustomAttr(cls, s, bNoCase=True):
         """
         The custom attribute contains data in a CSS style syntax.
         We parse this syntax here and return a dictionary of dictionary
@@ -660,11 +660,13 @@ class READ_custom:
                         sKey, sVal = sKeyVal.split(':')
                     except Exception:
                         raise ValueError("Expected a comma-separated string, got '%s'"%sKeyVal)
-                    dicValForName[sKey.strip()] = sVal.strip()
+                    sKey = sKey.strip().lower() if bNoCase else sKey.strip()
+                    dicValForName[sKey] = sVal.strip()
                 
                 lName = sNames.split(',')
                 for name in lName:
-                    dic[name.strip()] = dicValForName
+                    name = name.strip().lower() if bNoCase else name.strip()
+                    dic[name] = dicValForName
         return dic
         
 class DecoREADTextLine_custom_offset(DecoREADTextLine, READ_custom):
@@ -698,9 +700,9 @@ class DecoREADTextLine_custom_offset(DecoREADTextLine, READ_custom):
         iFontSize, Ex, Ey = self._getFontSize(node, ltXY, txt
                                               , Family=wx.FONTFAMILY_TELETYPE)
         
-        dCustom = self.parseCustomAttr(node.get("custom"))
+        dCustom = self.parseCustomAttr(node.get("custom"), bNoCase=True)
         try:
-            _dLabel = dCustom[self.xpathToStr(node, self.xpLabel, "")]
+            _dLabel = dCustom[self.xpathToStr(node, self.xpLabel, "").lower()]
             iOffset = int(_dLabel["offset"])
             iLength = int(_dLabel["length"])
         except KeyError:
