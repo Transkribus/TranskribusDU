@@ -8,7 +8,6 @@ from collections import defaultdict
 from lxml import etree
 #import cStringIO
 import wx
-from dask.array.creation import eye
 
 sEncoding = "utf-8"
 
@@ -305,35 +304,10 @@ class DecoText(DecoBBXYWH):
         iFontSize = self.xpathToInt(node, self.xpFontSize, 8)
         sFontColor = self.xpathToStr(node, self.xpFontColor, 'BLACK')
         x,y,w,h,inc = self.runXYWHI(node)
-        # obj = wxh.AddScaledTextBox(txt, (x, -y-h/2.0),
-#                                    Size=iFontSize,
-#                                    Family=wx.ROMAN, Position='cl',
-#                                    Color=sFontColor, PadSize=0, LineColor=None)
-        
-        # FONTFAMILY_TELETYPE
-        # FONTFAMILY_ROMAN
-        dc = wx.ScreenDC()
-        dc.SetFont(wx.Font(iFontSize, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
-        Ey, Ex = dc.GetTextExtent("x")
-        # FontScale = iFontSize/Ex
-        if txt[:2] == "3)":
-            #FontScale = iFontSize/E[1]
-            for i, c in enumerate(txt):
-                obj = wxh.AddScaledText(c, (x, -y - Ey / 2),
-                                           Size=iFontSize
-        #                                    , Family=wx.ROMAN
-                                           , Family=wx.FONTFAMILY_TELETYPE
-                                           , Position='bl'
-                                           , Color=sFontColor)
-                # x += Ex / 2
-                x += dc.GetTextExtent("c")[1]/2
-            lo.append(obj)
-            del dc
-        else:
-            obj = wxh.AddScaledText(txt, (x, -y - Ey / 2 ), Size=iFontSize
-                                       , Family=wx.FONTFAMILY_TELETYPE
-                                       , Position='bl'
-                                       , Color=sFontColor)
+        obj = wxh.AddScaledTextBox(txt, (x, -y-h/2.0),
+                                    Size=iFontSize,
+                                    Family=wx.ROMAN, Position='cl',
+                                    Color=sFontColor, PadSize=0, LineColor=None)
             lo.append(obj)
         return lo
     
