@@ -308,7 +308,7 @@ class DecoText(DecoBBXYWH):
                                     Size=iFontSize,
                                     Family=wx.ROMAN, Position='cl',
                                     Color=sFontColor, PadSize=0, LineColor=None)
-            lo.append(obj)
+        lo.append(obj)
         return lo
     
     def getText(self, wxh, node):
