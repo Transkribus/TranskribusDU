@@ -676,28 +676,6 @@ class DecoREADTextLine_custom_offset(DecoREADTextLine, READ_custom):
                                               , Family=wx.FONTFAMILY_TELETYPE)
         
         dCustom = self.parseCustomAttr(node.get("custom"), bNoCase=True)
-#         try:
-#             _ldLabel = dCustom[self.xpathToStr(node, self.xpLabel, "").lower()]
-#             iOffset = int(_dLabel["offset"])
-#             iLength = int(_dLabel["length"])
-#         except KeyError:
-#             iOffset = 0
-#             iLength = 0
-# 
-#         # some annotation ?
-#         if iLength > 0:        
-#             x, y = ltXY[0] 
-#             x += Ex * iOffset
-#         
-#             obj = wxh.AddScaledTextBox(txt[iOffset:iOffset+iLength]
-#                                        , (x, -y+iFontSize/6)
-#                                        , Size=iFontSize
-#                                        , Family=wx.FONTFAMILY_TELETYPE
-#                                        , Position='tl'
-#                                        , Color=sFontColor
-#                                        , LineColor=sLineColor
-#                                        , BackgroundColor=sBackgroundColor)
-#             lo.append(obj)
         try:
             x0, y0 = ltXY[0] 
             _ldLabel = dCustom[self.xpathToStr(node, self.xpLabel, "").lower()]
@@ -711,7 +689,7 @@ class DecoREADTextLine_custom_offset(DecoREADTextLine, READ_custom):
                                        , (x, y)
                                        , Size=iFontSize
                                        , Family=wx.FONTFAMILY_TELETYPE
-                                       , Position='tl'
+                                       , Position='bl'
                                        , Color=sFontColor
                                        , LineColor=sLineColor
                                        , BackgroundColor=sBackgroundColor)

@@ -60,6 +60,7 @@ class MyFrame(wx.Frame):
         for_bmp = wx.ArtProvider.GetBitmap(wx.ART_GO_FORWARD)
         jumpback_bmp = wx.ArtProvider.GetBitmap(wx.ART_UNDO)
         jumpback_bmp = wx.ArtProvider.GetBitmap(wx.ART_GO_TO_PARENT)
+        untick_bmp = wx.ArtProvider.GetBitmap(wx.ART_DEL_BOOKMARK)
         self.tc_pagesel = wx.TextCtrl(tb,
                                       style=wx.TE_PROCESS_ENTER)
 #         self.tc_pagecur = wx.TextCtrl(tb,
@@ -79,6 +80,10 @@ class MyFrame(wx.Frame):
         ID_JUMPBACK = wx.NewId()
         tb.AddSeparator()
         tb.AddSimpleTool(ID_JUMPBACK, jumpback_bmp, "Back")
+        
+        ID_UNTICKALL = wx.NewId()
+        tb.AddSeparator()
+        tb.AddSimpleTool(ID_UNTICKALL, untick_bmp, "Untick")
         tb.Realize()
         
         # Menu Bar
@@ -133,6 +138,7 @@ class MyFrame(wx.Frame):
         self.Bind(wx.EVT_TOOL, self.OnToolbar_BackwardPage, id=ID_BACKWARD)
         self.Bind(wx.EVT_TOOL, self.OnToolbar_ForwardPage, id=ID_FORWARD)
         self.Bind(wx.EVT_TOOL, self.OnToolbar_JumpBack, id=ID_JUMPBACK)
+        self.Bind(wx.EVT_TOOL, self.OnToolbar_UntickAll, id=ID_UNTICKALL)
         self.stackJump = []
         
         self.bindConfigWidget()
@@ -150,6 +156,7 @@ class MyFrame(wx.Frame):
         
         #now the checkboxes for the decoration types
         self.dChekBox2Deco = {} #checkbox -> deco
+        self.dDeco2ChekBox = {} #deco -> checkbox
         self.dBut2Deco = {}     #button -> deco
         self.ltCheckboxObjects = []
         for deco in self.config.getDecoList():
@@ -164,6 +171,7 @@ class MyFrame(wx.Frame):
                 else:
                     chkbx.SetValue(0)
                 self.dChekBox2Deco[chkbx] = deco
+                self.dDeco2ChekBox[deco] = chkbx
                 
                 #also include two buttons for each
                 butPrev = wx.NewId()
@@ -378,6 +386,23 @@ def OnMenu_LoadRecent%d(event):
         if self.doc and self.stackJump: 
             self.display_page( self.stackJump.pop() )
 
+    def OnToolbar_UntickAll(self, evt):
+        """
+        untick all decorations   TO BE FINISHED
+        
+        TODO: untick the checkboxes...
+        """
+        for deco in self.config.getDecoList():
+            try:
+                deco.setEnabled(False)
+                self.dDeco2ChekBox[deco].SetValue(0)
+            except:
+                # DecoSeparator...
+                pass       
+        if self.doc:
+            d = self.doc.displayed
+            self.display_page(d)
+            
     def OnToolbar_ChangePage(self, evt):
         """Modify the page number in the text control of the toolbar of the
         canvas"""
