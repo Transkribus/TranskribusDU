@@ -35,7 +35,7 @@ class  XMLDSDocument(XMLDocument):
         self.currentlPages = []
         self.nbTotalPages = 0
         XMLDocument.__init__(self)        
-    
+        self.lTags= ['PARAGRAPH','COLUMN','TABLE','REGION','BLOCK','BOX',ds_xml.sLINE_Elt,ds_xml.sTEXT,'BASELINE','GRAPHELT','SeparatorRegion']
     
     def addPage(self,p):
         self.lPages.append(p)
@@ -58,7 +58,7 @@ class  XMLDSDocument(XMLDocument):
                 myPage.setNumber(int(page.get('number')))
                 self.addPage(myPage)
 #                 self.getRootObject()._lObjects = self.getPages()
-                myPage.fromDom(page,['PARAGRAPH','COLUMN','TABLE','REGION','BLOCK','BOX',ds_xml.sLINE_Elt,ds_xml.sTEXT,'BASELINE','GRAPHELT','SeparatorRegion'])
+                myPage.fromDom(page,self.lTags)
 
     
     def loadFromDom(self,docDom = None,pageTag='PAGE',listPages = []):
