@@ -42,7 +42,8 @@ class  XMLDSObjectClass(XMLObjectClass):
         self._y = None
         self._h = None
         self._w = None  
-          
+        
+        self._poly = None
           
           
         
@@ -78,12 +79,14 @@ class  XMLDSObjectClass(XMLObjectClass):
         return a shapely polygon using points!!!
         points="375.12,98.88,924.0,101.52,924.0,113.52,375.12,110.88" 
         """
-        x  = [float(x) for x in self.getAttribute("points").split(',')]
+        if self._poly is not None:
+            return self._poly
+        
+        x  = [float(x) for x in self.getAttribute("points").replace(" ",",").split(',')]
         if len(x) <3*2:
             return   LineString(list(zip(*[iter(x)]*2)))
-#         print(list( zip(*[iter(x)]*2)))
-        return   Polygon(list(zip(*[iter(x)]*2)))
-        return Polygon( [(self.getX(),self.getY()),(self.getX2(),self.getY()),(self.getX2(),self.getY2()), ((self.getX(),self.getY2()))] )
+        self._poly = Polygon(list(zip(*[iter(x)]*2)))
+        return     self._poly 
     
     def addObject(self,o,bDom=False): 
         ## move dom node as well
@@ -214,9 +217,37 @@ class  XMLDSObjectClass(XMLObjectClass):
                     myObject.setPage(self.getPage())
                     myObject.fromDom(child)   
          
-         
         
+         
+
     def bestRegionsAssignment(self,lRegions,bOnlyBaseline=False):
+        """
+            find the best (max overlap for self) region  for self
+            bOnlyBaseline: reduce the height so that baseline position is more important
+        """
+        from rtree import index
+        
+        assert self.toPolygon().is_valid
+         
+        txtidx = index.Index()
+        lP = []
+        [lP.append(e.toPolygon()) for e in lRegions if e.is_valid]
+        for i,elt in enumerate(lRegions):
+            txtidx.insert(i, lP[i].bounds)
+        lSet = txtidx.intersection(self.toPolygon().bounds)
+        lOverlap = []
+        for ei in lSet:
+            if lP[ei].is_valid:
+                intersec= self.toPolygon().intersection(lP[ei]).area
+                lOverlap.append((ei,lP[ei],intersec))
+        if lOverlap != []:        
+            lOverlap.sort(key=lambda xyz:xyz[-1])
+#             print (self,lRegions[lOverlap[-1][0]])
+            return lRegions[lOverlap[-1][0]]
+        
+        return None
+        
+    def bestRegionsAssignmentOld(self,lRegions,bOnlyBaseline=False):
         """
             find the best (max overlap for self) region  for self
             bOnlyBaseline: reduce the height so that baseline position is more important
@@ -239,7 +270,7 @@ class  XMLDSObjectClass(XMLObjectClass):
             self.setHeight(Hbackup)
             self.setY(Ybackup)
         
-        if max(lOverlap) == 0: return None
+        if lOverlap ==[] : return None
         return lRegions[lOverlap.index(max(lOverlap))]
         
     def clipMe(self,clipRegion,lSubObject=[]):
