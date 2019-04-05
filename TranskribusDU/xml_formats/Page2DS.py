@@ -146,11 +146,12 @@ class primaAnalysis(Component.Component):
         """
         lPoints = curNode.xpath("./x:Coords/@%s"%'points' ,namespaces={'x':self.xmlns})
         if lPoints!= []:
-#             sp = lPoints[0].text.replace(' ',',')
-            sp = lPoints[0].replace(' ',',')
-            if sp != "":
-                scaledP=  map(lambda x: 72.0* float(x) / self.dpi,sp.split(','))
-                scaledP = str(list(scaledP))[1:-1].replace(' ','')
+            #sp = lPoints[0].replace(' ',',')
+            lP = lPoints[0].split(' ')
+            if lP != []:
+                scaledP=  [ list(map(lambda x: 72.0* float(x) / self.dpi , xy.split(','))) for xy in lP]
+                scaledP = " ".join([ "%.2f,%.2f"% (x,y) for (x,y) in scaledP])
+#                 scaledP = str(list(scaledP))[1:-1].replace(' ','')
                 return scaledP
         else:
             return ""
@@ -203,16 +204,20 @@ class primaAnalysis(Component.Component):
 #             xpath  = "./a:Baseline/@%s" % ("points")
             lPoints = line.xpath("./x:Baseline/@%s"%'points',namespaces={'x':self.xmlns})
             if lPoints!= []:
-#                 sp = lPoints[0].text.replace(' ',',')
-                sp = lPoints[0].replace(' ',',')
-
-                try:
-                    scaledP =  list(map(lambda x: 72.0* float(x) / self.dpi,sp.split(',')))
-                    scaledP = str(scaledP)[1:-1].replace(' ','')
+#                 sp = lPoints[0].replace(' ',',')
+                lP = lPoints[0].split(' ')
+                if lP != []:
+                    scaledP=  [ list(map(lambda x: 72.0* float(x) / self.dpi , xy.split(','))) for xy in lP]
+                    scaledP = " ".join([ "%.2f,%.2f"% (x,y) for (x,y) in scaledP])
                     node.set('blpoints',scaledP)
                     dsNode.append(node)
-                except IndexError: 
-                    pass            
+#                 try:
+#                     scaledP =  list(map(lambda x: 72.0* float(x) / self.dpi,sp.split(',')))
+#                     scaledP = str(scaledP)[1:-1].replace(' ','')
+#                     node.set('blpoints',scaledP)
+#                     dsNode.append(node)
+#                 except IndexError: 
+#                     pass            
             # text
 #             ctxt = line.doc.xpathNewContext()
 #             ctxt.xpathRegisterNs("a", self.xmlns)
@@ -361,7 +366,8 @@ class primaAnalysis(Component.Component):
         if pnode.get('custom'):
             dsnode.set('custom',pnode.get('custom') )
 #         dsnode.set('structure',pnode.get('structure') )
-
+        sp = self.getPoints(pnode)
+        dsnode.set('points',sp)
         try:
             dsnode.set('id',pnode.get('id'))
         except:
@@ -415,7 +421,9 @@ class primaAnalysis(Component.Component):
                         elif  childname =="PrintSpace":
                             node = etree.Element("typeArea")                                     
                         else:
-                            node = etree.Element("MISC")
+                            node = etree.Element(etree.QName(child.tag).localname)
+#                             node = etree.Element(child.localname)
+                            #node = etree.Element("MISC")
                         ## ADD ROTATION INFO
                         if child.get("orientation"):
                             rotation = child.get("orientation")
@@ -431,6 +439,10 @@ class primaAnalysis(Component.Component):
                         node.set(ds_xml.sY,str(yp))
                         node.set(ds_xml.sHeight,str(hp))
                         node.set(ds_xml.sWidth,str(wp))
+                        try:
+                            sp = self.getPoints(child)
+                            node.set('points',sp)
+                        except:pass
                         if not self.bSkipRegion:
                             dspage.append(node)
 #                     elif child.tag =="TableRegion":
