@@ -355,7 +355,23 @@ class primaAnalysis(Component.Component):
             
         return dstable
 
-
+    def copyEdge(self,child):
+        """
+            <Edge DU_type="HorizontalEdge" w="1.000000" points="230,756 61,761"/>
+        """
+        node = etree.Element('EDGE')
+        node.set('src',child.get('src'))
+        node.set('tgt',child.get('tgt'))
+        node.set('type',child.get('DU_type'))
+        node.set('w',child.get('w'))
+        lPoints = child.get('points')
+        lP = lPoints.split(' ')
+        if lP != []:
+            scaledP=  [ list(map(lambda x: 72.0* float(x) / self.dpi , xy.split(','))) for xy in lP]
+            scaledP = " ".join([ "%.2f,%.2f"% (x,y) for (x,y) in scaledP])
+            node.set('points',scaledP)
+        return node
+    
     def createRegion(self,pnode):
         """
             create REGION
@@ -386,6 +402,9 @@ class primaAnalysis(Component.Component):
                     childname =etree.QName(child.tag).localname
 #                     lPoints = child.xpath("./{%s}Coords/@%s" % (self.xmlns,"points"))
                     lPoints = child.xpath("./x:Coords/@points", namespaces={"x":self.xmlns})
+                    if childname =="Edge":
+                        node = self.copyEdge(child)       
+                        dspage.append(node)             
                     if lPoints !=[]:
                         [x,y,h,w] = self.regionBoundingBox(lPoints[0])
                         xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w))
@@ -398,7 +417,16 @@ class primaAnalysis(Component.Component):
                                 else:
                                     # no region
                                     self.getTextLineSubStructure(dspage,child)
-
+                        if childname == "Cluster":
+                            #get type
+                            node = self.createRegion(child)
+                            node.tag = 'Cluster'
+                            if not self.bRef:
+                                if not self.bSkipRegion:
+                                    self.getTextLineSubStructure(node,child)
+                                else:
+                                    # no region
+                                    self.getTextLineSubStructure(dspage,child)
                         elif childname =="ImageRegion":
                             node = etree.Element("IMAGE")
                         elif childname =="LineDrawingRegion":
