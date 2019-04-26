@@ -554,7 +554,11 @@ class DecoREADTextLine(DecoREAD):
         # compute for font size of 24 and do proportional
         dc.SetFont(wx.Font(24, Family, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
         Ex, Ey = dc.GetTextExtent("x")
-        iFontSizeX = 24 * abs(x2-x1) / Ex / len(txt)
+        try:
+            iFontSizeX = 24 * abs(x2-x1) / Ex / len(txt)
+        except:
+            print "absence of text: cannot compute font size along X axis"
+            iFontSizeX = 8
         iFontSizeY = 24 * abs(y2-y1) / Ey
         sFit = self.xpathToStr(node, self.xpFit, 'xy', bShowError=False)
         if sFit == "x":
