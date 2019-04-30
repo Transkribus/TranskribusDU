@@ -242,7 +242,6 @@ class primaAnalysis(Component.Component):
                 node.set(ds_xml.sWidth,str(wp))            
             node.set('font-size','20')
 
-            
 #             # if word
 #             
 #             ctxt = line.doc.xpathNewContext()
@@ -417,7 +416,7 @@ class primaAnalysis(Component.Component):
                                 else:
                                     # no region
                                     self.getTextLineSubStructure(dspage,child)
-                        if childname == "Cluster":
+                        elif childname == "Cluster":
                             #get type
                             node = self.createRegion(child)
                             node.tag = 'Cluster'
