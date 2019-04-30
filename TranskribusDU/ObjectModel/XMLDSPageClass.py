@@ -22,6 +22,7 @@ from .XMLDSBASELINEClass import XMLDSBASELINEClass
 from .XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
 from .XMLDSTABLEClass import XMLDSTABLEClass
 from .XMLDSCOLUMN import XMLDSCOLUMNClass
+from .XMLDSRelationClass import XMLDSRelationClass
 
 class  XMLDSPageClass(XMLDSObjectClass):
     """
@@ -110,7 +111,12 @@ class  XMLDSPageClass(XMLDSObjectClass):
             ### GT elt
             if elt.tag =='MARGIN':
                 elt = list(elt)[0]  #elt=elt.children
+            if elt.tag == 'EDGE':
+                myRel= XMLDSRelationClass()
+                self.addRelation(myRel)
+                myRel.fromDom(elt)
             if elt.tag in lEltNames:
+                #relationObject
                 if elt.tag == ds_xml_def.sCOL_Elt:
                     myObject= XMLDSCOLUMNClass(elt)
                     self.addObject(myObject)
@@ -152,7 +158,22 @@ class  XMLDSPageClass(XMLDSObjectClass):
             else:
                 pass
 
+    def reifyRelations(self):
+        """
+            what was read: ids: now replace ids by objects
+            
+        """
+        self.relmat={}
+        for rel in self.getRelations():
+            srcid,tgtid = rel.getSourceId(), rel.getTargetId()
+            src = [ x for i,x in enumerate(self.getAllNamedObjects(XMLDSTEXTClass)) if x.getAttribute('id') == srcid]
+            tgt = [ x for i, x in enumerate(self.getAllNamedObjects(XMLDSTEXTClass)) if x.getAttribute('id') == tgtid]
+            rel.setSource(src[0])
+            rel.setTarget(tgt[0])
+            self.relmat[(src[0].getAttribute('id'),tgt[0].getAttribute('id'))] = 1
+            self.relmat[(tgt[0].getAttribute('id'),src[0].getAttribute('id'))] = 1
 
+    
     #TEMPLATE
 #     def setVerticalTemplates(self,lvm):
 #         self._verticalZoneTemplates = lvm
