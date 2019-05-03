@@ -119,12 +119,21 @@ class Deco:
         try:
 #            s = node.xpathEval(xpExpr)
             self.xpCtxt.setContextNode(node)
-            s = self.xpCtxt.xpathEval(xpExpr)
-            if type(s) == types.ListType: 
-                try:
-                    s = s[0].text
-                except AttributeError:
-                    s = s[0]    #should be an attribute value
+            if xpExpr[0] == "|":
+                #must be a lambda
+                assert xpExpr[:8] == "|lambda ", "Invalid lambda expression %s"%xpExpr
+                sStartEmpty, sLambdaExpr, xpExprArg, sEndEmpty = xpExpr.split('|')
+                assert sEndEmpty == "", "Missing last '|'"
+                sArg = self.xpCtxt.xpathEval(xpExprArg)[0]
+                sPythonExpr = "(%s)(%s)" % (sLambdaExpr, repr(sArg))
+                s = eval(sPythonExpr)
+            else:
+                s = self.xpCtxt.xpathEval(xpExpr)
+                if type(s) == types.ListType: 
+                    try:
+                        s = s[0].text
+                    except AttributeError:
+                        s = s[0]    #should be an attribute value
             return Deco.toInt(s)
         except Exception, e:
             if bShowError: self.xpathError(node, xpExpr, e, "xpathToInt return %d as default value"%iDefault)
