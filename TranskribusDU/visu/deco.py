@@ -5,6 +5,7 @@ A class that reflect a decoration to be made on certain XML node using WX
 
 import types, os
 from collections import defaultdict
+import glob
 from lxml import etree
 #import cStringIO
 import wx
@@ -390,11 +391,24 @@ class DecoImage(DecoBBXYWH):
         sFilePath = self.xpathToStr(node, self.xpHRef, "")
         if sFilePath:
             if not os.path.exists(sFilePath): 
-                print "WARNING: deco Image: file does not exists: '%s'"%sFilePath
-            else:
+                # maybe we have some pattern??
+                lCandidate = glob.glob(sFilePath)
+                bKO = True
+                for s in lCandidate:
+                    if os.path.exists(s):
+                        sFilePath = s
+                        bKO = False
+                        break
+                if bKO:
+                    print "WARNING: deco Image: file does not exists: '%s'"%sFilePath
+                    sFilePath = None
+            if bool(sFilePath):
                 img = wx.Image(sFilePath, wx.BITMAP_TYPE_ANY)
                 try:
-                    obj = wxh.AddScaledBitmap(img, (x,-y), h)
+                    if h > 0:
+                        obj = wxh.AddScaledBitmap(img, (x,-y), h)
+                    else:
+                        obj = wxh.AddScaledBitmap(img, (x,-y), img.GetHeight())
                     lo.append(obj)
                 except Exception, e:
                     print "DecoImage ERROR: File %s: %s"%(sFilePath, str(e))
@@ -554,7 +568,11 @@ class DecoREADTextLine(DecoREAD):
         # compute for font size of 24 and do proportional
         dc.SetFont(wx.Font(24, Family, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
         Ex, Ey = dc.GetTextExtent("x")
-        iFontSizeX = 24 * abs(x2-x1) / Ex / len(txt)
+        try:
+            iFontSizeX = 24 * abs(x2-x1) / Ex / len(txt)
+        except:
+            print "absence of text: cannot compute font size along X axis"
+            iFontSizeX = 8
         iFontSizeY = 24 * abs(y2-y1) / Ey
         sFit = self.xpathToStr(node, self.xpFit, 'xy', bShowError=False)
         if sFit == "x":

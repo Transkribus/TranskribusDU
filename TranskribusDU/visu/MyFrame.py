@@ -214,6 +214,13 @@ class MyFrame(wx.Frame):
         
         self.sizer_3 = wx.BoxSizer(wx.VERTICAL)
         sizer_2.Add(self.sizer_3, 0, wx.ALL|wx.ADJUST_MINSIZE, 5)
+        # self.sizer_3.FitInside(self)   no effect
+        # self.sizer_3.FitInside(self.wysi) no effect
+        # FitInside has no effect... :-/
+        sizer_1.FitInside(self)
+        sizer_2.FitInside(self)
+        self.sizer_3.FitInside(self)
+        
         sizer_2.Add(self.wysi, 1, wx.EXPAND, 0)
         
         self.__do_layout_sizer3()
@@ -227,24 +234,24 @@ class MyFrame(wx.Frame):
     def __do_layout_sizer3(self):
         #self.lDecoSizer = []
 #         self.sizer_3.AddSpacer( (20,20))
-        self.sizer_3.AddSpacer( 20)
+        self.sizer_3.AddSpacer(1)
 
         for chkbx, butPrev, butNext in self.ltCheckboxObjects:
             sz = wx.BoxSizer(wx.HORIZONTAL)
-            self.sizer_3.Add(sz, 0, wx.ALL|wx.ADJUST_MINSIZE, 5)
+            self.sizer_3.Add(sz, 0, wx.ALL|wx.ADJUST_MINSIZE, 1)
             if chkbx == None:
                 #separator in the toolbar
                 pass
                 #okself.sizer_3.AddSpacer( (20,20))
                 #self.sizer_3.Add( wx.StaticLine() )
-                sz.Add( wx.StaticLine(self,size=(100, 2)), 0, wx.ALL|wx.CENTER|wx.EXPAND , 1 )
+                sz.Add( wx.StaticLine(self,size=(100, 1)), 0, wx.ALL|wx.CENTER|wx.EXPAND , 1 )
                 #sz.Add( wx.StaticLine(self, size=(100, 3)), flag=wx.LI_HORIZONTAL|wx.SOLID )
             else:
 #                sz = wx.BoxSizer(wx.HORIZONTAL)
 #                self.sizer_3.Add(sz, 0, wx.ALL|wx.ADJUST_MINSIZE, 5)
-                sz.Add(chkbx, 0, wx.ALL|wx.ADJUST_MINSIZE, 2)
-                sz.Add(butPrev, 0, wx.ALL|wx.ADJUST_MINSIZE, 2)
-                sz.Add(butNext, 0, wx.ALL|wx.ADJUST_MINSIZE, 2)
+                sz.Add(chkbx  , 0, wx.ALL|wx.ADJUST_MINSIZE, 1)
+                sz.Add(butPrev, 0, wx.ALL|wx.ADJUST_MINSIZE, 1)
+                sz.Add(butNext, 0, wx.ALL|wx.ADJUST_MINSIZE, 1)
             #self.lDecoSizer.append(sz)
         
     #-------------------
