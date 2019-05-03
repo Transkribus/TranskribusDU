@@ -506,7 +506,7 @@ class DecoREAD(Deco):
             ltXY = []
             for _sPair in sCoords.split(' '):
                 (sx, sy) = _sPair.split(',')
-                ltXY.append((int(sx), int(sy)))
+                ltXY.append((Deco.toInt(sx), Deco.toInt(sy)))
         except Exception, e:
             print "ERROR: polyline coords are bad: '%s'"%sCoords
             raise e        
