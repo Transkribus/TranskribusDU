@@ -621,7 +621,11 @@ def OnMenu_LoadRecent%d(event):
                 for n in ln:
                     #TODO: deal with that!!!
                     inc = 1
-                    lo = deco.draw(c, n)
+                    try:
+                        lo = deco.draw(c, n)
+                    except:
+                        lo = None
+                        traceback.print_exc()
                     
                     #let's bind on the first object of the list
                     if lo:
