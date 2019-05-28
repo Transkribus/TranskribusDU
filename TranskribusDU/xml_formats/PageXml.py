@@ -627,22 +627,34 @@ class MultiPageXml(PageXml):
             #create a DOM
 #             newRootNd = rootNd.copyNode(2) #2 copy properties and namespaces (when applicable)
             newRootNd = deepcopy(rootNd)   #2 copy properties and namespaces (when applicable)
-            newDoc = etree.ElementTree(newRootNd)
-            
+            #newDoc = etree.ElementTree(newRootNd)
+            xmlPAGERoot = etree.Element('{%s}PcGts'%cls.NS_PAGE_XML,attrib={"{"+cls.NS_XSI+"}schemaLocation" : cls.XSILOCATION},nsmap={ None: cls.NS_PAGE_XML})
+            newDoc = etree.ElementTree(xmlPAGERoot)
+    
             #to jump to the PAGE sibling node (we do it now, defore possibly unlink...)
             node = metadataNd.getnext()
+            xmlPAGERoot.append(metadataNd)
+#             node = metadataNd.getnext()
+            xmlPAGERoot.append(node)
 
-            #Add a copy of the METADATA node and sub-tree
-            if bInPlace:
-#                 metadataNd.unlinkNode()
-                newRootNd.append(metadataNd)
-            else:
-#                 newMetadataNd = metadataNd.copyNode(1)
-                newMetadataNd=deepcopy(metadataNd)
-                newRootNd.append(newMetadataNd)
+
+            """
+                 Hervé 28/05/2019: I comment since I don't understand
+            """ 
+#             #Add a copy of the METADATA node and sub-tree
+#             if bInPlace:
+# #                 metadataNd.unlinkNode()
+#                 metadataNd.getparent().remove(metadataNd)
+#                 newRootNd.append(metadataNd)
+#             else:
+# #                 newMetadataNd = metadataNd.copyNode(1)
+#                 newMetadataNd=deepcopy(metadataNd)
+#                 metadataNd.getparent().remove(metadataNd)
+#                 newRootNd.append(newMetadataNd)
             
 #             #jump to the PAGE sibling node
 #             node = metadataNd.next
+
             while node is not None:
 #                 if node.type == "element": break
 #                 node = node.next
