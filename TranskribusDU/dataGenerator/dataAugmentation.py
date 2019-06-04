@@ -33,6 +33,7 @@
 import os,sys, optparse
 import numpy as np
 from lxml import etree
+from random import gauss
 from shapely.geometry import LineString
 from shapely.affinity import translate
  
@@ -64,12 +65,14 @@ def rotateV180(lCoordDom,pageWidth):
         rotate the page 180 vertically
     """ 
     vaxis =  pageWidth * 0.5
+    lRot = []
     for x,y in lCoordDom:
         d = abs(vaxis - x )
         if x > vaxis:
             x = vaxis - d 
         else: x = vaxis + d
-    return lCoordDom
+        lRot.append((int(round(x)),int(round(y))))
+    return lRot
 
 
 def linePolygon(baseline,param):
@@ -77,7 +80,7 @@ def linePolygon(baseline,param):
     lcoord =[ (float(x),float(y)) for x,y  in zip(lList[0::2],lList[1::2]) ]
     try: line=LineString(lcoord)
     except ValueError: return  # LineStrings must have at least 2 coordinate tuples
-    topline=translate(line,yoff=param)
+    topline=translate(line,yoff=-param)
     spoints = ' '.join("%s,%s"%(int(x[0]),int(x[1])) for x in line.coords)
     lp=list(topline.coords)
     lp.reverse()
@@ -87,7 +90,16 @@ def linePolygon(baseline,param):
 def loadFile(file):
     return etree.parse(file)
      
-def processPageXml(xmlfile,foo,param,bNorm=True):
+def processPageXml(xmlfile,foo,param=None):
+    """
+    """
+    if param ==None:
+        NS_PAGE_XML         = "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"    
+        xpath  = "//a:%s" % ("Page")
+        lP= xmlfile.xpath(xpath,namespaces ={'a':NS_PAGE_XML})
+        assert len(lP) == 1
+        param= int(lP[0].attrib['imageWidth'])
+    
     xpath  = "//*[@%s]" % ("points")
     lNodes= xmlfile.xpath(xpath)
     for node in lNodes:
@@ -95,9 +107,31 @@ def processPageXml(xmlfile,foo,param,bNorm=True):
         lList= [(x) for xy  in spoints.split(' ') for x in xy.split(',')]
         lp =[ (float(x),float(y)) for x,y  in zip(lList[0::2],lList[1::2]) ]
         lsk= foo(lp,param)
-        node.attrib['points']=" ".join("%s,%s"%(x,y) for x,y in lsk)
+        node.attrib['points']=" ".join("%s,%s"%(int(round(x)),int(round(y))) for x,y in lsk)
     
 
+def textlineLocalSkewing(xmlfile,param):    
+    
+    NS_PAGE_XML         = "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"    
+    xpath  = "//a:TextLine/a:Coords"    
+    lNodes = xmlfile.xpath(xpath,namespaces ={'a':NS_PAGE_XML})
+    for node in lNodes:
+        angle=gauss(0,param)
+        # Coords
+        spoints=node.attrib['points']  
+        lList= [(x) for xy  in spoints.split(' ') for x in xy.split(',')]
+        lp =[ (float(x),float(y)) for x,y  in zip(lList[0::2],lList[1::2]) ]
+        lsk = skewing(lp,angle)
+        node.attrib['points']=" ".join("%s,%s"%(x,y) for x,y in lsk)
+        #baseline
+        baselinecoord= node.getnext()
+        spoints=baselinecoord.attrib['points']  
+        lList= [(x) for xy  in spoints.split(' ') for x in xy.split(',')]
+        lp =[ (float(x),float(y)) for x,y  in zip(lList[0::2],lList[1::2]) ]
+        lsk = skewing(lp,angle)
+        baselinecoord.attrib['points']=" ".join("%s,%s"%(x,y) for x,y in lsk)
+        
+        
 def textlineNormalisation(xmlfile,param):    
     NS_PAGE_XML         = "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"    
     xpath  = "//a:TextLine/a:Baseline"
@@ -137,8 +171,11 @@ if __name__ == "__main__":
             textlineNormalisation(xml, h)
             xml.write("%s_%s_%s"%(h,a,outFile))
     for h in [20,25,30]:
-        processPageXml(xml,rotateV180,8400)
+        processPageXml(xml,rotateV180)
         textlineNormalisation(xml, h)
+        textlineLocalSkewing(xml,0.5)
         xml.write("%s_%s_%s"%(h,180,outFile))
-    
+    var=0.1
+    textlineLocalSkewing(xml, var)
+    xml.write("%s_%s_%s"%(var,'locals',outFile))
         
