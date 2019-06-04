@@ -131,7 +131,7 @@ if __name__ == "__main__":
         print("usage: dataAugmentation.py INPUTFILE OUTFILE")
         sys.exit() 
     xml = loadFile(inputFile)
-    for a in [1.5]:
+    for a in [-2,-1.5,-1,1,1.5,2]:
         processPageXml(xml, skewing,a)
         for h in [20,25,30]:
             textlineNormalisation(xml, h)
