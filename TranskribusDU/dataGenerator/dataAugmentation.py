@@ -33,7 +33,7 @@
 import os,sys, optparse
 import numpy as np
 from lxml import etree
-from random import gauss
+from random import gauss, random
 from shapely.geometry import LineString
 from shapely.affinity import translate
  
@@ -125,12 +125,28 @@ def textlineLocalSkewing(xmlfile,param):
         node.attrib['points']=" ".join("%s,%s"%(x,y) for x,y in lsk)
         #baseline
         baselinecoord= node.getnext()
-        spoints=baselinecoord.attrib['points']  
-        lList= [(x) for xy  in spoints.split(' ') for x in xy.split(',')]
-        lp =[ (float(x),float(y)) for x,y  in zip(lList[0::2],lList[1::2]) ]
-        lsk = skewing(lp,angle)
-        baselinecoord.attrib['points']=" ".join("%s,%s"%(x,y) for x,y in lsk)
+        try:
+            spoints=baselinecoord.attrib['points']  
+            lList= [(x) for xy  in spoints.split(' ') for x in xy.split(',')]
+            lp =[ (float(x),float(y)) for x,y  in zip(lList[0::2],lList[1::2]) ]
+            lsk = skewing(lp,angle)
+            baselinecoord.attrib['points']=" ".join("%s,%s"%(x,y) for x,y in lsk)
+        except: # no baseline???? 
+            pass
         
+        
+        
+        
+def deleteElement(xmlfile,param):
+    """
+        randomly delete TextLine
+        @param: param ([0,1]) : percentage of  deleted elements
+    """
+    NS_PAGE_XML         = "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"    
+    xpath  = "//a:TextLine"    
+    lNodes = xmlfile.xpath(xpath,namespaces ={'a':NS_PAGE_XML})
+    for node in lNodes:
+        if random()< param: node.getparent().remove(node)
         
 def textlineNormalisation(xmlfile,param):    
     NS_PAGE_XML         = "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"    
@@ -164,18 +180,30 @@ if __name__ == "__main__":
     except IndexError as e:
         print("usage: dataAugmentation.py INPUTFILE OUTFILE")
         sys.exit() 
+        
     xml = loadFile(inputFile)
-    for a in [-2,-1.5,-1,1,1.5,2]:
+    
+    for a in [-1,-0.5,0.5,1]:
+        xml = loadFile(inputFile)
         processPageXml(xml, skewing,a)
-        for h in [20,25,30]:
-            textlineNormalisation(xml, h)
-            xml.write("%s_%s_%s"%(h,a,outFile))
-    for h in [20,25,30]:
-        processPageXml(xml,rotateV180)
-        textlineNormalisation(xml, h)
-        textlineLocalSkewing(xml,0.5)
-        xml.write("%s_%s_%s"%(h,180,outFile))
-    var=0.1
+        xml.write("%s_%s_%s"%(None,a,outFile))
+#         for h in [30,50]:
+#             textlineNormalisation(xml, h)
+#             xml.write("%s_%s_%s"%(h,a,outFile))
+#     for h in [30,50]:
+#         xml = loadFile(inputFile)
+#         processPageXml(xml,rotateV180)
+#         textlineNormalisation(xml, h)
+#         textlineLocalSkewing(xml,0.5)
+#         xml.write("%s_%s_%s"%(h,180,outFile))
+    
+    var = 0.5
+    xml = loadFile(inputFile)
     textlineLocalSkewing(xml, var)
     xml.write("%s_%s_%s"%(var,'locals',outFile))
+
+#     var = 0.5
+#     deleteElement(xml,var)
+#     
+#     xml.write("%s_%s_%s"%(var,'del',outFile))
         
