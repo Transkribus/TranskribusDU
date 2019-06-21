@@ -15,6 +15,7 @@ from __future__ import  print_function
 from __future__ import unicode_literals
 
 import sys, os.path
+from shapely.geometry.linestring import LineString
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 sys.path.append(os.path.dirname(os.path.abspath(sys.argv[0])))
 
@@ -82,6 +83,8 @@ class tableTemplateSep(Component.Component):
         self.THCOMP = 10
         self.evalData= None
         
+        self.glength = 100
+         
         self.bDomTag=True
         
         self.fKleenPlusTH =1.5
@@ -126,6 +129,9 @@ class tableTemplateSep(Component.Component):
 
         if 'dsconv' in dParams:
             self.do2DS = dParams['dsconv']
+            
+        if 'glength' in dParams:
+            self.glength = dParams['glength']            
             
             
     def minePageDimensions(self,lPages):
@@ -234,13 +240,141 @@ class tableTemplateSep(Component.Component):
         return lRes
   
     
+    
+
+
+    def processIntersection(self,pageH,pageW,lFeatures):
+        """
+            if a segment intersects more than one segment: ignore it
+                # compute intersections: sort by freq
+                # del most segment with most frequent intersections (>=1)
+            remaining: segment with intersect <=1:
+                merge with other intersecting segment
+                
+                
+            final: polynomial from points from segments? 
+        """
+        lVLineStrings=[]
+        lHLineStrings=[]
+        lFinalFeature = []
+        
+        lH =list(filter(lambda x:x.getName()=='h',lFeatures))
+        lV =list(filter(lambda x:x.getName()=='v',lFeatures))
+
+        for f in lFeatures:
+            if f.getName() =='v':
+                x2 = f.getValue() + f.b * pageH
+                lVLineStrings.append(LineString( ((f.getValue(),0) ,(x2,pageH))))
+            else:
+                y2 = f.getValue() + f.b * pageW
+                lHLineStrings.append(LineString( ((0,f.getValue()),(pageW,y2) )))
+        
+        # HORIZONTAL
+        dInter={} 
+        lNoIntersection=[]
+        for i,l in enumerate(lHLineStrings):
+            for j,ll in enumerate(lHLineStrings):
+                if i != j and l.intersects(ll):
+                    try:dInter[i].append(j)
+                    except KeyError: dInter[i]=[j] 
+#                     print (l,ll,dInter[i])
+            try:dInter[i]
+            except: lNoIntersection.append(lH [i])
+        
+        
+        #sort by len
+        dSInter =sorted(dInter.items(), key=lambda item: len(item[1]),reverse=True)
+        i=0
+        bGO=True
+        if dSInter != []:
+            while bGO:            
+                if len(dSInter[i][1]) > 1:
+#                     print ('del',dSInter[i])
+                    for j in dSInter[i][1]: dInter[j].remove(dSInter[i][0])
+                    del(dInter[dSInter[i][0]])
+    #                 try:[dSInter[j][1].remove(i) for j in dSInter[i]]
+    #                 except: pass
+                i+=1
+                bGO = len(dSInter[i][1])>1 or i < len(dSInter)-1    
+            
+            lKeepThem=[]
+            lSeen=[]
+            for key, value in dInter.items():
+#                 print (key,value[0])
+                if value != [] and value[0] not in lSeen:
+                    lKeepThem.append((key,value[0]))
+                    lSeen.append(value[0])
+                    lSeen.append(key)
+
+            for one,two in lKeepThem:
+                lFinalFeature.append(lH[one])
+                lFinalFeature.append(lH[two])
+        lFinalFeature.extend(lNoIntersection)
+#         print ("??",lFinalFeature)
+
+        # VERTICAL 
+        dInter={} 
+        lNoIntersection=[]
+        for i,l in enumerate(lVLineStrings):
+            for j,ll in enumerate(lVLineStrings):
+                if i != j and l.intersects(ll):
+                    try:dInter[i].append(j)
+                    except KeyError: dInter[i]=[j] 
+#                     print (l,ll,dInter[i])
+            try:dInter[i]
+            except: lNoIntersection.append(lV [i])
+        
+        
+        #sort by len
+        dSInter =sorted(dInter.items(), key=lambda item: len(item[1]),reverse=True)
+        i=0
+        bGO=True
+        if dSInter != []:
+            while bGO:            
+                if len(dSInter[i][1]) > 1:
+#                     print ('del',dSInter[i])
+                    for j in dSInter[i][1]: dInter[j].remove(dSInter[i][0])
+                    del(dInter[dSInter[i][0]])
+    #                 try:[dSInter[j][1].remove(i) for j in dSInter[i]]
+    #                 except: pass
+                i+=1
+                bGO = len(dSInter[i][1])>1 or i < len(dSInter)-1    
+            
+            lKeepThem=[]
+            lSeen=[]
+            for key, value in dInter.items():
+#                 print (key,value[0])
+                if value!= [] and  value[0] not in lSeen:
+                    lKeepThem.append((key,value[0]))
+                    lSeen.append(value[0])
+                    lSeen.append(key)
+    
+            for one,two in lKeepThem:
+                lFinalFeature.append(lV[one])
+                lFinalFeature.append(lV[two])                
+                
+                
+        lFinalFeature.extend(lNoIntersection)
+#         print ("??",lFinalFeature)
+        return lFinalFeature
+        
+        
+        
+        
     def minePageVerticalFeature(self,lPages,lFeatureList,level=XMLDSGRAPHLINEClass):
         """
             get page features for  vertical zones: find vertical regular vertical Blocks/text structure
             
+            
+            add : if intersection of lines: take the longest one
+            
+            
+            put the length test after feature creation!!
         """ 
         chronoOn()
         
+        
+        glength = 50 
         for i,page, in enumerate(lPages):
             page.origFeat = []
             # GRAPHICAL LINES 
@@ -250,7 +384,7 @@ class tableTemplateSep(Component.Component):
                 graphline._canonicalFeatures = None
                 # vertical 
 #                 if graphline.getHeight() > graphline.getWidth() and graphline.getHeight() > 30:
-                if graphline.getHeight() > 200.00:
+                if  graphline.getHeight() > glength and  graphline.getHeight()  > graphline.getWidth():
 
                     gl.append(graphline)
                     # create a feature
@@ -262,18 +396,21 @@ class tableTemplateSep(Component.Component):
                     f.setName("v")
                     f.setObjectName(graphline)
                     f.addNode(graphline)
-                    X = [float(x) for x in graphline.getAttribute('points').split(',')[0::2]]
-                    Y = [float(y) for y in graphline.getAttribute('points').split(',')[1::2]]
+                    X = [float(xy.split(',')[0]) for xy in graphline.getAttribute('points').split(' ') ]
+                    Y = [float(xy.split(',')[1]) for xy in graphline.getAttribute('points').split(' ') ]
+#                     Y = [float(y) for y in graphline.getAttribute('points').split(',')[1::2]]
+
                     a, b = np.polynomial.polynomial.polyfit(Y,X,1)
 #                     x2 = a + b * page.getHeight()
                     ## project to Y=0
                     f.setValue(round(a))
+                    f.b= b
 #                     f.setValue(round(graphline.getX()))
                     graphline.addFeature(f)
                     page.setVGLFeatures(f)
                 
 # #                 horizontal
-                elif graphline.getWidth() > 10000 and graphline.getY() > 10 and  graphline.getY2() < page.getHeight() - 10  :  
+                elif graphline.getWidth() >  glength and graphline.getWidth()  > graphline.getHeight() : #and graphline.getY() > 10 and  graphline.getY2() < page.getHeight() - 10  :  
                     gl.append(graphline)
                     # create a feature
                     f = featureObject()
@@ -284,20 +421,17 @@ class tableTemplateSep(Component.Component):
                     f.setName("h")
                     f.setObjectName(graphline)
                     f.addNode(graphline)
+                    X = [float(xy.split(',')[0]) for xy in graphline.getAttribute('points').split(' ') ]
+                    Y = [float(xy.split(',')[1]) for xy in graphline.getAttribute('points').split(' ') ]
+
+                    a, b = np.polynomial.polynomial.polyfit(X,Y,1)
+                    f.b= b
+                    f.setValue(round(a))
                     # project to X = 0
-                    f.setValue(round(graphline.getY()))
+#                     f.setValue(round(graphline.getY()))
                     graphline.addFeature(f)
                     page.setVGLFeatures(f)                    
 #                     
-#             ## select regular x                                 
-#             seqGen = sequenceMiner()
-# #             seqGen.bDebug  =self.bDebug
-#             _fullFeatures =   seqGen.featureGeneration(gl,1)
-#             for fx in _fullFeatures:
-#                 fx.setWeight(sum(x.getHeight() for x in fx.getNodes())/64000)
-#                 # for article
-#                 fx.setWeight(len(fx.getNodes()))
-#             del seqGen
         self.buildVZones(lPages)
         
         print ('chronoFeature',chronoOff())
@@ -316,20 +450,14 @@ class tableTemplateSep(Component.Component):
             p.getVGLFeatures().sort(key=lambda x:x.getWeight(),reverse=True)
             for fi in p.getVGLFeatures():
                 if  fi not in p.lf_XCut:
-#                     l = sum(x.getWidth()*x.getHeight() for x in fi.getNodes())
-#                     l = sum(x.getHeight() for x in fi.getNodes())
-#                     fi.setWeight(l)
-                    p.lf_XCut.append(fi)
-#                 else:
-#                     print  'skip!',p, fi, fi.getWeight()            
-            
-#             p.lf_XCut.sort(key=lambda x:x.getWeight(),reverse=True)
-#             p.lf_XCut = p.lf_XCut   #[:15]
+                    if fi.getName() == 'v':
+                        totalLen = sum(x.getHeight() for x in fi.getNodes())
+                    else: 
+                        totalLen = sum(x.getWidth() for x in fi.getNodes())
+                    if totalLen > self.glength:
+                        p.lf_XCut.append(fi)
             p.lf_XCut.sort(key=lambda x:x.getValue())
             
-#             if self.bDebug : 
-#             print (p,p.lf_XCut)          
-        
 
     def highLevelSegmentation(self,lPages):
         """
@@ -415,13 +543,18 @@ class tableTemplateSep(Component.Component):
         
         for lPages in lLPages:
 #             print (lPages)
-#             self.THNUMERICAL = 20 #ABP 
+            self.THNUMERICAL = 15 #ABP 
             self.THNUMERICAL = 5 #NAF
             self.minePageVerticalFeature(lPages,None,level=self.sTag)
-            for p  in lPages:
-                p.resetVerticalTemplate()
-                p._lBasicFeatures=p.lf_XCut[:]
-
+            for page in lPages:
+                lSelectedFeautres = self.processIntersection(page.getHeight(), page.getWidth(),page.lf_XCut)
+                page.resetVerticalTemplate()  
+                page.lf_XCut = lSelectedFeautres
+                page._lBasicFeatures=page.lf_XCut[:]          
+#             for p  in lPages:
+#                 p.resetVerticalTemplate()
+#                 p._lBasicFeatures=p.lf_XCut[:]
+                
 #             self.dtwMatching(lPages)
             self.separatorBaseline(lPages)
            
@@ -556,29 +689,30 @@ class tableTemplateSep(Component.Component):
                             page.getNode().append(domNode)
 #                             print (cut.getNodes())
                             # need to take tje feature for the page itself not 'generic features'
-                            niceNode = next(iter(cut.getNodes())) #iter(s).next()
+                            #niceNode = next(iter(cut.getNodes())) #iter(s).next()
                             pageNodes = list(filter(lambda x:x.getPage() == page, cut.getNodes()))
                             pageNodes.sort(key=lambda x:x.getHeight(),reverse=True)
                             niceNode = pageNodes[0]
                             lElementsForBB.extend(pageNodes)
 #                             domNode.set('points',niceNode.getAttribute('points'))
-                            X = [float(x) for x in niceNode.getAttribute('points').split(',')[0::2]]
-                            Y = [float(y) for y in niceNode.getAttribute('points').split(',')[1::2]]
+                            X = [float(xy.split(',')[0]) for xy in niceNode.getAttribute('points').split(' ') ]
+#                             X = [float(x) for x in niceNode.getAttribute('points').split(',')[0::2]]
+                            Y = [float(xy.split(',')[1]) for xy in niceNode.getAttribute('points').split(' ') ]
+#                             Y = [float(y) for y in niceNode.getAttribute('points').split(',')[1::2]]
                             a, b = np.polynomial.polynomial.polyfit(Y,X,1)
                             x2 = a + b * page.getHeight()
 #                             print(niceNode.getAttribute('points').split(','),X,Y,a,b)
 #                             domNode.set('points',"%s,%s," %(a,0) +niceNode.getAttribute('points') + ",%s,%s"%(x2,page.getHeight()))
-                            domNode.set('points',"%s,%s" %(a,0) +",%s,%s"%(x2,page.getHeight()))
+                            domNode.set('points',"%s,%s " %(a,0) +"%s,%s"%(x2,page.getHeight()))
 
                             if lastcutpoints != "":
 #                                 newReg.addAttribute('points', "%s,%s," %(a,0) +niceNode.getAttribute('points') + ",%s,%s,"%(x2,page.getHeight())+lastcutpoints)
-                                newReg.addAttribute('points', "%s,%s" %(a,0) + ",%s,%s,"%(x2,page.getHeight())+lastcutpoints)
-
+                                newReg.addAttribute('points', "%s,%s " %(a,0) + "%s,%s"%(x2,page.getHeight())+' '+lastcutpoints)
                                 newReg.setDimensions(prevcut,YMinus, page.getHeight()-2 * YMinus,cut.getValue() - prevcut)
                                 if newReg.toPolygon().is_valid:
                                     lRegions.append(newReg)
 #                                     print (newReg.getAttribute("points"))
-                            lastcutpoints = "%s,%s,"%(x2,page.getHeight()) + "%s,%s" %(a,0) # +niceNode.getAttribute('points') + 
+                            lastcutpoints = "%s,%s "%(x2,page.getHeight()) + "%s,%s" %(a,0) # +niceNode.getAttribute('points') + 
 
                             prevcut  = cut.getValue()
                         elif cut.getName()=='h':
@@ -600,13 +734,15 @@ class tableTemplateSep(Component.Component):
                             lElementsForBB.extend(pageNodes)
 
 #                             domNode.set('points',niceNode.getAttribute('points'))
-                            X = [float(x) for x in niceNode.getAttribute('points').split(',')[0::2]]
-                            Y = [float(y) for y in niceNode.getAttribute('points').split(',')[1::2]]
+                            X = [float(xy.split(',')[0]) for xy in niceNode.getAttribute('points').split(' ') ]
+                            Y = [float(xy.split(',')[1]) for xy in niceNode.getAttribute('points').split(' ') ]
+#                             X = [float(x) for x in niceNode.getAttribute('points').split(',')[0::2]]
+#                             Y = [float(y) for y in niceNode.getAttribute('points').split(',')[1::2]]
                             a, b = np.polynomial.polynomial.polyfit(X,Y,1)
                             y2 = a + b * page.getWidth()
 #                             print(niceNode.getAttribute('points').split(','),X,Y,a,b)
-                            domNode.set('points',"%s,%s," %(0,a) +niceNode.getAttribute('points') + ",%s,%s"%(page.getWidth(),y2))
-                            newReg.addAttribute('points', "%s,%s," %(0,a) +niceNode.getAttribute('points') + ",%s,%s"%(page.getWidth(),y2))
+                            domNode.set('points',"%s,%s " %(0,a) + niceNode.getAttribute('points') + " %s,%s"%(page.getWidth(),y2))
+                            newReg.addAttribute('points',"%s,%s " %(0,a) + niceNode.getAttribute('points') + " %s,%s"%(page.getWidth(),y2))
 #                             domNode.set('points',cut.getObjectName().getAttribute('points'))
                             newReg.setDimensions(XMinus,prevcut,cut.getValue() - prevcut, page.getWidth()-2 * XMinus)
     #                         print newReg.getX(),newReg.getY(),newReg.getHeight(),newReg.getWidth(),cut.getValue() - prevcut
@@ -1133,6 +1269,9 @@ class tableTemplateSep(Component.Component):
             return self.doc 
 
         else:
+            if self.do2DS:
+                dsconv = primaAnalysis()
+                doc = dsconv.convert2DS(doc,self.docid)
             chronoOn()
             self.ODoc = XMLDSDocument()
             self.ODoc.loadFromDom(doc,listPages = range(self.firstPage,self.lastPage+1))
@@ -1180,6 +1319,7 @@ if __name__ == "__main__":
     docM.add_option("--createrefC", dest="createrefCluster", action="store_true", default=False, help="create REF file for component (cluster of textlines)")
     docM.add_option("--evalC", dest="evalCluster", action="store_true", default=False, help="evaluation using clusters (of textlines)")
     docM.add_option("--dsconv", dest="dsconv", action="store_true", default=False, help="convert page format to DS")
+    docM.add_option("--glength", dest="glength", action="store",type='int', default=100, help="minimal length of a graphical element")
         
     #parse the command line
     dParams, args = docM.parseCommandLine()
