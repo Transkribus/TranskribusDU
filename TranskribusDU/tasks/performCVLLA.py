@@ -553,13 +553,15 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
 
         return doc, nbPages
     
-    def regularTextLines(self,doc):
+    def regularTextLinesold(self,doc):
         """
             from a baseline: create a regular TextLine:
             
             also: for slanted baseline: 
                 
         """
+        from shapely.geometry import LineString
+        from shapely.affinity import  translate        
         self.xmlns='http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
 
         lTextLines = PageXml.getChildByName(doc.getroot(),'TextLine')
@@ -581,14 +583,60 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
                     lXY.append( (int(sx), int(sy)) )
                 except ValueError:print (tl)
             plg = Polygon(lXY)
-            # 50 seems to large: the manual GT is 30  
+            line=LineString(lXY)
+            # 50 seems to large: the manual GT is 30  ? not always!
             iHeight = 30   # in pixel
             x1,y1, x2,y2 = plg.getBoundingBox()
             if coord is not None: 
                 coord.set('points',"%d,%d %d,%d %d,%d %d,%d" % (x1,y1-iHeight,x2,y1-iHeight,x2,y2,x1,y2))
             else:
                 print (tl)                     
-#             print tl
+
+    def regularTextLines(self,doc):
+        """
+            from a baseline: create a regular TextLine:
+        """
+        from shapely.geometry import LineString
+        from shapely.affinity import  translate   
+        self.xmlns='http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
+
+        lTextLines = PageXml.getChildByName(doc.getroot(),'TextLine')
+        for tl in lTextLines:
+            #get Coords
+            xpath  = "./a:%s" % ("Coords")
+            lCoords = tl.xpath(xpath,namespaces={"a": self.xmlns})            
+            coord= lCoords[0]
+            xpath  = "./a:%s" % ("Baseline")
+            lBL = tl.xpath(xpath,namespaces={"a": self.xmlns})      
+            try:baseline = lBL[0]
+            except IndexError:continue
+ 
+            sPoints=baseline.get('points')
+            lsPair = sPoints.split(' ')
+            lXY = list()
+            for sPair in lsPair:
+                try:
+                    (sx,sy) = sPair.split(',')
+                    lXY.append( (int(sx), int(sy)) )
+                except ValueError:print (tl)
+            #plg = Polygon(lXY)
+            try: line=LineString(lXY)
+            except ValueError: continue  # LineStrings must have at least 2 coordinate tuples
+            topline=translate(line,yoff=-20)
+            #iHeight = 20   # in pixel
+            #x1,y1, x2,y2 = topline.getBoundingBox()
+            if coord is not None: 
+                spoints = ' '.join("%s,%s"%(int(x[0]),int(x[1])) for x in line.coords)
+                lp=list(topline.coords)
+                lp.reverse()
+                spoints =spoints+ ' ' +' '.join("%s,%s"%(int(x[0]),int(x[1])) for x in lp) 
+                #spoints = ' '.join("%s,%s"%(x[0],x[1]) for x in pp.coords)
+                #coord.set('points',"%d,%d %d,%d %d,%d %d,%d" % (x1,y1-iHeight,x2,y1-iHeight,x2,y2,x1,y2))
+                coord.set('points',spoints)
+            else:
+                print (tl)                     
+#             print tl    
+    
     def run(self,doc):
         """
             GT from TextRegion
