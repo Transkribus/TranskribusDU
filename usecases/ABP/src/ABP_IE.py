@@ -287,9 +287,9 @@ class IETest(Component.Component):
             , ((slice(1,None),slice(4,5)) ,[ 'abp_family' ]                       ,[ dr.getFieldByName('situation') ])
              ,((slice(1,None),slice(5,6)) ,[ 'deathreason','artz']                ,[ dr.getFieldByName('deathreason'),dr.getFieldByName('doktor')])
             , ((slice(1,None),slice(6,7)) ,[]                                     , [ ])  #binding
-            , ((slice(1,None),slice(7,8)) ,[ 'abp_dates' ]                        ,[ dr.getFieldByName('deathDate') ])
+            , ((slice(1,None),slice(7,8)) ,[ 'abp_dates' ,'abp_year']                        ,[ dr.getFieldByName('deathDate'),dr.getFieldByName('deathYear') ])
             , ((slice(1,None),slice(8,9)) ,[ 'abp_dates','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('burialLocation') ])
-            , ((slice(1,None),slice(9,10)) ,[ 'abp_age']                           ,[ dr.getFieldByName('age')])
+            , ((slice(1,None),slice(9,10)) ,[ 'abp_age','abp_ageunit']                           ,[ dr.getFieldByName('age'), dr.getFieldByName('ageUnit')])
 #            , ((slice(1,None),slice(9,10)) ,[ dr.getFieldByName('priester')])
 #            , ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
            ]        
@@ -301,9 +301,9 @@ class IETest(Component.Component):
             , ((slice(1,None),slice(3,4)) ,[ 'abp_family' ]                       ,[ dr.getFieldByName('situation') ])
             #[] binding
             , ((slice(1,None),slice(4,6)) ,[ 'deathreason','artz']                ,[ dr.getFieldByName('deathreason'),dr.getFieldByName('doktor')])
-            , ((slice(1,None),slice(6,7)) ,[ 'abp_dates' ]                        ,[ dr.getFieldByName('deathDate') ])
-            , ((slice(1,None),slice(7,8)) ,[ 'abp_dates','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('burialLocation') ])
-            , ((slice(1,None),slice(8,9)) ,[ 'abp_age']                           ,[ dr.getFieldByName('age')])
+            , ((slice(1,None),slice(6,7)) ,[ 'abp_dates','abp_year' ]                        ,[ dr.getFieldByName('deathDate') ,dr.getFieldByName('deathYear')])
+            , ((slice(1,None),slice(7,8)) ,[ 'abp_dates','abp_year','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('deathYear'),dr.getFieldByName('burialLocation') ])
+            , ((slice(1,None),slice(8,9)) ,[ 'abp_age','abp_ageunit']                           ,[ dr.getFieldByName('age'), dr.getFieldByName('ageUnit')])
 #            , ((slice(1,None),slice(9,10)) ,[ dr.getFieldByName('priester')])
 #            , ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
            ]
@@ -351,7 +351,7 @@ class IETest(Component.Component):
         ### 
         
         for page in self.lPages:
-#             print("page: ", page.getNumber())
+            print("page: ", page.getNumber())
 #             self.testGTText(page)
 #             continue
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
@@ -495,7 +495,7 @@ class IETest(Component.Component):
             lCovered=[]
             for a,i in enumerate(r2):
 #                 print (key,a,r1[a],i,rows[r1[a]][2],cols[i][2], 1/cost_matrix[r1[a],i])
-                if 1 / cost_matrix[r1[a,],i] > lcsTH:
+                if 1 / cost_matrix[r1[a],i] > lcsTH:
                     cntOk += 1
                     if bT:
                         ltisRefsRunbErrbMiss.append( (runElt[1],int(runElt[0]), cols[i], rows[r1[a]],False, False) )
@@ -581,8 +581,8 @@ class IETest(Component.Component):
             key=page.get('pagenum')
             xpath = "./%s" % ("RECORD")
             lrecord = page.xpath(xpath)
-            if len(lrecord) == 0:
-                pass
+            if len(lrecord)==0:
+                lRef.append([])
             else:
                 for record in lrecord:
                     lf =[]
@@ -794,6 +794,8 @@ class IETest(Component.Component):
         dicTestByTask['location']= self.testRecordField(['location'],[None],srefData, srunData,bVisual)
         dicTestByTask['deathreason']= self.testRecordField(['deathreason'],[None],srefData, srunData,bVisual)
         dicTestByTask['names']= self.testRecordField(['firstname','lastname'],[None,None],srefData, srunData,bVisual)
+        dicTestByTask['doktor']= self.testRecordField(['doktor'],['helfer_name'],srefData, srunData,bVisual)
+
 #         dicTestByTask['namedeathlocationoccupation']= self.testRecordField(['firstname','lastname','deathreason','location','occupation'],[None,None,None,None,None],srefData, srunData,bVisual)
         dicTestByTask['situation']= self.testRecordField(['situation'],['family'],srefData, srunData,bVisual)
 #         dicTestByTask['Year']= self.testYear(srefData, srunData,bVisual)
