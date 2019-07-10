@@ -37,6 +37,7 @@ from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
 from ObjectModel.XMLDSCELLClass import XMLDSTABLECELLClass
 from ObjectModel.XMLDSTEXTClass import XMLDSTEXTClass
 from ObjectModel.XMLDSTableColumnClass import XMLDSTABLECOLUMNClass
+from ObjectModel.XMLDSTableRowClass import XMLDSTABLEROWClass
 
 from xml_formats.Page2DS import primaAnalysis
 
@@ -242,6 +243,43 @@ class tableTemplateSep(Component.Component):
     
     
 
+    def mergeFeatureH(self,Fone,Ftwo):
+        """
+            @input: two features
+            @return: a merge representation of one and two 
+        """
+#         print('One',Fone,list(map(lambda x:x.getPoints(),Fone.getNodes())))
+#         print('Two',Fone,list(map(lambda x:x.getPoints(),Ftwo.getNodes())))
+
+
+        # get points, order them
+        lPoints = []
+        [lPoints.append(x.getPoints()) for x in Fone.getNodes()] 
+        [lPoints.append(x.getPoints()) for x in Ftwo.getNodes()] 
+        lPoints.sort(key=lambda x:x[0][0])
+#         print (lPoints)
+        [Fone.addNode(n) for n in Ftwo.getNodes()]
+        return Fone
+        # extrapolate 0 and last
+ 
+    def mergeFeatureV(self,Fone,Ftwo):
+        """
+            @input: two features
+            @return: a merge representation of one and two 
+        """
+#         print('One',Fone,list(map(lambda x:x.getPoints(),Fone.getNodes())))
+#         print('Two',Fone,list(map(lambda x:x.getPoints(),Ftwo.getNodes())))
+
+
+        # get points, order them
+        lPoints = []
+        [lPoints.append(x.getPoints()) for x in Fone.getNodes()] 
+        [lPoints.append(x.getPoints()) for x in Ftwo.getNodes()] 
+        lPoints.sort(key=lambda x:x[0][1])
+#         print (lPoints)
+        [Fone.addNode(n) for n in Ftwo.getNodes()]
+        return Fone
+        # extrapolate 0 and last        
 
     def processIntersection(self,pageH,pageW,lFeatures):
         """
@@ -277,9 +315,8 @@ class tableTemplateSep(Component.Component):
                 if i != j and l.intersects(ll):
                     try:dInter[i].append(j)
                     except KeyError: dInter[i]=[j] 
-#                     print (l,ll,dInter[i])
             try:dInter[i]
-            except: lNoIntersection.append(lH [i])
+            except: lNoIntersection.append(lH[i])
         
         
         #sort by len
@@ -307,8 +344,9 @@ class tableTemplateSep(Component.Component):
                     lSeen.append(key)
 
             for one,two in lKeepThem:
-                lFinalFeature.append(lH[one])
-                lFinalFeature.append(lH[two])
+#                 lFinalFeature.append(lH[one])
+#                 lFinalFeature.append(lH[two])
+                lFinalFeature.append(self.mergeFeatureH(lH[one],lH[two]))
         lFinalFeature.extend(lNoIntersection)
 #         print ("??",lFinalFeature)
 
@@ -350,9 +388,9 @@ class tableTemplateSep(Component.Component):
                     lSeen.append(key)
     
             for one,two in lKeepThem:
-                lFinalFeature.append(lV[one])
-                lFinalFeature.append(lV[two])                
-                
+#                 lFinalFeature.append(lV[one])
+#                 lFinalFeature.append(lV[two])         
+                lFinalFeature.append(self.mergeFeatureV(lV[one],lV[two]))
                 
         lFinalFeature.extend(lNoIntersection)
 #         print ("??",lFinalFeature)
@@ -544,12 +582,12 @@ class tableTemplateSep(Component.Component):
         for lPages in lLPages:
 #             print (lPages)
             self.THNUMERICAL = 15 #ABP 
-            self.THNUMERICAL = 5 #NAF
+            #self.THNUMERICAL = 5 #NAF
             self.minePageVerticalFeature(lPages,None,level=self.sTag)
             for page in lPages:
-                lSelectedFeautres = self.processIntersection(page.getHeight(), page.getWidth(),page.lf_XCut)
+                lSelectedFeatures = self.processIntersection(page.getHeight(), page.getWidth(),page.lf_XCut)
                 page.resetVerticalTemplate()  
-                page.lf_XCut = lSelectedFeautres
+                page.lf_XCut = lSelectedFeatures
                 page._lBasicFeatures=page.lf_XCut[:]          
 #             for p  in lPages:
 #                 p.resetVerticalTemplate()
@@ -643,7 +681,11 @@ class tableTemplateSep(Component.Component):
         self.tagAsRegion(lPages)    
             
         
-    
+
+    def createTable(self,lPages):
+        """
+            
+        """
     def tagAsRegion(self,lPages):
         """
             create regions
@@ -664,17 +706,22 @@ class tableTemplateSep(Component.Component):
         for page in lPages:
             lRegions=[]
             lAllRegions.append(lRegions)
+            curTable= XMLDSTABLEClass()
             if page.getNode() is not None:
+                irow=0
+                icol=0
                 for template in page.getVerticalTemplates():
                     prevcut = 1
                     lCuts=[prevcut]
                     lRegions=[]
                     lElementsForBB=[]
-                    lastcutpoints =""
+                    lastcutpointsV =""
+                    lastcutpointsH =""
                     for cut in page.getdVSeparator(template):
-                        if cut.getName()=='v':
+                        if cut.getName() == 'v':
 #                             print(page,cut,cut.getNodes())
-                            newReg= XMLDSTABLECOLUMNClass()
+                            newReg= XMLDSTABLECOLUMNClass(icol)
+                            icol+=1
 #                             newReg.setName('COL')
                             domNode  = etree.Element('COL')
                             domNode.set("x",str(prevcut))
@@ -685,39 +732,76 @@ class tableTemplateSep(Component.Component):
                             domNode.set("width", str(cut.getValue() - prevcut))
                             lCuts.append(cut.getValue() )
                             newReg.setNode(domNode)
-                            page.addObject(newReg)
-                            page.getNode().append(domNode)
-#                             print (cut.getNodes())
-                            # need to take tje feature for the page itself not 'generic features'
-                            #niceNode = next(iter(cut.getNodes())) #iter(s).next()
+#                             page.addObject(newReg)
+#                             page.getNode().append(domNode)
+                            
                             pageNodes = list(filter(lambda x:x.getPage() == page, cut.getNodes()))
                             pageNodes.sort(key=lambda x:x.getHeight(),reverse=True)
-                            niceNode = pageNodes[0]
-                            lElementsForBB.extend(pageNodes)
-#                             domNode.set('points',niceNode.getAttribute('points'))
-                            X = [float(xy.split(',')[0]) for xy in niceNode.getAttribute('points').split(' ') ]
-#                             X = [float(x) for x in niceNode.getAttribute('points').split(',')[0::2]]
-                            Y = [float(xy.split(',')[1]) for xy in niceNode.getAttribute('points').split(' ') ]
-#                             Y = [float(y) for y in niceNode.getAttribute('points').split(',')[1::2]]
-                            a, b = np.polynomial.polynomial.polyfit(Y,X,1)
-                            x2 = a + b * page.getHeight()
-#                             print(niceNode.getAttribute('points').split(','),X,Y,a,b)
-#                             domNode.set('points',"%s,%s," %(a,0) +niceNode.getAttribute('points') + ",%s,%s"%(x2,page.getHeight()))
-                            domNode.set('points',"%s,%s " %(a,0) +"%s,%s"%(x2,page.getHeight()))
+                            if len(pageNodes) ==-1 :
+                                pass
+#                                 niceNode = pageNodes[0]
+#                                 lElementsForBB.extend(pageNodes)
+#     #                             domNode.set('points',niceNode.getAttribute('points'))
+#                                 X = [float(xy.split(',')[0]) for xy in niceNode.getAttribute('points').split(' ') ]
+#     #                             X = [float(x) for x in niceNode.getAttribute('points').split(',')[0::2]]
+#                                 Y = [float(xy.split(',')[1]) for xy in niceNode.getAttribute('points').split(' ') ]
+#     #                             Y = [float(y) for y in niceNode.getAttribute('points').split(',')[1::2]]
+#                                 a, b = np.polynomial.polynomial.polyfit(Y,X,1)
+#                                 x2 = a + b * page.getHeight()
+#     #                             print(niceNode.getAttribute('points').split(','),X,Y,a,b)
+#     #                             domNode.set('points',"%s,%s," %(a,0) +niceNode.getAttribute('points') + ",%s,%s"%(x2,page.getHeight()))
+#                                 domNode.set('points',"%s,%s " %(a,0) +"%s,%s"%(x2,page.getHeight()))
+#     
+#                                 if lastcutpoints != "":
+#                                     newReg.addAttribute('points', "%s,%s " %(a,0) + "%s,%s"%(x2,page.getHeight())+' '+lastcutpoints)
+#                                     newReg.setDimensions(prevcut,YMinus, page.getHeight()-2 * YMinus,cut.getValue() - prevcut)
+#                                     if newReg.toPolygon().is_valid:
+#                                         curTable.addColumn(newReg)
+#                                     else:
+#                                         icol-=1
+#                                         
+#                                 lastcutpoints = "%s,%s "%(x2,page.getHeight()) + "%s,%s" %(a,0) # +niceNode.getAttribute('points') + 
+                            else:
+                                niceNode = pageNodes[0]
+                                lElementsForBB.extend(pageNodes)
+    #                             domNode.set('points',niceNode.getAttribute('points'))
+                                X = [float(xy.split(',')[0]) for xy in niceNode.getAttribute('points').split(' ') ]
+                                Y = [float(xy.split(',')[1]) for xy in niceNode.getAttribute('points').split(' ') ]
+                                a, b = np.polynomial.polynomial.polyfit(Y,X,1)
+                                x2 = a + b * page.getHeight()
 
-                            if lastcutpoints != "":
-#                                 newReg.addAttribute('points', "%s,%s," %(a,0) +niceNode.getAttribute('points') + ",%s,%s,"%(x2,page.getHeight())+lastcutpoints)
-                                newReg.addAttribute('points', "%s,%s " %(a,0) + "%s,%s"%(x2,page.getHeight())+' '+lastcutpoints)
-                                newReg.setDimensions(prevcut,YMinus, page.getHeight()-2 * YMinus,cut.getValue() - prevcut)
-                                if newReg.toPolygon().is_valid:
-                                    lRegions.append(newReg)
-#                                     print (newReg.getAttribute("points"))
-                            lastcutpoints = "%s,%s "%(x2,page.getHeight()) + "%s,%s" %(a,0) # +niceNode.getAttribute('points') + 
-
+                                if len(pageNodes)>1:
+                                    niceNode = pageNodes[-1]
+                                    X = [float(xy.split(',')[0]) for xy in niceNode.getAttribute('points').split(' ') ]
+                                    Y = [float(xy.split(',')[1]) for xy in niceNode.getAttribute('points').split(' ') ]
+                                    a2, b2 = np.polynomial.polynomial.polyfit(Y,X,1)
+                                    x22 = a2 + b2 * page.getHeight()
+                                else: x22=x2
+                                
+                                sPoints= "%s,%s " %(a,0)
+                                for n in pageNodes:
+                                    sPoints += n.getAttribute('points')+" "
+                                sPoints+= "%s,%s"%(x22,page.getHeight())
+                                domNode.set('points',sPoints)
+                                if lastcutpointsV != "":
+                                    newReg.addAttribute('points',sPoints+' '+lastcutpointsV)
+                                    newReg.setDimensions(prevcut,YMinus, page.getHeight()-2 * YMinus,cut.getValue() - prevcut)
+                                    if newReg.toPolygon().is_valid:
+                                        curTable.addColumn(newReg)
+                                        page.addObject(newReg)
+                                        page.getNode().append(domNode)
+                                        print(newReg)
+                                    else:icol-=1
+                                else:icol-=1
+                                lastcutpointsV = sPoints                                 
+                                
                             prevcut  = cut.getValue()
-                        elif cut.getName()=='h':
+                            
+                            
+                        elif cut.getName() == 'h':
 #                             print(page,cut,cut.getNodes())
-                            newReg= XMLDSObjectClass()
+                            newReg= XMLDSTABLEROWClass(irow)
+                            irow+=1
                             domNode  = etree.Element('ROW')
                             XMinus= 1
                             domNode.set("x",str(XMinus))
@@ -728,54 +812,103 @@ class tableTemplateSep(Component.Component):
                             lCuts.append(cut.getValue() )
                             newReg.setNode(domNode)
                             page.getNode().append(domNode)
-                            niceNode = next(iter(cut.getNodes())) #iter(s).next()
-                            pageNodes = list(filter(lambda x:x.getPage() == page, cut.getNodes()))
-                            pageNodes.sort(key=lambda x:x.getHeight(),reverse=True)                            
-                            lElementsForBB.extend(pageNodes)
+                            
+                            if len(cut.getNodes()) ==-1 :pass
+#                                 lPoints = list(iter(cut.getNodes()))
+#                                 lPoints.sort(key=lambda x:x.getPoints()[0][0])
+#                                 niceNode = lPoints[0]
+# #                                 niceNode = next(iter(cut.getNodes())) #iter(s).next()
+#                                 pageNodes = list(filter(lambda x:x.getPage() == page, cut.getNodes()))
+#                                 pageNodes.sort(key=lambda x:x.getHeight(),reverse=True)                            
+#                                 lElementsForBB.extend(pageNodes)
+#                                     
+#                                 X = [float(xy.split(',')[0]) for xy in niceNode.getAttribute('points').split(' ') ]
+#                                 Y = [float(xy.split(',')[1]) for xy in niceNode.getAttribute('points').split(' ') ]
+#                                 a, b = np.polynomial.polynomial.polyfit(X,Y,1)
+#                                 y2 = a + b * page.getWidth()
+# 
+#                                 domNode.set('points',"%s,%s " %(0,a) + niceNode.getAttribute('points') + " %s,%s"%(page.getWidth(),y2))
+#                                 newReg.addAttribute('points',"%s,%s " %(0,a) + niceNode.getAttribute('points') + " %s,%s"%(page.getWidth(),y2))
+#                                 newReg.setDimensions(XMinus,prevcut,cut.getValue() - prevcut, page.getWidth()-2 * XMinus)
+#                                 if newReg.toPolygon().is_valid:
+#                                     curTable.addRow(newReg)
+                            else:
+                                """
+                                    
+                                """
+                                lPoints = list(iter(cut.getNodes()))
+                                lPoints.sort(key=lambda x:x.getPoints()[0][0])
+                                niceNode = lPoints[0]
+#                                 niceNode = next(iter(cut.getNodes())) #iter(s).next()
+                                pageNodes = list(filter(lambda x:x.getPage() == page, cut.getNodes()))
+                                pageNodes.sort(key=lambda x:x.getHeight(),reverse=True)                            
+                                lElementsForBB.extend(pageNodes)
+                                    
+                                X = [float(xy.split(',')[0]) for xy in niceNode.getAttribute('points').split(' ') ]
+                                Y = [float(xy.split(',')[1]) for xy in niceNode.getAttribute('points').split(' ') ]
+                                a, b = np.polynomial.polynomial.polyfit(X,Y,1)
+                                y2 = a + b * page.getWidth()
+                                
+                                if len(lPoints) >1:
+                                    niceNode2=lPoints[-1]
+                                    X = [float(xy.split(',')[0]) for xy in niceNode2.getAttribute('points').split(' ') ]
+                                    Y = [float(xy.split(',')[1]) for xy in niceNode2.getAttribute('points').split(' ') ]
+                                    a2, b2 = np.polynomial.polynomial.polyfit(X,Y,1)
+                                    y22 = a2 + b2 * page.getWidth()                                
+                                
+                                
+                                sPoints= "%s,%s " %(0,a)
+                                for n in lPoints:
+                                    sPoints += n.getAttribute('points')+" "
+                                sPoints+= "%s,%s"%(page.getWidth(),y22)
 
-#                             domNode.set('points',niceNode.getAttribute('points'))
-                            X = [float(xy.split(',')[0]) for xy in niceNode.getAttribute('points').split(' ') ]
-                            Y = [float(xy.split(',')[1]) for xy in niceNode.getAttribute('points').split(' ') ]
-#                             X = [float(x) for x in niceNode.getAttribute('points').split(',')[0::2]]
-#                             Y = [float(y) for y in niceNode.getAttribute('points').split(',')[1::2]]
-                            a, b = np.polynomial.polynomial.polyfit(X,Y,1)
-                            y2 = a + b * page.getWidth()
-#                             print(niceNode.getAttribute('points').split(','),X,Y,a,b)
-                            domNode.set('points',"%s,%s " %(0,a) + niceNode.getAttribute('points') + " %s,%s"%(page.getWidth(),y2))
-                            newReg.addAttribute('points',"%s,%s " %(0,a) + niceNode.getAttribute('points') + " %s,%s"%(page.getWidth(),y2))
-#                             domNode.set('points',cut.getObjectName().getAttribute('points'))
-                            newReg.setDimensions(XMinus,prevcut,cut.getValue() - prevcut, page.getWidth()-2 * XMinus)
-    #                         print newReg.getX(),newReg.getY(),newReg.getHeight(),newReg.getWidth(),cut.getValue() - prevcut
-                            lRegions.append(newReg)
+                                domNode.set('points',sPoints)
+                                newReg.addAttribute('points',sPoints)
+                                newReg.setDimensions(XMinus,prevcut,cut.getValue() - prevcut, page.getWidth()-2 * XMinus)
+                                    
+                                if lastcutpointsH != "":
+                                    newReg.addAttribute('points',sPoints+' '+lastcutpointsH)
+                                    newReg.setDimensions(XMinus,prevcut,cut.getValue() - prevcut, page.getWidth()-2 * XMinus)
+                                    if newReg.toPolygon().is_valid:
+                                        curTable.addColumn(newReg)
+                                        page.addObject(newReg)
+                                        page.getNode().append(domNode)
+                                        print(newReg)
+                                    else:irow-=1
+                                else:irow-=1
+                                lastcutpointsH = sPoints                                      
+                            
                             prevcut  = cut.getValue()                            
                 
-                if lElementsForBB:
-                    x1,y1,x2,y2 = cascaded_union([ x.toPolygon() for x in lElementsForBB]).bounds
-                    tableX = XMLDSTABLEClass()
-                    domNode  = etree.Element('COLUMN')
-                    tableX.setNode(domNode)
-                    domNode.set("x",str(x1))
-                    domNode.set("y",str(y1))
-                    domNode.set("width",str(x2-x1))
-                    domNode.set("height", str(y2-y1))
-                    page.getNode().append(domNode)
-
-                if lRegions != []:
-#                     print(list([ (x,x.is_valid) for x in  [e.toPolygon() for e in page.getAllNamedObjects(XMLDSTEXTClass) if e.getAttribute('id')=='p1_line_1507005136612_1983']]))
-#                     lvalidGeom = list(filter(lambda x:x.is_valid and x.area >0, [e.toPolygon() for e in page.getAllNamedObjects(XMLDSTEXTClass) if e.getAttribute('id')=='p1_line_1507005136612_1983']))
-                    lvalidGeom = list(filter(lambda x:x.is_valid and x.area >0, [e.toPolygon() for e in page.getAllNamedObjects(XMLDSTEXTClass)]))
-                    lEltValid = list(filter(lambda x:x.toPolygon().is_valid and x.toPolygon().area >0 , page.getAllNamedObjects(XMLDSTEXTClass)))
-#                     print ("====",len(lvalidGeom),len(lEltValid),len( page.getAllNamedObjects(XMLDSTEXTClass)),len([r.toPolygon() for r in lRegions]))
-                    dPositions = populateGeo(list([r.toPolygon() for r in lRegions]),lvalidGeom)
-                    for z in dPositions:
-#                         print (z, [page.getAllNamedObjects(XMLDSTEXTClass)[i] for i in dPositions[z]])
-                        lRegions[z].setObjectsList([lEltValid[i] for i in dPositions[z]])
-                        for e in  lRegions[z].getObjects():
-#                             print (e.getAttribute('id'),e.getX(),e.getX2(),lRegions[z].getX(),lRegions[z].toPolygon())
-                            e.setParent(lRegions[z])
-                            lRegions[z].getNode().append(e.getNode())
-#                             if z ==0: print (lRegions[z].getAttribute("points"),e, e.toPolygon().intersection(lRegions[z].toPolygon()))
-#                         lRegions[z].tagMe()
+#                 if lElementsForBB:
+#                     x1,y1,x2,y2 = cascaded_union([ x.toPolygon() for x in lElementsForBB]).bounds
+#                     tableX = XMLDSTABLEClass()
+#                     domNode  = etree.Element('COLUMN')
+#                     tableX.setNode(domNode)
+#                     domNode.set("x",str(x1))
+#                     domNode.set("y",str(y1))
+#                     domNode.set("width",str(x2-x1))
+#                     domNode.set("height", str(y2-y1))
+#                     page.getNode().append(domNode)
+                for col in curTable.getColumns(): print (col,col.getAttribute('points'))
+                for row in curTable.getRows():  print (row,row.getAttribute('points'))
+                curTable.reintegrateCellsInColRow()
+#                 if lRegions != []:
+# #                     print(list([ (x,x.is_valid) for x in  [e.toPolygon() for e in page.getAllNamedObjects(XMLDSTEXTClass) if e.getAttribute('id')=='p1_line_1507005136612_1983']]))
+# #                     lvalidGeom = list(filter(lambda x:x.is_valid and x.area >0, [e.toPolygon() for e in page.getAllNamedObjects(XMLDSTEXTClass) if e.getAttribute('id')=='p1_line_1507005136612_1983']))
+#                     lvalidGeom = list(filter(lambda x:x.is_valid and x.area >0, [e.toPolygon() for e in page.getAllNamedObjects(XMLDSTEXTClass)]))
+#                     lEltValid = list(filter(lambda x:x.toPolygon().is_valid and x.toPolygon().area >0 , page.getAllNamedObjects(XMLDSTEXTClass)))
+# #                     print ("====",len(lvalidGeom),len(lEltValid),len( page.getAllNamedObjects(XMLDSTEXTClass)),len([r.toPolygon() for r in lRegions]))
+#                     dPositions = populateGeo(list([r.toPolygon() for r in lRegions]),lvalidGeom)
+#                     for z in dPositions:
+# #                         print (z, [page.getAllNamedObjects(XMLDSTEXTClass)[i] for i in dPositions[z]])
+#                         lRegions[z].setObjectsList([lEltValid[i] for i in dPositions[z]])
+#                         for e in  lRegions[z].getObjects():
+# #                             print (e.getAttribute('id'),e.getX(),e.getX2(),lRegions[z].getX(),lRegions[z].toPolygon())
+#                             e.setParent(lRegions[z])
+#                             lRegions[z].getNode().append(e.getNode())
+# #                             if z ==0: print (lRegions[z].getAttribute("points"),e, e.toPolygon().intersection(lRegions[z].toPolygon()))
+# #                         lRegions[z].tagMe()
         return lAllRegions
     
     
