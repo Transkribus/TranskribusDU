@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 
-    ABP Death records IEOntology
+    ABP  records IEOntology
+    
     Hervé Déjean
     cpy Xerox 2017, NLE 2017
     
     death record
+    wedding record (for test)
 
     READ project 
 
@@ -38,6 +40,68 @@ from ObjectModel.documentClass import documentObject
 
 from lxml import etree
 
+
+
+class BaptismRecord(recordClass):
+    """
+        name (firstname only possible)  +death date sometimes
+        hebamme , was the birth easy , date?
+        vater + info
+        mutter + info
+        location  ; instead date of the uxor!
+        birth date
+        baptism date
+        priester + info
+    """
+
+class weddingRecord(recordClass):
+    sName = 'weddingrecord'
+    def __init__(self,sModelName,sModelDir):
+        recordClass.__init__(self,deathRecord.sName)
+        
+        myTagger = ABPTagger()
+        myTagger.loadResources(sModelName ,sModelDir )  
+        
+        #bride
+        bfnField = firstNameField()
+        bfnField.setLabelMapping( ['firstNameGenerator'])
+        bfnField.addTagger(myTagger)
+        bfnField.setMandatory()
+        self.addField(bfnField)
+    
+        gnfield = lastNameField()
+        gnfield.addTagger(myTagger)
+        gnfield.setLabelMapping(['lastNameGenerator'])
+        gnfield.setMandatory()
+        self.addField(gnfield)
+
+        #groom
+        gfnField = firstNameField()
+        gfnField.setLabelMapping( ['firstNameGenerator'])
+        gfnField.addTagger(myTagger)
+        gfnField.setMandatory()
+        self.addField(gfnField)
+    
+        gnfield = lastNameField()
+        gnfield.addTagger(myTagger)
+        gnfield.setLabelMapping(['lastNameGenerator'])
+        gnfield.setMandatory()
+        self.addField(gnfield)
+        
+        lfield= locationField()
+        lfield.addTagger(myTagger)
+        lfield.setLabelMapping(['locationGenerator'])
+        self.addField(lfield)
+        
+        wDate= weddingDate()
+        wDate.addTagger(myTagger)
+#         dDate.setLabelMapping(['weekDayDateGenerator','MonthDayDateGenerator','MonthDateGenerator'])         
+        xDate.setLabelMapping(['MonthDateGenerator'])         
+        self.addField(dDate)
+        
+
+
+    
 class deathRecord(recordClass):
     sName = 'deathrecord' 
     def __init__(self,sModelName,sModelDir):
@@ -66,7 +130,7 @@ class deathRecord(recordClass):
         
         lfield= locationField()
         lfield.addTagger(myTagger)
-        lfield.setLabelMapping(['locationGenerator'])
+        lfield.setLabelMapping(['location2Generator'])
         self.addField(lfield)
         
         ofield= occupationField()
@@ -78,7 +142,9 @@ class deathRecord(recordClass):
         sfield.addTagger(myTagger)
         sfield.setLabelMapping(['familyStatus'])
         self.addField(sfield)
-#         
+#
+
+        # specific tagger for dates ?
         dDate= deathDate()
         dDate.addTagger(myTagger)
 #         dDate.setLabelMapping(['weekDayDateGenerator','MonthDayDateGenerator','MonthDateGenerator'])         
@@ -91,15 +157,24 @@ class deathRecord(recordClass):
         bDate.setLabelMapping(['MonthDateGenerator'])         
         self.addField(bDate)         
 
+        year=deathYear()
+        year.addTagger(myTagger)
+        year.setLabelMapping(['yearGenerator'])         
+        self.addField(year)
 
         agefield=age()
         agefield.addTagger(myTagger)
         agefield.setLabelMapping(['ageValueGenerator'])
         self.addField(agefield)        
+        
+        ageUnitfield=ageUnit()
+        ageUnitfield.addTagger(myTagger)
+        ageUnitfield.setLabelMapping(['AgeUnitGenerator'])
+        self.addField(ageUnitfield)           
 
         blfield= burialLocation()
         blfield.addTagger(myTagger)
-        blfield.setLabelMapping(['locationGenerator'])
+        blfield.setLabelMapping(['location2Generator'])
         self.addField(blfield)
 
         reasonField = deathreasonField()
@@ -112,6 +187,29 @@ class deathRecord(recordClass):
         drField.setLabelMapping(['lastNameGenerator'])  #lastNameGenerator
         self.addField(drField)  
     
+#     def decoratePageXml(self):
+#         """
+#             ONGOING....
+#             add in @custom the field name
+#                <TextLine id="xrce_p1_p1_TableCell_1511814954659_67l4" 
+#                custom="readingOrder {index:0;} person {offset:0; length:11;} firstname {offset:0; length:6;} lastname {offset:7; length:4;}">
+#                
+#                
+#             currenlty 
+#         """
+#         lPages={}
+#         for cand in self.getCandidates():
+#             try:lPages[cand.getPage()].append(cand)
+#             except:lPages[cand.getPage()]=[cand]
+# 
+#         for page in sorted(lPages):
+#             sortedRows = lPages[page]
+#             sortedRows.sort(key=lambda x:int(x.getIndex()))   
+#             for cand in sortedRows:
+#                 for field in cand.getAllFields():
+#                     if field.getName() is not None and field.getBestValue() is not None:
+#                         print (field, field.getOffset()
+
     def generateOutput(self,outDom):
         """
             generateOutput
@@ -159,11 +257,12 @@ class deathRecord(recordClass):
                 nbRecords = 0
                 for field in cand.getAllFields():
                     if field.getName() is not None and field.getBestValue() is not None:
-                        record.set(field.getName(),field.getBestValue())
-                        nbRecords+=1
+                        record.set(field.getName().lower(),field.getBestValue())
+                        nbRecords=1
+                    else:record.set(field.getName().lower(),"") 
                 if nbRecords > 0:
                     domp.append(record)
-                domp.set('nbrecords',str(nbRecords))
+            domp.set('nbrecords',str(len(domp)))
         return outDom    
 
 
@@ -176,7 +275,17 @@ class locationField(fieldClass):
     sName='location'
     def __init__(self):
         fieldClass.__init__(self, locationField.sName)
-           
+
+
+class weddingDate(fieldClass):
+    sName='weddingDate'
+    def __init__(self):
+        fieldClass.__init__(self, weddingDate.sName)
+    
+class deathYear(fieldClass):
+    sName='deathYear'
+    def __init__(self):
+        fieldClass.__init__(self, deathYear.sName)          
 class deathDate(fieldClass):
     sName='deathDate'
     def __init__(self):
@@ -196,6 +305,12 @@ class age(fieldClass):
     sName='age'
     def __init__(self):
         fieldClass.__init__(self, age.sName)
+
+class ageUnit(fieldClass):
+    sName='ageUnit'
+    def __init__(self):
+        fieldClass.__init__(self, ageUnit.sName)
+
         
 class firstNameField(fieldClass):
     sName = 'firstname'
