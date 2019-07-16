@@ -134,6 +134,36 @@ class IETest(Component.Component):
         
 
 
+    def findNameColumn(self,table):
+        """    
+                find the column which corresponds to the people names c 
+        """
+        self.bDebug=True
+        #tag fields with template
+        lColPos = {}
+        lColInvName = {}
+        for cell in table.getCells():
+            try:lColPos[cell.getIndex()[1]]
+            except:  lColPos[cell.getIndex()[1]]=[]
+            if cell.getIndex()[1] < 5:
+                for field in cell.getFields():
+                    if field is not None:
+                        res = field.applyTaggers(cell)
+                        # res [ (token,label,score) ...]
+                        extractedValues = field.extractLabel(res)
+                        if extractedValues != []:
+    #                         extractedValues = map(lambda offset,value,label,score:(value,score),extractedValues)
+                            extractedValues = list(map(lambda x:(x[1],x[3]),extractedValues))
+                            field.setOffset(res[0])
+                            field.setValue(extractedValues)
+    #                         field.addValue(extractedValues)
+                            lColPos[cell.getIndex()[1]].append(field.getName())
+                            try:lColInvName[field.getName()].append(cell.getIndex()[1])
+                            except: lColInvName[field.getName()] = [cell.getIndex()[1]]
+                            if self.bDebug: print ('foundXX:',field.getName(), field.getValue())
+            cell.resetField()       
+        return max(lColInvName['firstname'],key=lColInvName['firstname'].count)       
+
     def extractData(self,table,myRecord, lTemplate):
         """
             layout 
@@ -148,18 +178,19 @@ class IETest(Component.Component):
             find layout level for record completion
             extract data/record
               -inference if IEOnto
-              
-              
             
         """
-        self.bDebug = False
-        table.buildNDARRAY()
+        self.bDebug = True
+#         table.buildNDARRAY()
         if lTemplate is not None:
             # convert string to tableTemplateObject
             template = tableTemplateClass()
             template.buildFromPattern(lTemplate)
             template.labelTable(table)
         else: return None
+#         firstNameColIndex =self.findNameColumn(table)
+        
+        # create a batch for the full page
         
         #tag fields with template
         for cell in table.getCells():
@@ -175,8 +206,8 @@ class IETest(Component.Component):
                         extractedValues = list(map(lambda x:(x[1],x[3]),extractedValues))
                         field.setOffset(res[0])
                         field.setValue(extractedValues)
+#                         field.addValue(extractedValues)
                         if self.bDebug: print ('found:',field, field.getValue())
-        
 
         ### now at record level ?
         ### scope = propagation using only docObject (hardcoded ?)
@@ -245,19 +276,6 @@ class IETest(Component.Component):
 
 
 
-    def htrWithTemplate(self,table,template,htrModelId):
-        """
-            perform an HTR with dictionaries specific to each column
-            
-            need: docid, pageid
-        """
-        
-        # for the current column: need to get tablecells ids
-        # more efficient(?why more efficient?) to have it at column level: not cell ; so just after table template tool
-        for col in table.getColumns():
-            lCellsID = map(lambda x:x.getID(),col.getCells())
-            for id in lCellsID: print(id)
-            
         
     
     def mineTable(self,tabel,dr):
@@ -279,46 +297,62 @@ class IETest(Component.Component):
         """
         # selection of the dictionaries per columns
         # template 5,10: first col = numbering
-        lTemplateIE2 = [
-             ((slice(1,None),slice(0,1))  ,[ 'numbering'],[ dr.getFieldByName('numbering') ])
-            , ((slice(1,None),slice(1,2))  ,[ 'abp_names', 'names_aux','numbering','religion'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname'),dr.getFieldByName('religion')  ])
-            , ((slice(1,None),slice(2,3)) ,[ 'abp_profession','religion' ]        ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
-            , ((slice(1,None),slice(3,4))  ,[ 'abp_location' ]                    ,[ dr.getFieldByName('location') ]) 
-            , ((slice(1,None),slice(4,5)) ,[ 'abp_family' ]                       ,[ dr.getFieldByName('situation') ])
-             ,((slice(1,None),slice(5,6)) ,[ 'deathreason','artz']                ,[ dr.getFieldByName('deathreason'),dr.getFieldByName('doktor')])
-            , ((slice(1,None),slice(6,7)) ,[]                                     , [ ])  #binding
-            , ((slice(1,None),slice(7,8)) ,[ 'abp_dates' ,'abp_year']                        ,[ dr.getFieldByName('deathDate'),dr.getFieldByName('deathYear') ])
-            , ((slice(1,None),slice(8,9)) ,[ 'abp_dates','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('burialLocation') ])
-            , ((slice(1,None),slice(9,10)) ,[ 'abp_age','abp_ageunit']                           ,[ dr.getFieldByName('age'), dr.getFieldByName('ageUnit')])
+        
+        # find calibration column: abp_names  
+        table.buildNDARRAY()
+#         print (self.findNameColumn(table))
+#         lTemplateIE2 = [
+#              ((slice(1,None),slice(0,1))  ,[ 'numbering'],[ dr.getFieldByName('numbering') ])
+#             , ((slice(1,None),slice(1,2))  ,[ 'abp_names', 'names_aux','numbering','religion'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname'),dr.getFieldByName('religion')  ])
+#             , ((slice(1,None),slice(2,3)) ,[ 'abp_profession','religion' ]        ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
+#             , ((slice(1,None),slice(3,4))  ,[ 'abp_location' ]                    ,[ dr.getFieldByName('location') ]) 
+#             , ((slice(1,None),slice(4,5)) ,[ 'abp_family' ]                       ,[ dr.getFieldByName('situation') ])
+#              ,((slice(1,None),slice(5,6)) ,[ 'deathreason','artz']                ,[ dr.getFieldByName('deathreason'),dr.getFieldByName('doktor')])
+#             , ((slice(1,None),slice(6,7)) ,[]                                     , [ ])  #binding
+#             , ((slice(1,None),slice(7,8)) ,['abp_dates', 'abp_dates' ,'abp_year']                        ,[,dr.getFieldByName('deathDate'),dr.getFieldByName('deathYear') ])
+#             , ((slice(1,None),slice(8,9)) ,[ 'abp_dates','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('burialLocation') ])
+#             , ((slice(1,None),slice(9,10)) ,[ 'abp_age','abp_ageunit']                           ,[ dr.getFieldByName('age'), dr.getFieldByName('ageUnit')])
+# #            , ((slice(1,None),slice(9,10)) ,[ dr.getFieldByName('priester')])
+# #            , ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
+#            ]      
+        
+
+
+ 
+         #fuzzy 
+        lTemplateIECAL = [  
+             ((slice(1,None),slice(0,4))  ,[ 'abp_names', 'names_aux','numbering','religion'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')])
+            , ((slice(1,None),slice(1,4)) ,[ 'abp_profession','religion' ]        ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
+           ]
+ 
+        #detect empty left columns ?
+        template = tableTemplateClass()
+        template.buildFromPattern(lTemplateIECAL)
+        template.labelTable(table) 
+        
+        iRef = self.findNameColumn(table)
+        lTemplateIE = [  
+             ((slice(1,None),slice(iRef,iRef+1))  ,[ 'abp_names', 'names_aux','numbering','religion'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')])
+            , ((slice(1,None),slice(iRef+1,iRef+2)) ,[ 'abp_profession','religion' ]        ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
+            , ((slice(1,None),slice(iRef+2,iRef+3))  ,[ 'abp_location' ]                    ,[ dr.getFieldByName('location') ]) 
+            , ((slice(1,None),slice(iRef+3,iRef+4)) ,[ 'abp_family' ]                       ,[ dr.getFieldByName('situation') ])
+            #[] binding
+            , ((slice(1,None),slice(iRef+4,iRef+6)) ,[ 'abp_deathreason','artz']                ,[ dr.getFieldByName('deathreason'),dr.getFieldByName('doktor')])
+            , ((slice(1,None),slice(iRef+5,iRef+7)) ,[ 'abp_dates','abp_year' ]                        ,[ dr.getFieldByName('MonthDayDateGenerator'), dr.getFieldByName('deathDate') ,dr.getFieldByName('deathYear')])
+            , ((slice(1,None),slice(iRef+6,iRef+8)) ,[ 'abp_dates','abp_year','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('deathYear'),dr.getFieldByName('burialLocation') ])
+            , ((slice(1,None),slice(iRef+8,iRef+10)) ,[ 'abp_age','abp_ageunit']                       ,[ dr.getFieldByName('age'), dr.getFieldByName('ageUnit')])
 #            , ((slice(1,None),slice(9,10)) ,[ dr.getFieldByName('priester')])
 #            , ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
            ]        
+        # recalibrate template
         
-        lTemplateIE = [  
-             ((slice(1,None),slice(0,1))  ,[ 'abp_names', 'names_aux','numbering','religion'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')])
-            , ((slice(1,None),slice(1,2)) ,[ 'abp_profession','religion' ]        ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
-            , ((slice(1,None),slice(2,3))  ,[ 'abp_location' ]                    ,[ dr.getFieldByName('location') ]) 
-            , ((slice(1,None),slice(3,4)) ,[ 'abp_family' ]                       ,[ dr.getFieldByName('situation') ])
-            #[] binding
-            , ((slice(1,None),slice(4,6)) ,[ 'deathreason','artz']                ,[ dr.getFieldByName('deathreason'),dr.getFieldByName('doktor')])
-            , ((slice(1,None),slice(6,7)) ,[ 'abp_dates','abp_year' ]                        ,[ dr.getFieldByName('deathDate') ,dr.getFieldByName('deathYear')])
-            , ((slice(1,None),slice(7,8)) ,[ 'abp_dates','abp_year','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('deathYear'),dr.getFieldByName('burialLocation') ])
-            , ((slice(1,None),slice(8,9)) ,[ 'abp_age','abp_ageunit']                           ,[ dr.getFieldByName('age'), dr.getFieldByName('ageUnit')])
-#            , ((slice(1,None),slice(9,10)) ,[ dr.getFieldByName('priester')])
-#            , ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
-           ]
+# #         lTemplate = lTemplateIE
+#         if table.getNbColumns() >= 12:
+#             lTemplate = lTemplateIE2
+#         else:
+#             lTemplate = lTemplateIE
         
-        
-        
-#         lTemplate = lTemplateIE
-        if table.getNbColumns() == 12:
-            lTemplate = lTemplateIE2
-        else:
-            lTemplate = lTemplateIE
-        
-#         if self.htrModelID is not None: self.htrWithTemplate(table, lTemplate, self.htrModelID)
-        
-        self.extractData(table,dr,lTemplate)
+        self.extractData(table,dr,lTemplateIE)
         
         # select best solutions
         # store inthe proper final format
@@ -361,7 +395,9 @@ class IETest(Component.Component):
                     print ("page: %s : not a table? %d/%d"%(page.getNumber(),table.getNbRows(),table.getNbColumns()))
                     continue
                 if self.BuseStoredTemplate:
-                    self.processWithTemplate(table, dr)
+#                     self.processWithTemplate(table, dr)
+                    try:self.processWithTemplate(table, dr)
+                    except: print('issue with page %s'%page)
                 else:
                     self.mineTable(table,dr)
         
