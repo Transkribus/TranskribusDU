@@ -31,37 +31,37 @@
 
 from lxml import etree
 import os,sys
-from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.base import BaseEstimator, TransformerMixin
+# from sklearn.pipeline import Pipeline, FeatureUnion
+# from sklearn.feature_extraction.text import CountVectorizer
+# from sklearn.base import BaseEstimator, TransformerMixin
 import sys, os.path
 sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'TranskribusDU')
 
-from contentProcessing.taggerChrono import DeepTagger
-class Transformer(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        BaseEstimator.__init__(self)
-        TransformerMixin.__init__(self)
-        
-    def fit(self, l, y=None):
-        return self
-
-    def transform(self, l):
-        assert False, "Specialize this method!"
-        
-class SparseToDense(Transformer):
-    def __init__(self):
-        Transformer.__init__(self)
-    def transform(self, o):
-        return o.toarray()    
-    
-class NodeTransformerTextEnclosed(Transformer):
-    """
-    we will get a list of block and need to send back what a textual feature extractor (TfidfVectorizer) needs.
-    So we return a list of strings  
-    """
-    def transform(self, lw):
-        return map(lambda x: x, lw) 
+# from contentProcessing.taggerChrono import DeepTagger
+# class Transformer(BaseEstimator, TransformerMixin):
+#     def __init__(self):
+#         BaseEstimator.__init__(self)
+#         TransformerMixin.__init__(self)
+#         
+#     def fit(self, l, y=None):
+#         return self
+# 
+#     def transform(self, l):
+#         assert False, "Specialize this method!"
+#         
+# class SparseToDense(Transformer):
+#     def __init__(self):
+#         Transformer.__init__(self)
+#     def transform(self, o):
+#         return o.toarray()    
+#     
+# class NodeTransformerTextEnclosed(Transformer):
+#     """
+#     we will get a list of block and need to send back what a textual feature extractor (TfidfVectorizer) needs.
+#     So we return a list of strings  
+#     """
+#     def transform(self, lw):
+#         return map(lambda x: x, lw) 
 
 def getSequenceOfNConsecutive(n,lListe):
     """
@@ -102,25 +102,39 @@ def processDS(infile):
 #         page.attrib['years']= "-".join(list(lDocDates))
         lAllPages.append(lDocDates[:])
 #         print("%s\t%d\t%s"%(infile,it,lDocDates))
-    if lDocDates ==[]: print('NONE!!',infile,len(ltr))
+    if lAllPages ==[]: print('NONE!!',infile,len(ltr))
     pok=0
+    curyear=0
     for i in range(1,len(lAllPages)-1):
 #         print (i,lAllPages[i] ,lAllPages[i-1],  lAllPages[i+1])
-        lprev = [ True for d in lAllPages[i] if (d in lAllPages[i-1] or int(d)-1 in lAllPages[i-1]) ]
-        lnext = [ True for d in lAllPages[i] if (d in lAllPages[i+1] or int(d)+1 in lAllPages[i+1]) ]
-        if True in lprev or True in lnext: 
-            pok+=1
+        # check with prev
+        lDInPrev = []
+        lDCur=[]
+        lDInNext = []
+        for d in  lAllPages[i]:
+            if d in lAllPages[i-1]:
+                lDInPrev.append(d)
+                lDCur.append(d)
+            if int(d)-1 in lDInPrev:
+                lDCur.append(d)
+            if d in lAllPages[i+1]:
+                lDInNext.append(d)
+            if int(d)+1 in lDInNext:
+                lDCur.append(d)
+                lDInNext.append(int(d)+1)                
+#         print (i, lDCur,lDInPrev,lDInNext)
+        if lDCur != []:
+            year = max(set(lDCur), key = lDCur.count)
+            if  int(year) >=curyear:
+                print (i,year)
+                ltr[i].set('computedyear',str(year))
+                curyear=year
             
-        
-    print (infile,len(lAllPages),pok)
-    # if several 
-    
-    ## add 'reliable info' to some pages
-    ## compute also year break:
-    
-    ## month extracted  if a break in monnth sequence : pqgebreak
-    
-    ## consolidate???
+                
+#     print (infile,len(lAllPages),pok)
+
+
+    et.write(infile)
         
 def getPageBreak(infile):
     """
@@ -145,8 +159,14 @@ def getPageBreak(infile):
     print(len(ltr))
     ## concat all
     highest=0
+    curYear=None
+    lBreak=[]
+    lYears=[]
     for it,page in enumerate(ltr):
+        lBreak[it]=False
+        lYears[it] = page.get('computedyear')
         lmonth=[]
+        year=page.get('years')
         xpath  = "./%s" % ("RECORD")
         llines= page.xpath(xpath)
         for line in llines:
@@ -166,10 +186,26 @@ def getPageBreak(infile):
                 if monthNum < highest and monthNumProba > 0.1:
                     bPageBreak=True
                     print ('BREAK', highest, monthNum,monthNumProba)
+                    lBreak[it]=True
                 elif monthNum >highest:highest=monthNum
             # compare with highest month: if lower: breakpage 
         # replace deathDate by deathMonthNumber
-        
+    
+    lYearWOPrev=[]
+    lastyear=""
+    for i,y in lYears[1:]:
+        if y != "":
+            lastyear= i
+            if lYears[i-1] == "":lYearWOPrev.append(i)
+    
+    #last forward:
+    if lYears[-1] == "":
+        pass
+        #forward from lastyear
+    
+    ## fora a page wo year: take the nearest page with year and the number of break in between
+    ## take pages with year (and previous wo year) : go back and update each page/record    
+    
 def processDocument(infile,outfile):
     """
         associate a date to a page
@@ -198,8 +234,8 @@ def processDocument(infile,outfile):
 
 
 if __name__ == "__main__":
-#     processDS(sys.argv[1])
-    getPageBreak(sys.argv[1])
+    processDS(sys.argv[1])
+#     getPageBreak(sys.argv[1])
 #     processDocument(sys.argv[1], sys.argv[2])
     
     
