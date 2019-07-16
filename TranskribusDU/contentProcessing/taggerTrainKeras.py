@@ -43,9 +43,8 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.base import BaseEstimator, TransformerMixin
 
-from sklearn.metrics import confusion_matrix
-
 os.environ['KERAS_BACKEND'] = 'tensorflow'
+
 
 from keras.models import Sequential, load_model, Model
 from keras.layers  import Bidirectional, Dropout, Input
@@ -182,7 +181,6 @@ class DeepTagger():
     def load_data_Multitype(self,lFName):
         """
             load data as training data (x,y)
-            nbClasses must be known!
         """
         
         self.nbClasses = 0
@@ -253,7 +251,6 @@ class DeepTagger():
     def load_data(self,lFName):
         """
             load data as training data (x,y)
-            nbClasses must be known!
         """
         
         self.nbClasses = 0
@@ -741,7 +738,7 @@ class DeepTagger():
         for mysent in lsent :
     #         print self.tag_vector
             if len(mysent.split())> self.max_sentence_len:
-                print ('max sent length: %s'%self.max_sentence_len)
+#                 print ('max sent length: %s'%self.max_sentence_len)
                 continue
             allwords= self.node_transformer.transform(mysent.split())
 #             print mysent.split()
@@ -771,7 +768,7 @@ class DeepTagger():
                             #print self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]
                             pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
                     l_multi_type_results.append(pred_tags[:len(allwords)])
-                    print(mysent.split(),l_multi_type_results) 
+#                     print(mysent.split(),l_multi_type_results) 
                 lRes.append(self.prepareOutput_multitype(mysent.split(),l_multi_type_results))
 
         return lRes
