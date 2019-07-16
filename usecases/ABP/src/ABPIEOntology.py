@@ -151,6 +151,12 @@ class deathRecord(recordClass):
         dDate.setLabelMapping(['MonthDateGenerator'])         
         self.addField(dDate)
         
+        ddDate= deathDateDay()
+        ddDate.addTagger(myTagger)
+#         dDate.setLabelMapping(['weekDayDateGenerator','MonthDayDateGenerator','MonthDateGenerator'])         
+        ddDate.setLabelMapping(['MonthDayDateGenerator'])         
+        self.addField(ddDate)
+        
         bDate= burialDate()
         bDate.addTagger(myTagger)
 #         bDate.setLabelMapping(['weekDayDateGenerator','MonthDayDateGenerator','MonthDateGenerator'])         
@@ -246,7 +252,8 @@ class deathRecord(recordClass):
             key=key[2:]
             domp.set('pagenum',key)
 
-            domp.set('years','NA')
+            ## -> page has now a year attribute (X-X)
+            domp.set('years',page.getAttribute('computedyears'))
             root.append(domp)         
             sortedRows = lPages[page]
             sortedRows.sort(key=lambda x:int(x.getIndex()))   
@@ -255,11 +262,14 @@ class deathRecord(recordClass):
                 record = etree.Element('RECORD')
                 # record fields
                 nbRecords = 0
+                lSeenField=[]
                 for field in cand.getAllFields():
+                    # take the best one 
                     if field.getName() is not None and field.getBestValue() is not None:
                         record.set(field.getName().lower(),field.getBestValue())
+                        lSeenField.append(field.getName().lower())
                         nbRecords=1
-                    else:record.set(field.getName().lower(),"") 
+                    elif field.getName().lower() not in lSeenField:record.set(field.getName().lower(),"") 
                 if nbRecords > 0:
                     domp.append(record)
             domp.set('nbrecords',str(len(domp)))
@@ -290,7 +300,12 @@ class deathDate(fieldClass):
     sName='deathDate'
     def __init__(self):
         fieldClass.__init__(self, deathDate.sName)
-        
+
+class deathDateDay(fieldClass):
+    sName='MonthDayDateGenerator'
+    def __init__(self):
+        fieldClass.__init__(self, deathDateDay.sName)  
+              
 class burialDate(fieldClass):
     sName='burialDate'
     def __init__(self):
