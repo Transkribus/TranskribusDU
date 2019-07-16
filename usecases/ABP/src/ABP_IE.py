@@ -138,7 +138,7 @@ class IETest(Component.Component):
         """    
                 find the column which corresponds to the people names c 
         """
-        self.bDebug=True
+        self.bDebug=False
         #tag fields with template
         lColPos = {}
         lColInvName = {}
@@ -180,7 +180,7 @@ class IETest(Component.Component):
               -inference if IEOnto
             
         """
-        self.bDebug = True
+#         self.bDebug = False
 #         table.buildNDARRAY()
         if lTemplate is not None:
             # convert string to tableTemplateObject

@@ -106,6 +106,7 @@ def processDS(infile):
     pok=0
     curyear=0
     for i in range(1,len(lAllPages)-1):
+        ltr[i].set('computedyear','')
 #         print (i,lAllPages[i] ,lAllPages[i-1],  lAllPages[i+1])
         # check with prev
         lDInPrev = []
