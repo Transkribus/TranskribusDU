@@ -361,7 +361,8 @@ class tableTemplateSep(Component.Component):
 #                     lNoIntersection.append(lH[dSInter[i][0]])    
 
                 i+=1
-                bGO = len(dSInter[i][1])>1 or i < len(dSInter)-1
+                try:bGO = len(dSInter[i][1])>1 or i < len(dSInter)-1
+                except: bGo=False
             
             lKeepThem=[]
             lSeen=[]
