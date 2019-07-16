@@ -45,6 +45,8 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
         if self.lPoints is None:
             self.lPoints = self.getAttribute('blpoints')
 #             print 'after split?',self.lPoints
+        
+        self.lPoints = self.lPoints.replace(" ",",")
         if self.lPoints is not None:
             lX = list(map(lambda x:float(x),self.lPoints.split(',')))[0::2]
             lY = list(map(lambda x:float(x),self.lPoints.split(',')))[1::2]

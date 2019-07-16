@@ -40,6 +40,8 @@ from .XMLDSTEXTClass import XMLDSTEXTClass
 from config import ds_xml_def as ds_xml
 from copy import deepcopy
 import numpy as np
+from shapely.geometry import MultiPolygon 
+from shapely.geometry.collection import GeometryCollection
 
 class  XMLDSTABLEClass(XMLDSObjectClass):
     """
@@ -52,7 +54,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
     def __init__(self,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
-        
+        self._name = ds_xml.sTABLE
         self._domNode = domNode
 
         self._lspannedCells=[]
@@ -164,7 +166,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         self._nbRows= None
         
     def tagMe(self,sLabel=None):
-        super(XMLDSTABLEClass,self).tagMe(sLabel)
+        super(XMLDSObjectClass,self).tagMe(sLabel)
         for r in self.getRows():r.tagMe()
         for c in self.getColumns():c.tagMe()
     
@@ -182,12 +184,14 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
 #         lCells =self.getCells()
         prevCut = self.getY()
         # 
-        try:lYCuts = map(lambda x:x.getValue(),lYCuts)
-        except:pass
+        try:
+            lYCuts = list(map(lambda x:x.getValue(),lYCuts))
+        except:
+            pass
             
         irowIndex = 0
         for irow,cut in enumerate(lYCuts):
-            cut = cut-10
+#             cut = cut-10   # 10 for ABP
             row= XMLDSTABLEROWClass(irowIndex)
             row.setParent(self)
             row.setY(prevCut)
@@ -198,7 +202,9 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 row.setHeight(cut - prevCut)
                 row.setX(self.getX())
                 row.setWidth(self.getWidth())
+                row.addAttribute('points',"%s,%s,%s,%s,%s,%s,%s,%s"%(self.getX(), self.getY(),self.getX2(), self.getY(), self.getX2(), self.getY2(), self.getX(), self.getY2()))
                 self.addRow(row)
+#                 row.tagMe() 
                 irowIndex+=1                
             else:
                 del(row)
@@ -215,7 +221,9 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         row.setX(self.getX())
         row.setWidth(self.getWidth())
         row.addAttribute('index',row.getIndex())
-        self.addRow(row)        
+        row.addAttribute('points',"%s,%s,%s,%s,%s,%s,%s,%s"%(self.getX(), self.getY(),self.getX2(), self.getY(), self.getX2(), self.getY2(), self.getX(), self.getY2()))
+        self.addRow(row)       
+#         row.tagMe() 
         
         ##  recreate correctly cells : nb cells: #rows x #col
         
@@ -260,8 +268,9 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                         bestcell = x
                 print (text.getAttribute("id"),self.getCells()[bestcell],bestarea,text.toPolygon().area)
                 
+    
         
-    def reintegrateCellsInColRow(self):
+    def reintegrateCellsInColRow(self,lObj=[]):
         """
             after createRowsWithCuts, need for refitting cells in the rows (and merge them)
             
@@ -276,91 +285,90 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         """
         
 #         import numpy as np
-        from shapely.geometry import Polygon as pp
-#         from shapely.ops import cascaded_union
-        from rtree import index
-        
-        txtidx = index.Index()
-        lTxt = []
-        lReverseIndex  = {}
-#         # Populate R-tree index with bounds of grid cells
-        for pos, txt  in enumerate([txt for col in self.getColumns() for txt in col.getObjects()]):
-            # assuming cell is a shapely object
-            cc  = pp( [(txt.getX(),txt.getY()),(txt.getX2(),txt.getY()),(txt.getX2(),txt.getY2()), ((txt.getX(),txt.getY2()))] )
-            lTxt.append(cc)
-            txtidx.insert(pos, cc.bounds)
-            lReverseIndex[cc.bounds] = txt       
-        
-        
-#         for cell in self.getCellsbyColumns():
+        from shapely.geometry import Polygon 
+#         
         lCells = []
+        NbrowsToDel=0
+        lRowWithPB = []
         for icol,col in enumerate(self.getColumns()):
-            lcolTexts = []
-            [ lcolTexts.extend(colcell.getObjects()) for colcell in col.getObjects()]
-            # texts tagged OTHER as well?
-            sPoints = col.getAttribute('points').replace(' ',',')
-            spoints = ' '.join("%s,%s"%((x,y)) for x,y in zip(*[iter(sPoints.split(','))]*2))
-            it_sXsY = (sPair.split(',') for sPair in spoints.split(' '))
-            polycol = pp( ((float(sx), float(sy)) for sx, sy in it_sXsY))
+            polycol = col.toPolygon().buffer(0)
+            if not polycol.is_valid: polycol=polycol.convex_hull
             rowCells = [] 
+            lColWithPb = []
+
             for irow, row in enumerate(self.getRows()):
-#                 print (irow)
-                polyrow = pp([(row.getX(), row.getY()),(row.getX2(),row.getY()), (row.getX2(),row.getY2()), (row.getX(),row.getY2())])
-                if polycol.is_valid and polyrow.is_valid and polycol.intersection(polyrow).area> 1 :#(polyrow.area*0.25):
+                polyrow= row.toPolygon().buffer(0)
+                if not polyrow.is_valid :polyrow = polyrow.convex_hull
+                if polycol.is_valid and polyrow.is_valid and polycol.intersection(polyrow).area> 0.1 :#(polyrow.area*0.25):
                     cell=XMLDSTABLECELLClass()
-                    rowCells.append(cell)                    
-#                     print (irow,icol,polycol.intersection(polyrow).bounds)
                     inter  = polycol.intersection(polyrow)
-                    ll = list(inter.exterior.coords)
-#                     print(list("%s,%s"%(x,y) for x,y in ll))                    
+                    if not inter.is_valid: inter =inter.convex_hull
                     x,y,x2,y2 = inter.bounds
                     cell.setXYHW(x,y, y2-y,x2-x)
-                    cell.addAttribute('points', ",".join(list("%s,%s"%(x,y) for x,y in ll)))
-#                     cell.setXYHW(col.getX(),row.getY(), row.getY2() - row.getY(),col.getX2() - col.getX())
-                    cell.setIndex(irow, icol)
-                    cell.setPage(self.getPage())
-                    cell.setParent(self)
+                    ## due to rox/col defined with several lines
+                    if isinstance(inter,MultiPolygon) or isinstance(inter,GeometryCollection):
+                        linter= list(inter.geoms)
+                        linter.sort(key=lambda x:x.area,reverse=True)
+                        inter = linter[0]
+#                     elfi if isinstance(inter,MultiPolygon):
+                    if isinstance(inter,Polygon):
+                        rowCells.append(cell)    
+                        ll = list(inter.exterior.coords)
+                        cell.addAttribute('points', " ".join(list("%s,%s"%(x,y) for x,y in ll)))
+                        cell.setIndex(irow, icol)
+                        cell.setPage(self.getPage())
+                        row.addCell(cell)
+                        col.addCell(cell)
+                        cell.setParent(self)
+#                         print (irow,icol,cell,cell.getAttribute('points'))    
+                    else:
+#                         print([x.area for x in inter])
+                        print (irow,icol,type(inter),list(inter.geoms))
+#                         sss
                 else:
-                    cell=XMLDSTABLECELLClass()
-                    rowCells.append(cell)                    
-                    cell.setXYHW(col.getX(),row.getY(), row.getY2() - row.getY(),col.getX2() - col.getX())
-                    cell.setIndex(irow, icol)
-                    cell.setPage(self.getPage())
-                    cell.setParent(self)
-                ## spanning information missing!!!!
-            
-#             coltxt = cascaded_union([lTxt[pos] for pos in txtidx.intersection(polycol.bounds)])
-#             coltxt = [lCells[pos] for pos in txtidx.intersection(polycol.bounds)]
-#             for txt in coltxt: 
-#                 if polycol.intersection(txt).area > 0.5:
-            
-            for text in lcolTexts:
-                cell = text.bestRegionsAssignment(rowCells,bOnlyBaseline=False)
-                if cell:
-                    cell.addObject(text,bDom=True)     
+                    print("EMPTY?",polycol.intersection(polyrow).area,irow,icol,polycol.is_valid,polyrow.is_valid,polycol.intersection(polyrow))
+#                     lColWithPb.add(icol)
+                    lRowWithPB.append(irow)
+                    lColWithPb.append(icol)
+                    #empty cell zone!!
+#                     cell=XMLDSTABLECELLClass()
+#                     rowCells.append(cell)    
+# #                     ll = list(inter.exterior.coords)
+#                     #cell.addAttribute('points', " ".join(list("%s,%s"%(x,y) for x,y in ll)))
+#                     cell.setIndex(irow, icol)
+#                     cell.setPage(self.getPage())
+#                     row.addCell(cell)
+#                     col.addCell(cell)
+#                     cell.setParent(self)        
+#             print (lColWithPb,lRowWithPB)            
+            if False and len(lColWithPb) >0  and len(lRowWithPB)>len(lColWithPb):
+#                 print (len(lColWithPb),len(lRowWithPB))
+                NbrowsToDel+=1
+            else:   
+                lCells.extend(rowCells)
+        for text in lObj:
+            cell = text.bestRegionsAssignment(lCells,bOnlyBaseline=False)
+#             print(text.getContent(),cell)
+            if cell:
+                cell.addObject(text,bDom=True)     
 
-            lCells.extend(rowCells)
-        #delete fake cells
-        for cell in self.getCells():
-#             cell.getNode().unlinkNode()
-            if cell.getNode().getparent() is not None:
-                cell.getNode().getparent().remove(cell.getNode())
-            del cell
+
         
         #update with real cells
         self._lcells = lCells
-    
+#         print (len(lCells))
         # DOM tagging
-        for cell in self.getCells():
-            cell.tagMe2()
-            for o in cell.getObjects():
-#                 print o, o.getContent(),o.getParent(), o.getParent().getNode()
-                try:o.tagMe()
-                except AttributeError:pass
+#         for cell in self.getCells():
+#             cell.tagMe2()
+#             for o in cell.getObjects():
+#                 try:o.tagMe()
+#                 except AttributeError:pass
         
-        # update rows!!!!
-        self.buildRowFromCells()
-            
+#         # update rows!!!!
+#         print (self.getRows()[1].getX())
+#         self.buildRowFromCells()
+#         print (self.getRows())
+#         ss            
     def reintegrateCellsInColRowold(self):
         """
             after createRowsWithCuts, need for refitting cells in the rows (and merge them)
@@ -390,10 +398,12 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 cell.setIndex(irow, icol)
                 cell.setPage(self.getPage())
                 cell.setParent(self)
+                row.addCell(cell)
+                col.addCell(cell)
                 ## spanning information missing!!!!
                 
             for text in lcolTexts:
-                cell = text.bestRegionsAssignment(rowCells,bOnlyBaseline=False)
+                cell = text.bestRegionsAssignmentOld(rowCells,bOnlyBaseline=False)
                 if cell:
                     cell.addObject(text,bDom=True)     
 
@@ -416,8 +426,8 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 try:o.tagMe()
                 except AttributeError:pass
         
-        # update rows!!!!
-        self.buildRowFromCells()
+        # update rows!!
+        #self.buildRowFromCells()
 
     
     def buildRowFromCells(self):
@@ -427,12 +437,10 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
             Rowspan: create row
         """
         self._lrows=[]
-        
         self.getCells().sort(key=(lambda x:x.getIndex()[0]))
         for cell in self.getCells():
             irow,_= cell.getIndex()
 #             rowSpan = int(cell.getAttribute('rowSpan'))
-                
             try: row = self.getRows()[irow]
             except IndexError:
                 row = XMLDSTABLEROWClass(irow)
@@ -444,6 +452,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         
         for row in self.getRows():
             row.resizeMe(XMLDSTABLECELLClass)
+#             print (row.getIndex(),row.getParent())
                 
     def buildColumnFromCells(self):
         """

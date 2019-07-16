@@ -164,14 +164,30 @@ class  XMLDSPageClass(XMLDSObjectClass):
             
         """
         self.relmat={}
+        self.relmatH={}
+        self.relmatV={}
         for rel in self.getRelations():
+            try: self.relmat[rel.getAttribute('label')]
+            except KeyError:self.relmat[rel.getAttribute('label')]={}
+            try: self.relmatH[rel.getAttribute('label')]
+            except KeyError:self.relmatH[rel.getAttribute('label')]={}            
             srcid,tgtid = rel.getSourceId(), rel.getTargetId()
             src = [ x for i,x in enumerate(self.getAllNamedObjects(XMLDSTEXTClass)) if x.getAttribute('id') == srcid]
             tgt = [ x for i, x in enumerate(self.getAllNamedObjects(XMLDSTEXTClass)) if x.getAttribute('id') == tgtid]
             rel.setSource(src[0])
+            try:src[0].lrel.append(tgt[0])
+            except: src[0].lrel=[tgt[0]]
+            try:tgt[0].lrel.append(src[0])
+            except: tgt[0].lrel=[src[0]]  
             rel.setTarget(tgt[0])
-            self.relmat[(src[0].getAttribute('id'),tgt[0].getAttribute('id'))] = 1
-            self.relmat[(tgt[0].getAttribute('id'),src[0].getAttribute('id'))] = 1
+            if True:# and rel.getAttribute('type')=='continue':
+                self.relmat[rel.getAttribute('label')][(src[0].getAttribute('id'),tgt[0].getAttribute('id'))] = float(rel.getAttribute('w')) 
+                self.relmat[rel.getAttribute('label')][(tgt[0].getAttribute('id'),src[0].getAttribute('id'))] = float(rel.getAttribute('w'))
+                if  rel.getAttribute('type')=='HorizontalEdge':
+                    self.relmatH[rel.getAttribute('label')][(src[0].getAttribute('id'),tgt[0].getAttribute('id'))] = float(rel.getAttribute('w')) 
+                    self.relmatH[rel.getAttribute('label')][(tgt[0].getAttribute('id'),src[0].getAttribute('id'))] = float(rel.getAttribute('w'))
+                    
+                    
 
     
     #TEMPLATE

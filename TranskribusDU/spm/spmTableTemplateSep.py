@@ -26,7 +26,7 @@ import common.Component as Component
 from common.chrono import chronoOff , chronoOn
 
 from spm.structuralMining import sequenceMiner
-from spm.feature import featureObject 
+from spm.feature import TwoDFeature #featureObject 
 
 from ObjectModel.xmlDSDocumentClass import XMLDSDocument
 from ObjectModel.XMLDSObjectClass import XMLDSObjectClass
@@ -249,12 +249,13 @@ class tableTemplateSep(Component.Component):
 
 
         # get points, order them
-        lPoints = []
-        [lPoints.append(x.getPoints()) for x in Fone.getNodes()] 
-        [lPoints.append(x.getPoints()) for x in Ftwo.getNodes()] 
-        lPoints.sort(key=lambda x:x[0][0])
+#         lPoints = []
+#         [lPoints.append(x.getPoints()) for x in Fone.getNodes()] 
+#         [lPoints.append(x.getPoints()) for x in Ftwo.getNodes()] 
+#         lPoints.sort(key=lambda x:x[0][0])
 #         print (lPoints)
         [Fone.addNode(n) for n in Ftwo.getNodes()]
+#         print (Fone.getNodes())
         return Fone
         # extrapolate 0 and last
  
@@ -268,11 +269,11 @@ class tableTemplateSep(Component.Component):
 
 
         # get points, order them
-        lPoints = []
-        [lPoints.append(x.getPoints()) for x in Fone.getNodes()] 
-        [lPoints.append(x.getPoints()) for x in Ftwo.getNodes()] 
-        lPoints.sort(key=lambda x:x[0][1])
-#         print (lPoints)
+#         lPoints = []
+#         [lPoints.append(x.getPoints()) for x in Fone.getNodes()] 
+#         [lPoints.append(x.getPoints()) for x in Ftwo.getNodes()] 
+#         lPoints.sort(key=lambda x:x[0][1])
+# #         print (lPoints)
         [Fone.addNode(n) for n in Ftwo.getNodes()]
         return Fone
         # extrapolate 0 and last        
@@ -290,6 +291,7 @@ class tableTemplateSep(Component.Component):
         """
         lVLineStrings=[]
         lHLineStrings=[]
+        lHLineSegments=[]
         lFinalFeature = []
         
         lH =list(filter(lambda x:x.getName()=='h',lFeatures))
@@ -299,11 +301,12 @@ class tableTemplateSep(Component.Component):
     
         for f in lFeatures:
             if f.getName() =='v':
-                x2 = f.getValue() + f.b * pageH
-                lVLineStrings.append(LineString( ((f.getValue(),0) ,(x2,pageH))))
+                x2 = f.getValue()[0] + f.b * pageH
+                lVLineStrings.append(LineString( ((f.getValue()[0],0) ,(x2,pageH))))
             else:
-                y2 = f.getValue() + f.b * pageW
-                lHLineStrings.append(LineString( ((0,f.getValue()),(pageW,y2) )))
+                y2 = f.getValue()[0] + f.b * pageW
+                lHLineStrings.append(LineString( ((0,f.getValue()[0]),(pageW,y2) )))
+                lHLineSegments.append(list(f.getNodes())[-1].toPolygon())
         
         # HORIZONTAL
         dInter={} 
@@ -316,27 +319,61 @@ class tableTemplateSep(Component.Component):
             try:dInter[i]
             except: lNoIntersection.append(lH[i])
         
-        
+#         print(lH)
         #sort by len
         dSInter =sorted(dInter.items(), key=lambda item: len(item[1]),reverse=True)
         i=0
         bGO=True
+        
+        # if several cuts: take the nearest one ?
+        lToKeep=   {}
+        ltoignore=[]
         if dSInter != []:
-            while bGO:            
+            while bGO:     
+#                 print("_____",dSInter[i] )      
                 if len(dSInter[i][1]) > 1:
-#                     print ('del',dSInter[i])
-                    for j in dSInter[i][1]: dInter[j].remove(dSInter[i][0])
+#                     print ('del',dSInter[i],lH[dSInter[i][0]])
+                    xx= lHLineStrings[dSInter[i][0]]
+#                     xs= lHLineSegments[dSInter[i][0]]
+                    for yy in dSInter[i][1]:
+                        ip =xx.intersection(lHLineStrings[yy])
+                        dist=ip.distance(lHLineSegments[yy])
+#                         print (xs,lHLineSegments[yy],ip,dist)
+                    
+                    ldist  = [(x,xx.intersection(lHLineStrings[x]).distance(lHLineSegments[x])) for x in dSInter[i][1] ]
+                    ldist.sort(key=lambda x:x[1])
+#                     print (ldist)  
+                    dInter[dSInter[i][0]] = [ldist[0][0]]     
+                    lToKeep[dSInter[i][0]] = [ldist[0][0]]
+                    ltoignore.append(ldist[0][0])
+#                     print ('keep',dSInter[i][0],lToKeep[dSInter[i][0]],lH[dSInter[i][0]],lH[ lToKeep[dSInter[i][0]][0] ]) 
+                    for j in dSInter[i][1]: 
+                        try:dInter[j].remove(dSInter[i][0])
+                        except:pass
                     del(dInter[dSInter[i][0]])
-    #                 try:[dSInter[j][1].remove(i) for j in dSInter[i]]
-    #                 except: pass
+#                     print (lToKeep[dSInter[i][0]])
+                elif len(dSInter[i][1])==1 and dSInter[i][0] not in ltoignore : pass #print('ok',dSInter[i][0],dSInter[i][1])
+                else :
+                    del(dInter[dSInter[i][0]])
+#                     print ('ignored:',dSInter[i])
+#                 elif len(dSInter[i][1])==0 : 
+#                     print("now single",dSInter[i])
+#                     lNoIntersection.append(lH[dSInter[i][0]])    
+
                 i+=1
-                bGO = len(dSInter[i][1])>1 or i < len(dSInter)-1    
+                bGO = len(dSInter[i][1])>1 or i < len(dSInter)-1
             
             lKeepThem=[]
             lSeen=[]
             for key, value in dInter.items():
-#                 print (key,value[0])
                 if value != [] and value[0] not in lSeen:
+#                     print(key,lH[key],value,lH[value[0]])
+                    lKeepThem.append((key,value[0]))
+                    lSeen.append(value[0])
+                    lSeen.append(key)
+            for key, value in lToKeep.items():
+#                 print("2",key,lH[key],value,lH[value[0] ])
+                if value != [] and value[0] not in lSeen and key not in lSeen:
                     lKeepThem.append((key,value[0]))
                     lSeen.append(value[0])
                     lSeen.append(key)
@@ -344,8 +381,13 @@ class tableTemplateSep(Component.Component):
             for one,two in lKeepThem:
 #                 lFinalFeature.append(lH[one])
 #                 lFinalFeature.append(lH[two])
-                lFinalFeature.append(self.mergeFeatureH(lH[one],lH[two]))
+                xx =self.mergeFeatureH(lH[one],lH[two])
+#                 print ("**",one,two,lH[one],lH[two])
+                lFinalFeature.append(xx)
+#         print (lFinalFeature)
+#         print (lNoIntersection)
         lFinalFeature.extend(lNoIntersection)
+        
 #         print ("??",lFinalFeature)
 
         # VERTICAL 
@@ -418,12 +460,12 @@ class tableTemplateSep(Component.Component):
                 graphline._canonicalFeatures = None
                 # vertical 
 #                 if graphline.getHeight() > graphline.getWidth() and graphline.getHeight() > 30:
-                if  graphline.getHeight() > glength and  graphline.getHeight()  > graphline.getWidth():
+                if  graphline.getHeight() > glength and  graphline.getHeight()  > graphline.getWidth() and graphline.getX() > 10 and  graphline.getX2() < page.getWidth() - 10  : 
 
                     gl.append(graphline)
                     # create a feature
-                    f = featureObject()
-                    f.setType(featureObject.NUMERICAL)
+                    f = TwoDFeature()
+                    f.setType(TwoDFeature.NUMERICAL)
                     f.setTH(self.THNUMERICAL)
 #                     f.setTH(5)
                     f.setWeight(graphline.getHeight())
@@ -435,20 +477,20 @@ class tableTemplateSep(Component.Component):
 #                     Y = [float(y) for y in graphline.getAttribute('points').split(',')[1::2]]
 
                     a, b = np.polynomial.polynomial.polyfit(Y,X,1)
-#                     x2 = a + b * page.getHeight()
+                    x2 = a + b * page.getHeight()
                     ## project to Y=0
-                    f.setValue(round(a))
+                    f.setValue((round(a),round(x2)))
                     f.b= b
 #                     f.setValue(round(graphline.getX()))
                     graphline.addFeature(f)
                     page.setVGLFeatures(f)
                 
 # #                 horizontal
-                elif graphline.getWidth() >  glength and graphline.getWidth()  > graphline.getHeight() : #and graphline.getY() > 10 and  graphline.getY2() < page.getHeight() - 10  :  
+                elif graphline.getWidth() >  glength and graphline.getWidth()  > graphline.getHeight() and graphline.getY() > 10 and  graphline.getY2() < page.getHeight() - 10  :  
                     gl.append(graphline)
                     # create a feature
-                    f = featureObject()
-                    f.setType(featureObject.NUMERICAL)
+                    f = TwoDFeature()
+                    f.setType(TwoDFeature.NUMERICAL)
                     f.setTH(self.THNUMERICAL)
 #                     f.setTH(5)
                     f.setWeight(graphline.getWidth())
@@ -459,8 +501,10 @@ class tableTemplateSep(Component.Component):
                     Y = [float(xy.split(',')[1]) for xy in graphline.getAttribute('points').split(' ') ]
 
                     a, b = np.polynomial.polynomial.polyfit(X,Y,1)
+                    y2 = a + b * page.getWidth()
                     f.b= b
-                    f.setValue(round(a))
+                    f.setValue((round(a),round(y2)))
+#                     print (graphline,a,y2,b,graphline.getAttribute('points'))
                     # project to X = 0
 #                     f.setValue(round(graphline.getY()))
                     graphline.addFeature(f)
@@ -488,6 +532,7 @@ class tableTemplateSep(Component.Component):
                     ltmp.append(fi)
                 else: 
                     [ltmp[ltmp.index(fi)].addNode(n) for n in fi.getNodes()]
+#                     print (fi, ltmp[ltmp.index(fi)])
             ltmp.sort(key=lambda x:x.getValue())
             for fi in ltmp:
                 if fi.getName() == 'v':
@@ -504,6 +549,7 @@ class tableTemplateSep(Component.Component):
                     fi._lnodes.add(maxElt)
                 if totalLen > self.glength:
                     p.lf_XCut.append(fi)
+                else:print('ignore:',fi)
 
     def highLevelSegmentation(self,lPages):
         """
@@ -701,11 +747,11 @@ class tableTemplateSep(Component.Component):
         o.setPage(page)
         o.setX(x[0])
         o.setY(y[0])
-        f = featureObject()
-        f.setType(featureObject.NUMERICAL)
+        f = TwoDFeature()
+        f.setType(TwoDFeature.NUMERICAL)
         f.setTH(self.THNUMERICAL)
         f.setName(dir)
-        f.setValue(v)
+        f.setValue((v,v))
         f.addNode(o)
         
         return f        
@@ -737,7 +783,7 @@ class tableTemplateSep(Component.Component):
         toprighty = min(x[1] for x in lX[2:])
 
         bottomleftx = min(x[0] for x in lY[2:])
-        bottomlefty = min(x[1] for x in lY[2:])      
+        bottomlefty = max(x[1] for x in lY[2:])      
         bottomrightx = max(x[0] for x in lY[:2])
         bottomrighty = max(x[1] for x in lY[2:])
         table.addAttribute('points','%f,%f %f,%f %f,%f %f,%f'%(topleftx,toplefty,toprightx,toprighty,bottomrightx,bottomrighty,bottomleftx,bottomlefty))
@@ -775,7 +821,7 @@ class tableTemplateSep(Component.Component):
                     HSep.append(curTable.lastH)
                     VSep.insert(0,curTable.firstV)
                     VSep.append(curTable.lastV)
-                    for cut in HSep +VSep : #page.getdVSeparator(template):
+                    for cut in HSep + VSep : #page.getdVSeparator(template):
                         if cut.getName() == 'v':
                             newReg= XMLDSTABLECOLUMNClass(icol)
                             icol+=1
@@ -783,11 +829,11 @@ class tableTemplateSep(Component.Component):
                             domNode  = etree.Element('COL')
                             domNode.set("x",str(prevcut))
                             ## it is better to avoid
-                            YMinus = 1
+                            YMinus = curTable.getY()
                             domNode.set("y",str(YMinus))
-                            domNode.set("height",str(page.getHeight()-2 * YMinus))
-                            domNode.set("width", str(cut.getValue() - prevcut))
-                            lCuts.append(cut.getValue() )
+                            domNode.set("height",str(curTable.getHeight()))
+                            domNode.set("width", str(cut.getValue()[0] - prevcut))
+                            lCuts.append(cut.getValue()[0] )
                             newReg.setNode(domNode)
                             
                             # top first 
@@ -798,25 +844,25 @@ class tableTemplateSep(Component.Component):
                             X = [float(xy.split(',')[0]) for xy in niceNode.getAttribute('points').split(' ') ]
                             Y = [float(xy.split(',')[1]) for xy in niceNode.getAttribute('points').split(' ') ]
                             a, b = np.polynomial.polynomial.polyfit(Y,X,1)
-                            x2 = a + b * page.getHeight()
+                            x2 = a + b * curTable.getHeight()
 
                             if len(pageNodes) > 1:
                                 niceNode = pageNodes[-1]
                                 X = [float(xy.split(',')[0]) for xy in niceNode.getAttribute('points').split(' ') ]
                                 Y = [float(xy.split(',')[1]) for xy in niceNode.getAttribute('points').split(' ') ]
                                 a2, b2 = np.polynomial.polynomial.polyfit(Y,X,1)
-                                x22 = a2 + b2 * page.getHeight()
+                                x22 = a2 + b2 * curTable.getHeight()
                             else: x22=x2
-                            
-                            sPoints= "%s,%s " %(a,0)
+                            domNode.set("width", str(x22 - prevcut))
+                            sPoints= "%s,%s " %(a,curTable.getY())
                             for n in pageNodes:
                                 sPoints += n.getAttribute('points')+" "
-                            sPoints+= "%s,%s"%(x22,page.getHeight())
+                            sPoints+= "%s,%s"%(x22,curTable.getHeight()+curTable.getY())
                             if lastcutpointsV != "":
                                 hull = lastcutpointsV+" "+sPoints
                                 newReg.addAttribute('points', hull)
-                                newReg.setDimensions(prevcut,YMinus, page.getHeight()-2 * YMinus,cut.getValue() - prevcut)
-                                if newReg.toPolygon().is_valid and newReg.getWidth()>5:
+                                newReg.setDimensions(prevcut,YMinus, curTable.getHeight(),x22 - prevcut)
+                                if newReg.toPolygon().is_valid and newReg.getWidth() > 15:
                                     domNode.set('points',hull)
                                     curTable.addColumn(newReg)
                                     newReg.setParent(curTable)
@@ -832,21 +878,21 @@ class tableTemplateSep(Component.Component):
                                 xx.reverse()
                                 lastcutpointsV = " ".join(list(x for x in xx))                            
                                 
-                            prevcut  = cut.getValue()
+                            prevcut  = x22#cut.getValue()[0]
                             
                             
                         elif cut.getName() == 'h':
-#                             print(page,cut,cut.getNodes())
+#                             print("***",page,cut,[(x.getY(),x.getAttribute('points')) for x in cut.getNodes()])
                             newReg= XMLDSTABLEROWClass(irow)
                             irow+=1
                             domNode  = etree.Element('ROW')
-                            XMinus= 1
+                            XMinus= curTable.getX()
                             domNode.set("x",str(XMinus))
                             ## it is better to avoid
                             domNode.set("y",str(prevcut))
-                            domNode.set("width",str(page.getWidth()-2 * XMinus))
-                            domNode.set("height", str(cut.getValue() - prevcut))
-                            lCuts.append(cut.getValue() )
+                            domNode.set("width",str(curTable.getWidth()))
+                            domNode.set("height", str(cut.getValue()[0] - prevcut))
+                            lCuts.append(cut.getValue()[0] )
                             newReg.setNode(domNode)
                             
                             pageNodes = list(filter(lambda x:x.getPage() == page, cut.getNodes()))
@@ -858,27 +904,29 @@ class tableTemplateSep(Component.Component):
                             X = [float(xy.split(',')[0]) for xy in niceNode.getAttribute('points').split(' ') ]
                             Y = [float(xy.split(',')[1]) for xy in niceNode.getAttribute('points').split(' ') ]
                             a, b = np.polynomial.polynomial.polyfit(X,Y,1)
-                            y2 = a + b * page.getWidth()
+                            y2 =  a + b *  curTable.getWidth()
                             
                             if len(pageNodes) >1:
                                 niceNode2=pageNodes[-1]
                                 X = [float(xy.split(',')[0]) for xy in niceNode2.getAttribute('points').split(' ') ]
                                 Y = [float(xy.split(',')[1]) for xy in niceNode2.getAttribute('points').split(' ') ]
                                 a2, b2 = np.polynomial.polynomial.polyfit(X,Y,1)
-                                y22 = a2 + b2 * page.getWidth()                                
+                                y22 =  a2 + b2 * ( curTable.getWidth())                          
                             else:
                                 y22=y2
-                            
-                            sPoints= "%s,%s " %(0,a)
+                            domNode.set("height", str(y22 - prevcut))
+                            sPoints= "%s,%s " %(curTable.getX(),a)
                             for n in pageNodes:
                                 sPoints += n.getAttribute('points')+" "
-                            sPoints+= "%s,%s"%(page.getWidth(),y22)
+                            sPoints+= "%s,%s"%(curTable.getX()+curTable.getWidth(),y22)
 
                             if lastcutpointsH != "":
                                 hull= lastcutpointsH + ' ' +sPoints 
                                 newReg.addAttribute('points',hull)
-                                newReg.setDimensions(XMinus,prevcut,cut.getValue() - prevcut, page.getWidth()-2 * XMinus)
-                                if newReg.toPolygon().is_valid and newReg.getHeight()> 5:
+#                                 newReg.setDimensions(XMinus,prevcut,cut.getValue()[0] - prevcut, curTable.getWidth())
+                                newReg.setDimensions(XMinus,prevcut,y22 - prevcut, curTable.getWidth())
+#                                 print (newReg,newReg.toPolygon().is_valid , newReg.getHeight(),newReg.getY())
+                                if newReg.toPolygon().is_valid and newReg.getHeight()> 20:
                                     domNode.set('points',hull)
                                     curTable.addRow(newReg)
                                     curTable.setPage(page)
@@ -888,7 +936,7 @@ class tableTemplateSep(Component.Component):
                                     lastcutpointsH = " ".join(list(x for x in xx))
                                 else:
                                     irow-=1
-#                                     print('back',irow)
+                                    print('back',irow)
                             else:
                                 irow-=1
 #                                 print('first Hline:',sPoints)
@@ -896,24 +944,29 @@ class tableTemplateSep(Component.Component):
                                 xx.reverse()
                                 lastcutpointsH = " ".join(list(x for x in xx))                                     
                             
-                            prevcut  = cut.getValue()                            
+                            prevcut  = y22 #cut.getValue()[0]                            
                 
 #                 TdomNode  = etree.Element(curTable.getName())
 #                 curTable.setNode(TdomNode)
                 if  curTable:
+                    lEltValid = list(filter(lambda x:x.toPolygon().is_valid and x.toPolygon().area >0 , page.getAllNamedObjects(XMLDSTEXTClass)))
+#                     lEltValid=[]
+                    curTable.reintegrateCellsInColRow(lObj=lEltValid)
+                    try:curTable.buildNDARRAY()
+                    except: continue
                     curTable.tagMe()
+                            # DOM tagging
+                    for cell in curTable.getCells():
+                        cell.tagMe2()
+                        for o in cell.getObjects():
+                            try:o.tagMe()
+                            except AttributeError:pass
                     page.getNode().append(curTable.getNode())
                     for col in curTable.getColumns(): 
                         col.tagMe()
-    #                     print (col.getParent(),col.getAttribute('points'))
                     for row in curTable.getRows():
                         row.tagMe()  
-    #                     print (row.getParent(),row.getAttribute('points'))
-#                     lEltValid = list(filter(lambda x:x.toPolygon().is_valid and x.toPolygon().area >0 , page.getAllNamedObjects(XMLDSTEXTClass)))
-                    lEltValid=[]
-                    curTable.reintegrateCellsInColRow(lObj=lEltValid)
-                    curTable.buildNDARRAY()
-
+                    
         return None
     
     

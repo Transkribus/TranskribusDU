@@ -198,7 +198,7 @@ class fieldClass(object):
     def __init__(self,name=None):
         self._name = name
         # allow for muti-value, range,...
-        self._value = None
+        self._value = []
         
         # backref to record
         self._record = None
@@ -231,7 +231,7 @@ class fieldClass(object):
 
     def getValue(self): return self._value
     def setValue(self,v): self._value = v   
-    
+    def addValue(self,v): self._value.extend(v)
     def setRecord(self,r): self._record = r
     def getRecord(self):return self._record
     
@@ -265,7 +265,7 @@ class fieldClass(object):
     def getBestValue(self):
         # old (u'List', (2, 0, 0), u'Ritt', 987)
         # now [(u'Theresia',  0.9978103), (u'Sebald',0.71877468)]
-        if self.getValue() is not None:
+        if self.getValue() != []:
             # score = list! take max
             self.getValue().sort(key = lambda x:max(x[1]),reverse=True)
             return self.getValue()[0][0]

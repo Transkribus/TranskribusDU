@@ -40,9 +40,10 @@ class  XMLDSGRAPHLINEClass(XMLDSObjectClass):
             self.lPoints = self.getAttribute('points')
 #             print 'after split?',self.lPoints
         if self.lPoints is not None:
-            lX = list(map(lambda x:float(x),self.lPoints.split(',')))[0::2]
-            lY = list(map(lambda x:float(x),self.lPoints.split(',')))[1::2]
-            self.lPoints = zip(lX,lY)
+            lX=[float(x) for p in self.lPoints.split(' ') for x in p.split(',')[0::2]]
+#             lX = list(map(lambda x:float(x),self.lPoints.split(',')))[0::2]
+            lY = [float(x) for p in self.lPoints.split(' ') for x in p.split(',')[1::2]]
+            self.lPoints = list(zip(lX,lY))
             try:
                 self.avgY = 1.0 * sum(lY)/len(lY)
             except ZeroDivisionError:

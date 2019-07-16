@@ -16,7 +16,7 @@ from __future__ import unicode_literals
 
 from .XMLObjectClass import XMLObjectClass
 from config import ds_xml_def as ds_xml
-from shapely.geometry import Polygon,LineString
+from shapely.geometry import polygon,Polygon,LineString
 from lxml import etree
 
 class  XMLDSObjectClass(XMLObjectClass):
@@ -81,11 +81,12 @@ class  XMLDSObjectClass(XMLObjectClass):
         """
         if self._poly is not None:
             return self._poly
-        
+
         x  = [float(x) for x in self.getAttribute("points").replace(" ",",").split(',')]
         if len(x) <3*2:
             return   LineString(list(zip(*[iter(x)]*2)))
-        self._poly = Polygon(list(zip(*[iter(x)]*2)))
+        self._poly = polygon.orient(Polygon(list(zip(*[iter(x)]*2))))
+        if not self._poly.is_valid:self._poly= self._poly.convex_hull
         return     self._poly 
     
     def addObject(self,o,bDom=False): 
@@ -227,11 +228,11 @@ class  XMLDSObjectClass(XMLObjectClass):
         """
         from rtree import index
         
-        assert self.toPolygon().is_valid
+        assert self.toPolygon().convex_hull.is_valid
          
         txtidx = index.Index()
         lP = []
-        [lP.append(e.toPolygon()) for e in lRegions if e.is_valid]
+        [lP.append(e.toPolygon()) for e in lRegions if e.toPolygon().is_valid]
         for i,elt in enumerate(lRegions):
             txtidx.insert(i, lP[i].bounds)
         lSet = txtidx.intersection(self.toPolygon().bounds)
@@ -239,10 +240,11 @@ class  XMLDSObjectClass(XMLObjectClass):
         for ei in lSet:
             if lP[ei].is_valid:
                 intersec= self.toPolygon().intersection(lP[ei]).area
-                lOverlap.append((ei,lP[ei],intersec))
+                if intersec >0:
+                    lOverlap.append((ei,lP[ei],intersec))
         if lOverlap != []:        
             lOverlap.sort(key=lambda xyz:xyz[-1])
-#             print (self,lRegions[lOverlap[-1][0]])
+#             print ("??",self,lRegions[lOverlap[-1][0]])
             return lRegions[lOverlap[-1][0]]
         
         return None

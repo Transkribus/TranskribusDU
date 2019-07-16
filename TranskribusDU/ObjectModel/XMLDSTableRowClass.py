@@ -20,7 +20,7 @@ class  XMLDSTABLEROWClass(XMLDSObjectClass):
         LINE class
     """
     name = ds_xml.sROW
-    def __init__(self,index,domNode = None):
+    def __init__(self,index=None,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
         self._domNode = domNode
