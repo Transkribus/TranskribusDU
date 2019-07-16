@@ -253,8 +253,8 @@ class deathRecord(recordClass):
             domp.set('pagenum',key)
 
             ## -> page has now a year attribute (X-X)
-            if page.getAttribute('computedyears') is None:
-                page.addAttribute('computedyears','')
+            if page.getAttribute('computedyear') is None:
+                page.addAttribute('computedyear','')
             domp.set('years',str(page.getAttribute('computedyears')))
             root.append(domp)         
             sortedRows = lPages[page]
