@@ -27,10 +27,6 @@
     under grant agreement No 674943.
     
 """
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
-
 import sys, os
 import gc
 try:
@@ -38,12 +34,9 @@ try:
 except ImportError:
     import pickle
 import numpy as np
-
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV  #0.18.1 REQUIRES NUMPY 1.12.1 or more recent
-    
 from pystruct.utils import SaveLogger
-from pystruct.learners import OneSlackSSVM
 from pystruct.models import EdgeFeatureGraphCRF
 
 try: #to ease the use without proper Python installation
@@ -53,19 +46,24 @@ except ImportError:
     from common.trace import traceln
 
 from common.chrono import chronoOn, chronoOff
-from .Model import Model
-from .Graph import Graph
-from .TestReport import TestReport
+from common.TestReport import TestReport
+from graph.GraphModel import GraphModel
+from graph.Graph import Graph
+from crf.OneSlackSSVM import OneSlackSSVM
 
-class Model_SSVM_AD3(Model):
+
+class Model_SSVM_AD3(GraphModel):
+    sSurname = "crf"
+    
     #default values for the solver
     C                = .1 
     njobs            = 4
     inference_cache  = 50
     tol              = .1
-    save_every       = 50     #save every 50 iterations,for warm start
+    save_every       = 10     #save every 10 iterations,for warm start
     max_iter         = 1000
-
+    balanced        = False    # uniform or balanced?
+    
     #Config when training a baseline predictor on edges
     dEdgeGridSearch_LR_conf   = {'C':[0.01, 0.1, 1.0, 10.0] }  #Grid search parameters for LR edge baseline method training
     dEdgeGridSearch_LR_n_jobs = 1                              #Grid search: number of jobs
@@ -74,12 +72,13 @@ class Model_SSVM_AD3(Model):
         """
         a CRF model, that uses SSVM and AD3, with a name and a folder where it will be stored or retrieved from
         """
-        Model.__init__(self, sName, sModelDir)
+        super(Model_SSVM_AD3, self).__init__(sName, sModelDir)
         self.ssvm = None
         self.bGridSearch = False
         self._EdgeBaselineModel = None
         
-    def configureLearner(self, inference_cache=None, C=None, tol=None, njobs=None, save_every=None, max_iter=None):
+    def configureLearner(self, inference_cache=None, C=None, tol=None, njobs=None, save_every=None, max_iter=None
+                         , balanced=None):
         #NOTE: we might get a list in C tol max_iter inference_cache  (in case of gridsearch)
         if None != inference_cache  : self.inference_cache   = inference_cache
         if None != C                : self.C                 = C
@@ -87,6 +86,7 @@ class Model_SSVM_AD3(Model):
         if None != njobs            : self.njobs             = njobs
         if None != save_every       : self.save_every        = save_every
         if None != max_iter         : self.max_iter          = max_iter
+        if None != balanced         : self.balanced          = balanced
         
         self.bGridSearch = list in [type(v) for v in [self.inference_cache, self.C, self.tol, self.max_iter]]
 
@@ -94,12 +94,6 @@ class Model_SSVM_AD3(Model):
     def getEdgeBaselineFilename(self):
         return os.path.join(self.sDir, self.sName+"_edge_baselines.pkl")
 
-    def _getNbFeatureAsText(self):
-        """
-        return the number of node features and the number of edge features as a textual message
-        """
-        return "#features nodes=%d  edges=%d "%self._tNF_EF
-        
     # --- EDGE BASELINE -------------------------------------------------------------
     def getEdgeModel(self):
         """
@@ -166,13 +160,6 @@ class Model_SSVM_AD3(Model):
         return lTstRpt                                                                              
     
     # --- TRAIN / TEST / PREDICT ------------------------------------------------
-    def _computeModelCaracteristics(self, lX):
-        """
-        We discover dynamically the number of features. Pretty convenient for developer.
-        Drawback: if the feature extractor code changes, predicting with a stored model will crash without beforehand catch
-        """
-        self._tNF_EF = (lX[0][0].shape[1], lX[0][2].shape[1]) #number of node features,  number of edge features
-        return self._tNF_EF
         
     def _getCRFModel(self, clsWeights):
         if self._nbClass: #should always be the case, when used from DU_CRF_Task
@@ -183,7 +170,7 @@ class Model_SSVM_AD3(Model):
         return crf 
 
         
-    def train(self, lGraph, bWarmStart=True, expiration_timestamp=None, verbose=0):
+    def train(self, lGraph_trn, lGraph_vld, bWarmStart=True, expiration_timestamp=None, verbose=0):
         """
         Train a CRF model using the list of labelled graph as training
         if bWarmStart if True, try to continue from previous training, IF the stored model is older than expiration_timestamp!!
@@ -191,16 +178,12 @@ class Model_SSVM_AD3(Model):
         return nothing
         """
         if self.bGridSearch:
-            return self.gridsearch(lGraph, verbose=verbose)
-    
+            return self.gridsearch(lGraph_trn, verbose=verbose)
+
         traceln("\t- computing features on training set")
-        traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
-        chronoOn()
-        lX, lY = self.get_lX_lY(lGraph)
-        self._computeModelCaracteristics(lX)    #we discover here dynamically the number of features of nodes and edges
-        traceln("\t\t %s"%self._getNbFeatureAsText())
-        traceln("\t [%.1fs] done\n"%chronoOff())
-        
+        traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph_trn))
+        lX      , lY      = self.get_lX_lY(lGraph_trn)
+        lX_vld  , lY_vld  = self.get_lX_lY(lGraph_vld)
         bMakeSlim = not bWarmStart  # for warm-start mode, we do not make the model slimer!"
         
         traceln("\t- retrieving or creating model...")
@@ -208,8 +191,12 @@ class Model_SSVM_AD3(Model):
         sModelFN = self.getModelFilename()
         if bWarmStart:
             try:
-                self.ssvm = self._loadIfFresh(sModelFN, expiration_timestamp, lambda x: SaveLogger(x).load())
-                traceln("\t- warmstarting!")
+                try:
+                    self.ssvm = self._loadIfFresh(sModelFN+"._last_", expiration_timestamp, lambda x: SaveLogger(x).load())
+                    traceln("\t- warmstarting with last saved model (not necessarily best one)!")
+                except:
+                    self.ssvm = self._loadIfFresh(sModelFN, expiration_timestamp, lambda x: SaveLogger(x).load())
+                    traceln("\t- warmstarting from last best model!")
                 #we allow to change the max_iter of the model
                 try:
                     self.ssvm.max_iter #to make sure we do something that makes sense...
@@ -231,14 +218,25 @@ class Model_SSVM_AD3(Model):
                 self.ssvm = None
                 traceln("\t- Cannot warmstart: %s"%e)
             #self.ssvm is either None or containing a nice ssvm model!!
+
+        chronoOn("train")
+        traceln("\t- training graph-based model")
+        traceln("\t\t solver parameters:"
+                    , " inference_cache=",self.inference_cache
+                    , " C=",self.C, " tol=",self.tol, " n_jobs=",self.njobs)
         
         if not self.ssvm:
             traceln("\t- creating a new SSVM-trained CRF model")
             
             traceln("\t\t- computing class weight:")
+            if self.balanced:
+                traceln("\t\tusing balanced weights")
+                self.setBalancedWeights()
             clsWeights = self.computeClassWeight(lY)
             traceln("\t\t\t --> %s" % clsWeights)
-            
+
+            #clsWeights = np.array([1, 4.5])
+            # These weights are tuned for best performance of LR and SVM and hence consistently used here
             crf = self._getCRFModel(clsWeights)
     
             self.ssvm = OneSlackSSVM(crf
@@ -248,15 +246,16 @@ class Model_SSVM_AD3(Model):
                                 , show_loss_every=10, verbose=verbose)
             bWarmStart = False
         
-        chronoOn()
-        traceln("\t- training graph-based model")
-        traceln("\t\t solver parameters:"
-                    , " inference_cache=",self.inference_cache
-                    , " C=",self.C, " tol=",self.tol, " n_jobs=",self.njobs)
-        self.ssvm.fit(lX, lY, warm_start=bWarmStart)
-        traceln("\t [%.1fs] done (graph-based model is trained) \n"%chronoOff())
+
+        if lGraph_vld:
+            self.ssvm.fit_with_valid(lX, lY, lX_vld, lY_vld, warm_start=bWarmStart
+                                     , valid_every=self.save_every)
+        else:
+            # old classical method
+            self.ssvm.fit(lX, lY, warm_start=bWarmStart)
+        traceln("\t [%.1fs] done (graph-CRF model is trained) \n"%chronoOff("train"))
         
-        traceln(self.getModelInfo())
+        #traceln(self.getModelInfo())
         
         #cleaning useless data that takes MB on disk
         if bMakeSlim:
@@ -271,6 +270,8 @@ class Model_SSVM_AD3(Model):
         #do some garbage collection
         del lX, lY
         gc.collect()
+
+
         return 
 
     def gridsearch(self, lGraph, verbose=0):
@@ -282,9 +283,6 @@ class Model_SSVM_AD3(Model):
         traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
         chronoOn()
         lX, lY = self.get_lX_lY(lGraph)
-        self._computeModelCaracteristics(lX)    #we discover here dynamically the number of features of nodes and edges
-        traceln("\t\t %s"%self._getNbFeatureAsText())
-        traceln("\t [%.1fs] done\n"%chronoOff())
 
         dPrm = {}
         dPrm['C']               = self.C                if type(self.C)               == list else [self.C]
@@ -384,7 +382,7 @@ class Model_SSVM_AD3(Model):
         If an expiration timestamp is given, the model stored on disk must be fresher than timestamp
         return self or raise a ModelException
         """
-        Model.load(self, expiration_timestamp)
+        super(Model_SSVM_AD3, self).load(expiration_timestamp)
         self.ssvm = self._loadIfFresh(self.getModelFilename(), expiration_timestamp, lambda x: SaveLogger(x).load())
         try:
             self._EdgeBaselineModel = self._loadIfFresh(self.getEdgeBaselineFilename(), expiration_timestamp, self.gzip_cPickle_load)
@@ -398,7 +396,7 @@ class Model_SSVM_AD3(Model):
         Save a trained model
         """
         self.gzip_cPickle_dump(self.getEdgeBaselineFilename(), self._EdgeBaselineModel)
-        return Model.save(self)
+        return super(Model_SSVM_AD3, self).save()
 
 
     def _ssvm_ad3plus_predict(self, lX, lConstraints):
@@ -417,7 +415,7 @@ class Model_SSVM_AD3(Model):
     
     #no need to define def save(self):
     #because the SSVM is saved while being trained, and the attached baeline models are saved by the parent class
-                    
+
     def test(self, lGraph, lsDocName=None):
         """
         Test the model using those graphs and report results on stderr
@@ -431,7 +429,6 @@ class Model_SSVM_AD3(Model):
         traceln("- computing features on test set")
         chronoOn("test")
         lX, lY = self.get_lX_lY(lGraph)
-        
         traceln("\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber(lGraph))
         self._computeModelCaracteristics(lX)    #we discover here dynamically the number of features of nodes and edges
         traceln("\t %s"%self._getNbFeatureAsText())
@@ -444,6 +441,7 @@ class Model_SSVM_AD3(Model):
             lY_pred = self._ssvm_ad3plus_predict(lX, lConstraints)
         else:
             lY_pred = self.ssvm.predict(lX)
+
         traceln(" [%.1fs] done\n"%chronoOff("test2"))
         
         tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsDocName)
@@ -452,14 +450,14 @@ class Model_SSVM_AD3(Model):
         tstRpt.attach(lBaselineTestReport)
         
         tstRpt.attach(self._testEdgeBaselines(lX, lY, lLabelName, lsDocName=lsDocName))
-        
-        #do some garbage collection
+
+        # do some garbage collection
         del lX, lY
         gc.collect()
-        
-        return tstRpt
 
-    def testFiles(self, lsFilename, loadFun,bBaseLine=False):
+        return tstRpt
+            
+    def testFiles(self, lsFilename, loadFun, bBaseLine=False):
         """
         Test the model using those files. The corresponding graphs are loaded using the loadFun function (which must return a singleton list).
         It reports results on stderr
@@ -473,32 +471,34 @@ class Model_SSVM_AD3(Model):
         traceln("- predicting on test set")
         chronoOn("testFiles")
         for sFilename in lsFilename:
-            [g] = loadFun(sFilename) #returns a singleton list
-            [X], [Y] = self.get_lX_lY([g])
-
-            if lLabelName == None:
-                lLabelName = g.getLabelNameList()
-                traceln("\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber([g]))
-                self._computeModelCaracteristics([X])    #we discover here dynamically the number of features of nodes and edges
-                traceln("\t %s"%self._getNbFeatureAsText())
-            else:
-                assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
-            n_jobs = self.ssvm.n_jobs
-            self.ssvm.n_jobs = 1
-            if g.getPageConstraint():
-                lConstraints = g.instanciatePageConstraints()
-                [Y_pred] = self._ssvm_ad3plus_predict([X], [lConstraints])
-            else:
-                #since we pass a single graph, let force n_jobs to 1 !!
-                [Y_pred] = self.ssvm.predict([X])
-            self.ssvm.n_jobs = n_jobs
-
-            lX     .append(X)
-            lY     .append(Y)
-            lY_pred.append(Y_pred)
-            g.detachFromDOM()
-            del g   #this can be very large
-            gc.collect() 
+            lg = loadFun(sFilename) #returns a singleton list
+            for g in lg:
+                if self.bConjugate: g.computeEdgeLabels()
+                [X], [Y] = self.get_lX_lY([g])
+    
+                if lLabelName == None:
+                    lLabelName = g.getLabelNameList()
+                    traceln("\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber([g]))
+                    self._computeModelCaracteristics([X])    #we discover here dynamically the number of features of nodes and edges
+                    traceln("\t %s"%self._getNbFeatureAsText())
+                else:
+                    assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
+                n_jobs = self.ssvm.n_jobs
+                self.ssvm.n_jobs = 1
+                if g.getPageConstraint():
+                    lConstraints = g.instanciatePageConstraints()
+                    [Y_pred] = self._ssvm_ad3plus_predict([X], [lConstraints])
+                else:
+                    #since we pass a single graph, let force n_jobs to 1 !!
+                    [Y_pred] = self.ssvm.predict([X])
+                self.ssvm.n_jobs = n_jobs
+    
+                lX     .append(X)
+                lY     .append(Y)
+                lY_pred.append(Y_pred)
+                #g.detachFromDOM()
+                del g   #this can be very large
+                gc.collect() 
         traceln("[%.1fs] done\n"%chronoOff("testFiles"))
 
         tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsFilename)
@@ -523,7 +523,7 @@ class Model_SSVM_AD3(Model):
         
         return tstRpt
 
-    def predict(self, graph):
+    def predict(self, graph, bProba=False):
         """
         predict the class of each node of the graph
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
@@ -541,8 +541,16 @@ class Model_SSVM_AD3(Model):
         else:
             [Y] = self.ssvm.predict([X])
         self.ssvm.n_jobs = n_jobs
-            
-        return Y
+        
+        if bProba:
+            # do like if we return some proba. 0 or 1 actually...
+            # similar to 1-hot encoding
+            n = Y.shape[0]
+            Y_proba = np.zeros((n,2), dtype=Y.dtype)
+            Y_proba[np.arange(n), Y] = 1.0
+            return Y_proba
+        else:
+            return Y
 
     def getModelInfo(self):
         """
