@@ -6,10 +6,6 @@ Sophie Andrieu - October 2006
 Copyright Xerox XRCE 2006
 
 """
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
-
 import config.ds_xml_def as ds_xml
 from lxml import  etree
 

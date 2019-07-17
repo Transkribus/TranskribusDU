@@ -7,9 +7,9 @@
 # Copyright Xerox 2004
 #
 
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
+
+
+
 
 import time
 
@@ -51,7 +51,10 @@ def chronoOn(name=None):
 def chronoOff(expected_name=None):
     global ltChrono
     c,name = ltChrono.pop()
-    assert name == expected_name, "INTERNAL ERROR: chronoOn and chronoOff calls not properly nested"
+    assert name == expected_name, (
+		  "INTERNAL ERROR: chronoOn and chronoOff calls not properly nested."
+		  "  Got '%s' instead of '%s'. Stack is: %s") % (
+			name, expected_name, [_n for _,_n in ltChrono])
     return c.off()
 
 

@@ -7,9 +7,9 @@ Sophie Andrieu, H Dejean, JL Meunier - 2006
 Copyright Xerox XRCE 2006
 
 """
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
+
+
+
 
 from builtins import input
 #Adjustement of the PYTHONPATH to include /.../DS/src
@@ -895,9 +895,7 @@ class Component:
 				ltOkErrMissltis.append( (taskName, nOk, nErr, nMiss, ltisRefsRunbErrbMiss) )
 
 				fP, fR, fF = self.computePRF(nOk, nErr, nMiss)
-# 				sRpt = "%20s  Doc %d: %s\t%.2f\t%.2f\t%2.4f\t%s"%(taskName, len(ltOkErrMissltis), self.formatPRF(fP, fR, fF), nOk, nErr, nMiss, filename)
-				sRpt = "%20s  Doc %d: %s\t%d\t%d\t%d\t%s"%(taskName, len(ltOkErrMissltis), self.formatPRF(fP, fR, fF), nOk, nErr, nMiss, filename)
-
+				sRpt = "%20s  Doc %d: %s\t%.2f\t%.2f\t%2.4f\t%s"%(taskName, len(ltOkErrMissltis), self.formatPRF(fP, fR, fF), nOk, nErr, nMiss, filename)
 				traceln(sRpt)				
 			traceln()	
 			self.testRecordHtml(filename, ltOkErrMissltis, None, None, None)
@@ -959,8 +957,7 @@ class Component:
 				docid += 1
 				fP, fR, fF = self.computePRF(nOk, nErr, nMiss)
 				lPRF.append( (fP, fR, fF) )
-# 				sRpt += "%4d %s  %2.2f  %2.2f  %2.2f \t%s\n"%(docid, self.formatPRF(fP, fR, fF), nOk, nErr, nMiss, filename)
-				sRpt += "%4d %s%6d%6d%6d\t%s\n"%(docid, self.formatPRF(fP, fR, fF), nOk, nErr, nMiss, filename)
+				sRpt += "%4d %s  %2.2f  %2.2f  %2.2f \t%s\n"%(docid, self.formatPRF(fP, fR, fF), nOk, nErr, nMiss, filename)
 	
 			#MICRO
 			sumNOk	 = sum( [rec[1] for rec in lt_Filename_nOk_nErr_nMiss_ltisRefsRunbErrbMiss] )

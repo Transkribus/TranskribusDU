@@ -4,8 +4,6 @@
 # JL Meunier - May 2004
 # Copyright XRCE, 2004
 #
-from __future__ import unicode_literals
-
 import sys
 
 global traceFD
