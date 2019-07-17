@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 
 """
-    Example DU task for ABP Table: no node feature
-        from DU_ABP_Table;py
+    Example DU task for ABP Table: doing jointly row and header/data
     
-    Copyright NLE H Déjean
+    Copyright Naver Labs Europe(C) 2018 H. Déjean, JL Meunier
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,9 +24,9 @@
     under grant agreement No 674943.
     
 """
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
+
+
+
 
 import sys, os
 
@@ -40,29 +39,75 @@ except ImportError:
 from common.trace import traceln
 from tasks import _checkFindColDir, _exit
 
-from tasks.DU_ABPTable import DU_ABPTable
+import graph.GraphModel
+#from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
+from crf.Graph_MultiPageXml import Graph_MultiContinousPageXml
+
+from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from tasks.DU_CRF_Task import DU_CRF_Task
 
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
-#from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
-from crf.FeatureDefinition_PageXml_NoNodeFeat_v3 import FeatureDefinition_PageXml_NoNodeFeat_v3
+from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 
-import json
 
  
-class DU_ABPTable_NoNF(DU_ABPTable):
+class DU_ABPTableR(DU_CRF_Task):
     """
     We will do a CRF model for a DU task
     , with the below labels 
     """
-    sXmlFilenamePattern = "*.mpxml"
+    sXmlFilenamePattern = "*[0-9].mpxml"
     
     #sLabeledXmlFilenamePattern = "*.a_mpxml"
-    sLabeledXmlFilenamePattern = "*.mpxml"
+    #WHY THIS ? sLabeledXmlFilenamePattern = "*.mpxml"
 
-    sLabeledXmlFilenameEXT = ".mpxml"
+    #WHY THIS ? sLabeledXmlFilenameEXT = ".mpxml"
 
+    DU_GRAPH = Graph_MultiContinousPageXml
 
+    #=== CONFIGURATION ====================================================================
+    @classmethod
+    def getConfiguredGraphClass(cls):
+        """
+        In this class method, we must return a configured graph class
+        """
+        
+        lLabelsBIEOS_R  = ['B', 'I', 'E', 'S', 'O']  #O?
+        #lLabelsSM_C     = ['M', 'S', 'O']   # single cell, multicells
+#         lLabels_OI      = ['O','I']   # inside/outside a table           
+#         lLabels_SPAN    = ['rspan','cspan','nospan','OTHER']
+        #lLabels_COLUMN_HEADER  = ['CH', 'D', 'O',]
+        
+#         """
+#         if you play with a toy collection, which does not have all expected classes, you can reduce those.
+#         """
+#         
+#         lActuallySeen = None
+#         if lActuallySeen:
+#             print( "REDUCING THE CLASSES TO THOSE SEEN IN TRAINING")
+#             lIgnoredLabels  = [lLabelsR[i] for i in range(len(lLabelsR)) if i not in lActuallySeen]
+#             lLabels         = [lLabelsR[i] for i in lActuallySeen ]
+#             print( len(lLabelsR)          , lLabelsR)
+#             print( len(lIgnoredLabels)   , lIgnoredLabels)
+        
+        #DEFINING THE CLASS OF GRAPH WE USE
+        DU_GRAPH = Graph_MultiContinousPageXml
+        
+        # ROW
+        ntR = NodeType_PageXml_type_woText("row"
+                              , lLabelsBIEOS_R
+                              , None
+                              , False    #no label means OTHER
+                              , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
+                              )
+        ntR.setLabelAttribute("DU_row")
+        ntR.setXpathExpr( (".//pc:TextLine"        #how to find the nodes
+                          , "./pc:TextEquiv")       #how to get their text
+                       )
+        DU_GRAPH.addNodeType(ntR)
+        
+        return DU_GRAPH
+        
     def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
 
         DU_CRF_Task.__init__(self
@@ -70,116 +115,65 @@ class DU_ABPTable_NoNF(DU_ABPTable):
                      , dFeatureConfig = {  }
                      , dLearnerConfig = {
                                    'C'                : .1   if C               is None else C
-                                 , 'njobs'            : 8    if njobs           is None else njobs
+                                 , 'njobs'            : 4    if njobs           is None else njobs
                                  , 'inference_cache'  : 50   if inference_cache is None else inference_cache
                                  #, 'tol'              : .1
                                  , 'tol'              : .05  if tol             is None else tol
                                  , 'save_every'       : 50     #save every 50 iterations,for warm start
-                                 , 'max_iter'         : 1000 if max_iter        is None else max_iter
+                                 , 'max_iter'         : 10   if max_iter        is None else max_iter
                          }
                      , sComment=sComment
                      #,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
-                     ,cFeatureDefinition= FeatureDefinition_PageXml_NoNodeFeat_v3
+                     ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
                      )
         
         #self.setNbClass(3)     #so that we check if all classes are represented in the training set
         
-        if options.bBaseline:
-            self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
+#         if options.bBaseline:
+#             self.bsln_mdl = self.addBaseline_LogisticRegression()    #use a LR model trained by GridSearch as baseline
     #=== END OF CONFIGURATION =============================================================
 
-
-try:
-    from tasks.DU_ECN_Task import DU_ECN_Task 
-    from tasks.DU_ABPTable import DU_ABPTable_ECN
-    class DU_ABPTable_ECN_NoNF(DU_ABPTable_ECN):
-            def __init__(self, sModelName, sModelDir, sComment=None,dLearnerConfigArg=None):
-
-                DU_ECN_Task.__init__(self
-                                     , sModelName, sModelDir
-                                     , dFeatureConfig={}
-                                     , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
-                                     , sComment=sComment
-                                     , cFeatureDefinition=FeatureDefinition_PageXml_NoNodeFeat_v3
-                                     )
-
-                if options.bBaseline:
-                    self.bsln_mdl = self.addBaseline_LogisticRegression()  # use a LR model trained by GridSearch as baseline
-
-except ImportError:
-        print('Could not Load ECN Model, Is TensorFlow installed ?')
-
-
-try:
-    from tasks.DU_ECN_Task import DU_ECN_Task 
-    from tasks.DU_ABPTable import DU_ABPTable_GAT
-    from gcn.DU_Model_ECN import DU_Model_GAT 
-    class DU_ABPTable_GAT_NoNF(DU_ABPTable_GAT):
-            def __init__(self, sModelName, sModelDir, sComment=None,dLearnerConfigArg=None):
-
-                DU_ECN_Task.__init__(self
-                                     , sModelName, sModelDir
-                                     , dFeatureConfig={}
-                                     , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
-                                     , sComment=sComment
-                                     , cFeatureDefinition=FeatureDefinition_PageXml_NoNodeFeat_v3
-                                     , cModelClass=DU_Model_GAT
-                                     )
-
-                if options.bBaseline:
-                    self.bsln_mdl = self.addBaseline_LogisticRegression()  # use a LR model trained by GridSearch as baseline
-
-            # === END OF CONFIGURATION =============================================================
-except ImportError:
-        print('Could not Load GAT Model','Is tensorflow installed ?')
-
-
+  
+    def predict(self, lsColDir):
+        """
+        Return the list of produced files
+        """
+        self.sXmlFilenamePattern = "*.mpxml"
+        return DU_CRF_Task.predict(self, lsColDir)
+        
+    def runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges=False):
+        """
+        Return the list of produced files
+        """
+        self.sXmlFilenamePattern = "*.mpxml"
+        return DU_CRF_Task.runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges)
+              
 
 # ----------------------------------------------------------------------------
 
 def main(sModelDir, sModelName, options):
-    if options.use_ecn:
-        if options.ecn_json_config is not None and options.ecn_json_config is not []:
-            f = open(options.ecn_json_config[0])
-            djson=json.loads(f.read())
-            dLearnerConfig=djson["ecn_learner_config"]
-            f.close()
-            doer = DU_ABPTable_ECN_NoNF(sModelName, sModelDir,dLearnerConfigArg=dLearnerConfig)
-
-
-
-        else:
-            doer = DU_ABPTable_ECN_NoNF(sModelName, sModelDir)
-    elif options.use_gat:
-        if options.gat_json_config is not None and options.gat_json_config is not []:
-
-            f = open(options.gat_json_config[0])
-            djson=json.loads(f.read())
-            dLearnerConfig=djson["gat_learner_config"]
-            f.close()
-            doer = DU_ABPTable_GAT_NoNF(sModelName, sModelDir,dLearnerConfigArg=dLearnerConfig)
-
-        else:
-            doer = DU_ABPTable_GAT_NoNF(sModelName, sModelDir)
-
-    else:
-        doer = DU_ABPTable_NoNF(sModelName, sModelDir,
-                          C                 = options.crf_C,
-                          tol               = options.crf_tol,
-                          njobs             = options.crf_njobs,
-                          max_iter          = options.crf_max_iter,
-                          inference_cache   = options.crf_inference_cache)
+    doer = DU_ABPTableR(sModelName, sModelDir,
+                      C                 = options.crf_C,
+                      tol               = options.crf_tol,
+                      njobs             = options.crf_njobs,
+                      max_iter          = options.max_iter,
+                      inference_cache   = options.crf_inference_cache)
     
     if options.rm:
         doer.rm()
         return
 
-    lTrn, lTst, lRun, lFold = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun, options.lFold]] 
+    lTrn, lTst, lRun, lFold = [_checkFindColDir(lsDir, bAbsolute=False) for lsDir in [options.lTrn, options.lTst, options.lRun, options.lFold]] 
+#     if options.bAnnotate:
+#         doer.annotateDocument(lTrn)
+#         traceln('annotation done')    
+#         sys.exit(0)
+    
     
     traceln("- classes: ", doer.getGraphClass().getLabelNameList())
     
     ## use. a_mpxml files
-    doer.sXmlFilenamePattern = doer.sLabeledXmlFilenamePattern
+    #doer.sXmlFilenamePattern = doer.sLabeledXmlFilenamePattern
 
 
     if options.iFoldInitNum or options.iFoldRunNum or options.bFoldFinish:
@@ -205,10 +199,9 @@ def main(sModelDir, sModelName, options):
         
     if lFold:
         loTstRpt = doer.nfold_Eval(lFold, 3, .25, None, options.pkl)
-        import crf.Model
         sReportPickleFilename = os.path.join(sModelDir, sModelName + "__report.txt")
         traceln("Results are in %s"%sReportPickleFilename)
-        crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
+        graph.GraphModel.GraphModel.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
     elif lTrn:
         doer.train_save_test(lTrn, lTst, options.warm, options.pkl)
         try:    traceln("Baseline best estimator: %s"%doer.bsln_mdl.best_params_)   #for GridSearch
@@ -221,11 +214,8 @@ def main(sModelDir, sModelName, options):
         traceln(tstReport)
         if options.bDetailedReport:
             traceln(tstReport.getDetailledReport())
-            import crf.Model
-            for test in lTst:
-                sReportPickleFilename = os.path.join('..',test, sModelName + "__report.pkl")
-                traceln('Report dumped into %s'%sReportPickleFilename)
-                crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, tstReport)
+            sReportPickleFilename = os.path.join(sModelDir, sModelName + "__detailled_report.txt")
+            graph.GraphModel.GraphModel.gzip_cPickle_dump(sReportPickleFilename, tstReport)
     
     if lRun:
         if options.storeX or options.applyY:
@@ -237,7 +227,7 @@ def main(sModelDir, sModelName, options):
             lsOutputFilename = doer.predict(lRun)
             
         traceln("Done, see in:\n  %s"%lsOutputFilename)
-        
+    
         
 # ----------------------------------------------------------------------------
 if __name__ == "__main__":
@@ -249,12 +239,8 @@ if __name__ == "__main__":
     #FOR GCN
     parser.add_option("--revertEdges", dest='bRevertEdges',  action="store_true", help="Revert the direction of the edges") 
     parser.add_option("--detail", dest='bDetailedReport',  action="store_true", default=False,help="Display detailled reporting (score per document)") 
-    parser.add_option("--baseline", dest='bBaseline',  action="store_true", default=False, help="report baseline method")
-    parser.add_option("--ecn",dest='use_ecn',action="store_true", default=False, help="wether to use ECN Models")
-    parser.add_option("--ecn_config", dest='ecn_json_config',action="append", type="string", help="The Config files for the ECN Model")
-    parser.add_option("--gat", dest='use_gat', action="store_true", default=False, help="wether to use ECN Models")
-    parser.add_option("--gat_config", dest='gat_json_config', action="append", type="string",
-                      help="The Config files for the Gat Model")
+    parser.add_option("--baseline", dest='bBaseline',  action="store_true", default=False, help="report baseline method") 
+            
     # --- 
     #parse the command line
     (options, args) = parser.parse_args()

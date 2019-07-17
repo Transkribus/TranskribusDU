@@ -35,13 +35,17 @@ except ImportError:
 from common.trace import traceln
 from tasks import _checkFindColDir, _exit
 
+from xml_formats.PageXml import MultiPageXml 
 from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 from DU_CRF_Task import DU_CRF_Task
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
-from crf.FeatureDefinition_PageXml_NoNodeFeat_v3 import FeatureDefinition_PageXml_StandardOnes_noText_noEdgeFeat_v3
+from crf.FeatureDefinition_PageXml_NoNodeFeat_v3 import FeatureDefinition_PageXml_NoNodeFeat_v3
 
 
+from xml_formats.Page2DS import primaAnalysis
+
+ 
 class DU_ABPTable(DU_CRF_Task):
     """
     We will do a CRF model for a DU task
@@ -121,7 +125,7 @@ class DU_ABPTable(DU_CRF_Task):
                          }
                      , sComment=sComment
                      #,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
-                     ,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_noEdgeFeat_v3
+                     ,cFeatureDefinition=FeatureDefinition_PageXml_NoNodeFeat_v3
                      )
         
         #self.setNbClass(3)     #so that we check if all classes are represented in the training set
@@ -159,7 +163,7 @@ if __name__ == "__main__":
                       C                 = options.crf_C,
                       tol               = options.crf_tol,
                       njobs             = options.crf_njobs,
-                      max_iter          = options.crf_max_iter,
+                      max_iter          = options.max_iter,
                       inference_cache   = options.crf_inference_cache)
     
     
@@ -204,10 +208,10 @@ if __name__ == "__main__":
         
     if lFold:
         loTstRpt = doer.nfold_Eval(lFold, 3, .25, None, options.pkl)
-        import crf.Model
+        import graph.GraphModel
         sReportPickleFilename = os.path.join(sModelDir, sModelName + "__report.txt")
         traceln("Results are in %s"%sReportPickleFilename)
-        crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
+        graph.GraphModel.GraphModel.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
     elif lTrn:
         doer.train_save_test(lTrn, lTst, options.warm, options.pkl)
         try:    traceln("Baseline best estimator: %s"%doer.bsln_mdl.best_params_)   #for GridSearch

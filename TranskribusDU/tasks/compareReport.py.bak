@@ -25,16 +25,16 @@
     under grant agreement No 674943.
     
 """
-
-
-
+from __future__ import absolute_import
+from __future__ import  print_function
+from __future__ import unicode_literals
 
 import sys,os
 from optparse import OptionParser
 import pickle, gzip
 sys.path.append( os.path.dirname(os.path.dirname( os.path.abspath(sys.argv[0]) )) )
 
-from common.TestReport import TestReport
+from crf.TestReport import TestReport
 
 usage=""
 version="1.0"

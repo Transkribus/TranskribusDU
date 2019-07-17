@@ -102,7 +102,7 @@ class DU_BAR_Convert:
         
         g = Graph_MultiPageXml()
         
-        doc = etree.parse(sFilename, encoding='utf-8')
+        doc = etree.parse(sFilename)
 
         #the Heigh/Ho annotation runs over consecutive pages, so we keep those values accross pages
         self._initSegmentationLabel()

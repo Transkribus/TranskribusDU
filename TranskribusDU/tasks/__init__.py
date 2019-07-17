@@ -11,8 +11,10 @@ DEBUG=0
 sCOL = "col"
 
 def _exit(usage, status, exc=None):
-    if usage: sys.stderr.write("ERROR: usage : %s\n"%usage)
-    if exc != None: sys.stderr.write(str(exc))  #any exception?
+    if usage: 
+        sys.stderr.write("ERROR: usage : %s\n"%usage)
+    if exc != None: 
+        sys.stderr.write(str(exc))  #any exception?
     sys.exit(status)    
 
 def _checkFindColDir(lsDir, sColName=sCOL, bAbsolute=True):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    DU task based on ECN
+    DU task based on ECN GAT
     
     Copyright Xerox(C) 2018, 2019  Hervé Déjean, Jean-Luc Meunier, Animesh Prasad
 
@@ -35,18 +35,18 @@ except ImportError:
 TranskribusDU_version
 
 from common.trace import traceln
-from tasks.DU_Task import DU_Task
+
 import graph.GraphModel
+from tasks.DU_Task import DU_Task
 
 # dynamically imported
-DU_Model_ECN = None
+DU_Model_GAT = None
 
-
-class DU_ECN_Task(DU_Task):
+class DU_GAT_Task(DU_Task):
     """
-    DU learner based on ECN
+    DU learner based on GAT
     """
-    VERSION = "ECN_v19"
+    VERSION = "GAT_v19"
     
     version          = None     # dynamically computed
     
@@ -58,10 +58,10 @@ class DU_ECN_Task(DU_Task):
                  ):
         super().__init__(sModelName, sModelDir, sComment, cFeatureDefinition, dFeatureConfig)
 
-        global DU_Model_ECN
-        DU_Model_ECN = DU_Task.DYNAMIC_IMPORT('.DU_Model_ECN', 'gcn').DU_Model_ECN
-
-        self.cModelClass = DU_Model_ECN if cModelClass == None else cModelClass
+        global DU_Model_GAT
+        DU_Model_GAT = DU_Task.DYNAMIC_IMPORT('.DU_Model_ECN', 'gcn').DU_Model_GAT
+        
+        self.cModelClass = DU_Model_GAT if cModelClass == None else cModelClass
         assert issubclass(self.cModelClass, graph.GraphModel.GraphModel), "Your model class must inherit from graph.GraphModel.GraphModel"
 
     @classmethod
@@ -72,51 +72,59 @@ class DU_ECN_Task(DU_Task):
     @classmethod
     def updateStandardOptionsParser(cls, parser):
         usage = """
-        --ecn         Enable Edge Convolutional Network learning
-        --ecn_config  Path to the JSON configuration file (required!) for ECN learning
+        --gat         Enable Graph Attention learning
+        --gat_config  Path to the JSON configuration file (required!) for GAT learning
         """
-        #FOR GCN
-        parser.add_option("--ecn"        , dest='bECN'              , action="store_true"
-                          , default=False, help="use ECN Models")
-        parser.add_option("--ecn_config" , dest='ecn_json_config'   , action="store", type="string"
-                          , help="The Config files for the ECN Model")
-        parser.add_option("--baseline"   , dest='bBaseline'         , action="store_true"
-                          , default=False, help="report baseline method")
+        #FOR GAT
+        parser.add_option("--gat"        , dest='bGAT'           , action="store_true"
+                          , default=False, help="wether to use GAT Models")
+        parser.add_option("--gat_config" , dest='gat_json_config'   , action="store", type="string",
+                          help="The Config files for the Gat Model")
+        # parser.add_option("--baseline"   , dest='bBaseline'         , action="store_true"
+        #                  , default=False, help="report baseline method")
 
         return usage, parser
+
 
     def getStandardLearnerConfig(self, options):
         """
         Once the command line has been parsed, you can get the standard learner
         configuration dictionary from here.
         """
-        if options.ecn_json_config:
-            with open(options.ecn_json_config) as f:
+        try:
+            sFile = options.gat_json_config or options.ecn_json_config
+        except AttributeError:
+            sFile = options.gat_json_config
+        if sFile:
+            with open(sFile) as f:
                 djson = json.loads(f.read())
-                if "ecn_learner_config" in djson:
-                    dLearnerConfig=djson["ecn_learner_config"]
+                if "gat_learner_config" in djson:
+                    dLearnerConfig = djson["gat_learner_config"]
+                elif "gat_ensemble" in djson:
+                    dLearnerConfig = djson
+                elif "ecn_learner_config" in djson:
+                    dLearnerConfig = djson["ecn_learner_config"]
                 elif "ecn_ensemble" in djson:
                     dLearnerConfig = djson
                 else:
                     raise Exception("Invalid config JSON file")
         
         else:
-            dLearnerConfig = {
-            "name"                  :"default_8Lay1Conv",
-            "dropout_rate_edge"     : 0.2,
-            "dropout_rate_edge_feat": 0.2,
-            "dropout_rate_node"     : 0.2,
-            "lr"                    : 0.0001,
-            "mu"                    : 0.0001,
-            "nb_iter"               : 1200,
-            "nconv_edge"            : 1,
-            "node_indim"            : -1,
-            "num_layers"            : 8,
-            "ratio_train_val"       : 0.1,
-            "patience"              : 50,
-            "activation_name"       :"relu",
-            "stack_convolutions"    : False
-            }
+            dLearnerConfig = {  'name'                  : "default_5lay5att"
+                              , 'nb_iter'               : 500,
+                              'lr'                      : 0.001,
+                              'num_layers'              : 5,
+                              'nb_attention'            : 5,
+                              'stack_convolutions'      : True,
+                              'node_indim'              : -1,
+                              'dropout_rate_node'       : 0.0,
+                              'dropout_rate_attention'  : 0.0,
+                              'ratio_train_val'         : 0.15,
+                              "activation_name"         : 'tanh',
+                              "patience"                : 50,
+                              "original_model"          : False,
+                              "attn_type"               : 0
+               }
             
         if options.max_iter:
             traceln(" - max_iter=%d" % options.max_iter)

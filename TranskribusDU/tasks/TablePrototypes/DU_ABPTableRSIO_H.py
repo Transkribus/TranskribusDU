@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 """
-    Example DU task for ABP Table
+    Example DU task for ABP Table: doing jointly row and header/data
     
-    Copyright Naver Labs Europe(C) 2018 H. Déjean
+    Copyright Naver Labs Europe(C) 2018 H. Déjean, JL Meunier
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,11 +24,12 @@
     under grant agreement No 674943.
     
 """
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
+
+
+
 
 import sys, os
+from lxml import etree
 
 try: #to ease the use without proper Python installation
     import TranskribusDU_version
@@ -41,18 +42,56 @@ from tasks import _checkFindColDir, _exit
 
 
 #from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
-from crf.Graph_MultiPageXml import FactorialGraph_MultiContinuousPageXml
+from crf.factorial.FactorialGraph_MultiPageXml import FactorialGraph_MultiPageXml
+from crf.factorial.FactorialGraph_MultiPageXml_Scaffold import FactorialGraph_MultiPageXml_Scaffold
 
 from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
 #from tasks.DU_CRF_Task import DU_CRF_Task
-from tasks.DU_CRF_Task import DU_FactorialCRF_Task
+from tasks.DU_FactorialCRF_Task import DU_FactorialCRF_Task
 
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 
 
+class NodeType_BIESO_to_SIO_and_CHDO(NodeType_PageXml_type_woText):
+    """
+    Convert BIESO labeling to SIO
+    """
+    
+    def parseDomNodeLabel(self, domnode, defaultCls=None):
+        """
+        Parse and set the graph node label and return its class index
+        raise a ValueError if the label is missing while bOther was not True, or if the label is neither a valid one nor an ignored one
+        """
+        sLabel = self.sDefaultLabel
+        
+        sXmlLabel = domnode.get(self.sLabelAttr)
+        
+        sXmlLabel = {'B':'S',
+                     'I':'I',
+                     'E':'I',
+                     'S':'S',
+                     'O':'O',
+                     'CH':'CH',
+                     'D':'D'}[sXmlLabel]
+        try:
+            sLabel = self.dXmlLabel2Label[sXmlLabel]
+        except KeyError:
+            #not a label of interest
+            try:
+                self.checkIsIgnored(sXmlLabel)
+                #if self.lsXmlIgnoredLabel and sXmlLabel not in self.lsXmlIgnoredLabel: 
+            except:
+                raise ValueError("Invalid label '%s'"
+                                 " (from @%s or @%s) in node %s"%(sXmlLabel,
+                                                           self.sLabelAttr,
+                                                           self.sDefaultLabel,
+                                                           etree.tostring(domnode)))
+        
+        return sLabel
+
  
-class DU_ABPTable(DU_FactorialCRF_Task):
+class DU_ABPTableRH(DU_FactorialCRF_Task):
     """
     We will do a CRF model for a DU task
     , with the below labels 
@@ -60,12 +99,12 @@ class DU_ABPTable(DU_FactorialCRF_Task):
     sXmlFilenamePattern = "*.mpxml"
     
     #sLabeledXmlFilenamePattern = "*.a_mpxml"
-    sLabeledXmlFilenamePattern = "*.mpxml"
+    #WHY THIS ? sLabeledXmlFilenamePattern = "*.mpxml"
 
-    sLabeledXmlFilenameEXT = ".mpxml"
+    #WHY THIS ? sLabeledXmlFilenameEXT = ".mpxml"
 
-    DU_GRAPH =FactorialGraph_MultiContinuousPageXml
-
+    bScaffold = None
+    
     #=== CONFIGURATION ====================================================================
     @classmethod
     def getConfiguredGraphClass(cls):
@@ -73,13 +112,8 @@ class DU_ABPTable(DU_FactorialCRF_Task):
         In this class method, we must return a configured graph class
         """
         
-        lLabelsBIEOS_R  = ['RB', 'RI', 'RE', 'RS']  #O?
-        lLabelsSM_C     = ['CM', 'CS']   # single cell, multicells
-#         lLabels_OI      = ['O','I']   # inside/outside a table           
-#         lLabels_SPAN    = ['rspan','cspan','nospan','OTHER']
-#         lLabels_HEADER  = ['O','I']
-        
-        lIgnoredLabels = None
+        lLabelsSIO_R            = ['S', 'I', 'O']  #O?
+        lLabels_COLUMN_HEADER   = ['CH', 'D', 'O',]
         
 #         """
 #         if you play with a toy collection, which does not have all expected classes, you can reduce those.
@@ -94,13 +128,17 @@ class DU_ABPTable(DU_FactorialCRF_Task):
 #             print( len(lIgnoredLabels)   , lIgnoredLabels)
         
         #DEFINING THE CLASS OF GRAPH WE USE
-        DU_GRAPH = FactorialGraph_MultiContinuousPageXml
+        if cls.bScaffold is None: raise Exception("Internal error")
+        if cls.bScaffold:
+            DU_GRAPH = FactorialGraph_MultiPageXml_Scaffold
+        else:
+            DU_GRAPH = FactorialGraph_MultiPageXml
         
         # ROW
-        ntR = NodeType_PageXml_type_woText("abpr"                   #some short prefix because labels below are prefixed with it
-                              , lLabelsBIEOS_R
+        ntR = NodeType_BIESO_to_SIO_and_CHDO("row"
+                              , lLabelsSIO_R
                               , None
-                              , True    #no label means OTHER
+                              , False    #no label means OTHER
                               , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
                               )
         ntR.setLabelAttribute("DU_row")
@@ -109,35 +147,40 @@ class DU_ABPTable(DU_FactorialCRF_Task):
                        )
         DU_GRAPH.addNodeType(ntR)
         
-        # COLUMN
-        ntC = NodeType_PageXml_type_woText("abpc"                   #some short prefix because labels below are prefixed with it
-                              , lLabelsSM_C
+        # HEADER
+        ntH = NodeType_BIESO_to_SIO_and_CHDO("hdr"
+                              , lLabels_COLUMN_HEADER
                               , None
-                              , True    #no label means OTHER
+                              , False    #no label means OTHER
                               , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
                               )
-        ntC.setLabelAttribute("DU_col")
-        ntC.setXpathExpr( (".//pc:TextLine"        #how to find the nodes
+        ntH.setLabelAttribute("DU_header")
+        ntH.setXpathExpr( (".//pc:TextLine"        #how to find the nodes
                           , "./pc:TextEquiv")       #how to get their text
                        )
-        DU_GRAPH.addNodeType(ntC)        
+        DU_GRAPH.addNodeType(ntH)        
         
         
         return DU_GRAPH
         
-    def __init__(self, sModelName, sModelDir, sComment=None, C=None, tol=None, njobs=None, max_iter=None, inference_cache=None): 
-
+    def __init__(self, sModelName, sModelDir, sComment=None,
+                 C=None, tol=None, njobs=None, max_iter=None,
+                 inference_cache=None,
+                 bScaffold=False): 
+        
+        DU_ABPTableRH.bScaffold = bScaffold
+        
         DU_FactorialCRF_Task.__init__(self
                      , sModelName, sModelDir
                      , dFeatureConfig = {  }
                      , dLearnerConfig = {
                                    'C'                : .1   if C               is None else C
-                                 , 'njobs'            : 8    if njobs           is None else njobs
+                                 , 'njobs'            : 4    if njobs           is None else njobs
                                  , 'inference_cache'  : 50   if inference_cache is None else inference_cache
                                  #, 'tol'              : .1
                                  , 'tol'              : .05  if tol             is None else tol
                                  , 'save_every'       : 50     #save every 50 iterations,for warm start
-                                 , 'max_iter'         : 1000 if max_iter        is None else max_iter
+                                 , 'max_iter'         : 10   if max_iter        is None else max_iter
                          }
                      , sComment=sComment
                      #,cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText
@@ -169,18 +212,19 @@ class DU_ABPTable(DU_FactorialCRF_Task):
 # ----------------------------------------------------------------------------
 
 def main(sModelDir, sModelName, options):
-    doer = DU_ABPTable(sModelName, sModelDir,
+    doer = DU_ABPTableRH(sModelName, sModelDir,
                       C                 = options.crf_C,
                       tol               = options.crf_tol,
                       njobs             = options.crf_njobs,
-                      max_iter          = options.crf_max_iter,
-                      inference_cache   = options.crf_inference_cache)
+                      max_iter          = options.max_iter,
+                      inference_cache   = options.crf_inference_cache,
+                      bScaffold         = options.bScaffold)
     
     if options.rm:
         doer.rm()
         return
 
-    lTrn, lTst, lRun, lFold = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun, options.lFold]] 
+    lTrn, lTst, lRun, lFold = [_checkFindColDir(lsDir, bAbsolute=False) for lsDir in [options.lTrn, options.lTst, options.lRun, options.lFold]] 
 #     if options.bAnnotate:
 #         doer.annotateDocument(lTrn)
 #         traceln('annotation done')    
@@ -190,7 +234,7 @@ def main(sModelDir, sModelName, options):
     traceln("- classes: ", doer.getGraphClass().getLabelNameList())
     
     ## use. a_mpxml files
-    doer.sXmlFilenamePattern = doer.sLabeledXmlFilenamePattern
+    #doer.sXmlFilenamePattern = doer.sLabeledXmlFilenamePattern
 
 
     if options.iFoldInitNum or options.iFoldRunNum or options.bFoldFinish:
@@ -198,7 +242,7 @@ def main(sModelDir, sModelName, options):
             """
             initialization of a cross-validation
             """
-            splitter, ts_trn, lFilename_trn = doer._nfold_Init(lFold, options.iFoldInitNum, test_size=0.25, random_state=None, bStoreOnDisk=True)
+            splitter, ts_trn, lFilename_trn = doer._nfold_Init(lFold, options.iFoldInitNum, bStoreOnDisk=True)
         elif options.iFoldRunNum:
             """
             Run one fold
@@ -216,10 +260,10 @@ def main(sModelDir, sModelName, options):
         
     if lFold:
         loTstRpt = doer.nfold_Eval(lFold, 3, .25, None, options.pkl)
-        import crf.Model
+        import graph.GraphModel
         sReportPickleFilename = os.path.join(sModelDir, sModelName + "__report.txt")
         traceln("Results are in %s"%sReportPickleFilename)
-        crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
+        graph.GraphModel.GraphModel.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
     elif lTrn:
         doer.train_save_test(lTrn, lTst, options.warm, options.pkl)
         try:    traceln("Baseline best estimator: %s"%doer.bsln_mdl.best_params_)   #for GridSearch
@@ -233,7 +277,7 @@ def main(sModelDir, sModelName, options):
         if options.bDetailedReport:
             traceln(tstReport.getDetailledReport())
             sReportPickleFilename = os.path.join(sModelDir, sModelName + "__detailled_report.txt")
-            crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, tstReport)
+            graph.GraphModel.GraphModel.gzip_cPickle_dump(sReportPickleFilename, tstReport)
     
     if lRun:
         if options.storeX or options.applyY:
@@ -258,6 +302,8 @@ if __name__ == "__main__":
     parser.add_option("--revertEdges", dest='bRevertEdges',  action="store_true", help="Revert the direction of the edges") 
     parser.add_option("--detail", dest='bDetailedReport',  action="store_true", default=False,help="Display detailled reporting (score per document)") 
     parser.add_option("--baseline", dest='bBaseline',  action="store_true", default=False, help="report baseline method") 
+    parser.add_option("--scaffold", dest='bScaffold',  action="store_true", default=False, help="scaffold factorial") 
+
             
     # --- 
     #parse the command line
