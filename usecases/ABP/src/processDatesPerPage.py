@@ -31,37 +31,38 @@
 
 from lxml import etree
 import os,sys
-# from sklearn.pipeline import Pipeline, FeatureUnion
-# from sklearn.feature_extraction.text import CountVectorizer
-# from sklearn.base import BaseEstimator, TransformerMixin
+import re
+from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.base import BaseEstimator, TransformerMixin
 import sys, os.path
 sys.path.append (os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))) + os.sep+'TranskribusDU')
-
-# from contentProcessing.taggerChrono import DeepTagger
-# class Transformer(BaseEstimator, TransformerMixin):
-#     def __init__(self):
-#         BaseEstimator.__init__(self)
-#         TransformerMixin.__init__(self)
-#         
-#     def fit(self, l, y=None):
-#         return self
-# 
-#     def transform(self, l):
-#         assert False, "Specialize this method!"
-#         
-# class SparseToDense(Transformer):
-#     def __init__(self):
-#         Transformer.__init__(self)
-#     def transform(self, o):
-#         return o.toarray()    
-#     
-# class NodeTransformerTextEnclosed(Transformer):
-#     """
-#     we will get a list of block and need to send back what a textual feature extractor (TfidfVectorizer) needs.
-#     So we return a list of strings  
-#     """
-#     def transform(self, lw):
-#         return map(lambda x: x, lw) 
+ 
+from contentProcessing.taggerChrono import DeepTagger
+class Transformer(BaseEstimator, TransformerMixin):
+    def __init__(self):
+        BaseEstimator.__init__(self)
+        TransformerMixin.__init__(self)
+         
+    def fit(self, l, y=None):
+        return self
+ 
+    def transform(self, l):
+        assert False, "Specialize this method!"
+         
+class SparseToDense(Transformer):
+    def __init__(self):
+        Transformer.__init__(self)
+    def transform(self, o):
+        return o.toarray()    
+     
+class NodeTransformerTextEnclosed(Transformer):
+    """
+    we will get a list of block and need to send back what a textual feature extractor (TfidfVectorizer) needs.
+    So we return a list of strings  
+    """
+    def transform(self, lw):
+        return map(lambda x: x, lw) 
 
 def getSequenceOfNConsecutive(n,lListe):
     """
@@ -74,6 +75,11 @@ def getSequenceOfNConsecutive(n,lListe):
         
         start with max of a page; and delete other in neighbourhood
     """
+
+lMappingFirstYear={
+    20005:1862,
+    
+    }
 def processDS(infile):
     """
         Extract year candidates per page
@@ -136,7 +142,43 @@ def processDS(infile):
 
 
     et.write(infile)
+
+def addAllFields(record):
+        """
+        <RECORD lastname="Krern" firstname="Anna Maria" religion="" occupation="H&#228;uslerin" location="Baugt&#246;tting" situation="Wittwer." deathreason="Marass. senil." doktor="Loter" monthdaydategenerator="29" monthdaydategenerator="Oktbr." monthdaydategenerator="" burialdate="Juni" buriallocation="geb." age="" ageunit=""/>
+        """
+        lFields =[
+            'lastname','firstname','religion','occupation','location','situation','deathreason','doktor','monthdaydategenerator','deathdate','deathyear','burialdate','buriallocation', 'age','ageunit'
+            ]
         
+        for f in lFields:
+            try: record.attrib[f]
+            except KeyError:record.attrib[f]=''
+
+def normalizeAgeUnit(unit):
+    unit=unit.lower()
+    if unit =="":
+        return 0
+    elif unit[0] == 'j' : return 1    
+    elif unit[0] == 'm' : return 2 
+    elif unit[0] == 'w' : return 3
+    elif unit[0] == 't' : return 5
+    elif unit[0] == 's' : return 6
+    else: return 0  
+    
+def normalizeAgeValue(age):
+    if age == "":
+        return 0
+    age = re.sub(r'\D+', '½',age)
+    age = re.sub(r'\D+', '¼',age)    
+    age = re.sub(r'\D+', '⅓',age)
+    age = re.sub(r'\D+', '¾',age)      
+    
+    try:return int(age)
+    except: return 0
+
+
+    
 def getPageBreak(infile):
     """
         DB format?? 
@@ -160,52 +202,132 @@ def getPageBreak(infile):
     print(len(ltr))
     ## concat all
     highest=0
-    curYear=None
-    lBreak=[]
-    lYears=[]
+    curYear=''
+    ## forward then backward!
+    backward = False
     for it,page in enumerate(ltr):
-        lBreak[it]=False
-        lYears[it] = page.get('computedyear')
+        parish=page.get('pagenum')
+        # why do we have \col\None\S_Indersbach_003_0001
+        #  col  None S_Indersbach_003_0001
+        #            S Indersbach   003    0001
+        parish = re.sub(r'_\d+', '',parish).replace('\\col\\None\\S_','')
+        if page.get('years') !='' and it <len(ltr) and ltr[it+1].get('years') !="":
+            curYear =int(page.get('years'))
         lmonth=[]
-        year=page.get('years')
         xpath  = "./%s" % ("RECORD")
         llines= page.xpath(xpath)
-        for line in llines:
+        for il,line in enumerate(llines):
+            addAllFields(line)
+            line.attrib['colid']  = "6285"
+            line.attrib['docid']  = re.search('\d{5}',infile).group(0)
+            line.attrib['pageid'] = page.attrib['number']
+            line.attrib['parish']=parish
+            line.attrib['int_ageunit'] = str(normalizeAgeUnit(line.attrib['ageunit']))
+            line.attrib['int_age'] = str(normalizeAgeValue(line.attrib['age']))
             try:
-                # monthdaydategenerator as well 
-                line.attrib['deathDate']
-                lmonth.append(line.attrib['deathDate'])
-            except KeyError:pass
-        print (lmonth)
+                day = re.sub(r'\D+', '',line.attrib['monthdaydategenerator'])
+                line.attrib['monthdaydategenerator'] =day
+                line.attrib['int_monthdaydate'] = day
+                # burial date is more chronological
+                month= line.attrib['burialdate']
+                if month =="": month= line.attrib['deathdate']
+                month = month.replace("Jäner",'Januar')
+                month = month.replace("än",'an')
+                xx ="%s %s "%(day ,month)
+                xx =xx.strip()
+                lmonth.append(xx) #,line.attrib['deathyear']))
+            except KeyError:
+                xxx
+        print (line.attrib['pageid'],curYear,lmonth)
         # process lmonth with taggerchrono
         if tagger and lmonth != []: 
             lres = tagger.predict_multiptype(lmonth)
+            prevmonthNumProba=0
             for res  in lres: 
-                monthNum = int(res[0][0][2][0])
-                monthNumProba = res[0][0][2][1]
-                print (monthNum,monthNumProba)
-                if monthNum < highest and monthNumProba > 0.1:
-                    bPageBreak=True
-                    print ('BREAK', highest, monthNum,monthNumProba)
-                    lBreak[it]=True
-                elif monthNum >highest:highest=monthNum
+                for irec,record in enumerate(res):
+#                     print (record) 
+                    monthNum = int(record[0][2][0])
+                    monthNumProba = record[0][2][1]
+                    dayNum = int(record[0][3][0])
+                    dayProba = record[0][3][1]      
+                    print (dayNum,dayProba,monthNum,monthNumProba)
+                    if llines[irec].attrib['int_monthdaydate'] != ''  and dayNum != int(llines[irec].attrib['int_monthdaydate']): print ("%s != %s " % (dayNum,llines[irec].attrib['int_monthdaydate']))
+#                     print (monthNum,monthNumProba)
+                    llines[irec].attrib['int_deathmonth']=str(monthNum)
+#                     llines[irec].attrib['int_deathday']=monthNum
+                    if monthNum < highest and monthNumProba > 0.75 and prevmonthNumProba > 0.75:
+                        bPageBreak=True
+                        print ('BREAK', curYear,highest, monthNum,monthNumProba)
+                        if curYear !='':
+                            if backward:curYear =- 1
+                            else: curYear += 1
+                        highest = monthNum
+                    elif monthNum >highest and monthNumProba > 0.70  and prevmonthNumProba > 0.70:highest=monthNum
+                    elif monthNumProba > 0.5  and prevmonthNumProba > 0.5:highest=monthNum
+                    
+                    if curYear !='':
+                        llines[irec].attrib['year']=str(curYear)
+                        print (curYear)
+                    prevmonthNumProba = monthNumProba
+                    #print (etree.tostring(llines[irec]))    
             # compare with highest month: if lower: breakpage 
         # replace deathDate by deathMonthNumber
+    curYear=''
+    highest = 0
+    backward = True
+    ltr.reverse()
+    for it,page in enumerate(ltr):
+        if page.get('years') !='' and it <len(ltr) and ltr[it+1].get('years') !="":
+            curYear =int(page.get('years'))
+        else:
+            lmonth=[]
+            xpath  = "./%s" % ("RECORD")
+            llines= page.xpath(xpath)
+            llines.reverse()
+            for il,line in enumerate(llines):
+                 
+                month= line.attrib['deathdate']
+                month = month.replace("Jäner",'Januar')
+                month = month.replace("än",'an')
+                if line.attrib['int_monthdaydate']:
+                    xx ="%s %s "%(line.attrib['int_monthdaydate'] ,month)
+                    bFakeDay=True
+                else: 
+                    xx ="%s %s "%("10" ,month)
+                    bFakeDay=True
+                xx =xx.strip()
+                lmonth.append(xx)
+            print (lmonth)
+            # process lmonth with taggerchrono
+            if tagger and lmonth != []: 
+                lres = tagger.predict_multiptype(lmonth)
+                prevmonthNumProba=0
+                for res  in lres: 
+                    for irec,record in enumerate(res):
+    #                     print (record) 
+                        monthNum = int(record[0][2][0])
+                        monthNumProba = record[0][2][1]
+                        print (monthNum,monthNumProba)
+                        if monthNum > highest and monthNumProba > 0.5 and prevmonthNumProba > 0.75:
+                            bPageBreak=True
+                            print ('BREAK', curYear,highest, monthNum,monthNumProba)
+                            if curYear !='':
+                                if backward:curYear -= 1
+                                else: curYear += 1
+                            highest = monthNum
+#                         elif monthNum >highest and monthNumProba > 0.75  and prevmonthNumProba > 0.5:highest=monthNum
+                        elif  monthNumProba > 0.75  and prevmonthNumProba > 0.5:highest=monthNum
+                           
+                        if curYear !='':
+                            try:llines[irec].attrib['year']
+                            except KeyError:
+                                llines[irec].attrib['YEAR']=str(curYear)
+                                print (curYear)
+                        prevmonthNumProba = monthNumProba  
+
+
     
-    lYearWOPrev=[]
-    lastyear=""
-    for i,y in lYears[1:]:
-        if y != "":
-            lastyear= i
-            if lYears[i-1] == "":lYearWOPrev.append(i)
-    
-    #last forward:
-    if lYears[-1] == "":
-        pass
-        #forward from lastyear
-    
-    ## fora a page wo year: take the nearest page with year and the number of break in between
-    ## take pages with year (and previous wo year) : go back and update each page/record    
+    et.write("%s.out" %(infile),xml_declaration=True, encoding='UTF-8')
     
 def processDocument(infile,outfile):
     """
@@ -235,8 +357,13 @@ def processDocument(infile,outfile):
 
 
 if __name__ == "__main__":
-    processDS(sys.argv[1])
-#     getPageBreak(sys.argv[1])
+    if sys.argv[1] == 'year':
+        processDS(sys.argv[2])
+    elif sys.argv[1] == 'norm':
+        getPageBreak(sys.argv[2])
+    else:
+        print("uage: %s [year|norm] INFILE"%sys.argv[0])
+        
 #     processDocument(sys.argv[1], sys.argv[2])
     
     
