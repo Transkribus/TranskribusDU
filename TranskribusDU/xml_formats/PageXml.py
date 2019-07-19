@@ -633,44 +633,29 @@ class MultiPageXml(PageXml):
     
             #to jump to the PAGE sibling node (we do it now, defore possibly unlink...)
             node = metadataNd.getnext()
-            xmlPAGERoot.append(metadataNd)
-#             node = metadataNd.getnext()
-            xmlPAGERoot.append(node)
 
-
-            """
-                 Hervé 28/05/2019: I comment since I don't understand
-            """ 
 #             #Add a copy of the METADATA node and sub-tree
-#             if bInPlace:
-# #                 metadataNd.unlinkNode()
-#                 metadataNd.getparent().remove(metadataNd)
-#                 newRootNd.append(metadataNd)
-#             else:
-# #                 newMetadataNd = metadataNd.copyNode(1)
-#                 newMetadataNd=deepcopy(metadataNd)
-#                 metadataNd.getparent().remove(metadataNd)
-#                 newRootNd.append(newMetadataNd)
+            if bInPlace:
+                metadataNd.getparent().remove(metadataNd)
+                xmlPAGERoot.append(metadataNd)
+            else:
+                newMetadataNd=deepcopy(metadataNd)
+                xmlPAGERoot.append(newMetadataNd)
             
 #             #jump to the PAGE sibling node
 #             node = metadataNd.next
-
+            
             while node is not None:
 #                 if node.type == "element": break
 #                 node = node.next
                 if node.tag != etree.Comment: break
                 node = node.getnext()
             if etree.QName(node.tag).localname != "Page": raise ValueError("Input multi-page PageXml for page %d should have a PAGE node after the METADATA node."%pnum)
-            
             #Add a copy of the PAGE node and sub-tree
             if bInPlace:
-#                 node.unlinkNode()
-#                 newNode = newRootNd.addChild(node)
-                newRootNd.append(node)
+                xmlPAGERoot.append(node)
                 newNode= node
             else:
-#                 newPageNd = node.copyNode(1)
-#                 newNode = newRootNd.addChild(newPageNd)
                 newNode = deepcopy(node)
                 newRootNd.append(newNode)
             #Remove the prefix on the "id" attributes
