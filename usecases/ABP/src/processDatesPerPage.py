@@ -199,7 +199,7 @@ def getPageBreak(infile):
     et = etree.parse(infile)
     xpath  = "//%s" % ("PAGE")
     ltr= et.xpath(xpath)
-    print(len(ltr))
+#     print(len(ltr))
     ## concat all
     highest=0
     curYear=''
@@ -211,7 +211,7 @@ def getPageBreak(infile):
         #  col  None S_Indersbach_003_0001
         #            S Indersbach   003    0001
         parish = re.sub(r'_\d+', '',parish).replace('\\col\\None\\S_','')
-        if page.get('years') !='' and it <len(ltr) and ltr[it+1].get('years') !="":
+        if page.get('years') !='' and it+1 <len(ltr) and ltr[it+1].get('years') !="":
             curYear =int(page.get('years'))
         lmonth=[]
         xpath  = "./%s" % ("RECORD")
@@ -224,21 +224,20 @@ def getPageBreak(infile):
             line.attrib['parish']=parish
             line.attrib['int_ageunit'] = str(normalizeAgeUnit(line.attrib['ageunit']))
             line.attrib['int_age'] = str(normalizeAgeValue(line.attrib['age']))
-            try:
-                day = re.sub(r'\D+', '',line.attrib['monthdaydategenerator'])
-                line.attrib['monthdaydategenerator'] =day
-                line.attrib['int_monthdaydate'] = day
-                # burial date is more chronological
-                month= line.attrib['burialdate']
-                if month =="": month= line.attrib['deathdate']
-                month = month.replace("Jäner",'Januar')
-                month = month.replace("än",'an')
-                xx ="%s %s "%(day ,month)
-                xx =xx.strip()
-                lmonth.append(xx) #,line.attrib['deathyear']))
-            except KeyError:
-                xxx
-        print (line.attrib['pageid'],curYear,lmonth)
+            
+            day = re.sub(r'\D+', '',line.attrib['monthdaydategenerator'])
+            line.attrib['monthdaydategenerator'] =day
+            line.attrib['int_monthdaydate'] = day
+            # burial date is more chronological
+            month= line.attrib['burialdate']
+            if month =="": month= line.attrib['deathdate']
+            month = month.replace("Jäner",'Januar')
+            month = month.replace("än",'an')
+            if day !="":xx ="%s %s "%(day ,month)
+            else:xx ="10 %s "%(month) 
+            xx =xx.strip()
+            lmonth.append(xx) #,line.attrib['deathyear']))
+#         print (line.attrib['pageid'],curYear,lmonth)
         # process lmonth with taggerchrono
         if tagger and lmonth != []: 
             lres = tagger.predict_multiptype(lmonth)
@@ -250,24 +249,27 @@ def getPageBreak(infile):
                     monthNumProba = record[0][2][1]
                     dayNum = int(record[0][3][0])
                     dayProba = record[0][3][1]      
-                    print (dayNum,dayProba,monthNum,monthNumProba)
-                    if llines[irec].attrib['int_monthdaydate'] != ''  and dayNum != int(llines[irec].attrib['int_monthdaydate']): print ("%s != %s " % (dayNum,llines[irec].attrib['int_monthdaydate']))
+                    
+                    try:nextProba= res[irec+1][0][2][1]
+                    except IndexError:nextProba=0
+#                     print (dayNum,dayProba,monthNum,monthNumProba)
+#                     if llines[irec].attrib['int_monthdaydate'] != ''  and dayNum != int(llines[irec].attrib['int_monthdaydate']): print ("%s != %s " % (dayNum,llines[irec].attrib['int_monthdaydate']))
 #                     print (monthNum,monthNumProba)
                     llines[irec].attrib['int_deathmonth']=str(monthNum)
 #                     llines[irec].attrib['int_deathday']=monthNum
-                    if monthNum < highest and monthNumProba > 0.75 and prevmonthNumProba > 0.75:
+                    if monthNum < highest and monthNumProba > 0.5 and (prevmonthNumProba > 0.5 or nextProba >0.5):
                         bPageBreak=True
-                        print ('BREAK', curYear,highest, monthNum,monthNumProba)
+#                         print ('BREAK', curYear,highest, monthNum,monthNumProba)
                         if curYear !='':
                             if backward:curYear =- 1
                             else: curYear += 1
                         highest = monthNum
                     elif monthNum >highest and monthNumProba > 0.70  and prevmonthNumProba > 0.70:highest=monthNum
-                    elif monthNumProba > 0.5  and prevmonthNumProba > 0.5:highest=monthNum
+                    elif monthNumProba > 0.5  and (prevmonthNumProba > 0.5 or nextProba >0.5) :highest=monthNum
                     
                     if curYear !='':
                         llines[irec].attrib['year']=str(curYear)
-                        print (curYear)
+#                         print (curYear)
                     prevmonthNumProba = monthNumProba
                     #print (etree.tostring(llines[irec]))    
             # compare with highest month: if lower: breakpage 
@@ -277,7 +279,7 @@ def getPageBreak(infile):
     backward = True
     ltr.reverse()
     for it,page in enumerate(ltr):
-        if page.get('years') !='' and it <len(ltr) and ltr[it+1].get('years') !="":
+        if page.get('years') !='' and it+1 <len(ltr) and ltr[it+1].get('years') !="":
             curYear =int(page.get('years'))
         else:
             lmonth=[]
@@ -289,15 +291,10 @@ def getPageBreak(infile):
                 month= line.attrib['deathdate']
                 month = month.replace("Jäner",'Januar')
                 month = month.replace("än",'an')
-                if line.attrib['int_monthdaydate']:
-                    xx ="%s %s "%(line.attrib['int_monthdaydate'] ,month)
-                    bFakeDay=True
-                else: 
-                    xx ="%s %s "%("10" ,month)
-                    bFakeDay=True
+                xx ="%s %s "%(line.attrib['int_monthdaydate'] ,month)
                 xx =xx.strip()
                 lmonth.append(xx)
-            print (lmonth)
+#             print (lmonth)
             # process lmonth with taggerchrono
             if tagger and lmonth != []: 
                 lres = tagger.predict_multiptype(lmonth)
@@ -307,10 +304,10 @@ def getPageBreak(infile):
     #                     print (record) 
                         monthNum = int(record[0][2][0])
                         monthNumProba = record[0][2][1]
-                        print (monthNum,monthNumProba)
+#                         print (monthNum,monthNumProba)
                         if monthNum > highest and monthNumProba > 0.5 and prevmonthNumProba > 0.75:
                             bPageBreak=True
-                            print ('BREAK', curYear,highest, monthNum,monthNumProba)
+#                             print ('BREAK', curYear,highest, monthNum,monthNumProba)
                             if curYear !='':
                                 if backward:curYear -= 1
                                 else: curYear += 1
@@ -322,7 +319,7 @@ def getPageBreak(infile):
                             try:llines[irec].attrib['year']
                             except KeyError:
                                 llines[irec].attrib['YEAR']=str(curYear)
-                                print (curYear)
+#                                 print (curYear)
                         prevmonthNumProba = monthNumProba  
 
 
