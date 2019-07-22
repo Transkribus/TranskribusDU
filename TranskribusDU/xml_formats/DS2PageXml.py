@@ -13,9 +13,9 @@
     under grant agreement No 674943.
     
 """
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
+
+
+
  
 import sys, os
 from lxml import etree
@@ -274,10 +274,10 @@ class DS2PageXMLConvertor(Component):
         from xml_formats.PageXml import MultiPageXml
         mp = MultiPageXml()
         newDoc = mp.makeMultiPageXmlMemory(list(map(lambda xy:xy[0],lListDocs)))
-        print(outputFileName)
+        ## print(outputFileName)
         if outputFileName is None:
             outputFileName = os.path.dirname(self.inputFileName) + os.sep + ".."+os.sep +"col" + os.sep + os.path.basename(self.inputFileName)[:-7] + "_du.mpxml"
-        print(outputFileName)
+        # print(outputFileName)
         res= newDoc.write(outputFileName, encoding="UTF-8",pretty_print=True,xml_declaration=True)
 #         res= newDoc.saveFormatFileEnc(outputFileName, "UTF-8",True)
 #         print res
@@ -293,6 +293,7 @@ class DS2PageXMLConvertor(Component):
         lPageXmlDoc=[]
         lPages= ODoc.getPages()
         for page in lPages:
+#             print("%s %s"%(page, page.getAttribute('imageFilename')))
             try:filename = os.path.basename(page.getAttribute('imageFilename'))
             except:filename="fakename"
             pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='NLE', filename =filename, imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
@@ -326,7 +327,7 @@ if __name__ == "__main__":
 #     print docConv.bMultiPages
     if lPageXml != []:# and docM.getOutputFileName() != "-":
         if docConv.bMultiPages:
-            docConv.storeMultiPageXml(lPageXml,docConv.getOutputFileName())
+            docConv.storeMultiPageXml(lPageXml, docConv.getOutputFileName())
         else:
             docConv.storePageXmlSetofFiles(lPageXml)
 

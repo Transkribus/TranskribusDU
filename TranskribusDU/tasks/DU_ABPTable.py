@@ -24,9 +24,9 @@
     under grant agreement No 674943.
     
 """
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
+
+
+
 
 import sys, os
 
@@ -39,9 +39,10 @@ except ImportError:
 from common.trace import traceln
 from tasks import _checkFindColDir, _exit
 
-from crf.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
-from crf.NodeType_PageXml   import NodeType_PageXml_type_woText
+from graph.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
+from graph.NodeType_PageXml   import NodeType_PageXml_type_woText
 from tasks.DU_CRF_Task import DU_CRF_Task
+
 
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 #from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
@@ -68,7 +69,7 @@ class DU_ABPTable(DU_CRF_Task):
         """
         In this class method, we must return a configured graph class
         """
-        lLabels = ['B', 'I', 'E', 'S','O']
+        lLabels = ['RB', 'RI', 'RE', 'RS','RO']
         
         lIgnoredLabels = None
         
@@ -92,8 +93,6 @@ class DU_ABPTable(DU_CRF_Task):
                               , False    #no label means OTHER
                               , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
                               )
-        nt.setLabelAttribute("DU_row")
-        
         # ntA = NodeType_PageXml_type_woText("abp"                   #some short prefix because labels below are prefixed with it
         #                       , lLabels
         #                       , lIgnoredLabels
@@ -156,7 +155,6 @@ class DU_ABPTable(DU_CRF_Task):
 
 try:
     from tasks.DU_ECN_Task import DU_ECN_Task
-    import gcn.DU_Model_ECN
     class DU_ABPTable_ECN(DU_ECN_Task):
             """
             ECN Models
@@ -189,7 +187,7 @@ try:
                 """
                 In this class method, we must return a configured graph class
                 """
-                lLabels = ['B', 'I', 'E', 'S', 'O']
+                lLabels = ['RB', 'RI', 'RE', 'RS', 'RO']
 
                 lIgnoredLabels = None
 
@@ -214,7 +212,6 @@ try:
                                                   , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v / 3))
                                                   # we reduce overlap in this way
                                                   )
-                nt.setLabelAttribute("DU_row")
                 nt.setXpathExpr((".//pc:TextLine"  # how to find the nodes
                                  , "./pc:TextEquiv")  # how to get their text
                                 )
@@ -224,32 +221,16 @@ try:
 
             def __init__(self, sModelName, sModelDir, sComment=None,dLearnerConfigArg=None):
                 if sComment is None: sComment  = sModelName
+                DU_ECN_Task.__init__(self
+                                     , sModelName, sModelDir
+                                     , dFeatureConfig={}
+                                     , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
+                                     , sComment= sComment
+                                     , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
+                                     )
 
-                if  dLearnerConfigArg is not None and "ecn_ensemble" in dLearnerConfigArg:
-                    print('ECN_ENSEMBLE')
-                    DU_ECN_Task.__init__(self
-                                         , sModelName, sModelDir
-                                         , dFeatureConfig={}
-                                         ,
-                                         dLearnerConfig=dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
-                                         , sComment=sComment
-                                         , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v4,
-                                          cModelClass=gcn.DU_Model_ECN.DU_Ensemble_ECN
-                                         )
-
-
-                else:
-                    #Default Case Single Model
-                    DU_ECN_Task.__init__(self
-                                         , sModelName, sModelDir
-                                         , dFeatureConfig={}
-                                         , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
-                                         , sComment= sComment
-                                         , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v4
-                                         )
-
-                #if options.bBaseline:
-                #    self.bsln_mdl = self.addBaseline_LogisticRegression()  # use a LR model trained by GridSearch as baseline
+                if options.bBaseline:
+                    self.bsln_mdl = self.addBaseline_LogisticRegression()  # use a LR model trained by GridSearch as baseline
 
             # === END OF CONFIGURATION =============================================================
             def predict(self, lsColDir):
@@ -264,7 +245,6 @@ except ImportError:
 
 try:
     from tasks.DU_ECN_Task import DU_ECN_Task
-    import gcn.DU_Model_ECN
     from gcn.DU_Model_ECN import DU_Model_GAT
     class DU_ABPTable_GAT(DU_ECN_Task):
             """
@@ -322,7 +302,7 @@ try:
                 """
                 In this class method, we must return a configured graph class
                 """
-                lLabels = ['B', 'I', 'E', 'S', 'O']
+                lLabels = ['RB', 'RI', 'RE', 'RS', 'RO']
 
                 lIgnoredLabels = None
 
@@ -347,7 +327,6 @@ try:
                                                   , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v / 3))
                                                   # we reduce overlap in this way
                                                   )
-                nt.setLabelAttribute("DU_row")
                 nt.setXpathExpr((".//pc:TextLine"  # how to find the nodes
                                  , "./pc:TextEquiv")  # how to get their text
                                 )
@@ -388,15 +367,11 @@ def main(sModelDir, sModelName, options):
         if options.ecn_json_config is not None and options.ecn_json_config is not []:
             f = open(options.ecn_json_config[0])
             djson=json.loads(f.read())
+            dLearnerConfig=djson["ecn_learner_config"]
+            f.close()
+            doer = DU_ABPTable_ECN(sModelName, sModelDir,dLearnerConfigArg=dLearnerConfig)
 
-            if "ecn_learner_config" in djson:
-                dLearnerConfig=djson["ecn_learner_config"]
-                f.close()
-                doer = DU_ABPTable_ECN(sModelName, sModelDir,dLearnerConfigArg=dLearnerConfig)
-            elif "ecn_ensemble" in djson:
-                dLearnerConfig = djson
-                f.close()
-                doer = DU_ABPTable_ECN(sModelName, sModelDir, dLearnerConfigArg=dLearnerConfig)
+
 
         else:
             doer = DU_ABPTable_ECN(sModelName, sModelDir)
@@ -417,7 +392,7 @@ def main(sModelDir, sModelName, options):
                           C                 = options.crf_C,
                           tol               = options.crf_tol,
                           njobs             = options.crf_njobs,
-                          max_iter          = options.crf_max_iter,
+                          max_iter          = options.max_iter,
                           inference_cache   = options.crf_inference_cache)
     
     if options.rm:
@@ -437,7 +412,7 @@ def main(sModelDir, sModelName, options):
             """
             initialization of a cross-validation
             """
-            splitter, ts_trn, lFilename_trn = doer._nfold_Init(lFold, options.iFoldInitNum, test_size=0.25, random_state=None, bStoreOnDisk=True)
+            splitter, ts_trn, lFilename_trn = doer._nfold_Init(lFold, options.iFoldInitNum, test_size=None, random_state=None, bStoreOnDisk=True)
         elif options.iFoldRunNum:
             """
             Run one fold
@@ -455,10 +430,10 @@ def main(sModelDir, sModelName, options):
         
     if lFold:
         loTstRpt = doer.nfold_Eval(lFold, 3, .25, None, options.pkl)
-        import crf.Model
+        import graph.GraphModel
         sReportPickleFilename = os.path.join(sModelDir, sModelName + "__report.txt")
         traceln("Results are in %s"%sReportPickleFilename)
-        crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
+        graph.GraphModel.GraphModel.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
     elif lTrn:
         doer.train_save_test(lTrn, lTst, options.warm, options.pkl)
         try:    traceln("Baseline best estimator: %s"%doer.bsln_mdl.best_params_)   #for GridSearch
@@ -471,11 +446,11 @@ def main(sModelDir, sModelName, options):
         traceln(tstReport)
         if options.bDetailedReport:
             traceln(tstReport.getDetailledReport())
-            import crf.Model
+            import graph.GraphModel
             for test in lTst:
                 sReportPickleFilename = os.path.join('..',test, sModelName + "__report.pkl")
                 traceln('Report dumped into %s'%sReportPickleFilename)
-                crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, tstReport)
+                graph.GraphModel.GraphModel.gzip_cPickle_dump(sReportPickleFilename, tstReport)
     
     if lRun:
         if options.storeX or options.applyY:

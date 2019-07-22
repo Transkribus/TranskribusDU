@@ -7,10 +7,6 @@ Sophie Andrieu - October 2006
 Copyright Xerox XRCE 2006
 
 """
-from __future__ import absolute_import
-from __future__ import unicode_literals
-from __future__ import print_function
-
 
 import types
 from common.trace import  traceln

@@ -9,10 +9,6 @@ Utility to extract several pages from several document to a folder or a MultiPag
 @author: meunier
 '''
 
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
-
 import os
 from io import open
 import json

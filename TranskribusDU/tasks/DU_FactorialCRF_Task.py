@@ -24,9 +24,9 @@
     under grant agreement No 674943.
     
 """
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
+
+
+
 
 import sys, os
 
@@ -40,7 +40,7 @@ except ImportError:
 
 from common.trace import traceln
 
-import crf.Model
+import graph.GraphModel
 from crf.Model_SSVM_AD3 import Model_SSVM_AD3
 from crf.Model_SSVM_AD3_Multitype import Model_SSVM_AD3_Multitype
 
@@ -70,7 +70,7 @@ class DU_FactorialCRF_Task(DU_CRF_Task):
         self._lBaselineModel = []
         self.bVerbose = True
         
-        self.iNbCRFType = None #is set below
+        self.iNbNodeType = None #is set below
         
         #--- Number of class per type
         #We have either one number of class (single type) or a list of number of class per type
@@ -86,11 +86,11 @@ class DU_FactorialCRF_Task(DU_CRF_Task):
         #for single- or multi-type CRF, the same applies!
         self.lNbClass = [len(nt.getLabelNameList()) for nt in self.cGraphClass.getNodeTypeList()]
         self.nbClass = sum(self.lNbClass)
-        self.iNbCRFType = len(self.cGraphClass.getNodeTypeList())
+        self.iNbNodeType = len(self.cGraphClass.getNodeTypeList())
 
         self.config_extractor_kwargs = dFeatureConfig
 
-        self.cModelClass = Model_SSVM_AD3 if self.iNbCRFType == 1 else Model_SSVM_AD3_Multitype
-        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
+        self.cModelClass = Model_SSVM_AD3 if self.iNbNodeType == 1 else Model_SSVM_AD3_Multitype
+        assert issubclass(self.cModelClass, graph.GraphModel.GraphModel), "Your model class must inherit from graph.GraphModel.GraphModel"
         
         

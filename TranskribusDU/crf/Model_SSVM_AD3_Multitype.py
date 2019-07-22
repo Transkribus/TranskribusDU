@@ -27,9 +27,9 @@
     under grant agreement No 674943.
     
 """
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
+
+
+
 
 import sys, os
 import numpy as np
@@ -41,7 +41,6 @@ except ImportError:
 
 from sklearn.utils.class_weight import compute_class_weight
     
-from pystruct.utils import SaveLogger
 from pystruct.models import NodeTypeEdgeFeatureGraphCRF
 
 try: #to ease the use without proper Python installation
@@ -51,9 +50,12 @@ except ImportError:
     from common.trace import traceln
 
 from common.chrono import chronoOn, chronoOff
+from common.TestReport import TestReport, TestReportConfusion
+
 from crf.Model_SSVM_AD3 import Model_SSVM_AD3
 
-from .TestReport import TestReport, TestReportConfusion
+from common.TestReport import TestReport, TestReportConfusion
+
 
 class Model_SSVM_AD3_Multitype(Model_SSVM_AD3):
     #default values for the solver

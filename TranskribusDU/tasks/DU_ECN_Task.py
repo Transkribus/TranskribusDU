@@ -1,116 +1,125 @@
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
 
-import sys, os, glob, datetime
-from optparse import OptionParser
+"""
+    DU task based on ECN
+    
+    Copyright Xerox(C) 2018, 2019  Hervé Déjean, Jean-Luc Meunier, Animesh Prasad
 
-import numpy as np
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import ShuffleSplit
-from sklearn.model_selection import GridSearchCV  # 0.18.1 REQUIRES NUMPY 1.12.1 or more recent
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    
+    
+    Developed  for the EU project READ. The READ project has received funding 
+    from the European Union's Horizon 2020 research and innovation programme 
+    under grant agreement No 674943.
+    
+"""
+import sys, os
+import json
 
 try:  # to ease the use without proper Python installation
     import TranskribusDU_version
 except ImportError:
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
     import TranskribusDU_version
+TranskribusDU_version
 
-from common.chrono import chronoOn, chronoOff
+from common.trace import traceln
+from tasks.DU_Task import DU_Task
+import graph.GraphModel
 
-import crf.Model
-
-from xml_formats.PageXml import MultiPageXml
-import crf.FeatureDefinition
-
-
-from gcn.DU_Model_ECN import DU_Model_ECN
-
-from tasks.DU_CRF_Task import DU_CRF_Task
+# dynamically imported
+DU_Model_ECN = None
 
 
-class DU_ECN_Task(DU_CRF_Task):
-
-    def __init__(self, sModelName, sModelDir, dLearnerConfig={}, sComment=None
-                 , cFeatureDefinition=None, dFeatureConfig={},cModelClass=DU_Model_ECN,
+class DU_ECN_Task(DU_Task):
+    """
+    DU learner based on ECN
+    """
+    VERSION = "ECN_v19"
+    
+    version          = None     # dynamically computed
+    
+    def __init__(self, sModelName, sModelDir
+                 , sComment             = None
+                 , cFeatureDefinition   = None
+                 , dFeatureConfig       = {}
+                 , cModelClass          = None
                  ):
-        super(DU_ECN_Task, self).__init__(sModelName,sModelDir,dLearnerConfig,sComment,cFeatureDefinition,dFeatureConfig)
+        super().__init__(sModelName, sModelDir, sComment, cFeatureDefinition, dFeatureConfig)
 
-        self.cModelClass = cModelClass
-        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
+        global DU_Model_ECN
+        DU_Model_ECN = DU_Task.DYNAMIC_IMPORT('.DU_Model_ECN', 'gcn').DU_Model_ECN
 
-    def isTypedCRF(self):
+        self.cModelClass = DU_Model_ECN if cModelClass == None else cModelClass
+        assert issubclass(self.cModelClass, graph.GraphModel.GraphModel), "Your model class must inherit from graph.GraphModel.GraphModel"
+
+    @classmethod
+    def getVersion(cls):
+        cls.version = "-".join([DU_Task.getVersion(), str(cls.VERSION)])
+        return cls.version 
+
+    @classmethod
+    def updateStandardOptionsParser(cls, parser):
+        usage = """
+        --ecn         Enable Edge Convolutional Network learning
+        --ecn_config  Path to the JSON configuration file (required!) for ECN learning
         """
-        if this a classical CRF or a Typed CRF?
-        """
-        return False
+        #FOR GCN
+        parser.add_option("--ecn"        , dest='bECN'              , action="store_true"
+                          , default=False, help="use ECN Models")
+        parser.add_option("--ecn_config" , dest='ecn_json_config'   , action="store", type="string"
+                          , help="The Config files for the ECN Model")
+        parser.add_option("--baseline"   , dest='bBaseline'         , action="store_true"
+                          , default=False, help="report baseline method")
 
-    def predict(self, lsColDir, docid=None):
-        """
-        Return the list of produced files
-        """
-        self.traceln("-" * 50)
-        self.traceln("Predicting for collection(s):", lsColDir)
-        self.traceln("-" * 50)
+        return usage, parser
 
-        if not self._mdl: raise Exception("The model must be loaded beforehand!")
-
-        # list files
-        if docid is None:
-            _, lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
-        # predict for this file only
+    def getStandardLearnerConfig(self, options):
+        """
+        Once the command line has been parsed, you can get the standard learner
+        configuration dictionary from here.
+        """
+        if options.ecn_json_config:
+            with open(options.ecn_json_config) as f:
+                djson = json.loads(f.read())
+                if "ecn_learner_config" in djson:
+                    dLearnerConfig=djson["ecn_learner_config"]
+                elif "ecn_ensemble" in djson:
+                    dLearnerConfig = djson
+                else:
+                    raise Exception("Invalid config JSON file")
+        
         else:
-            try:
-                lFilename = [os.path.abspath(os.path.join(lsColDir[0], docid + MultiPageXml.sEXT))]
-            except IndexError:
-                raise Exception("a collection directory must be provided!")
-
-        DU_GraphClass = self.getGraphClass()
-
-        lPageConstraint = DU_GraphClass.getPageConstraint()
-        if lPageConstraint:
-            for dat in lPageConstraint: self.traceln("\t\t%s" % str(dat))
-
-        chronoOn("predict")
-        self.traceln("- loading collection as graphs, and processing each in turn. (%d files)" % len(lFilename))
-        du_postfix = "_du" + MultiPageXml.sEXT
-
-        #Creates a tf.Session and load the model checkpoints
-        #session=self._mdl.restore()
-        lsOutputFilename = []
-        for sFilename in lFilename:
-            if sFilename.endswith(du_postfix): continue  #:)
-            chronoOn("predict_1")
-            lg = DU_GraphClass.loadGraphs([sFilename], bDetach=False, bLabelled=False, iVerbose=1)
-            # normally, we get one graph per file, but in case we load one graph per page, for instance, we have a list
-            if lg:
-                for g in lg:
-                    doc = g.doc
-                    if lPageConstraint:
-                        self.traceln("\t- prediction with logical constraints: %s" % sFilename)
-                    else:
-                        self.traceln("\t- prediction : %s" % sFilename)
-                    Y = self._mdl.predict(g)
-
-                    g.setDomLabels(Y)
-                    del Y
-                del lg
-
-                MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
-                sDUFilename = sFilename[:-len(MultiPageXml.sEXT)] + du_postfix
-                doc.write(sDUFilename,
-                          xml_declaration=True,
-                          encoding="utf-8",
-                          pretty_print=True
-                          # compression=0,  #0 to 9
-                          )
-
-                lsOutputFilename.append(sDUFilename)
-            else:
-                self.traceln("\t- no prediction to do for: %s" % sFilename)
-
-            self.traceln("\t done [%.2fs]" % chronoOff("predict_1"))
-        self.traceln(" done [%.2fs]" % chronoOff("predict"))
-        #session.close()
-        return lsOutputFilename
+            dLearnerConfig = {
+            "name"                  :"default_8Lay1Conv",
+            "dropout_rate_edge"     : 0.2,
+            "dropout_rate_edge_feat": 0.2,
+            "dropout_rate_node"     : 0.2,
+            "lr"                    : 0.0001,
+            "mu"                    : 0.0001,
+            "nb_iter"               : 1200,
+            "nconv_edge"            : 1,
+            "node_indim"            : -1,
+            "num_layers"            : 8,
+            "ratio_train_val"       : 0.1,
+            "patience"              : 50,
+            "activation_name"       :"relu",
+            "stack_convolutions"    : False
+            }
+            
+        if options.max_iter:
+            traceln(" - max_iter=%d" % options.max_iter)
+            dLearnerConfig["nb_iter"] = options.max_iter
+        
+        return dLearnerConfig
