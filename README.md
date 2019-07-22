@@ -5,16 +5,9 @@ Document Understanding tools
 
 #### Python
 
-* Install [Python] 2.7 or 3.5  (or more recent if you manage to install cvxopt)
+* Install [Python] 3.x 
 
-We recommend installing __anaconda3__ (or anaconda2) and then add AD3 and Pystruct to it.
-Detailed instructions available on the READ wiki:  https://read02.uibk.ac.at/wiki/index.php/Document_Understanding_PyStruct
-
-### Installation
-
-* Install AD3 from https://github.com/Transkribus/AD3  (python setup.py install)
-* Install cython pytest nose future numpy scipy scikit-learn cvxopt shapely rtree
-* Install PyStruct from https://github.com/jlmeunier/pystruct   (python setup.py install)
+We recommend installing __anaconda3__ . You can then train using pystruct and/or tensorflow (both to be installed on top of anaconda).
 
 ### Usage
  * see use-cases
