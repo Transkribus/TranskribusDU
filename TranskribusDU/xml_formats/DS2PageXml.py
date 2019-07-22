@@ -277,7 +277,7 @@ class DS2PageXMLConvertor(Component):
         ## print(outputFileName)
         if outputFileName is None:
             outputFileName = os.path.dirname(self.inputFileName) + os.sep + ".."+os.sep +"col" + os.sep + os.path.basename(self.inputFileName)[:-7] + "_du.mpxml"
-        print(outputFileName)
+        # print(outputFileName)
         res= newDoc.write(outputFileName, encoding="UTF-8",pretty_print=True,xml_declaration=True)
 #         res= newDoc.saveFormatFileEnc(outputFileName, "UTF-8",True)
 #         print res
