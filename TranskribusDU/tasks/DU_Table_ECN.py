@@ -3,7 +3,7 @@
 """
     DU task for Table based on ECN
     
-    Copyright Xerox(C) 2018, 2019  Hervé Déjean, Jean-Luc Meunier, Animesh Prasad
+    Copyright NAVER(C) 2018, 2019  Hervé Déjean, Jean-Luc Meunier, Animesh Prasad
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

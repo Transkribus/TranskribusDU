@@ -3,7 +3,7 @@
 """
     ECN Model
     
-    Copyright Xerox(C) 2018, 2019  Stéphane Clinchant, Animesh Prasad
+    Copyright NAVER(C) 2018, 2019  Stéphane Clinchant, Animesh Prasad
          Hervé Déjean, Jean-Luc Meunier
 
     This program is free software: you can redistribute it and/or modify

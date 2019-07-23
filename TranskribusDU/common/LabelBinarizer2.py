@@ -7,7 +7,7 @@
     
     (sklearn version shrinks it to a 1-column... :-/)
     
-    Copyright Xerox(C) 2019  Jean-Luc Meunier
+    Copyright NAVER(C) 2019  Jean-Luc Meunier
     
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

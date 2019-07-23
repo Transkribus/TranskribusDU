@@ -5,7 +5,7 @@
 
     Structured machine learning, currently using graph-CRF or Edge Convolution Network
 
-    Copyright Xerox(C) 2016-2019 JL. Meunier
+    Copyright NAVER(C) 2016-2019 JL. Meunier
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

@@ -5,7 +5,7 @@
     
     It supercedes Transformer_PageXml
     
-    Copyright Xerox(C) 2019 JL. Meunier
+    Copyright NAVER(C) 2019 JL. Meunier
     
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

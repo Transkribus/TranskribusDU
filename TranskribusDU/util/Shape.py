@@ -4,7 +4,7 @@
     Utilities to deal with the PageXMl 2D objects using shapely
     
 
-    Copyright Xerox(C) 2018 JL. Meunier
+    Copyright NAVER(C) 2018 JL. Meunier
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
