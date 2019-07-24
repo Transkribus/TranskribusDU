@@ -187,7 +187,7 @@ if __name__ == "__main__":
                       C                 = options.crf_C,
                       tol               = options.crf_tol,
                       njobs             = options.crf_njobs,
-                      max_iter          = options.crf_max_iter,
+                      max_iter          = options.max_iter,
                       inference_cache   = options.crf_inference_cache)
     
     if options.rm:
@@ -207,7 +207,7 @@ if __name__ == "__main__":
             """
             initialization of a cross-validation
             """
-            splitter, ts_trn, lFilename_trn = doer._nfold_Init(lFold, options.iFoldInitNum, test_size=0.25, random_state=None, bStoreOnDisk=True)
+            splitter, ts_trn, lFilename_trn = doer._nfold_Init(lFold, options.iFoldInitNum, bStoreOnDisk=True)
         elif options.iFoldRunNum:
             """
             Run one fold
@@ -225,10 +225,10 @@ if __name__ == "__main__":
         
     if lFold:
         loTstRpt = doer.nfold_Eval(lFold, 3, .25, None)
-        import crf.Model
+        import graph.GraphModel
         sReportPickleFilename = os.path.join(sModelDir, sModelName + "__report.txt")
         traceln("Results are in %s"%sReportPickleFilename)
-        crf.Model.Model.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
+        graph.GraphModel.GraphModel.gzip_cPickle_dump(sReportPickleFilename, loTstRpt)
     elif lTrn:
         doer.train_save_test(lTrn, lTst, options.warm)
         try:    traceln("Baseline best estimator: %s"%doer.bsln_mdl.best_params_)   #for GridSearch

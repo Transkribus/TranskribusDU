@@ -127,7 +127,7 @@ if __name__ == "__main__":
                       C                 = options.crf_C,
                       tol               = options.crf_tol,
                       njobs             = options.crf_njobs,
-                      max_iter          = options.crf_max_iter,
+                      max_iter          = options.max_iter,
                       inference_cache   = options.crf_inference_cache)
     
     if options.rm:
@@ -148,7 +148,7 @@ if __name__ == "__main__":
             """
             initialization of a cross-validation
             """
-            splitter, ts_trn, lFilename_trn = doer._nfold_Init(lFold, options.iFoldInitNum, test_size=0.25, random_state=None, bStoreOnDisk=True)
+            splitter, ts_trn, lFilename_trn = doer._nfold_Init(lFold, options.iFoldInitNum, bStoreOnDisk=True)
         elif options.iFoldRunNum:
             """
             Run one fold

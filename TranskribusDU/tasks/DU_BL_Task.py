@@ -26,7 +26,7 @@ from tasks.DU_CRF_Task import DU_CRF_Task
 
 from common.trace import traceln
 
-import crf.Model
+import graph.GraphModel
 from crf.BaselineModel import BaselineModel
 from xml_formats.PageXml import MultiPageXml
 import crf.FeatureDefinition
@@ -59,7 +59,7 @@ class DU_BL_Task(DU_CRF_Task):
         self.bVerbose = True
 
         if cFeatureDefinition: self.cFeatureDefinition = cFeatureDefinition
-        assert issubclass(self.cModelClass, crf.Model.Model), "Your model class must inherit from crf.Model.Model"
+        assert issubclass(self.cModelClass, graph.GraphModel.GraphModel), "Your model class must inherit from graph.GraphModel.GraphModel"
         assert issubclass(self.cFeatureDefinition, crf.FeatureDefinition.FeatureDefinition), "Your feature definition class must inherit from crf.FeatureDefinition.FeatureDefinition"
 
 
@@ -98,7 +98,7 @@ class DU_BL_Task(DU_CRF_Task):
         mdl = self.cModelClass(self.sModelName, self.sModelDir)
 
         if not bWarm:
-            if os.path.exists(mdl.getModelFilename()): raise crf.Model.ModelException("Model exists on disk already, either remove it first or warm-start the training.")
+            if os.path.exists(mdl.getModelFilename()): raise graph.GraphModel.GraphModelException("Model exists on disk already, either remove it first or warm-start the training.")
 
         #mdl.configureLearner(**self.config_learner_kwargs)
         mdl.setBaselineModelList(self._lBaselineModel[0])
@@ -112,7 +112,7 @@ class DU_BL_Task(DU_CRF_Task):
         self.traceln("- retrieving or creating feature extractors...")
         try:
             mdl.loadTransformers(ts_trn)
-        except crf.Model.ModelException:
+        except graph.GraphModel.GraphModelException:
             fe = self.cFeatureDefinition(**self.config_extractor_kwargs)
             #lY = [g.buildLabelMatrix() for g in lGraph_trn]
             #lY_flat = np.hstack(lY)

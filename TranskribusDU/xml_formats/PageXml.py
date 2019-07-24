@@ -143,6 +143,11 @@ class PageXml:
         return ndMetadata
     setMetadata = classmethod(setMetadata)        
     
+    # ---  XPATH convenience -------------------------------------
+    @classmethod
+    def xpath(cls, elt, sXpathExpr):
+        return elt.xpath(sXpathExpr, namespaces={"pc":cls.NS_PAGE_XML})
+    
     # ---  Xml stuff -------------------------------------
     def getChildByName(cls, elt, sChildName):
         """

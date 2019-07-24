@@ -7,10 +7,6 @@ a47d313  on Jun 16, 2017
 @zafarali zafarali #1 - Update API which was changed in Keras 2.0.4
 """
 
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
-
 import tensorflow as tf
 from keras import backend as K
 from keras import regularizers, constraints, initializers, activations
