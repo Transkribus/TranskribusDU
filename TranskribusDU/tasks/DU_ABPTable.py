@@ -468,7 +468,7 @@ def main(sModelDir, sModelName, options):
 if __name__ == "__main__":
 
     version = "v.01"
-    usage, description, parser = DU_Task_Factory.getBasicTrnTstRunOptionParser(sys.argv[0], version)
+    usage, description, parser = DU_Task_Factory.getStandardOptionsParser(sys.argv[0], version)
 #     parser.add_option("--annotate", dest='bAnnotate',  action="store_true",default=False,  help="Annotate the textlines with BIES labels")    
 
     #FOR GCN
