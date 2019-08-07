@@ -4,9 +4,7 @@
 
 # ------------------------------------------------------------------------------------------------------------------------------------
 # #OLD
-# from __future__ import absolute_import
-# from __future__ import  print_function
-# from __future__ import unicode_literals
+
 
 def rotateMinus90degOLD(e):
 #     self.x1, self.y1,  self.x2, self.y2 = -self.y2, self.x1,  -self.y1, self.x2

@@ -38,7 +38,7 @@ except ImportError:
 
 from common.trace import traceln
 from tasks import _checkFindColDir, _exit
-
+from tasks.DU_Task_Factory import DU_Task_Factory
 from graph.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from graph.NodeType_PageXml   import NodeType_PageXml_type_woText
 from tasks.DU_CRF_Task import DU_CRF_Task
@@ -46,7 +46,7 @@ from tasks.DU_CRF_Task import DU_CRF_Task
 
 #from crf.FeatureDefinition_PageXml_std_noText import FeatureDefinition_PageXml_StandardOnes_noText
 #from crf.FeatureDefinition_PageXml_std_noText_v3 import FeatureDefinition_PageXml_StandardOnes_noText_v3
-from crf.FeatureDefinition_PageXml_std_noText_v4 import FeatureDefinition_PageXml_StandardOnes_noText_v4
+from graph.FeatureDefinition_PageXml_std_noText_v4 import FeatureDefinition_PageXml_StandardOnes_noText_v4
 import json
 
  
@@ -226,7 +226,7 @@ try:
                                      , dFeatureConfig={}
                                      , dLearnerConfig= dLearnerConfigArg if dLearnerConfigArg is not None else self.dLearnerConfig
                                      , sComment= sComment
-                                     , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v3
+                                     , cFeatureDefinition=FeatureDefinition_PageXml_StandardOnes_noText_v4
                                      )
 
                 if options.bBaseline:
@@ -468,7 +468,7 @@ def main(sModelDir, sModelName, options):
 if __name__ == "__main__":
 
     version = "v.01"
-    usage, description, parser = DU_CRF_Task.getBasicTrnTstRunOptionParser(sys.argv[0], version)
+    usage, description, parser = DU_Task_Factory.getStandardOptionsParser(sys.argv[0], version)
 #     parser.add_option("--annotate", dest='bAnnotate',  action="store_true",default=False,  help="Annotate the textlines with BIES labels")    
 
     #FOR GCN

@@ -25,9 +25,6 @@
     under grant agreement No 674943.
     
 """
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
 
 
 class Polygon:
@@ -88,7 +85,7 @@ class Polygon:
             xSum += iTerm * (xprev+x)
             ySum += iTerm * (yprev+y)
             xprev, yprev = x, y
-        if fA == 0.0:raise ValueError("surface == 0.0")
+        if fA == 0.0: raise ValueError("surface == 0.0")
         fA = fA / 2
         xg, yg = xSum/6/fA, ySum/6/fA
         
