@@ -209,7 +209,10 @@ class GraphBinaryConjugateSegmenter(Graph):
             contour = cascaded_union([p if p.is_valid else p.convex_hull for p in lp ])     
             # print(contour.wkt)
             try:spoints = ' '.join("%s,%s"%(int(x[0]),int(x[1])) for x in contour.minimum_rotated_rectangle.exterior.coords)
-            except:spoints = ' '.join("%s,%s"%(int(x[0]),int(x[1])) for x in contour.minimum_rotated_rectangle.coords)
+            except:
+                try: spoints = ' '.join("%s,%s"%(int(x[0]),int(x[1])) for x in contour.minimum_rotated_rectangle.coords)
+                # JL got once a: NotImplementedError: Multi-part geometries do not provide a coordinate sequence
+                except: spoints = ""
             #print (spoints)
             ndCluster = PageXml.createPageXmlNode('Cluster')     
             # add the space separated list of node ids
