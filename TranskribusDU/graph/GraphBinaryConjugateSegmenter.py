@@ -205,7 +205,14 @@ class GraphBinaryConjugateSegmenter(Graph):
                 pageNode= self.lNode[lnidx[0]].page.node    
                 pageNode.append(etree.Comment("Clusters created by the conjugate graph"))
 
-            lp = [ShapeLoader.node_to_Polygon(self.lNode[_i].node) for _i in lnidx]
+            # lp = [ShapeLoader.node_to_Polygon(self.lNode[_i].node) for _i in lnidx]
+            # Make it robust to bad data...
+            lp = []
+            for _i in lnidx:
+                try:
+                    lp.append(ShapeLoader.node_to_Polygon(self.lNode[_i].node))
+                except ValueError:
+                    pass
             contour = cascaded_union([p if p.is_valid else p.convex_hull for p in lp ])     
             # print(contour.wkt)
             try:spoints = ' '.join("%s,%s"%(int(x[0]),int(x[1])) for x in contour.minimum_rotated_rectangle.exterior.coords)
