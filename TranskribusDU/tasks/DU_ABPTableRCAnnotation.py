@@ -194,8 +194,9 @@ def addSeparator(root, lCells):
         )
     ndTR.append(etree.Comment(sStat))
     traceln(sStat)
-        
+
     return
+
 
 def computeMaxRowSpan(lCells):
     """
@@ -217,53 +218,53 @@ def main(lsFilename, lsOutFilename):
         root = doc.getroot()
 
         lCells= MultiPageXml.getChildByName(root,'TableCell')
-            if not lCells:
-                traceln("ERROR: no TableCell - SKIPPING THIS FILE!!!")
-                continue
-            
-            # default: O for all cells: all cells must have all tags!
-            for cell in lCells:
-                lText = MultiPageXml.getChildByName(cell,'TextLine')
+        if not lCells:
+            traceln("ERROR: no TableCell - SKIPPING THIS FILE!!!")
+            continue
+        
+        # default: O for all cells: all cells must have all tags!
+        for cell in lCells:
+            lText = MultiPageXml.getChildByName(cell,'TextLine')
             [x.set(sDURow,lLabelsBIESO_R[-1]) for x in lText]
-                [x.set(sDUCol,lLabelsSM_C[-1]) for x in lText]
-                [x.set(sDUHeader,lLabels_HEADER[-1]) for x in lText]
-                
+            [x.set(sDUCol,lLabelsSM_C[-1]) for x in lText]
+            [x.set(sDUHeader,lLabels_HEADER[-1]) for x in lText]
             
-            if False:
-                # Oct' 2018 RV and JL decided that we keep the binding TextLine (if any!)
-                # ignore "binding" cells
-                # dirty...
-                # lCells = list(filter(lambda x: int(x.get('rowSpan')) < 5, lCells))
-                # less dirty
-                maxrow = max(int(x.get('row')) for x in lCells)
-                binding_rowspan = max(5, maxrow * 0.8) 
-                traceln(" - max row = %d  => considering rowspan > %d as binding cells"
-                        % (maxrow, binding_rowspan))
-                lValidCell, lBindingCell = [], []
-                for ndCell in lCells:
-                    if int(ndCell.get('rowSpan')) < binding_rowspan:
-                        lValidCell.append(ndCell)
-                    else:
-                        lBindingCell.append(ndCell)
-                nDiscarded = len(lBindingCell)
-                if nDiscarded > 1: traceln("****************   WARNING  ****************")
-                traceln(" - %d cells discarded as binding cells" % nDiscarded)
-                for ndCell in lBindingCell:
-                    ndCell.set("type", "table-binding")
-                lCells = lValidCell
-                
-            # FOR COLUMN HEADER: get max(cell[0,i].span)
-            maxRowSpan = computeMaxRowSpan(lCells)
+        
+        if False:
+            # Oct' 2018 RV and JL decided that we keep the binding TextLine (if any!)
+            # ignore "binding" cells
+            # dirty...
+            # lCells = list(filter(lambda x: int(x.get('rowSpan')) < 5, lCells))
+            # less dirty
+            maxrow = max(int(x.get('row')) for x in lCells)
+            binding_rowspan = max(5, maxrow * 0.8) 
+            traceln(" - max row = %d  => considering rowspan > %d as binding cells"
+                    % (maxrow, binding_rowspan))
+            lValidCell, lBindingCell = [], []
+            for ndCell in lCells:
+                if int(ndCell.get('rowSpan')) < binding_rowspan:
+                    lValidCell.append(ndCell)
+                else:
+                    lBindingCell.append(ndCell)
+            nDiscarded = len(lBindingCell)
+            if nDiscarded > 1: traceln("****************   WARNING  ****************")
+            traceln(" - %d cells discarded as binding cells" % nDiscarded)
+            for ndCell in lBindingCell:
+                ndCell.set("type", "table-binding")
+            lCells = lValidCell
+            
+        # FOR COLUMN HEADER: get max(cell[0,i].span)
+        maxRowSpan = computeMaxRowSpan(lCells)
         
         tag_DU_row_col_header(root, lCells, maxRowSpan)
             
-            try:
+        try:
             removeSeparator(root)
             addSeparator(root, lCells)
-                doc.write(sOutFilename, encoding='utf-8',pretty_print=True,xml_declaration=True)
+            doc.write(sOutFilename, encoding='utf-8',pretty_print=True,xml_declaration=True)
             traceln('annotation done for %s  --> %s' % (sFilename, sOutFilename))
-            except TableAnnotationException:
-                traceln("No Table region in file ", sFilename, "  IGNORED!!")
+        except TableAnnotationException:
+            traceln("No Table region in file ", sFilename, "  IGNORED!!")
         
         del doc
 
