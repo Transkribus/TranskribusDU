@@ -1,7 +1,7 @@
 from rtree import index
 import numpy as np
-
-
+#from shapely.prepared import prep
+import shapely 
 def polygon2points(p):
     """
         convert a polygon to a sequence of points for DS documents
@@ -10,10 +10,18 @@ def polygon2points(p):
     """
     return ",".join(list("%s,%s"%(x,y) for x,y in p.exterior.coords))
 
-def points2polygon(s):
+def sPoints2tuplePoints(s):
     """
         convert a string (from DSxml) to a polygon
+        :param s: string = 'x,y x,y...'
+        returns a Geometry
     """
+#    lList = s.split(',') 
+#    return [(float(x),float(y)) for x,y in  zip(lList[0::2],lList[1::2])]
+    
+    return [ (float(x),float(y)) for sxy in s.split(' ') for (x,y)  in sxy.split(',') ]
+
+    
     
 def iuo(z1,z2):
     """
@@ -28,6 +36,7 @@ def iuo(z1,z2):
     return z1.intersection(z2) / z1.union(z2)
 
 
+
 def populateGeo(lZones:list(),lElements:list()):
     """
         affect lElements i  to lZones using  argmax(overlap(elt,zone)
@@ -35,25 +44,26 @@ def populateGeo(lZones:list(),lElements:list()):
 
     lIndElements =   index.Index()
     dPopulated = {}
-    for pos, cell  in enumerate(lZones):
+    for pos, z  in enumerate(lZones):
 #         lIndElements.insert(pos, cell.toPolygon().bounds)
-        lIndElements.insert(pos, cell.bounds)
+#         print (cell,cell.is_valid,cell.bounds)
+        lIndElements.insert(pos, z.bounds)
 
 
-    aIntersection = np.zeros((len(lZones),len(lElements)),dtype=float)
+    aIntersection = np.zeros((len(lElements),len(lZones)),dtype=float)
     for j,elt in enumerate(lElements):
-#         ll  = lIndElements.intersection(elt.toPolygon().bounds)
-#         for x in ll: aIntersection[x][j] =  elt.toPolygon().intersection(lZones[x].toPolygon()).area
         ll  = lIndElements.intersection(elt.bounds)
         for x in ll: 
-#             print (elt,x,lZones[x], elt.intersection(lZones[x]).area)
-            aIntersection[x][j] =  elt.intersection(lZones[x]).area
+            try:aIntersection[j][x] =  elt.intersection(lZones[x]).area
+            except shapely.errors.TopologicalError: pass #This operation could not be performed. Reason: unknown
+
         
-    for i,z in enumerate(lZones):
+    for i,e in enumerate(lElements):
         best = np.argmax(aIntersection[i])
-        print (z, lElements[best],best, aIntersection[i][best])
-        try: dPopulated[best].append(z)
-        except KeyError:dPopulated[best] = [z]
+        # aIntersection == np.zeros : empty
+        if aIntersection[i][best]>0:
+            try: dPopulated[best].append(i)
+            except KeyError:dPopulated[best] = [i]
     
     return dPopulated
 
@@ -69,8 +79,9 @@ if __name__ == "__main__":
         lE.append(Polygon(((i,i),(i,i+9),(i+9,i+9),(i+9,i))))
 #         print (lE[-1])
     dres = populateGeo(lP,lE)
-#     for item in dres:
-#         print (lE[item],[str(x) for x in dres[item]])
-    print(polygon2points(lP[0]))
+    for item in dres:
+        print (lE[item],[lE[x].wkt for x in dres[item]])
+
+#     print(polygon2points(lP[0]))
       
-        
+    
