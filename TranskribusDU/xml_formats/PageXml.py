@@ -137,7 +137,7 @@ class PageXml:
         if Comments != None:
             ## if not ndComments: #we need to add one!
             ## FutureWarning: The behavior of this method will change in future versions. Use specific 'len(elem)' or 'elem is not None' test instead.   
-            if ndComments is not None : #we need to add one!
+            if ndComments is None : #we need to add one!
                 ndComments = etree.SubElement(ndMetadata, cls.sCOMMENTS_ELT)
             ndComments.text = Comments
         return ndMetadata
