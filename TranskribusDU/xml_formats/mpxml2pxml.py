@@ -41,9 +41,8 @@ Utility to create a set of pageXml XML files from a mpxml file.
         
     doc = etree.parse(sDocFilename)
 
-    for pnum, pageDoc in PageXml.MultiPageXml._iter_splitMultiPageXml(doc, bInPlace=True):
+    for pnum, pageDoc in PageXml.MultiPageXml._iter_splitMultiPageXml(doc, bInPlace=False):
         outfilename = "%s%s%s%s%s_%03d.pxml" % (dir,os.sep,options.destdir,os.sep,docid,pnum)
         print(outfilename)        
         pageDoc.write(outfilename, xml_declaration ='UTF-8',encoding="utf-8", pretty_print = bool(options.bIndent))
-    doc.freeDoc()
     print ("DONE")    
