@@ -43,16 +43,15 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.base import BaseEstimator, TransformerMixin
 
-from sklearn.metrics import confusion_matrix
 
 os.environ['KERAS_BACKEND'] = 'tensorflow'
 
-from keras.models import Sequential, load_model, Model
-from keras.layers  import Bidirectional, Dropout, Input
+from keras.models import  load_model, Model
+from keras.layers  import Bidirectional, Input, Add,Masking, Concatenate
 from keras.layers.wrappers import TimeDistributed
 from keras.layers.recurrent import LSTM
-from keras.layers.core import Dense, Masking
-from keras.regularizers import L1L2
+from keras.layers.core import Dense
+# from keras.regularizers import L1L2
 import numpy as np
 
 import pickle 
@@ -335,6 +334,7 @@ class DeepTagger():
         print('aux data loaded: %s/%s.%s' % (self.dirName,self.sModelName,self.sAux))        
         print("ngram: %s\tmaxfea=%s\tpadding=%s\tnbclasses=%s" % (self.maxngram,self.max_features,self.max_sentence_len, self.lnbClasses))
         print("multitype model:%s"%(self.bMultiType))
+        print (self.model.summary())
         
 
 
@@ -347,19 +347,28 @@ class DeepTagger():
         self.initTransformeur()
         fX= [item  for sublist in train_X  for item in sublist ]
         self.node_transformer.fit(fX)
-#         
+#
         lX,(lY,lY2) = self.prepareTensor_multitype(traindata)
 
 #         print (lX.shape)
 #         print (lY.shape)
 #         print (lY2.shape)
 
+
+
         inputs = Input(shape=(self.max_sentence_len, self.max_features))
 
         x = Masking(mask_value=0)(inputs)
-        x = Bidirectional(LSTM(self.hiddenSize,return_sequences = True))(x) 
-        x = Dropout(0.5)(x)
-    
+        x = Bidirectional(LSTM(self.hiddenSize,return_sequences = True, dropout=0.5,activation='relu'), merge_mode='concat')(x)
+#         x3 = TimeDistributed(Dense(self.hiddenSize, activation='relu'))(x)
+        x = TimeDistributed(Dense(self.hiddenSize, activation='relu'))(x)
+
+#         x = TimeDistributed(Dense(64, activation='relu'))(x)
+#         x = Bidirectional(LSTM(self.hiddenSize,return_sequences = True,dropout=0.25,activation='relu'), merge_mode='concat')(x)
+#         x = TimeDistributed(Dense(64, activation='relu'))(x)
+#         x = Bidirectional(LSTM(self.hiddenSize,return_sequences = True, dropout=0.5,activation='relu'), merge_mode='concat')(x)
+#         x = TimeDistributed(Dense(64, activation='relu'))(x)        
+#         x = Concatenate()([x3,x2])
         out1 = TimeDistributed(Dense(self.lnbClasses[0], activation='softmax'),name='M')(x)
         out2 = TimeDistributed(Dense(self.lnbClasses[1], activation='softmax'),name='D')(x)
 
@@ -443,7 +452,7 @@ class DeepTagger():
 
         lRes= []        
         for itok,seq in enumerate(lToken):
-            print (seq,lLTags[0][itok],lLTags[1][itok])
+#             print (seq,lLTags[0][itok],lLTags[1][itok])
             tag1,tag2 = lLTags[0][itok],lLTags[1][itok]
             lRes.append([((itok,itok),seq,tag1,tag2)])
 #             lRes.append((toffset,tok,label,list(lScore)))
@@ -478,6 +487,7 @@ class DeepTagger():
 #             print(pad_length*[nil_X] + wordsvec, self.max_sentence_len)
 #             assert pad_length*[nil_X] + wordsvec >= self.max_sentence_len
             y_pred1,y_pred2 = self.model.predict(lX)
+#             print (self.model.summary())
             for i,_ in enumerate(lX):
 #                 pred_seq = y_pred[i]
                 l_multi_type_results = []
@@ -536,10 +546,13 @@ class DeepTagger():
         if self.bPredict:
             # which input  format: [unicode]
             self.loadModels()
-            lsent = [self._sent]
-            lsent= ['30 Jänuar ','31 Jäniuer ','5 Jager','So 9 Faber 1835', '15 Februar 1835', '25 FAber 138','6 jn ','5 marg','16 decz ']
-            lsent= ['30 Jan ','31 Jane ','5 Febre','9 ', '15 Mär 1835', '25 März 138','6 Marz ','5 Gpmil','16 Apmil ', '5 15. Aprmil','5 Juni','2 Juni']
-            lsent=['jan','feb','mar','apr','jun','sept','okt','dez']
+            lsent= ['Janer','February','Dez ','April','June' ,'July','September' ]
+#             lsent = ['30 Jäner ','31 Janiuer ','5 Jager','So 9 Faber 1835', '15 Februar 1835', '25 FAber 138','6 jn ','5 marg','16 decz ']
+            #lsent = ['30 Janer ','31 Jäner ','5 Febre', '15 Mär 1835', '25 März 138','6 Marz ','5 Gpmil','16 Apmil ', '5 15. Aprmil','2 Juni','5 Juni']
+            #lsent = ['160. Nov. frühe 10 Uhr 187', '6. Dezember Fruth 1 Uhr','ledig. Erich. 5 Uhr', '12. Dez. Hirsch ½ 9 Uhr','15. Jäner Neuötting',' 16. Jan. In. de.']
+            #lsent = ['31te̳ Augus','. Okt 1866','e oo', '4 nov']
+            #lsent= [ 'Nov.','30Janr 1867','5 Febr. 1867.','dbre','feb','18 Ir 1867'                ]
+#             lsent=['jan','feb','mar','apr','jun','sept','okt','dez']
 #             lsent= ['1','2','3','4','5','6','7','8','9','10','11','12','13']
 #             lsent= [chr(x) for x in range(97,106)] 
 

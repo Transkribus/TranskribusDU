@@ -146,9 +146,9 @@ class IETest(Component.Component):
             try:lColPos[cell.getIndex()[1]]
             except:  lColPos[cell.getIndex()[1]]=[]
             if cell.getIndex()[1] < 5:
+                res = field.applyTaggers(cell)
                 for field in cell.getFields():
                     if field is not None:
-                        res = field.applyTaggers(cell)
                         # res [ (token,label,score) ...]
                         extractedValues = field.extractLabel(res)
                         if extractedValues != []:
@@ -196,9 +196,10 @@ class IETest(Component.Component):
         for cell in table.getCells():
             if cell.getFields() != []:
                 if self.bDebug:print(table.getPage(),cell.getIndex(), cell.getFields(), cell.getContent())
+            res = myRecord.applyTaggers(cell)
             for field in cell.getFields():
                 if field is not None:
-                    res = field.applyTaggers(cell)
+                    #res = field.applyTaggers(cell)
                     # res [ (token,label,score) ...]
                     extractedValues = field.extractLabel(res)
                     if extractedValues != []:
@@ -331,15 +332,19 @@ class IETest(Component.Component):
         template.labelTable(table) 
         
         iRef = self.findNameColumn(table)
+        print ("=============",iRef)
         lTemplateIE = [  
              ((slice(1,None),slice(iRef,iRef+1))  ,[ 'abp_names', 'names_aux','numbering','religion'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')])
             , ((slice(1,None),slice(iRef+1,iRef+2)) ,[ 'abp_profession','religion' ]        ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
             , ((slice(1,None),slice(iRef+2,iRef+3))  ,[ 'abp_location' ]                    ,[ dr.getFieldByName('location') ]) 
             , ((slice(1,None),slice(iRef+3,iRef+4)) ,[ 'abp_family' ]                       ,[ dr.getFieldByName('situation') ])
             #[] binding
+            # 4 6
+            # 5 7
+            # 6 8
             , ((slice(1,None),slice(iRef+4,iRef+6)) ,[ 'abp_deathreason','artz']                ,[ dr.getFieldByName('deathreason'),dr.getFieldByName('doktor')])
-            , ((slice(1,None),slice(iRef+5,iRef+7)) ,[ 'abp_dates','abp_year' ]                        ,[ dr.getFieldByName('MonthDayDateGenerator'), dr.getFieldByName('deathDate') ,dr.getFieldByName('deathYear')])
-            , ((slice(1,None),slice(iRef+6,iRef+8)) ,[ 'abp_dates','abp_year','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('deathYear'),dr.getFieldByName('burialLocation') ])
+            , ((slice(1,None),slice(iRef+5,iRef+9)) ,[ 'abp_dates','abp_year' ]                        ,[ dr.getFieldByName('MonthDayDateGenerator'), dr.getFieldByName('deathDate') ,dr.getFieldByName('deathYear')])
+            , ((slice(1,None),slice(iRef+6,iRef+9)) ,[ 'abp_dates','abp_year','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('deathYear'),dr.getFieldByName('burialLocation') ])
             , ((slice(1,None),slice(iRef+8,iRef+10)) ,[ 'abp_age','abp_ageunit']                       ,[ dr.getFieldByName('age'), dr.getFieldByName('ageUnit')])
 #            , ((slice(1,None),slice(9,10)) ,[ dr.getFieldByName('priester')])
 #            , ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
@@ -395,12 +400,12 @@ class IETest(Component.Component):
                     print ("page: %s : not a table? %d/%d"%(page.getNumber(),table.getNbRows(),table.getNbColumns()))
                     continue
                 if self.BuseStoredTemplate:
-#                     self.processWithTemplate(table, dr)
-                    try:self.processWithTemplate(table, dr)
-                    except: print('issue with page %s'%page)
+                    self.processWithTemplate(table, dr)
+                    #try:self.processWithTemplate(table, dr)
+                    #except: print('issue with page %s'%page)
                 else:
                     self.mineTable(table,dr)
-        
+            
         self.evalData = dr.generateOutput(self.evalData)
 #         print self.evalData.serialize('utf-8',True)
 
