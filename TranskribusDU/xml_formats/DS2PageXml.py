@@ -107,7 +107,7 @@ class DS2PageXMLConvertor(Component):
             451,246 451,1094 781,1094 781,246
             
         """
-        lPoints = sPoints.split(",")
+        lPoints = [x for xx in sPoints.split(' ') for x in xx.split(',')]
         lx= list(map(lambda x:1.0*float(x)*self.dpi/72.0, lPoints))
         # order left right 
         xx =  list(zip(lx[0::2], lx[1::2]))
