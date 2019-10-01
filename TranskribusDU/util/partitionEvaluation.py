@@ -148,11 +148,11 @@ def evalPartitions(x,y,th,distf):
         [ltemp.append((x[i],y[j],1 - cost[i][j])) for i,j in zip(path[0],path[1]) ]
     
     lFound = []
-    ltemp.sort(key=lambda xyc:xyc[2],reverse=True)
+#     ltemp.sort(key=lambda xyc:xyc[2],reverse=True)
     for i,j,c in ltemp :
+#         print (i[:2],j[:2],c)
         # when multi matching for a ref: take the best score (first taken if same score) 
         if c >= th and j not in map(lambda x:x[1],lFound) and i not in map(lambda x:x[0],lFound):
-#             print (i,j,c)
             lFound.append((i,j))
     lMissed  = list(filter (lambda e: e not in map(lambda x:x[1],lFound),y))
     lErr  = list(filter (lambda e: e not in  map(lambda x:x[0],lFound),x))
@@ -162,6 +162,43 @@ def evalPartitions(x,y,th,distf):
 #         ss
     return cntOk,cntErr,cntMissed, lFound,lErr,lMissed
 
+
+def matchingPairs(x,y,distf):
+    """
+            Compare two sequences
+            Use DTW for matching, jaccard/iuo distance as dist(i,j)
+            :param list x: generated list of partitions
+            :param list y: reference list of partitions
+            :param th: int
+            Returns matched elements 
+            
+        """
+    if x == []: 
+        return []
+    elif len(x) == 1:
+        ltemp = [(x[0],yy,1-distf(x[0],yy)) for yy in y]
+    elif len(y) == 1:
+        ltemp = [(xx,y[0],1-distf(xx,y[0])) for xx in x]
+    else:
+        _, cost, _, path = dtw(x, y, distf)
+        ltemp=[]
+        [ltemp.append((x[i],y[j],1 - cost[i][j])) for i,j in zip(path[0],path[1]) ]
+    
+    lmatches = []
+    curleft, curright = [],[]
+    for i,j,c in ltemp:
+#         print (i,j,c) #, curleft,curright)
+        if i not in [x[0] for x in curleft] and j not in curright:
+            if (curleft,curright) != ([],[]):
+                lmatches.append((curleft,curright))
+            curleft = [(i,c)]
+            curright = [j]
+        else:
+            if i not in [x[0] for x in curleft]:   curleft.append((i,c))
+            if j not in curright: curright.append(j)
+    lmatches.append((curleft,curright))
+    return lmatches
+    
 
 def test_jaccard():
     assert jaccard([], []) == 0.0
