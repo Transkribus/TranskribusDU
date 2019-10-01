@@ -622,7 +622,7 @@ PluginBatch\FormAnalysis\FormFeatures\saveChilds=false
             #plg = Polygon(lXY)
             try: line=LineString(lXY)
             except ValueError: continue  # LineStrings must have at least 2 coordinate tuples
-            topline=translate(line,yoff=-20)
+            topline=translate(line,yoff=-40).simplify(10)
             #iHeight = 20   # in pixel
             #x1,y1, x2,y2 = topline.getBoundingBox()
             if coord is not None: 
