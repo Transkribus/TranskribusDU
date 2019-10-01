@@ -41,13 +41,13 @@ import common.Component as Component
 from common.trace import traceln
 import config.ds_xml_def as ds_xml
 from ObjectModel.xmlDSDocumentClass import XMLDSDocument
+from ObjectModel.XMLDSObjectClass import XMLDSObjectClass
 from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
 from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
 from ObjectModel.XMLDSCELLClass import XMLDSTABLECELLClass
-from ObjectModel.XMLDSTableRowClass import XMLDSTABLEROWClass
-from spm.spmTableRow import tableRowMiner
+from ObjectModel.XMLDSTableColumnClass import XMLDSTABLECOLUMNClass
+from spm.spmTableColumn import tableColumnMiner
 from xml_formats.Page2DS import primaAnalysis
-from xml_formats.DS2PageXml import DS2PageXMLConvertor
 
 class columnDetection(Component.Component):
     """
@@ -69,6 +69,7 @@ class columnDetection(Component.Component):
 
         self.do2DS= False
         
+        self.THHighSupport = 0.75
         # for --test
         self.bCreateRef = False
         self.evalData = None
@@ -85,108 +86,235 @@ class columnDetection(Component.Component):
             self.docid = dParams["docid"]
         if "dsconv" in dParams:         
             self.do2DS = dParams["dsconv"]
-                        
+        
+        self.bMining = dParams["mining"]
+                         
         if "createref" in dParams:         
             self.bCreateRef = dParams["createref"]                        
     
     
     
-#     def createCells(self, table):
-#         """
-#             create new cells using BIESO tags
-#             @input: tableObeject with old cells
-#             @return: tableObject with BIES cells
-#             @precondition: requires columns
-#             
-#         """
-#         for col in table.getColumns():
-#             lNewCells=[]
-#             # keep original positions
-#             col.resizeMe(XMLDSTABLECELLClass)
-#             for cell in col.getCells():
-# #                 print cell
-#                 curChunk=[]
-#                 lChunks = []
-# #                 print map(lambda x:x.getAttribute('type'),cell.getObjects())
-# #                 print map(lambda x:x.getID(),cell.getObjects())
-#                 cell.getObjects().sort(key=lambda x:x.getY())
-#                 for txt in cell.getObjects():
-# #                     print txt.getAttribute("type")
-#                     if txt.getAttribute("type") == 'RS':
-#                         if curChunk != []:
-#                             lChunks.append(curChunk)
-#                             curChunk=[]
-#                         lChunks.append([txt])
-#                     elif txt.getAttribute("type") in ['RI', 'RE']:
-#                         curChunk.append(txt)
-#                     elif txt.getAttribute("type") == 'RB':
-#                         if curChunk != []:
-#                             lChunks.append(curChunk)
-#                         curChunk=[txt]
-#                     elif txt.getAttribute("type") == 'RO':
-#                         ## add Other as well???
-#                         curChunk.append(txt)
-#                         
-#                 if curChunk != []:
-#                     lChunks.append(curChunk)
-#                     
-#                 if lChunks != []:
-#                     # create new cells
-#                     table.delCell(cell)
-#                     irow= cell.getIndex()[0]
-#                     for i,c in enumerate(lChunks):
-# #                         print map(lambda x:x.getAttribute('type'),c)
-#                         #create a new cell per chunk and replace 'cell'
-#                         newCell = XMLDSTABLECELLClass()
-#                         newCell.setPage(cell.getPage())
-#                         newCell.setParent(table)
-#                         newCell.setName(ds_xml.sCELL)
-#                         newCell.setIndex(irow+i,cell.getIndex()[1])
-#                         newCell.setObjectsList(c)
-#                         newCell.resizeMe(XMLDSTEXTClass)
-#                         newCell.tagMe2()
-#                         for o in newCell.getObjects():
-#                             o.setParent(newCell)
-#                             o.tagMe()
-# #                         table.addCell(newCell)
-#                         lNewCells.append(newCell)
-#                     cell.getNode().getparent().remove(cell.getNode())
-#                     del(cell)
-#             col.setObjectsList(lNewCells[:])
-#             [table.addCell(c) for c in lNewCells]        
-#         
-# #             print col.tagMe()
-        
-    
     def createTable(self,page):
         """
             BB of all elements?
+            todo: Ignore O!
         """
+        x1,y1,x2,y2 = self.getBounbingBox(page)
+        if x1 is None: return None
+        myTable = XMLDSTABLEClass()
+        myTable.setX(x1)
+        myTable.setY(y1)
+        myTable.setWidth(x2-x1)
+        myTable.setHeight(y2-y1)
+                
+        page.addObject(myTable)
+        return myTable
         
-    def processPage(self,page):
+    def processPage(self,page,emptyTable):
         from util.XYcut import mergeSegments
         
-        ### skrinking to be done:
-        lCuts, x1, x2 = mergeSegments([(x.getX(),x.getX()+20,x) for x in page.getAllNamedObjects(XMLDSTEXTClass)],0)
-        for x,y,cut in lCuts:
+        ### skrinking to be done: use center ?
+#         lCuts, _, _ = mergeSegments([(x.getX(),x.getX2(),x) for x in page.getAllNamedObjects(XMLDSTEXTClass)],0)
+        lCuts, _, _ = mergeSegments([(x.getX(),x.getX()+0.25*x.getWidth(),x) for x in page.getAllNamedObjects(XMLDSTEXTClass)],0)
+#         lCuts, _, _ = mergeSegments([(x.getX()+0.5*x.getWidth()-0.25*x.getWidth(),x.getX()+0.5*x.getWidth()+0.25*x.getWidth(),x) for x in page.getAllNamedObjects(XMLDSTEXTClass)],0)
+
+        for i, (x,_,cut) in enumerate(lCuts):
             ll =list(cut)
             ll.sort(key=lambda x:x.getY())
-            traceln(len(ll))
-#             traceln (list(map(lambda x:x.getContent(),ll)))
-
-    def findColumnsInDoc(self,ODoc):
+            #add column
+            myCol= XMLDSTABLECOLUMNClass(i)
+            myCol.setPage(page)
+            myCol.setParent(emptyTable)
+            emptyTable.addObject(myCol)
+            myCol.setX(x)
+            myCol.setY(emptyTable.getY())
+            myCol.setHeight(emptyTable.getHeight())
+            if i +1  < len(lCuts):
+                myCol.setWidth(lCuts[i+1][0]-x)
+            else: # use table 
+                myCol.setWidth(emptyTable.getX2()-x)
+            emptyTable.addColumn(myCol)
+            if not self.bMining:
+                myCol.tagMe(ds_xml.sCOL)
+    
+    def getBounbingBox(self,page):
+        lElts= page.getAllNamedObjects(XMLDSTEXTClass)
+        if lElts == []: return None,None,None,None
+        
+        lX1,lX2,lY1,lY2 = zip(*[(x.getX(),x.getX2(),x.getY(),x.getY2()) for x in lElts]) 
+        return min(lX1), min(lY1), max(lX2), max(lY2)
+    
+    def findColumnsInDoc(self,lPages):
         """
         find columns for each table in ODoc
         """
-        self.lPages = ODoc.getPages()   
         
-        # not always?
-#         self.mergeLineAndCells(self.lPages)
-     
-        for page in self.lPages:
+        for page in lPages:
             traceln("page: %d" %  page.getNumber())
-            self.processPage(page)        
+            lch,lcv = self.mergeHorVerClusters(page)
+#             table = self.createTable(page)
+#             if table is not None:
+# #                 table.tagMe(ds_xml.sTABLE)
+#                 self.processPage(page,table)        
+
+        
+    def createContourFromListOfElements(self, lElts):
+        """
+            create a polyline from a list of elements
+            input : list of elements
+            output: Polygon object
+        """
+        from shapely.geometry import Polygon as pp
+        from shapely.ops import cascaded_union
+        
+        lP = []
+        for elt in lElts:
+            
+            sPoints = elt.getAttribute('points')
+            if sPoints is None:
+                lP.append(pp([(elt.getX(),elt.getY()),(elt.getX(),elt.getY2()), (elt.getX2(),elt.getY2()),(elt.getX2(),elt.getY())] ))
+            else:    
+                lP.append(pp([(float(x),float(y)) for x,y in zip(*[iter(sPoints.split(','))]*2)]))
+        try:ss = cascaded_union(lP)
+        except ValueError: 
+            print(lElts,lP)
+            return None
+        
+        return ss #list(ss.convex_hull.exterior.coords)    
     
+    def mergeHorVerClusters(self,page):
+        """
+            build Horizontal and vertical clusters
+        """
+        from util import TwoDNeighbourhood as  TwoDRel
+        lTexts = page.getAllNamedObjects(XMLDSTEXTClass)
+
+        for e in lTexts:
+            e.lright=[]
+            e.lleft=[]
+            e.ltop=[]
+            e.lbottom=[]
+        lVEdge = TwoDRel.findVerticalNeighborEdges(lTexts)         
+        for  a,b in lVEdge:
+            a.lbottom.append( b )
+            b.ltop.append(a)                 
+        for elt in lTexts: 
+            # dirty!
+            elt.setHeight(max(5,elt.getHeight()-3))
+            elt.setWidth(max(5,elt.getWidth()-3))
+            TwoDRel.rotateMinus90degOLD(elt)              
+        lHEdge = TwoDRel.findVerticalNeighborEdges(lTexts)
+        for elt in lTexts:
+#             elt.tagMe()
+            TwoDRel.rotatePlus90degOLD(elt)
+#         return     
+        for  a,b in lHEdge:
+            a.lright.append( b )
+            b.lleft.append(a)             
+#         ss
+        for elt in lTexts:
+            elt.lleft.sort(key = lambda x:x.getX(),reverse=True)
+#             elt.lright.sort(key = lambda x:x.getX())
+            if len(elt.lright) > 1:
+                elt.lright = []
+            elt.lright.sort(key = lambda x:elt.signedRatioOverlapY(x),reverse=True)
+#             print (elt, elt.getY(), elt.lright)
+            elt.ltop.sort(key = lambda x:x.getY())
+            if len(elt.lbottom) >1:
+                elt.lbottom = []
+            elt.lbottom.sort(key = lambda x:elt.signedRatioOverlapX(x),reverse=True)
+            
+
+
+        lHClusters = []
+        # Horizontal  
+        lTexts.sort(key = lambda x:x.getX())
+        lcovered=[]
+        for text in lTexts:
+            if text not in lcovered:
+#                 print ('START :', text, text.getContent())
+                lcovered.append(text)
+                lcurRow = [text]
+                curText= text
+                while curText is not None:
+                    try:
+                        nextT = curText.lright[0]
+#                         print ('\t',[(x,curText.signedRatioOverlapY(x)) for x in curText.lright])
+                        if nextT not in lcovered:
+                            lcurRow.append(nextT)
+                            lcovered.append(nextT)
+                        curText = nextT
+                    except IndexError:curText = None
+#                 lHClusters.append(lcurRow)         
+#                 print ("FINAL", list(map(lambda x:(x,x.getContent()),lcurRow)) )
+                if len(lcurRow) > 0:
+#                     # create a contour for visualization
+#                     # order by col: get top and  bottom polylines for them
+                    contour = self.createContourFromListOfElements(lcurRow)
+                    lHClusters.append((lcurRow,contour))
+
+
+
+        # Vertical
+        lVClusters = [] 
+        lTexts.sort(key = lambda x:x.getY())
+        lcovered=[]
+        for text in lTexts:
+            if text not in lcovered:
+#                 print ('START :', text, text.getContent())
+                lcovered.append(text)
+                lcurCol = [text]
+                curText= text
+                while curText is not None:
+                    try:
+                        nextT = curText.lbottom[0]
+#                         print ('\t',[(x,curText.signedRatioOverlapY(x)) for x in curText.lright])
+                        if nextT not in lcovered and len(nextT.lbottom) == 1:
+                            lcurCol.append(nextT)
+                            lcovered.append(nextT)
+                        curText = nextT
+                    except IndexError:curText = None
+                
+# #                 print ("FINAL", list(map(lambda x:(x,x.getContent()),lcurCol)) )
+                if len(lcurCol)> 0:
+                    contour = self.createContourFromListOfElements(lcurCol)
+                    lVClusters.append((lcurCol,contour))                
+                    if contour:
+#                         print (contour.bounds)   
+                        r = XMLDSObjectClass()
+                        r.setName('cc')
+                        r.setParent(page)
+#                         r.addAttribute('points',spoints)
+                        x1,y1,x2,y2 = contour.bounds
+                        r.setXYHW(x1, y1, y2-y1, x2-x1)
+                        page.addObject(r)
+#                         r.tagMe('BLOCK')
+
+        print (page.getAllNamedObjects('cc'))    
+        return lHClusters, lVClusters
+    
+    
+    def documentMining(self,lPages):
+        """
+        need to clean up REGION nodes   
+         
+        """
+        seqMiner = tableColumnMiner()
+        seqMiner.columnMining(lPages,self.THHighSupport,sTag=ds_xml.sCOL)        
+    
+    def checkInputFormat(self,lPages):
+        """
+            delete regions : copy regions elements at page object
+            unlink subnodes
+        """
+        for page in lPages:
+            
+            lRegions = page.getAllNamedObjects("REGION")
+            lElts=[]
+            [lElts.extend(x.getObjects()) for x in lRegions]
+            [page.addObject(x,bDom=True) for x in lElts]
+            [page.removeObject(x,bDom=True) for x in lRegions]
+
     def run(self,doc):
         """
            load dom and find rows 
@@ -210,19 +338,26 @@ class columnDetection(Component.Component):
             self.doc= doc
         self.ODoc = XMLDSDocument()
         self.ODoc.loadFromDom(self.doc,listPages = range(self.firstPage,self.lastPage+1))        
-#         self.ODoc.loadFromDom(self.doc,listPages = range(30,31))        
+        self.lPages = self.ODoc.getPages()
+        
+        self.checkInputFormat(self.lPages)     
+        self.findColumnsInDoc(self.lPages)
 
-        self.findColumnsInDoc(self.ODoc)
-        refdoc = self.createRef(self.doc)
-#         print refdoc.serialize('utf-8', 1)
-
-        if self.do2DS:
-            # bakc to PageXml
-            conv= DS2PageXMLConvertor()
-            lPageXDoc = conv.run(self.doc)
-            conv.storeMultiPageXml(lPageXDoc,self.getOutputFileName())
+        if self.bMining:
+            self.documentMining(self.lPages)
+        
+        if self.bCreateRef:
+            refdoc = self.createRef(self.doc)
+            return refdoc
+        
+        
+#         if self.do2DS:
+#             # bakc to PageXml
+#             conv= DS2PageXMLConvertor()
+#             lPageXDoc = conv.run(self.doc)
+#             conv.storeMultiPageXml(lPageXDoc,self.getOutputFileName())
 #             print self.getOutputFileName()
-            return None
+#             return None
         return self.doc
         
         
@@ -327,7 +462,7 @@ class columnDetection(Component.Component):
                 pnum=page.get('number')
                 #record level!
                 lRows = page.xpath(".//%s" % ("ROW"))
-                lORows = map(lambda x:XMLDSTABLEROWClass(0,x),lRows)
+                lORows = map(lambda x:XMLDSTABLECOLUMNClass(0,x),lRows)
                 for row in lORows:
                     row.fromDom(row._domNode)
                     row.setIndex(row.getAttribute('id'))
@@ -339,7 +474,7 @@ class columnDetection(Component.Component):
         for page in lPages:
             pnum=page.get('number')
             lRows = page.xpath(".//%s" % ("ROW"))
-            lORows = map(lambda x:XMLDSTABLEROWClass(0,x),lRows)
+            lORows = map(lambda x:XMLDSTABLECOLUMNClass(0,x),lRows)
             for row in lORows:    
                 row.fromDom(row._domNode)
                 row.setIndex(row.getAttribute('id'))
@@ -477,61 +612,6 @@ class columnDetection(Component.Component):
 
         return refdoc
     
-    def createRefPerPage(self,doc):
-        """
-            create a ref file from the xml one
-            
-            for DAS 2018: one ref per graph(page)
-        """
-        self.ODoc = XMLDSDocument()
-        self.ODoc.loadFromDom(doc,listPages = range(self.firstPage,self.lastPage+1))        
-  
-  
-
-        dRows={}
-        for page in self.ODoc.getPages():
-            #imageFilename="..\col\30275\S_Freyung_021_0001.jpg" width="977.52" height="780.0">
-            pageNode = etree.Element('PAGE')
-#             pageNode.set("number",page.getAttribute('number'))
-            #SINGLER PAGE pnum=1
-            pageNode.set("number",'1')
-
-            pageNode.set("imageFilename",page.getAttribute('imageFilename'))
-            pageNode.set("width",page.getAttribute('width'))
-            pageNode.set("height",page.getAttribute('height'))
-
-            root=etree.Element("DOCUMENT")
-            refdoc=etree.ElementTree(root)
-            root.append(pageNode)
-               
-            lTables = page.getAllNamedObjects(XMLDSTABLEClass)
-            for table in lTables:
-                tableNode = etree.Element('TABLE')
-                tableNode.set("x",table.getAttribute('x'))
-                tableNode.set("y",table.getAttribute('y'))
-                tableNode.set("width",table.getAttribute('width'))
-                tableNode.set("height",table.getAttribute('height'))
-                pageNode.append(tableNode)
-                for cell in table.getAllNamedObjects(XMLDSTABLECELLClass):
-                    try:dRows[int(cell.getAttribute("row"))].append(cell)
-                    except KeyError:dRows[int(cell.getAttribute("row"))] = [cell]
-        
-                lYcuts = []
-                for rowid in sorted(dRows.keys()):
-#                     print rowid, min(map(lambda x:x.getY(),dRows[rowid]))
-                    lYcuts.append(min(list(map(lambda x:x.getY(),dRows[rowid]))))
-                self.createRowsWithCuts(lYcuts,table,tableNode)
-
-            
-            self.outputFileName = os.path.basename(page.getAttribute('imageFilename')[:-3]+'ref')
-            print(self.outputFileName)
-            self.writeDom(refdoc, bIndent=True)
-
-        return refdoc    
-    
-    #         print refdoc.serialize('utf-8', True)
-#         self.testCPOUM(0.5,refdoc.serialize('utf-8', True),refdoc.serialize('utf-8', True))
-            
 if __name__ == "__main__":
 
     
@@ -542,6 +622,7 @@ if __name__ == "__main__":
     rdc.add_option("--docid", dest="docid", action="store", type="string", help="document id")
     rdc.add_option("--dsconv", dest="dsconv", action="store_true", default=False, help="convert page format to DS")
     rdc.add_option("--createref", dest="createref", action="store_true", default=False, help="create REF file for component")
+    rdc.add_option("--mining", dest="mining", action="store_true", default=False, help="apply pattern mining")
 
     rdc.add_option('-f',"--first", dest="first", action="store", type="int", help="first page to be processed")
     rdc.add_option('-l',"--last", dest="last", action="store", type="int", help="last page to be processed")
