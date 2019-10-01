@@ -40,7 +40,10 @@ from lxml import etree
 from sklearn.metrics import  adjusted_rand_score
 from sklearn.metrics import homogeneity_score
 from sklearn.metrics import completeness_score
+
+
 import common.Component as Component
+from common.chrono import chronoOn,chronoOff
 from common.trace import traceln
 import config.ds_xml_def as ds_xml
 from ObjectModel.xmlDSDocumentClass import XMLDSDocument
@@ -49,11 +52,13 @@ from ObjectModel.XMLDSTABLEClass import XMLDSTABLEClass
 from ObjectModel.XMLDSCELLClass import XMLDSTABLECELLClass
 from ObjectModel.XMLDSTableRowClass import XMLDSTABLEROWClass
 from ObjectModel.XMLDSTableColumnClass import XMLDSTABLECOLUMNClass
+from ObjectModel.XMLDSObjectClass import XMLDSObjectClass
 from spm.spmTableRow import tableRowMiner
 from xml_formats.Page2DS import primaAnalysis
-from util.partitionEvaluation import evalPartitions, jaccard, iuo
+from util.partitionEvaluation import evalPartitions, jaccard, iuo, matchingPairs
 from util.geoTools import sPoints2tuplePoints
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, LineString
+from shapely.prepared import prep
 from shapely import affinity
 from shapely.ops import cascaded_union
 
@@ -133,6 +138,205 @@ class RowDetection(Component.Component):
         
         if 'YCut' in dParams: self.bYCut =  dParams["YCut"]
         if 'bCellOnly' in dParams: self.bCellOnly =  dParams["bCellOnly"]
+
+
+
+
+    def dtwForCells(self,page):
+        """
+            pairwise matching -> how reliable the cell segmentation is
+            identify errornous elements and fix them?  (or put them into two rows???)
+            
+            
+            pairwise: for each col: dtw for the other
+                    -> pairs
+        """
+        
+        def distY(c1,c2): 
+            o  = min(c1.getY2() , c2.getY2()) - max(c1.getY() , c2.getY())
+            if o < 0:
+                return 1
+#             d = (2* (min(c1.getY2() , c2.getY2()) - max(c1.getY() , c2.getY()))) / (c1.getHeight() + c2.getHeight())
+#             print(c1,c1.getY(),c1.getY2(), c2,c2.getY(),c2.getY2(),o,d) 
+            return 1 - (1 * (min(c1.getY2() , c2.getY2()) - max(c1.getY() , c2.getY()))) / min(c1.getHeight() , c2.getHeight())
+
+        # sort cells by Y                
+        for table in page.getAllNamedObjects(XMLDSTABLEClass):
+#             print([ len(c.getCells()) for c in table.getColumns() ])
+            for i, col in enumerate(table.getColumns()):
+                dRows = {}
+                if col.getCells():
+                    lStats= [0 for i in range(len(col.getCells()))]
+#                     print (lStats)
+                    for nextcol in table.getColumns():
+                        if nextcol.getCells() and nextcol.getIndex() != col.getIndex():
+                            col.getCells().sort(key=lambda x:x.getY())
+                            nextcol.getCells().sort(key=lambda x:x.getY())
+#                             print (col.getCells()[18],nextcol.getCells()[16], distY(col.getCells()[18],nextcol.getCells()[16]))
+                            lmatches = matchingPairs(col.getCells(),nextcol.getCells(),distY)
+
+        #                     print (lmatches)
+#                             print (i,i+1,len(col.getCells()),len(nextcol.getCells()))
+                            for lc1,lc2 in lmatches:
+#                                 print (lc1,lc2)
+                                if len(lc1) == len(lc2) == 1 and lc1[0][1]>0:
+                                    try: dRows[lc1[0][0]].append(lc2[0])
+                                    except KeyError :  dRows[lc1[0][0]] = [lc2[0]]
+                    for c in dRows:
+                        print (c,dRows[c])
+                
+
+
+#     def computePLR(self,lLeft,lRight):
+#         """
+#         np.argwhere(a==a.max())
+#         np.where(a==a.max())
+#         numpy.unravel_index(a.argmax(), a.shape)
+#         """
+#         import numpy as np
+#         
+#         ar = np.array(lRight,dtype=float).reshape(len(lRight),1)
+#         al =  np.array(lLeft,dtype=float)
+#         pp = al*ar
+#         x= np.unravel_index(pp.argmax(), pp.shape)
+#         print (al.shape,ar.shape,x,pp)
+        
+        
+    def createRuledLines(self,table):
+        """
+            compute the Neighbourhood taking into account skewing
+            aka ruled lines
+        """
+        from rtree import index
+        from shapely.affinity import scale, skew
+        txtidx = index.Index()
+#         lReverseIndex  = {}        
+        
+        
+        chronoOn()
+        lElts= []
+#         [lElts.append(x)  for x in table.getAllNamedObjects(XMLDSTEXTClass)]
+        [lElts.append(x)  for x in table.getAllNamedObjects(XMLDSTABLECELLClass)]
+
+        lP = []
+        [lP.append(e.toPolygon()) for e in lElts]
+        for i,elt in enumerate(lElts):
+            txtidx.insert(i, lP[i].bounds)
+#             lReverseIndex[lP[i].bounds] = elt   
+        
+        lcovered = []
+        # elt sorted by length?
+        for ii,elt in enumerate(lElts):
+            elt.br= None
+            elt.bl = None
+            if elt not in lcovered  : #True or  and elt.getWidth() > 0 * elt.getHeight() and elt.getWidth()>=0:
+    #             sPoints = elt.getAttribute('points')
+                lcovered.append(elt)
+                try:a = elt.getBaseline().getAngle()
+                except: a=0 
+                p = elt.toPolygon() #Polygon([(float(x),float(y)) for x,y in zip(*[iter(sPoints.split(','))]*2)])
+                p_s = scale(p,xfact = 500)
+                ## reduce angle if too large
+                if not p_s.is_valid: continue
+                if  elt.getWidth()< -50:
+                    a=0
+#                 a=0
+                p_s = skew(p_s,ys=a,use_radians=True)
+    #             sPoints_s = ','.join("%s,%s"%(x[0],x[1]) for x in p_s.exterior.coords)
+    #             print (p.wkt)
+    #             print (p_s.wkt)
+#                 prepared_elt = prep(p_s)
+    #             elt.addAttribute('points',sPoints_s)
+    #             elt.tagMe('VV')
+                
+                lSet = txtidx.intersection(p_s.bounds)
+                
+                lchk = []
+                for ei in lSet:
+                    if lP[ei].is_valid:
+                        intersec = p_s.intersection(lP[ei]).area
+                        if intersec > min(lP[ei].area,p_s.area)/50000:
+                            lchk.append((ei,lP[ei],intersec/lP[ei].area))
+#                         lcovered.append((lElts[ei]))
+                # take the nearest!  left and right!
+                bestright= None
+                dr = 9e9
+                dl= 9e9
+                bestleft=None
+#                 lchk.sort(key=lambda ixa:ixa[-1],reverse=True)
+                lchk.sort(key=lambda xx:p.distance(xx[1]))
+#                 lright = [ (lElts[xx[0]],xx[-1]) for xx in lchk  if p.bounds[0] < xx[1].bounds[0] ]
+#                 lleft  = [ (lElts[xx[0]],xx[-1]) for xx in lchk if p.bounds[0] > xx[1].bounds[0] ]
+                lright = [ lElts[xx[0]] for xx in lchk  if p.bounds[0] < xx[1].bounds[0] ]
+                lleft  = [ lElts[xx[0]] for xx in lchk if p.bounds[0] > xx[1].bounds[0] ]
+                
+                elt.lright = lright
+                elt.lleft = lleft
+#                 print(elt)
+#                 print(lright)
+#                 print (lleft)
+#                 if lleft != [] and lright != []:
+#                     self.computePLR([xx[-1] for xx in lleft],[xx[-1] for xx in lright])
+                if lright: elt.br = lright[0]
+                ## here best riht = best left!!
+                if lleft:elt.bl = lleft[0]
+#                 print(elt, elt.br ) #lleft,elt.bl ,lright)
+#                 for u,xx in lchk:
+#                     if p.distance(xx) < dr and p.bounds[0] < xx.bounds[0]: 
+#                         dr =  p.distance(xx)
+#                         bestright = lElts[u]
+#                     if p.distance(xx) < dl and p.bounds[0] > xx.bounds[0]: 
+#                         dl =  p.distance(xx)
+#                         bestleft = lElts[u]                        
+#                 if bestright:
+#                     elt.br = bestright
+#                 if bestleft:
+#                     elt.bl = bestleft
+#                 print (elt,elt.bl,elt.br)
+        
+        XX = 22000
+        lcovered = []
+        lLines =[]
+        lElts.sort(key=lambda x:x.getX())
+        for i, elt in  enumerate(lElts):
+#             if elt.br and elt.br.bl : print (elt,elt.br,elt.br.bl)
+            if  elt not in lcovered and elt.getX() < XX:
+#                 print (elt)
+                curelt = elt
+                lchk=[curelt]
+                while curelt:
+#                     print ('\t',lchk,curelt,curelt.bl, curelt.br)
+                    if curelt.br != None and curelt.br.bl == curelt and curelt.getX() < XX:
+#                         print ('\t\t',lchk,curelt,curelt.bl, curelt.br  ,curelt.br.bl == curelt)
+                        lcovered.append(curelt)
+                        lcovered.append(curelt.br)
+                        lchk.append(curelt.br)
+                        curelt = curelt.br
+                    else: curelt = None
+#                 print (elt,lchk)
+                contour = self.createTopContourTop(lchk)
+#                 contour = self.createContourFromListOfElements(lchk)
+                lLines.append((lchk,contour))
+                if contour:
+                    #spoints = ','.join("%s,%s"%(x[0],x[1]) for x in contour)
+                    spoints = ','.join("%s,%s"%(x[0],x[1]) for x in contour.coords)
+                    r = XMLDSTABLEROWClass(1)
+                    r.setParent(table.getPage())
+                    r.addAttribute('points',spoints)
+                    r.tagMe('LINE')
+    
+#         lLines.sort(key=lambda x:x[0][0].getY())
+#         for row,contour in lLines:
+# #             print (  [x.getContent() for x in row],  [x.getAttribute('DU_row') for x in row])
+#             lrowids=[]
+#             try:[lrowids.append(x.getParent().getIndex()[0]) for x in row ]
+#             except:pass
+#             if  len(set(lrowids))>1: print (lrowids)                 
+#             ## compute # rowid form GT  -> valid same row or not!!
+        
+        return lLines   
+#         print("elapsed time: %.1fs" % chronoOff())
+
           
     def createCells(self, table):
         """
@@ -164,6 +368,8 @@ class RowDetection(Component.Component):
                 # do no yse it for the moment
                 if  txt.getAttribute("DU_col") == 'Mx':
                     lSkipped.append(txt)
+                elif txt.getAttribute("DU_row") == 'CH':   # header ??
+                    curChunk.append(txt)
                 elif txt.getAttribute("DU_row") == self.STAG:
                     if curChunk != []:
                         lChunks.append(curChunk)
@@ -171,14 +377,14 @@ class RowDetection(Component.Component):
                     lChunks.append([txt])
                 elif txt.getAttribute("DU_row") in ['I', 'E']:
                     curChunk.append(txt)
-                elif txt.getAttribute("DU_row") == self.BTAG:
+                elif txt.getAttribute("DU_row") in [self.BTAG,'O']:
                     if curChunk != []:
                         lChunks.append(curChunk)
                     curChunk=[txt]
                 elif txt.getAttribute("DU_row") == 'O':
                     ## add Other as well??? no
-                    curChunk.append(txt)
-#                     pass
+#                     curChunk.append(txt)
+                    pass
                         
             if curChunk != []:
                 lChunks.append(curChunk)
@@ -198,16 +404,15 @@ class RowDetection(Component.Component):
                     newCell.setObjectsList(c)
 #                     newCell.addAttribute('type','new')
                     newCell.resizeMe(XMLDSTEXTClass)
+                    contour = self.createContourFromListOfElements(newCell.getObjects())
+                    if contour is not None:
+# #                         newCell.addAttribute('points',','.join("%s,%s"%(x[0],x[1]) for x in contour.lXY))
+                        newCell.addAttribute('points',','.join("%s,%s"%(x[0],x[1]) for x in contour))
+                                            
                     newCell.tagMe2()
                     for o in newCell.getObjects():
                         o.setParent(newCell)
                         o.tagMe()
-#                     contour = self.createContourFromListOfElements(newCell.getObjects())
-#                     if contour is not None:
-# #                         newCell.addAttribute('points',','.join("%s,%s"%(x[0],x[1]) for x in contour.lXY))
-#                         newCell.addAttribute('points',','.join("%s,%s"%(x[0],x[1]) for x in contour))
-#                     newCell.tagMe2()
-                        
 #                         table.addCell(newCell)
                     lNewCells.append(newCell)
 #                 if txt.getParent().getNode().getparent() is not None: txt.getParent().getNode().getparent().remove(txt.getParent().getNode())
@@ -332,11 +537,6 @@ class RowDetection(Component.Component):
         
     
     
-    def buildLineCandidates(self,table):
-        """
-            return a lits of lines corresponding to top row line candidates
-        """
-        
     
     def mineTableRowPattern(self,table):
         """
@@ -374,7 +574,39 @@ class RowDetection(Component.Component):
             alog: for each feature: get the text nodes baselines and create a skewed line (a,b)
         """
             
+    def getRowSegments(self,table,lcuts):
+        """
+  
             
+        """
+        
+        from shapely.geometry import LineString
+        lLRowsSeg= []
+        lRowSeg=[]
+        for cut in lcuts:
+            if True or cut.getValue() > 300 and  cut.getValue() < 400:  
+#                 xordered=  list(cut.getNodes())
+                xordered=  list(cut.getObjects())
+
+                xordered.sort(key = lambda x:x.getX())
+                lSeparators = list(zip([ (c.getX(),c.getY()) for c in xordered], [ (c.getX2(),c.getY()) for c in xordered]))
+                print(lSeparators )
+                lxy= [x  for seg in lSeparators for x in seg]
+    #             print( lxy)
+                ml = LineString(lxy)
+    #             print(ml.wkt)
+    #             x,y,x2,y2 = convhull.bounds
+                spoints = ','.join("%s,%s"%(x[0],x[1]) for x in ml.coords)
+                hc = XMLDSObjectClass()
+                hc.setParent(table.getPage())
+                hc.addAttribute('points',spoints)
+    #             hc.setDimensions(x, y, y2 - y, x2 - x)
+                hc.tagMe('SeparatorRegion')
+                print (cut,hc.getAttribute('points'))
+    #             [hc.addObject(o) for o in lcurRow]
+                    
+            
+        
     
     def miningSeparatorShape(self,table,lCuts):
 #         import numpy as np
@@ -417,7 +649,7 @@ class RowDetection(Component.Component):
         fMaxCoherence = 0.0
         rowMiner= tableRowMiner()
         # % of columns needed 
-        lTHSUP= [0.2,0.3,0.4]
+        lTHSUP= [0.1,0.2,0.3,0.4]
 #         lTHSUP= [0.2]
         bestTHSUP =None
         bestthnum= None
@@ -442,8 +674,11 @@ class RowDetection(Component.Component):
 #                 self.miningSeparatorShape(table,lYcuts)
 #                 self.assessCuts(table, lYcuts)
 #                 self.createRowsWithCuts2(table,lYcuts)
+#                 print (lYcuts)
+                lYcuts =  [min([ x.getY() for x in y.getNodes()]) for y in lYcuts]
+#                 print (lYcuts)
                 table.createRowsWithCuts(lYcuts)
-                table.reintegrateCellsInColRow()
+                table.reintegrateCellsInColRowold()
                 coherence = self.computeCoherenceScore(table)
                 if coherence > fMaxCoherence:
                     fMaxCoherence = coherence
@@ -456,7 +691,7 @@ class RowDetection(Component.Component):
             ### create the separation with the hullcontour : row as polygon!!
             ## if no intersection with previous row : OK
             ## if intersection 
-#             print (bestYcuts)
+            print (bestYcuts)
 #             for y in bestYcuts:
 #                 ## get top elements of the cells to build the boundary ??
 #                 print ('%s %s'%(y.getValue(),[(c.getX(),c.getY()) for c in sorted(y.getNodes(),key=lambda x:x.getX())]))
@@ -464,14 +699,18 @@ class RowDetection(Component.Component):
                 ##  try "skew option and evaluate""!!
                 ## take max -H 
                 ##  take skew 
+#             print ([c for y in bestYcuts for c in y.getNodes()])
+#             self.getRowSegments(table,bestYcuts)
             table.createRowsWithCuts(bestYcuts)
-            table.reintegrateCellsInColRow()
+            table.reintegrateCellsInColRowold()
             for row in table.getRows(): 
                 row.addAttribute('points',"0,0")
                 contour = self.createContourFromListOfElements([x for c in row.getCells() for x in c.getObjects()])
                 if contour is not None:
                     spoints = ','.join("%s,%s"%(x[0],x[1]) for x in contour)
                     row.addAttribute('points',spoints)
+#                     row.tagMe()
+#                     print (row.getNode(), row.getParent())
 #         print (len(table.getPage().getAllNamedObjects(XMLDSTABLECELLClass)))
         table.buildNDARRAY()
 #         self.mineTableRowPattern(table)
@@ -552,7 +791,7 @@ class RowDetection(Component.Component):
 #         for b in sorted(dAB.keys()):
 #             print (b,dAB[b])
         
-        
+    
         
     def processRows3(self,table,predefinedCuts=[] ):
         """
@@ -563,13 +802,30 @@ class RowDetection(Component.Component):
         from tasks.TwoDChunking import TwoDChunking
         hchk = TwoDChunking()
         lElts=[]
-        [lElts.append(x) for col in table.getColumns() for x in col.getCells()]
+        [lElts.append(t) for col in table.getColumns() for x in col.getCells() for t in x.getObjects()]
+#         [lElts.append(x) for col in table.getColumns() for x in col.getCells() ]
+
         lhchk = hchk.HorizonalChunk(table.getPage(),lElts=lElts,bStrict=False)
-          
-#         lRows = []
-#         curRow = []
-#         for col in table.getColumns():
-#             lcells = col.getCells()
+        lhchk.sort(key=lambda x:x.getY())
+#         return 
+        table._lrows = []
+        table._nbRows = None
+        for i,x in enumerate(lhchk):
+            print (i,x.getY())
+            myRow= XMLDSTABLEROWClass(i)
+            myRow.setPage(table.getPage())
+            myRow.setParent(table)
+            table.addObject(myRow)
+            myRow.addAttribute('points', x.getAttribute('points'))
+            myRow.setY(x.getY())
+            myRow.setX(x.getX())
+            myRow.setWidth(x.getWidth())
+            myRow.setHeight(x.getHeight())
+            table.addRow(myRow)
+            myRow.tagMe()
+        table.reintegrateCellsInColRow()
+        
+        return lhchk
         
     def processRows2(self,table,predefinedCuts=[]):
         """
@@ -636,20 +892,37 @@ class RowDetection(Component.Component):
 #                     print (myRow)
 #                     myRow.tagMe(ds_xml.sROW)
 
-        
+
+    
+    def miningBPosition(self,table):
+        """
+            what is the B position in the cell: 
+                split the cell into N Horizontal elements and compute histogram
+        """
+        N = 4
+        cpt = 0
+        for cell in table.getCells():
+            for text in cell.getObjects():
+                if text.getAttribute('DU_row') == self.BTAG and text.getY() > cell.getY() + cell.getHeight() * (N-1)/N:
+                    if cell.getHeight() > 3*text.getHeight():
+                        cpt +=1
+        print (cpt)
+                    
     def mergeHorizontalCells(self,table):
         """
             merge cell a to b|next col iff b overlap horizontally with a (using right border from points)
             input: a table, with candidate cells
             output: cluster of cells as row candidates
              
-             
             simply ignore cells which overlap several cells in the next column
             then: extend row candidates if needed
             
-            
             if no column known: simply take the first cell in lright if cells in  lright do ot X overlap (the first nearest w/o issue)
+            Then evaluate each cut: does it improve coherence or not?
+            
         """
+        
+        lchks = []
         # firtst create an index for hor neighbours
         lNBNeighboursNextCol=collections.defaultdict(list)
         lNBNeighboursPrevCol=collections.defaultdict(list)
@@ -673,40 +946,104 @@ class RowDetection(Component.Component):
  
              
         lcovered=[]        
+        # do 'beam' progression 
         for icol,col in enumerate(table.getColumns()):
             sortedC = sorted(col.getCells(),key=lambda x:x.getY())
+            
             for cell in sortedC:
-                if len(lNBNeighboursNextCol[cell]) < 2 and len(lNBNeighboursPrevCol[cell]) < 2:
+                bufferY,bufferY2 = cell.getY(),cell.getY2() 
+                lastX2=0
+                # cell with just one left and riht neig
+#                 if len(lNBNeighboursNextCol[cell]) < 2 and len(lNBNeighboursPrevCol[cell]) < 2:
+                if True: 
                     if cell not in lcovered:
-                        print(type(cell.getContent()))
-                        print ('START :', icol,cell, cell.getContent(),cell.getY(),cell.getY2())
+#                         print(type(cell.getContent()))
+#                         print ('START :', icol,cell, cell.getContent(),cell.getY(),cell.getY2())
                         lcovered.append(cell)
                         lcurRow = [cell]
-                        iicol=icol
+                        iicol = icol
                         curCell = cell
+                        nextC = curCell
                         while iicol < table.getNbColumns()-1:
                             nextColCells=table.getColumns()[iicol+1].getCells()
                             sorted(nextColCells,key=lambda x:x.getY())
                             for c in nextColCells: 
-                                if len(lNBNeighboursNextCol[c]) < 2 and len(lNBNeighboursPrevCol[c]) < 2:
-                                    if curCell.signedRatioOverlapY(c) > 0.25 * curCell.getHeight():
+                                if c not in lcovered:
+#                                     if min(c.getY2(), bufferY2) >=  max(c.getY(), bufferY):
+                                    if curCell.signedRatioOverlapY(c) > 0.2 * min(c.getHeight(),curCell.getHeight()):
                                         lcovered.append(c)
-                                        lcurRow.append(c)
-                                        print (curCell, curCell.getY(),curCell.getHeight(),c, curCell.signedRatioOverlapY(c),c.getY(), c.getHeight(),list(map(lambda x:x.getContent(),lcurRow)))
-                                        curCell = c
+#                                         print (curCell.getContent(),c.getContent(),"covered")
+                                        if c.getX() > lastX2:
+                                            lcurRow.append(c)
+#                                             print (curCell, curCell.getY(),curCell.getHeight(),c, curCell.signedRatioOverlapY(c),c.getY(), c.getHeight(),list(map(lambda x:x.getContent(),lcurRow)))
+                                            nextC = c
+                                            lastX2 = max(lastX2,c.getX2())
+                                            #break
+                            curCell = nextC
                             iicol +=1
-                        print ("FINAL", list(map(lambda x:(x,x.getContent()),lcurRow)) )
-                        print ("\t", list(map(lambda x:x.getIndex(),lcurRow)) )
-                        if len(lcurRow)>1:
-                            # create a contour for visualization
-                            # order by col: get top and  bottom polylines for them
-                            contour = self.createContourFromListOfElements(lcurRow)
-                            spoints = ','.join("%s,%s"%(x[0],x[1]) for x in contour)
-                            r = XMLDSTABLEROWClass(1)
-                            r.setParent(table)
-                            r.addAttribute('points',spoints)
-                            r.tagMe('HH')
-                    
+#                         print ("FINAL", list(map(lambda x:(x,x.getContent()),lcurRow)) )
+#                         print ("\t", list(map(lambda x:x.getIndex(),lcurRow)) )
+                        if len(lcurRow)>3:
+                            lchks.append((cell.getY(),lcurRow))
+        
+        #add last "row" -> table border
+        finalcell=XMLDSTABLECELLClass()
+        finalcell.setDimensions(table.getX(), table.getY2(), 1, table.getHeight())
+        lchks.append((table.getY2(),[finalcell]))
+        # create rows
+        # lchks need to ne sorted!!
+        table._lrows = []
+        prevRow = [] #[(table.getY(),[(table.getX(),table.getY()),(table.getX2(),table.getY())])]
+        table._nbRows = None        
+        lchks.sort(key=lambda  x:x[0])
+        # first and last !!
+        irow=-1
+        for i,(y,lcurRow) in enumerate(lchks):
+            # order by col: get top and  bottom polylines for them
+            topline = self.createTopContour(table,lcurRow,prevRow)
+#             topline = self.createTopContourTop(lcurRow)
+            if topline.is_valid:
+                irow+=1
+                try:spoints = ','.join("%s,%s"%(x[0],x[1]) for x in topline.exterior.coords)
+                except AttributeError : spoints = ','.join("%s,%s"%(x[0],x[1]) for x in topline.coords)
+        
+                myRow = XMLDSTABLEROWClass(irow)
+                myRow.setParent(table)
+                myRow.addAttribute('points',spoints)
+#                 print (i,topline.is_valid, myRow.toPolygon().is_valid)
+                myRow.tagMe()
+    #             print(i,topline.is_valid, myRow.toPolygon().is_valid)
+                x,y,x2,y2 = topline.bounds
+                myRow.setXYHW(x,y, y2-y,x2-x)
+                table.addRow(myRow)
+            else:
+                print (i,topline)            
+            prevRow=lcurRow[:]
+            prevRow.reverse()              
+    
+        table.reintegrateCellsInColRow()
+        for row in table.getRows(): print (row.getContent())
+    
+    def createRowsForPolyCuts(self,table,lPolyCuts):
+        """
+            create rows for poly cuts
+            
+            Complete polycuts from 1 to N columns
+            create rows for each of them
+            
+            
+            assess: keep it or not by computing coherence
+            
+            
+        """
+        # dort polygcuts by Y
+        # create polygons    
+            
+            
+#         table.reintegrateCellsInColRow()
+#         for row in table.getRows():
+#             print (row,[(c.getContent()) for c in row.getCells()])         
+#         return lchks
 
 #     def mergeHorizontalTextLines(self,table):
 #         """
@@ -1026,6 +1363,50 @@ class RowDetection(Component.Component):
 #                         r.tagMe('VV')
 #         print (sum(lfulleval)/len(lfulleval))        
         
+    
+    def createTopContourTop(self,lElts):
+        """
+            create the TOP line
+        """
+        lP=[]
+        # add first
+        for elt in lElts:
+            if (elt.getX(),elt.getY()) not in lP:
+                lP.append((elt.getX(),elt.getY()))
+            if (elt.getX2(),elt.getY()) not in lP:
+                lP.append((elt.getX2(),elt.getY()))
+        return LineString(lP)
+    
+    def createTopContour(self,table,lElts, prevlElts):
+        """
+            create the TOP line
+        """
+        lP=[]
+        # add first
+        if table.getX() < lElts[0].getX():
+            lP.append((table.getX(),lElts[0].getY()))
+        for elt in lElts:
+            if (elt.getX(),elt.getY()) not in lP:
+                lP.append((elt.getX(),elt.getY()))
+            if (elt.getX2(),elt.getY()) not in lP:
+                lP.append((elt.getX2(),elt.getY()))
+        #addlast
+        if (table.getX2()> lElts[-1].getX2()):      
+            lP.append((table.getX2(),lElts[-1].getY()))
+        if prevlElts:
+            if table.getX2()> prevlElts[0].getX2(): 
+                lP.append((table.getX2(),prevlElts[0].getY()))
+        for elt in prevlElts:
+            if (elt.getX2(),elt.getY()) not in lP:
+                lP.append((elt.getX2(),elt.getY()))   
+            if (elt.getX(),elt.getY()) not in lP:                 
+                lP.append((elt.getX(),elt.getY()))
+        if prevlElts:
+            if table.getX() < prevlElts[-1].getX():
+                lP.append((table.getX(),prevlElts[-1].getY()))   
+#         return LineString(lP)
+        return Polygon(lP)
+        
     def createContourFromListOfElements(self, lElts):
         """
             create a polyline from a list of elements
@@ -1079,25 +1460,36 @@ class RowDetection(Component.Component):
      
         for page in self.lPages:
             traceln("page: %d" %  page.getNumber())
+#             self.dtwForCells(page)
+#             self.createNeighbourhood(page)
+#             continue
 #             print (len(page.getAllNamedObjects(XMLDSTABLECELLClass)))
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
             for table in lTables:
+#                 self.miningBPosition(table)
+#                 continue
+#                 [x.setHeight(5) for x in table.getAllNamedObjects(XMLDSTEXTClass)]
                 # col as polygon
                 self.getPolylinesForRowsColumns(table)
+#                 self.lRulesLines = self.createRuledLines(table)
 #                 self.getPolylinesForRows(table)
 #                 rowscuts = list(map(lambda r:r.getY(),table.getRows()))
                 rowscuts=[]
 #                 traceln ('initial cuts:',rowscuts)
                 self.createCells(table)
+                #self.lRulesLines = self.createRuledLines(table)
 #                 lhchk = hchk.HorizonalChunk(page,lElts=table.getCells())
 #                 hchk.VerticalChunk(page,tag=XMLDSTEXTClass)
-#                 self.mergeHorizontalCells(table)
                 #   then merge overlaping then sort Y and index  : then  insert ambiguous textlines 
 #                 self.mergeHorizontalTextLines(table)
 #                 self.mergeHorVerTextLines(table)
-#                 self.processRows3(table)
+#                 lchk= self.processRows3(table)
+#                 self.getRowSegments(table, lchk)
                 if self.bCellOnly:
                     continue
+                #self.mergeHorizontalCells(table)                
+#                 self.addChunkAsRow(table,lchk)
+                
 #                 self.mergeHorizontalCells(table)
 #                 self.mergeHorVerCells(table)
                 self.processRows(table,rowscuts)      
@@ -1106,30 +1498,10 @@ class RowDetection(Component.Component):
             if self.bNoTable:
                 self.mergeHorVerTextLines(page)
                 
-    
-    
-#     def extendLines(self,table):
-#         """
-#             Extend textlines up to table width using baseline 
-#             input:table
-#             output: table with extended baselines 
-#         """
-#         for col in table.getColumns():
-#             for cell in col.getCells():
-#                 for elt in cell.getObjects():
-#                     if elt.getWidth()> 100: 
-#                         #print ([ (x.getObjects()[0].getBaseline().getY(),x.getObjects()[0].getBaseline().getAngle(),x.getY()) for x in xordered])
-#                         print (elt,elt.getBaseline().getAngle(), elt.getBaseline().getBx(),elt.getBaseline().getPoints())
-#                         newBl  = [(table.getX(),elt.getBaseline().getAngle()* table.getX() + elt.getBaseline().getBx()),
-#                                   (table.getX2(),elt.getBaseline().getAngle()* table.getX2() + elt.getBaseline().getBx())
-#                                   ]
-#                         elt.getBaseline().setPoints(newBl)
-#                         myPoints = '%f,%f,%f,%f'%(newBl[0][0],newBl[0][1],newBl[1][0],newBl[1][1])      
-#                         elt.addAttribute('blpoints',myPoints)
-        
-            
-#         sys.exit(0)
-        
+    def getPolylinesForRowsColumnsFromTop(self,table,lRows):
+        """
+            use top separators 
+        """
     def getPolylinesForRowsColumns(self,table):
         """
             input:  list of  cells (=table)
@@ -1397,8 +1769,10 @@ class RowDetection(Component.Component):
             self.doc = dsconv.convert2DS(doc,self.docid)
         else:
             self.doc= doc
+        chronoOn()    
         self.ODoc = XMLDSDocument()
         self.ODoc.loadFromDom(self.doc,listPages = range(self.firstPage,self.lastPage+1))
+#         print("ODoc elapsed time: %.1fs" % chronoOff())
 #         self.testshapely(self.ODoc)
 # #         self.ODoc.loadFromDom(self.doc,listPages = range(30,31))        
         if self.bYCut:
@@ -1626,7 +2000,7 @@ class RowDetection(Component.Component):
             if RunData is not None:
                 lpages = RunData.xpath('//%s' % ('PAGE[@pagekey="%s"]' % key))
                 lX=[]
-                for page in lpages[:1]:
+                for page in lpages:
                     xpath = ".//%s" % ("ROW")
                     lrows = page.xpath(xpath)
                     if len(lrows) > 0:
@@ -1636,7 +2010,6 @@ class RowDetection(Component.Component):
                             if lid != []:
                                 lX.append( lid)
                 cntOk , cntErr , cntMissed,lf,le,lm = evalPartitions(lX, lY, th,jaccard)
-#                 print ( cntOk , cntErr , cntMissed)
         ltisRefsRunbErrbMiss= list()
         return (cntOk , cntErr , cntMissed,ltisRefsRunbErrbMiss)  
         

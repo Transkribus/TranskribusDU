@@ -37,6 +37,7 @@ from __future__ import unicode_literals
 import sys, os
 import logging 
 import glob
+from lxml import etree
 from optparse import OptionParser
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
@@ -53,7 +54,7 @@ except ImportError:
 from TranskribusPyClient.client import TranskribusClient
 from TranskribusCommands.TranskribusDU_transcriptUploader import  TranskribusDUTranscriptUploader
 from TranskribusCommands.Transkribus_downloader import TranskribusDownloader
-from TranskribusCommands.do_analyzeLayoutNew import DoLAbatch
+from TranskribusCommands.do_analyzeLayout import DoLAbatch
 from TranskribusCommands.do_htrRnn import DoHtrRnn
 from TranskribusCommands import  sCOL
 
@@ -61,12 +62,13 @@ import common.Component as Component
 from TranskribusPyClient.common.trace import traceln, trace
 
 from xml_formats.PageXml import PageXml
-from tasks.DU_ABPTable_T import DU_ABPTable_TypedCRF
+#from tasks.DU_ABPTable_T import DU_ABPTable_TypedCRF
 from xml_formats.PageXml import MultiPageXml
 from xml_formats.Page2DS import primaAnalysis
 from xml_formats.DS2PageXml import DS2PageXMLConvertor
 from tasks.rowDetection import RowDetection
 from ObjectModel.xmlDSDocumentClass import XMLDSDocument
+from util.Polygon import Polygon
 
 class TableProcessing(Component.Component):
     usage = "" 
@@ -113,8 +115,11 @@ class TableProcessing(Component.Component):
         if "useExt" in dParams:         
             self.useExtForMPXML  = dParams["useExt"]            
         
+        if 'mergeTLC' in dParams:
+            self.bUROCVLMerge =  dParams["mergeTLC"]
+                    
         if 'regMPXML' in dParams:
-            self.bRegenerateMPXML=True
+            self.bRegenerateMPXML=dParams["regMPXML"]
             
         if "rowmodelname" in dParams:         
             self.sRowModelName = dParams["rowmodelname"]
@@ -131,11 +136,11 @@ class TableProcessing(Component.Component):
         self.myTrKCient = None
         self.persist = False
         self.loginInfo = False
-        if dParams.has_key("server"):         
+        if "server" in  dParams:         
             self.server = dParams["server"]
-        if dParams.has_key("persist"):         
+        if "persist"  in dParams:         
             self.persist = dParams["persist"]        
-        if dParams.has_key("login"):         
+        if "login" in dParams:         
             self.loginInfo = dParams["login"]   
 
     def login(self,trnskrbs_client,  trace=None, traceln=None):
@@ -256,7 +261,7 @@ class TableProcessing(Component.Component):
                 #some old? models do not have params field
 #             try: traceln("%s\t%s\t%s" % (model['htrId'],model['name'],model['params']))
 #             except KeyError: traceln("%s\t%s\tno params" % (model['htrId'],model['name']))
-        if  sModelID == None: raise Exception, "no model ID found for %s" %(modelname)
+        if  sModelID == None: raise Exception( "no model ID found for %s" %(modelname))
         ret = htrComp.htrRnnDecode(colid, sModelID, dictionary, docid, sPageDesc,bDictTemp=False)
         traceln(ret)
         return ret
@@ -285,11 +290,178 @@ class TableProcessing(Component.Component):
                 #some old? models do not have params field
 #             try: traceln("%s\t%s\t%s" % (model['htrId'],model['name'],model['params']))
 #             except KeyError: traceln("%s\t%s\tno params" % (model['htrId'],model['name']))
-        if  sModelID == None: raise Exception, "no model ID found for %s" %(modelname)
+        if  sModelID == None: raise Exception ( "no model ID found for %s" %(modelname))
         ret = htrComp.htrRnnDecode(colid, sModelID, dictionary, docid, sPageDesc,bDictTemp=False)
         traceln(ret)
         return ret
                
+               
+
+    def overlapX(self,zoneA,zoneB):
+        [x11,y11,x12,y12] = zoneA.getBoundingBox() #self.getX(),self.getY(),self.getHeight(),self.getWidth()
+        [x21,y21,x22,y22] = zoneB.getBoundingBox() 
+    
+        [a1,a2] = x11,x12
+        [b1,b2] = x21, x22 #zoneB.getX(),zoneB.getX()+ zoneB.getWidth()
+        return min(a2, b2) >=  max(a1, b1) 
+        
+    def overlapY(self,zoneA,zoneB):
+        [x11,y11,x12,y12] = zoneA.getBoundingBox() #self.getX(),self.getY(),self.getHeight(),self.getWidth()
+        [x21,y21,x22,y22] = zoneB.getBoundingBox() 
+        [a1,a2] = y11 ,y12
+        [b1,b2] = y22, y22 #zone.getY(),zone.getY() + zone.getHeight()
+        return min(a2, b2) >=  max(a1, b1)     
+    
+    def signedOverlap(self,zoneA,zoneB):
+        """
+         overlap self and zone
+         return surface of self in zone 
+        """
+        
+        [x11,y11,x12,y12] = zoneA.getBoundingBox() #self.getX(),self.getY(),self.getHeight(),self.getWidth()
+        [x21,y21,x22,y22]  = zoneB.getBoundingBox()  #.getX(),zone.getY(),zone.getHeight(),zone.getWidth()
+        w1 = x12 - x11
+        h1 = y12 - y11
+        fOverlap = 0.0
+        
+        if self.overlapX(zoneA,zoneB) and self.overlapY(zoneA,zoneB):
+            s1 = w1 * h1
+            
+            # possible ?
+            if s1 == 0: s1 = 1.0
+            #intersection
+            nx1 = max(x11,x21)
+            nx2 = min(x12,x22)
+            ny1 = max(y11,y21)
+            ny2 = min(y12,y22)
+            h = abs(nx2 - nx1)
+            w = abs(ny2 - ny1)
+            
+            inter = h * w
+            if inter > 0 :
+                fOverlap = inter/s1
+            else:
+                # if overX and Y this is not possible !
+                fOverlap = 0.0
+            
+        return  fOverlap                      
+    def mergeBaselineCells(self,coldir,colid,docid):
+        """
+        
+            Take a file (pxml) with stuff processed on Transkribus
+            Tale the CVL template tool xml (xml)
+            
+            merge them
+            
+            regenerate a mpxml
+             
+        """
+        
+        xmlpath = os.path.abspath(os.path.join(coldir,sCOL,docid))
+#         print (xmlpath)
+      
+        mpxml = xmlpath + ".mpxml"
+        mpxmldoc = etree.parse(mpxml)         
+          
+        lxml = glob.glob(os.path.join(xmlpath,"*.xml"))
+        pxmldoc = MultiPageXml.makeMultiPageXml(lxml)
+
+        lhtrxml = glob.glob(os.path.join(xmlpath,"*.pxml"))
+        mpxmldoc = MultiPageXml.makeMultiPageXml(lhtrxml)
+        
+        lPXMLPage = PageXml.getChildByName(mpxmldoc.getroot(), 'Page')
+        lXMLPage = PageXml.getChildByName(pxmldoc.getroot(), 'Page')
+
+        assert  len(lXMLPage) == len(lPXMLPage)
+        for i, cvlpage in enumerate(lXMLPage):
+            ## remove TextRegion from xcvlpage
+            lTextRegions = PageXml.getChildByName(cvlpage, 'TextRegion')
+            for tr in lTextRegions:
+                tr.getparent().remove(tr)
+            
+            pxmlpage= lPXMLPage[i]
+            lTL=[]
+            lTextRegions = PageXml.getChildByName(pxmlpage, 'TextRegion')
+            for x in lTextRegions:
+                lTL.extend(PageXml.getChildByName(x, 'TextLine'))
+
+            ltable = PageXml.getChildByName(cvlpage, 'TableRegion')
+            if len(ltable)==0:
+                raise "NO TABLE"
+            lCells = PageXml.getChildByName(ltable[0], 'TableCell')
+            
+            lC = [Polygon(PageXml.getPointList(c)) for c in lCells ]
+            lT = [Polygon(PageXml.getPointList(t)) for t in lTL ]
+            for i,tl in enumerate(lT):
+                ## normalization
+                lCoordsPoints = PageXml.getChildByName(lTL[i], 'Coords')   
+                lCoordsB = PageXml.getChildByName(lTL[i], 'Baseline')            
+                coordB= lCoordsB[0]
+                coord= lCoordsPoints[0]
+                iHeight = 30   # in pixel
+                x1,y1, x2,y2 = Polygon(PageXml.getPointList(coordB)).getBoundingBox()
+                if coord is not None: 
+                    coord.set('points',"%d,%d %d,%d %d,%d %d,%d" % (x1,y1-iHeight,x2,y1-iHeight,x2,y2,x1,y2))                
+                    tl = Polygon(PageXml.getPointList(coordB))
+                lOverlap = []       
+                for _,c in enumerate(lC):
+#                     print (lCells[j].get('row'),lCells[j].get('col'),  self.signedOverlap(c,tl),tl.getBoundingBox(),c.getBoundingBox())
+                    lOverlap.append( self.signedOverlap(c,tl)) #.getBoundingBox()))
+                ## region of the same size as the textline
+#                 print (j,max(lOverlap),lOverlap.index(max(lOverlap)))    
+                if max(lOverlap) == 0:
+                    region = PageXml.createPageXmlNode('TextRegion')
+                    cvlpage.append(region)
+                    region.append(lTL[i])
+                    
+                else:
+                    cell = lCells[lOverlap.index(max(lOverlap))]
+                    cell.append(lTL[i])
+#                     print (cell.get('row'),cell.get('col'),''.join(lTL[i].itertext()))
+            
+        pxmldoc.write(mpxml)
+
+    
+    """                        
+        lOverlap=[]        
+        for region in lRegions:
+            lOverlap.append(self.signedRatioOverlap(region))
+        
+        if max(lOverlap) == 0: return None
+        return lRegions[lOverlap.index(max(lOverlap))]
+    """            
+
+    """
+            fOverlap = 0.0
+        
+        if self.overlapX(zone) and self.overlapY(zone):
+            [x11,y11,x12,y12] = [x1,y1,x1+w1,y1+h1]
+            [x21,y21,x22,y22] = [x2,y2,x2+w2,y2+h2]
+            
+            s1 = w1 * h1
+            
+            # possible ?
+            if s1 == 0: s1 = 1.0
+            
+            #intersection
+            nx1 = max(x11,x21)
+            nx2 = min(x12,x22)
+            ny1 = max(y11,y21)
+            ny2 = min(y12,y22)
+            h = abs(nx2 - nx1)
+            w = abs(ny2 - ny1)
+            
+            inter = h * w
+            if inter > 0 :
+                fOverlap = inter/s1
+            else:
+                # if overX and Y this is not possible !
+                fOverlap = 0.0
+            
+        return  fOverlap   
+    
+    """
+        
     
     def extractFileNamesFromMPXML(self,mpxmldoc):
         """
@@ -356,7 +528,7 @@ class TableProcessing(Component.Component):
 
 #         self.upLoadDocument(colid, coldir,docid,sNote='NLE workflow;table reg done')        
          
-        lJobIDs = self.applyLA_URO(colid, docid, nbPages)
+        lJobIDs = self.apply_URO(colid, docid, nbPages)
         return 
     
         bWait=True
@@ -422,8 +594,8 @@ class TableProcessing(Component.Component):
          
         ## apply HTR
         ## how to deal with specific dictionaries?
-         
         ## here need to know the ontology and the template
+        ## OPTION: put it after LA on server  (just one download needed )
         
         nbPages=1
         jobid = self.applyHTR(colid,docid, nbPages,self.sHTRmodel,self.sDictName)
@@ -495,6 +667,9 @@ class TableProcessing(Component.Component):
         if self.bFullCol is None:
             self.processCollection(self.colid)
         else:
+            if self.bUROCVLMerge:
+                self.mergeBaselineCells(self.coldir,self.colid, self.docid)
+                return
             self.processDocument(self.coldir,self.colid, self.docid,newMPXML)
         
 if __name__ == "__main__":
@@ -516,7 +691,8 @@ if __name__ == "__main__":
     
     tableprocessing.parser.add_option("--https_proxy"   , dest='https_proxy'  , action="store", type="string", help="proxy, e.g. http://cornillon:8000")    
     
-    tableprocessing.parser.add_option("--pxml", dest="regMPXML", action="store_true",  help="recreate MPXML frol PXML")
+    tableprocessing.parser.add_option("--pxml", dest="regMPXML", action="store_true",  help="recreate MPXML from PXML")
+    tableprocessing.parser.add_option("--merge", dest="mergeTLC", action="store_true",  help="merge CVL xml and pxml")
 
     tableprocessing.parser.add_option("--coldir", dest="coldir", action="store", type="string", help="collection folder")
     tableprocessing.parser.add_option("--colid", dest="colid", action="store", type="string", help="collection id")
