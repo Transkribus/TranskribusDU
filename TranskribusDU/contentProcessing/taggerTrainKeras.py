@@ -29,9 +29,6 @@
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import absolute_import
 
 import sys,os
 from io import open
@@ -43,8 +40,9 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.base import BaseEstimator, TransformerMixin
 
-os.environ['KERAS_BACKEND'] = 'tensorflow'
+from sklearn.metrics import confusion_matrix
 
+os.environ['KERAS_BACKEND'] = 'tensorflow'
 
 from keras.models import Sequential, load_model, Model
 from keras.layers  import Bidirectional, Dropout, Input
@@ -164,7 +162,6 @@ class DeepTagger():
         
         
     def initTransformeur(self):
-        # lowercase = False ??   True by default
         self.cv= CountVectorizer( max_features = self.max_features
                              , analyzer = 'char' ,ngram_range = (1,self.maxngram)
                              , dtype=np.float64)
@@ -181,6 +178,7 @@ class DeepTagger():
     def load_data_Multitype(self,lFName):
         """
             load data as training data (x,y)
+            nbClasses must be known!
         """
         
         self.nbClasses = 0
@@ -193,7 +191,7 @@ class DeepTagger():
             x=[]
             for l in f:
                 l = l.strip()
-                if l[:2] == '# ':continue  # comments
+                if l[:3] == '#  ':continue  # comments
                 if l =='EOS':
                     lTmp.append(x)
                     self.max_sentence_len = max(self.max_sentence_len,len(x))
@@ -201,9 +199,8 @@ class DeepTagger():
                 else:
                     try:
                         la=l.split('\t')
-                        b1=la[-1].split('_')[1]
-                        #b2=la[-1].split('_')[1]
-                        b2=la[-2].split('_')[1]
+                        b1=la[-1].split('_')[0]
+                        b2=la[-1].split('_')[1]
                     except  ValueError:
                         #print 'cannot find value and label in: %s'%(l)
                         continue
@@ -251,6 +248,7 @@ class DeepTagger():
     def load_data(self,lFName):
         """
             load data as training data (x,y)
+            nbClasses must be known!
         """
         
         self.nbClasses = 0
@@ -263,7 +261,7 @@ class DeepTagger():
             x=[]
             for l in f:
                 l = l.strip()
-                if l[:2] == '# ':continue  # comments
+                if l[:3] == '#  ':continue  # comments
                 if l =='EOS':
                     lTmp.append(x)
                     self.max_sentence_len = max(self.max_sentence_len,len(x))
@@ -325,7 +323,7 @@ class DeepTagger():
             x=[]
             for l in f:
                 l = l.strip()
-                if l[:2] == '# ':continue  # comments
+                if l[:3] == '#  ':continue  # comments
                 if l =='EOS':
                     if x!=[]:
                         lTmp.append(x)
@@ -366,7 +364,7 @@ class DeepTagger():
             x=[]
             for l in f:
                 l = l.strip()
-                if l[:2] == '# ':continue  # comments
+                if l[:3] == '#  ':continue  # comments
                 if l =='EOS':
                     if x!=[]:
                         lTmp.append(x)
@@ -440,7 +438,7 @@ class DeepTagger():
         lX,lY = self.prepareTensor(traindata)
 
 #         lX.reshape(1000,self.max_sentence_len)
-#         print(lX.shape)
+        print(lX.shape)
 #         print lY.shape
 
         """
@@ -455,7 +453,7 @@ class DeepTagger():
 
         print ('feature: %s sent:%s  hid:%s'%(self.max_features,self.max_sentence_len,self.hiddenSize))
         model.add(Masking(mask_value=0., input_shape=(self.max_sentence_len, self.max_features)))
-        #model.add(TimeDistributed(Dense(self.hiddenSize)))
+        model.add(TimeDistributed(Dense(self.hiddenSize)))
         model.add(Bidirectional(LSTM(self.hiddenSize,return_sequences = True,bias_regularizer=reg))) 
 #         model.add(Dropout(0.5))
 #         model.add(Bidirectional(LSTM(self.hiddenSize,return_sequences = True,bias_regularizer=reg)))
@@ -471,7 +469,7 @@ class DeepTagger():
         model.add(Dropout(0.5))
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop',metrics=['categorical_accuracy']  )
         print (model.summary())
-        _ = model.fit(lX, lY, epochs = self.nbEpochs,batch_size = self.batch_size, verbose = 1,validation_split = 0.10, shuffle=True)
+        _ = model.fit(lX, lY, epochs = self.nbEpochs,batch_size = self.batch_size, verbose = 1,validation_split = 0.33, shuffle=True)
         
         del lX,lY
         
@@ -591,7 +589,7 @@ class DeepTagger():
 #         print lY.shape
 
         scores = self.model.evaluate(lX,lY,verbose=True)
-        #print(list(zip(self.model.metrics_names,scores)))
+        print(list(zip(self.model.metrics_names,scores)))
         
         test_x, _ = testdata
         
@@ -617,7 +615,7 @@ class DeepTagger():
         lX,(lY,lY2) = self.prepareTensor_multitype(testdata)
 
         scores = self.model.evaluate(lX,[lY,lY2],verbose=True)
-        #print(list(zip(self.model.metrics_names,scores)))
+        print(list(zip(self.model.metrics_names,scores)))
         
         test_x, _ = testdata
         
@@ -741,7 +739,7 @@ class DeepTagger():
         for mysent in lsent :
     #         print self.tag_vector
             if len(mysent.split())> self.max_sentence_len:
-#                 print ('max sent length: %s'%self.max_sentence_len)
+                print ('max sent length: %s'%self.max_sentence_len)
                 continue
             allwords= self.node_transformer.transform(mysent.split())
 #             print mysent.split()
@@ -771,7 +769,7 @@ class DeepTagger():
                             #print self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]
                             pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
                     l_multi_type_results.append(pred_tags[:len(allwords)])
-#                     print(mysent.split(),l_multi_type_results) 
+                    print(l_multi_type_results) 
                 lRes.append(self.prepareOutput_multitype(mysent.split(),l_multi_type_results))
 
         return lRes
@@ -851,7 +849,7 @@ class DeepTagger():
 #                     print class_prs[class_prs >0.1]
                     if tuple(class_vec.tolist()) in self.tag_vector:
                         pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
-#                 print (zip(mysent.encode('utf-8').split(),pred_tags[pad_length:]))
+#                 print zip(mysent.encode('utf-8').split(),pred_tags[pad_length:])
 #                 lRes.append((mysent.split(),pred_tags[pad_length:]))   
                 lRes.append(self.prepareOutput(mysent.split(),pred_tags[:len(allwords)]))
 
@@ -875,6 +873,7 @@ class DeepTagger():
             
         if self.bMultiType and self.bTraining:
             lX, lY = self.load_data_Multitype(self.lTrain)
+            print(lY)
             model, other = self.training_multitype((lX,lY))
             # store
             self.storeModel(model,other)

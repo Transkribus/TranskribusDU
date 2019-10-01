@@ -15,9 +15,7 @@ If you want to know what is the longest substring and also have the Shortest Edi
     
  JL Meunier - September 2000, June 2008
 """
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
+
 DEBUG = 0
 
 import time, array

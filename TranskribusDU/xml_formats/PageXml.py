@@ -9,10 +9,6 @@ Various utilities to deal with PageXml format
 @author: meunier
 '''
 
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
-
 import os
 import datetime
 from copy import deepcopy
@@ -131,7 +127,7 @@ class PageXml:
         The Comments field is either updated or deleted.
         return the Metadata DOM node
         """
-        ndMetadata, ndCreator, ndCreated, ndLastChange, ndComments = cls._getMetadataNodes(doc, domNd)
+        ndMetadata, ndCreator, _ndCreated, ndLastChange, ndComments = cls._getMetadataNodes(doc, domNd)
         ndCreator.text = Creator
         #The schema seems to call for GMT date&time  (IMU)
         #ISO 8601 says:  "If the time is in UTC, add a Z directly after the time without a space. Z is the zone designator for the zero UTC offset."
@@ -139,11 +135,18 @@ class PageXml:
         #So, I simply add a 'Z' 
         ndLastChange.text = datetime.datetime.utcnow().isoformat()+"Z" 
         if Comments != None:
-            if not ndComments: #we need to add one!
+            ## if not ndComments: #we need to add one!
+            ## FutureWarning: The behavior of this method will change in future versions. Use specific 'len(elem)' or 'elem is not None' test instead.   
+            if ndComments is None : #we need to add one!
                 ndComments = etree.SubElement(ndMetadata, cls.sCOMMENTS_ELT)
             ndComments.text = Comments
         return ndMetadata
     setMetadata = classmethod(setMetadata)        
+    
+    # ---  XPATH convenience -------------------------------------
+    @classmethod
+    def xpath(cls, elt, sXpathExpr):
+        return elt.xpath(sXpathExpr, namespaces={"pc":cls.NS_PAGE_XML})
     
     # ---  Xml stuff -------------------------------------
     def getChildByName(cls, elt, sChildName):
@@ -347,6 +350,19 @@ class PageXml:
         return domNd, nd1, nd2, nd3, nd4
     _getMetadataNodes = classmethod(_getMetadataNodes)
 
+    @classmethod
+    def countTextLineWithText(cls, doc):
+        """
+        Get either a doc or a Page node
+        Return (count of TextLine with non-empty Unicode element
+               ,count of TextLine)
+        """
+        root = doc.getroot()
+        cnt = len(cls.getChildByName(root, "TextLine"))
+        cntTxt = len(root.xpath(".//pc:TextLine[.//pc:Unicode[text()]]"
+                                , namespaces={"pc":cls.NS_PAGE_XML}))
+        return cntTxt, cnt
+    
     # ---  Geometry -------------------------------------            
     def getPointList(cls, data):
         """
@@ -363,8 +379,10 @@ class PageXml:
             lsPair = sPoints.split(' ')
         lXY = list()
         for sPair in lsPair:
-            (sx,sy) = sPair.split(',')
-            lXY.append( (int(sx), int(sy)) )
+            try:
+                (sx,sy) = sPair.split(',')
+                lXY.append( (float(sx), float(sy)) )
+            except ValueError:pass #empty?
         return lXY
     getPointList = classmethod(getPointList)
 
@@ -427,7 +445,7 @@ class PageXml:
         return xmlPageDoc, pageNode
     
     @classmethod
-    def createPageXmlNode(cls,nodeName):
+    def createPageXmlNode(cls, nodeName):
         """
             create a PageXMl element
         """
@@ -675,6 +693,7 @@ class MultiPageXml(PageXml):
            
         raise StopIteration
     _iter_splitMultiPageXml = classmethod(_iter_splitMultiPageXml)
+
 
 # ---  Metadata of PageXml  --------------------------------            
 class Metadata:

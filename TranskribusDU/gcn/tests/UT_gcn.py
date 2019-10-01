@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import pdb
 import random
@@ -28,14 +25,11 @@ except ImportError:
 from IPython import embed
 import sklearn.metrics
 from sklearn.datasets import load_iris
-from sklearn.preprocessing import LabelBinarizer,Normalizer
-from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import LabelBinarizer
 from gcn.gcn_datasets import GCNDataset
 
 from gcn.gcn_models import EdgeConvNet, GraphAttNet, init_glorot, EnsembleGraphNN
 from gcn.DU_Model_ECN import DU_Ensemble_ECN
-import sklearn
-import sklearn.metrics
 
 from tasks import _checkFindColDir, DU_ABPTable
 from tensorflow.python import pywrap_tensorflow
@@ -79,7 +73,7 @@ def make_fake_gcn_dataset():
     DsL = np.zeros(nb_items)
     DdL = np.zeros(nb_items)
 
-    for i in xrange(nb_items):
+    for i in range(nb_items):
         DsL[i]=DsameLabel[i,neareast_same_class[i]]
         DdL[i]=DdiffLabel[i,neareast_diff_class[i]]
 
@@ -90,7 +84,7 @@ def make_fake_gcn_dataset():
     print(DsL)
     print(DdL)
 
-    for i in xrange(nb_items):
+    for i in range(nb_items):
         A[i,neareast_same_class[i]]=1.0
         A[i,neareast_diff_class[i]]=1.0
 

@@ -400,6 +400,18 @@ class DecoImage(DecoBBXYWH):
         sFilePath = self.xpathToStr(node, self.xpHRef, "")
         if sFilePath:
             if not os.path.exists(sFilePath): 
+                #maybe the image is in a folder with same name as XML file? (Transkribus style)
+                sUrl = node.getroottree().docinfo.URL.decode('utf-8') # py2 ...
+                for sPrefix in ["file://", "file:/"]:
+                    if sUrl[0:len(sPrefix)] == sPrefix:
+                        sLocalDir = os.path.dirname(sUrl[len(sPrefix):])
+                        sDir,_    = os.path.splitext(os.path.basename(sUrl))
+                        sCandidate = os.path.abspath(os.path.join(sLocalDir, sDir, sFilePath))
+                        if os.path.exists(sCandidate):
+                            sFilePath = sCandidate
+                            print(sFilePath)
+                            break
+            if not os.path.exists(sFilePath): 
                 # maybe we have some pattern??
                 lCandidate = glob.glob(sFilePath)
                 bKO = True

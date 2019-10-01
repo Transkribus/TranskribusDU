@@ -15,7 +15,7 @@
 # limitations under the License.
 
 """Script to average values of variables in a list of checkpoint files."""
-from __future__ import absolute_import
+
 from __future__ import division
 from __future__ import print_function
 

@@ -31,9 +31,9 @@
     under grant agreement No 674943.
     
 """
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
+
+
+
 
 import sys, os, re
 
@@ -59,7 +59,7 @@ class DU_BAR_Convert:
     These new annotations are store in @DU_sem and @DU_sgm
     """
     sXml_HumanAnnotation_Extension   = ".mpxml"
-    sXml_MachineAnnotation_Extension = ".bar_mpxml"
+    sXml_MachineAnnotation_Extension = ".du_mpxml"
     
     sMetadata_Creator  = "TranskribusDU/usecases/BAR/DU_ConvertGTAnnotation.py"
     sMetadata_Comments = "Converted human annotation into semantic and segmentation annotation. See attributes @DU_sem and @DU_sgm."
@@ -102,7 +102,7 @@ class DU_BAR_Convert:
         
         g = Graph_MultiPageXml()
         
-        doc = etree.parse(sFilename)
+        doc = etree.parse(sFilename, encoding='utf-8')
 
         #the Heigh/Ho annotation runs over consecutive pages, so we keep those values accross pages
         self._initSegmentationLabel()

@@ -121,7 +121,7 @@ if __name__ == "__main__":
                       C                 = options.crf_C,
                       tol               = options.crf_tol,
                       njobs             = options.crf_njobs,
-                      max_iter          = options.crf_max_iter,
+                      max_iter          = options.max_iter,
                       inference_cache   = options.crf_inference_cache)
     
     if options.rm:
