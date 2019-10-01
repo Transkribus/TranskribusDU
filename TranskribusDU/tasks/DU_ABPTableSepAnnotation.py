@@ -35,7 +35,7 @@ import collections
 from lxml import etree
 
 from shapely.geometry import Polygon as ShapePo
-from shapely.geometry import LineString
+from shapely.geometry import LineString, MultiLineString
 from shapely.prepared import prep
 from shapely.affinity import scale
 import numpy as np
@@ -49,7 +49,7 @@ except ImportError:
 from xml_formats.PageXml import MultiPageXml 
 from util.Polygon import Polygon
 
-lLabels_OI      = ['O','I']   # inside/outside a table           
+lLabels_OI      = ['O','I','B']   # inside/outside a table           
 
 
 sDUSep = "DU_sep"
@@ -68,12 +68,37 @@ def tagSeparatorRegion(lPages):
         [x.set(sDUSep,lLabels_OI[0]) for x in lSeparators]
         
         for table in lTables:
-            lPolygonTables = [ShapePo(MultiPageXml.getPointList(x)) for x in lTables ]
-            lPolygonSep = [LineString(MultiPageXml.getPointList(x)) for x in lSeparators ]
+            polygonTable = ShapePo(MultiPageXml.getPointList(table))
+            lPolygonSep = [ShapePo(LineString(MultiPageXml.getPointList(x)).buffer(10)) for x in lSeparators ]
+            
         
-            for table in lPolygonTables:
-                table_prep = prep(table)
-                [lSeparators[i].set(sDUSep,lLabels_OI[1]) for i,x in enumerate(lPolygonSep) if table_prep.intersects(x)]
+            table_prep = prep(polygonTable)
+            [lSeparators[i].set(sDUSep,lLabels_OI[1]) for i,x in enumerate(lPolygonSep) if table_prep.intersects(x)]
+        
+#             ## given some thickness to the table borders?
+#             lT, lR, lB, lL =  getVerHorBorders(table)
+#             lH = [];lV= []
+#             [lH.append(ShapePo(LineString(((x[0][0],x[0][1]),(x[0][2],x[0][3]))).buffer(10))) for x in [lT,lB]]
+#             [lV.append(ShapePo(LineString(((x[0][0],x[0][1]),(x[0][2],x[0][3]))).buffer(10))) for x in [lL,lR]]
+
+            col1,colN,row1,RowN = defineTableBordersFromCells(table)
+            
+            
+            ## vertical borders
+            # intersection of vertical sep with vertival border
+            for v in [col1,colN]:
+                v_prep = prep(v) 
+                for i,x in enumerate(lPolygonSep):
+                    if v_prep.intersects(x) and (x.bounds[3]-x.bounds[1]) > (x.bounds[2]-x.bounds[0]) :
+                        lSeparators[i].set(sDUSep,lLabels_OI[2])
+           
+            ## horizontal borders
+            for h in [row1,RowN]:
+                h_prep = prep(h) 
+                for i,x in enumerate(lPolygonSep):
+                    if h_prep.intersects(x) and (x.bounds[3]-x.bounds[1]) < (x.bounds[2]-x.bounds[0]) :
+                        lSeparators[i].set(sDUSep,lLabels_OI[2])            
+        
         
         ## fix bindings
         for table in lTables:
@@ -85,7 +110,124 @@ def tagSeparatorRegion(lPages):
                 for i,x in enumerate(lPolygonSep):
                     if cell_prep.intersects(x) and (x.bounds[3]-x.bounds[1]) > (x.bounds[2]-x.bounds[0]) :
                         lSeparators[i].set(sDUSep,lLabels_OI[0])
+    
+def defineTableBordersFromCells(table):
+    """
+        Table points are too loose: redefine thme with cells regions 
+    """
+    lCells= MultiPageXml.getChildByName(table,'TableCell')
+    maxRow = max(int(x.get('row')) for x in lCells)
+    maxCol = max(int(x.get('col')) for x in lCells)
+    #first col
+    col1 = filter(lambda x: x.get('col') == "0", lCells) 
+    colN = filter(lambda x: x.get('col') == str(maxCol), lCells) 
+    row1 = filter(lambda x: x.get('row') == "0", lCells) 
+    rowN = filter(lambda x: x.get('row') == str(maxRow), lCells)
+    
+
+    # T R B L 
+    lColSep_1 = getTBLRBorders(col1)[3]
+    lColSep_N = getTBLRBorders(colN)[1]
+    lRowSep_1 = getTBLRBorders(row1)[0]
+    lRowSep_N = getTBLRBorders(rowN)[2]
+    
+    return lColSep_1, lColSep_N, lRowSep_1,lRowSep_N
+
+
+def getTBLRBorders(lNodes):
+    """
+        return top, bottom, left, right borders
+    """  
+    llT, llR, llB, llL  = [],[],[],[]
+    for bordercell in lNodes :
+        coord = bordercell.xpath("./a:%s" % ("Coords"),namespaces={"a":MultiPageXml.NS_PAGE_XML})[0]
+        sPoints = coord.get('points')
+        plgn = Polygon.parsePoints(sPoints)
+        try:
+            lT, lR, lB, lL = plgn.partitionSegmentTopRightBottomLeft()
+        except:pass
+        llT.extend( [ [(x1,y1), (x2,y2)] for x1,y1,x2,y2 in lT])    
+        llR.extend([ [(x1,y1), (x2,y2)] for x1,y1,x2,y2 in lR])    
+        llB.extend([ [(x1,y1), (x2,y2)] for x1,y1,x2,y2 in lB])    
+        llL.extend([ [(x1,y1), (x2,y2)] for x1,y1,x2,y2 in lL])    
+    return  (MultiLineString(llT).convex_hull), (MultiLineString(llR).convex_hull), (MultiLineString(llB).convex_hull), (MultiLineString(llL).convex_hull)
+    return llT, llR, llB, llL 
+    
+lLabelsBIEOS_R  = ['B', 'I', 'E', 'S', 'O']  #O?
+# lLabelsBIEOS_R  = ['RB', 'RI', 'RE', 'RS', 'RO']  #O?
+lLabelsSM_C     = ['M', 'S', 'O']   # single cell, multicells
+#lLabels_OI      = ['O','I']   # inside/outside a table           
+#lLabels_SPAN    = ['rspan','cspan','nospan']
+lLabels_HEADER  = ['D','CH', 'O']
+
+
+sDURow= "DU_row"
+sDUCol= 'DU_col'
+sDUHeader = 'DU_header'
+
+def tag_DU_row_col_header(lCells, maxRowSpan):
+    """
+    Tag the XML nodes corresponding to those cells
+    Modify the XML DOM
+    """
+    for cell in lCells:
+    
+        lText = MultiPageXml.getChildByName(cell,'TextLine')
+         
+    #     # header wise
         
+        if int(cell.get('row')) < maxRowSpan:
+            [x.set(sDUHeader,lLabels_HEADER[1]) for x in lText]
+        else:
+            [x.set(sDUHeader,lLabels_HEADER[0]) for x in lText]
+        
+        # ROW WISE
+        if len(lText) == 0:
+            pass
+        if len(lText) == 1:
+            lText[0].set(sDURow,lLabelsBIEOS_R[3])
+        elif len(lText) > 1:
+    #         lText.sort(key=lambda x:float(x.prop('y')))
+            lText[0].set(sDURow,lLabelsBIEOS_R[0])
+            [x.set(sDURow,lLabelsBIEOS_R[1]) for x in lText[1:-1]]
+            lText[-1].set(sDURow,lLabelsBIEOS_R[2])
+    #         MultiPageXml.setCustomAttr(lText[0],"table","rtype",lLabelsBIEOS_R[0])
+    #         MultiPageXml.setCustomAttr(lText[-1],"table","rtype",lLabelsBIEOS_R[2])
+    #         [MultiPageXml.setCustomAttr(x,"table","rtype",lLabelsBIEOS_R[1]) for x in lText[1:-1]]    
+        
+        
+        
+        #COLUM WISE
+        lCoords = cell.xpath("./a:%s" % ("Coords"),namespaces={"a":MultiPageXml.NS_PAGE_XML})       
+        coord= lCoords[0]
+        sPoints=coord.get('points')
+        plgn = Polygon.parsePoints(sPoints)
+        (cx,cy,cx2,cy2) = plgn.getBoundingBox()     
+        
+        for txt in lText:
+            lCoords = txt.xpath("./a:%s" % ("Coords"),namespaces={"a":MultiPageXml.NS_PAGE_XML})       
+            coord= lCoords[0]
+            sPoints=coord.get('points')
+            lsPair = sPoints.split(' ')
+            lXY = list()
+            for sPair in lsPair:
+                (sx,sy) = sPair.split(',')
+                lXY.append( (int(sx), int(sy)) )
+            ## HOW to define a CM element!!!!
+            (x1,y1,x2,y2) = Polygon(lXY).getBoundingBox()
+            if x2> cx2 and (x2 - cx2) > 0.75 * (cx2 - x1):
+                txt.set(sDUCol,lLabelsSM_C[0])
+            else:
+                txt.set(sDUCol,lLabelsSM_C[1])
+                
+    # textline outside table
+    lRegions= MultiPageXml.getChildByName(root,'TextRegion')
+    for region in lRegions:
+        lText =  MultiPageXml.getChildByName(region,'TextLine')
+        [x.set(sDURow,lLabelsBIEOS_R[-1]) for x in lText]
+        [x.set(sDUCol,lLabelsSM_C[-1]) for x in lText]
+        [x.set(sDUHeader,lLabels_HEADER[-1]) for x in lText]
+    return
 def addSeparator(root, lCells):
     """
     Add separator that correspond to cell boundaries
@@ -186,6 +328,16 @@ def addSeparator(root, lCells):
     print(sStat)
         
     return
+
+def computeMaxRowSpan(lCells):
+    """
+        compute maxRowSpan for Row 0
+        ignore cells for which rowspan = #row
+    """
+    nbRows = max(int(x.get('row')) for x in lCells)
+    try: 
+        return max(int(x.get('rowSpan')) for x in filter(lambda x: x.get('row') == "0" and x.get('rowSpan') != str(nbRows+1), lCells))
+    except ValueError :return 1
 # ------------------------------------------------------------------
 #load mpxml 
 sFilename = sys.argv[1]
@@ -197,6 +349,22 @@ doc = etree.parse(sFilename, parser)
 root=doc.getroot()
 
 lPages = MultiPageXml.getChildByName(root,'Page')
+lCells= MultiPageXml.getChildByName(root,'TableCell')
+if lCells == []: print ('no table');sys.exit(1)
+
+# default: O for all cells: all cells must have all tags!
+for cell in lCells:
+    lText = MultiPageXml.getChildByName(cell,'TextLine')
+    [x.set(sDURow,lLabelsBIEOS_R[-1]) for x in lText]
+    [x.set(sDUCol,lLabelsSM_C[-1]) for x in lText]
+    [x.set(sDUHeader,lLabels_HEADER[-1]) for x in lText]
+
+
+# FOR COLUMN HEADER: get max(cell[0,i].span)
+maxRowSpan = computeMaxRowSpan(lCells)
+
+tag_DU_row_col_header(lCells, maxRowSpan)
+
 
 tagSeparatorRegion(lPages)
 
