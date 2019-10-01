@@ -104,10 +104,10 @@ class primaAnalysis(Component.Component):
         lList = sList.split(' ')
 
         for x,y in [x.split(',') for x in lList]:
-            minx = min(minx,int(x))
-            maxx = max(maxx,int(x))
-            miny = min(miny,int(y))
-            maxy = max(maxy,int(y))
+            minx = min(minx,float(x))
+            maxx = max(maxx,float(x))
+            miny = min(miny,float(y))
+            maxy = max(maxy,float(y))
         return [minx,miny,maxy-miny,maxx-minx]
               
     def regionBoundingBox2010(self,lList):
@@ -361,8 +361,9 @@ class primaAnalysis(Component.Component):
         node = etree.Element('EDGE')
         node.set('src',child.get('src'))
         node.set('tgt',child.get('tgt'))
-        node.set('type',child.get('DU_type'))
-        node.set('w',child.get('w'))
+        node.set('type',child.get('type'))
+        node.set('w',child.get('proba'))
+        node.set('label',child.get('label'))
         lPoints = child.get('points')
         lP = lPoints.split(' ')
         if lP != []:
@@ -501,6 +502,8 @@ class primaAnalysis(Component.Component):
             imageHeight = 72 * (float(ipage.get("imageHeight")) / self.dpi)
             page.set("width",str(imageWidth))
             page.set("height",str(imageHeight))
+            page.set("imageWidth",str(imageWidth))
+            page.set("imageHeight",str(imageHeight))            
             self.convertPage(ipage, page)
                 
         self.addTagProcessToMetadata(dsdom)                 
@@ -540,6 +543,8 @@ class primaAnalysis(Component.Component):
                     imageHeight = 72 * (float(ipage.get("imageHeight")) / self.dpi)
                     page.set("width",str(imageWidth))
                     page.set("height",str(imageHeight))
+                    page.set("imageWidth",str(imageWidth))
+                    page.set("imageHeight",str(imageHeight))                       
                     imgNode = etree.Element("IMAGE")
                     imgNode.set("href",ipage.get("imageFilename"))
                     imgNode.set("x","0")
