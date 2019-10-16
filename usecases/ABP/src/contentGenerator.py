@@ -166,7 +166,7 @@ class deathreasonGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
         self._name  = 'deathreason'
-        self._lpath=[os.path.abspath('../resources/deathreason.pkl')]
+        self._lpath=[os.path.abspath('../resources/old/deathreason.pkl')]
         self._value = list(map(lambda x:x[0],self.loadResources(self._lpath)))
         
         self._lenRes= len(self._lresources)
@@ -182,6 +182,18 @@ class locationPrepositionGenerator(textGenerator):
     two locations 
 """
         
+class NGenerator(textGenerator):
+    def __init__(self):
+        textGenerator.__init__(self,lang=None)
+        self.loadResourcesFromList( [[('N',50),('Num',10)]])         
+        
+class HausnumberGenerator(textGenerator):
+    def __init__(self,mean,std):
+        textGenerator.__init__(self,lang=None)        
+        self._structure = [ ( (NGenerator(),1,80) ,(positiveIntegerGenerator(mean,std),1,100),100 )  ]
+    def generate(self):
+        return Generator.generate(self)  
+            
 class location2Generator(textGenerator):
     """
         missing Rothsmansdorf Nr̳ 12
@@ -193,7 +205,7 @@ class location2Generator(textGenerator):
         self.location2 = locationGenerator()
         self.prep = locationPrepositionGenerator()    
         self._structure = [
-                ( (self.location2,1,20),(self.prep,1,10), (self.location,1,100),(legitimGenerator(),1,10),100)
+                ( (self.location2,1,20),(self.prep,1,10), (self.location,1,100),(HausnumberGenerator(50,10),1,20),(legitimGenerator(),1,10),100)
              ]
     def generate(self):
         return Generator.generate(self)        
@@ -202,7 +214,7 @@ class locationGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
         self._name  = 'location'
-        self._lpath=[os.path.abspath('../resources/location.pkl')]
+        self._lpath=[os.path.abspath('../resources/old/location.pkl')]
         self._value = list(map(lambda x:x[0],self.loadResources(self._lpath)))
         self._lenRes= len(self._lresources)
     
@@ -220,7 +232,7 @@ class professionGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
         self._name  = 'profession'
-        self._lpath=[os.path.abspath('../resources/profession.pkl')]
+        self._lpath=[os.path.abspath('../resources/old/profession.pkl')]
         self._value = list(map(lambda x:x[0],self.loadResources(self._lpath)))
         self._lenRes= len(self._lresources)
     
@@ -229,7 +241,7 @@ class firstNameGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
         self._name  = 'firstName'
-        self._lpath=[os.path.abspath('../resources/firstname.pkl')]
+        self._lpath=[os.path.abspath('../resources/old/firstname.pkl')]
         self._value = list(map(lambda x:x[0],self.loadResources(self._lpath)))
         self._lenRes= len(self._lresources)
     
@@ -238,7 +250,7 @@ class lastNameGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
         self._name  = 'firstName'
-        self._lpath=[os.path.abspath('../resources/lastname.pkl')]
+        self._lpath=[os.path.abspath('../resources/old/lastname.pkl')]
         self._value = list(map(lambda x:x[0],self.loadResources(self._lpath)))
         
         self._lenRes= len(self._lresources)
@@ -332,6 +344,12 @@ class MonthDateGenerator(textGenerator):
         return self
 
 class MonthDayDateGenerator(textGenerator):
+    """
+    '16. Nov'   -> [((0, 0), '16.', 'numberedItems', [0.9996762]), ((1, 1), 'Nov', 'MonthDateGenerator', [0.9997758])]  
+    
+    
+    add . after number ?
+    """
     def __init__(self,lang,value=None):
         textGenerator.__init__(self,lang)
         self._value = [value]     
@@ -374,7 +392,7 @@ class HourDateGenerator(textGenerator):
     def __init__(self,lang,value=None):
         self._fulldate = None
         textGenerator.__init__(self,lang)
-        self._value = [value]
+        #self._value = [value]
         self.realization=['H','I']      
     
     def setValue(self,d): 
@@ -382,8 +400,8 @@ class HourDateGenerator(textGenerator):
         self._value = [d.hour]
     
     def generate(self):
-        try:self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization))
-        except UnicodeDecodeError: self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization)).decode('latin-1')
+        try:self._generation = u""+str(int(self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization))))
+        except UnicodeDecodeError: self._generation = u""+self._fulldate.strftime('%'+ '%d'%self.getRandomElt(self.realization)).decode('latin-1')
         return self        
         
 class yearGenerator(textGenerator):
@@ -495,10 +513,11 @@ class ABPGermanDateGenerator(DateGenerator):
 
 
         self._structure = [ 
-                             ( (self.weekdayGen,1,90),(self.monthdayGen,1,90),(self.monthGen,1,90),(self.yearGen,1,40),(self.hourGen,1,100), 100)
-                            ,( (DENGenerator(self.lang),1,100),(self.monthdayGen,1,100),(self.monthGen,1,90), (self.hourGen,1,10) ,100)
+                              ( (self.monthdayGen,1,90),(self.monthGen,1,100), 100)
+                            , ( (self.weekdayGen,1,90),(self.monthdayGen,1,90),(self.monthGen,1,90),(self.yearGen,1,40),(self.hourGen,1,100), 100)
+                            , ( (DENGenerator(self.lang),1,100),(self.monthdayGen,1,100),(self.monthGen,1,90), (self.hourGen,1,10) ,100)
                             # ??
-                            ,( (self.yearGen,1,100),100)
+                            ,( (self.yearGen,1,100),50)
                            
                            ]
         
@@ -655,7 +674,7 @@ class ABPRecordGeneratorTOK(textGenerator):
     # method level otherwise loadresources for each sample!!
     person= PersonName2(lang)
     date= ABPGermanDateGenerator()
-    date.defineRange(1700, 2000)
+    date.defineRange(1700, 1900)
     deathreasons = deathReasonColumnGenerator(lang)
     doktor= doktorGenerator(lang)
     location= location2Generator()
