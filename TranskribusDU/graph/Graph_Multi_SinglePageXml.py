@@ -162,6 +162,6 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
             page = Page(pnum, pagecnt, iPageWidth, iPageHeight, cls=None, domnode=ndPage, domid=ndPage.get("id"))
             yield (pnum, page, ndPage)
             
-        raise StopIteration()        
+        return       
                
         
