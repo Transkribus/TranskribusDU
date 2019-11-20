@@ -9,9 +9,9 @@ Document Understanding tools
 
 We recommend installing __anaconda3__ . You can then train using pystruct and/or tensorflow (both to be installed on top of anaconda).
 
- *conda install shapely rtree
- *conda install -c anaconda tensorflow(-gpu)
- *pip install future lxml scipy scikit-learn pytest cvxopt ad3 pystruct --upgrade
+ * conda install shapely rtree
+ * conda install -c anaconda tensorflow(-gpu)
+ * pip install future lxml scipy scikit-learn pytest cvxopt ad3 pystruct --upgrade
 
 ### Usage
  * see use-cases
