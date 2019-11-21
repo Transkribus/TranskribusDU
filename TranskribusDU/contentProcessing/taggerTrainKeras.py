@@ -11,18 +11,7 @@
     copyright Naverlabs 2017
     READ project 
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -726,9 +715,6 @@ class DeepTagger():
             lRes.append((toffset,tok,label,list(lScore)))
         
         return lRes
-           
-
-           
             
     def predict_multiptype(self,lsent):
         """
@@ -774,47 +760,6 @@ class DeepTagger():
 
         return lRes
         
-    def predict_multiptype_list(self,lsent):
-        """
-            predict over a set of sentences (unicode)
-        """
-    
-        lRes= []
-        allwords=[]
-        for mysent in lsent :
-    #         print self.tag_vector
-            if len(mysent.split())> self.max_sentence_len:
-#                 print ('max sent length: %s'%self.max_sentence_len)
-                continue
-            allwords.extend(self.node_transformer.transform(mysent.split()))
-            wordsvec = []
-            for w in allwords:
-                wordsvec.append(w)
-        lX = list()
-        nil_X = np.zeros(self.max_features)
-        pad_length = self.max_sentence_len - len(wordsvec)
-        lX.append( wordsvec +((pad_length)*[nil_X]) )
-        lX=np.array(lX)
-        y_pred1,y_pred2 = self.model.predict(lX)
-        for i,_ in enumerate(lX):
-#                 pred_seq = y_pred[i]
-            l_multi_type_results = []
-            for pred_seq in [y_pred1[i],y_pred2[i]]:
-                pred_tags = []
-                pad_length = self.max_sentence_len - len(allwords)
-                for class_prs in pred_seq:
-                    class_vec = np.zeros(self.nbClasses, dtype=np.int32)
-                    class_vec[ np.argmax(class_prs) ] = 1
-#                     print class_prs[class_prs >0.1]
-                    if tuple(class_vec.tolist()) in self.tag_vector:
-                        #print self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]
-                        pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
-                l_multi_type_results.append(pred_tags[:len(allwords)])
-#                     print(mysent.split(),l_multi_type_results) 
-            lRes.append(self.prepareOutput_multitype(mysent.split(),l_multi_type_results))
-
-        return lRes
-              
     def predict(self,lsent):
         """
             predict over a set of sentences (unicode)

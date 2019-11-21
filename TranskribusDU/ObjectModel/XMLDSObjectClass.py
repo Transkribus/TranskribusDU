@@ -16,7 +16,7 @@ from __future__ import unicode_literals
 
 from .XMLObjectClass import XMLObjectClass
 from config import ds_xml_def as ds_xml
-from shapely.geometry import polygon,Polygon,LineString
+
 from lxml import etree
 
 class  XMLDSObjectClass(XMLObjectClass):
@@ -34,18 +34,7 @@ class  XMLDSObjectClass(XMLObjectClass):
         self._id= None
         
         self.Xnearest=[[],[]]  # top bottom
-        self.Ynearest=[[],[]]  # left right      
-        
-        
-        ## need to have x,y,w,h directly: otherwise: too slow
-        self._x = None
-        self._y = None
-        self._h = None
-        self._w = None  
-        
-        self._poly = None
-          
-          
+        self.Ynearest=[[],[]]  # left right        
         
     def getPage(self): return self._page
     def setPage(self,p): self._page= p 
@@ -56,38 +45,23 @@ class  XMLDSObjectClass(XMLObjectClass):
 #     def addElement(self,e): self._lElements.append(e)
     
 
-    def getX(self): return self._x #float(self.getAttribute('x'))
-    def getY(self): return self._y # return float(self.getAttribute('y'))
-    def getX2(self): return self.getX() + self.getWidth()
-    def getY2(self): return self.getY() +self.getHeight()        
-    def getHeight(self): return self._h  #return float(self.getAttribute('height'))
-    def getWidth(self): return self._w #return float(self.getAttribute('width'))    
+    def getX(self): return float(self.getAttribute('x'))
+    def getY(self): return float(self.getAttribute('y'))
+    def getX2(self): return float(self.getAttribute('x'))+self.getWidth()
+    def getY2(self): return float(self.getAttribute('y'))+self.getHeight()        
+    def getHeight(self): return float(self.getAttribute('height'))
+    def getWidth(self): return float(self.getAttribute('width'))    
 
-    def setX(self,x): self.addAttribute('x',x); self._x = float(x)
-    def setY(self,y): self.addAttribute('y',y); self._y = float(y)
-    def setWidth(self,w): self.addAttribute('width',w);self._w = float(w)
-    def setHeight(self,h):self.addAttribute('height',h);self._h = float(h)
+    def setX(self,x): self.addAttribute('x',x)
+    def setY(self,y): self.addAttribute('y',y)
+    def setWidth(self,w): self.addAttribute('width',w)
+    def setHeight(self,h):self.addAttribute('height',h)
     
     def setDimensions(self,x,y,h,w):
-        self.setX(x)
-        self.setY(y)
-        self.setHeight(h)
-        self.setWidth( w)
-    
-    def toPolygon(self):
-        """
-        return a shapely polygon using points!!!
-        points="375.12,98.88,924.0,101.52,924.0,113.52,375.12,110.88" 
-        """
-        if self._poly is not None:
-            return self._poly
-
-        x  = [float(x) for x in self.getAttribute("points").replace(" ",",").split(',')]
-        if len(x) <3*2:
-            return   LineString(list(zip(*[iter(x)]*2)))
-        self._poly = polygon.orient(Polygon(list(zip(*[iter(x)]*2))))
-        if not self._poly.is_valid:self._poly= self._poly.convex_hull
-        return     self._poly 
+        self.addAttribute('x', x)
+        self.addAttribute('y', y)
+        self.addAttribute('height', h)
+        self.addAttribute('width', w)
     
     def addObject(self,o,bDom=False): 
         ## move dom node as well
@@ -97,23 +71,14 @@ class  XMLDSObjectClass(XMLObjectClass):
             o.setParent(self)
             if bDom: 
                 if o.getNode() is not None and self.getNode() is not None:
-                    o.getNode().getparent().remove(o.getNode())
-                    self.getNode().append(o.getNode())
+                    o.getNode().unlinkNode()
+                    self.getNode().addChild(o.getNode())
                
     
 
-    def removeObject(self,o,bDom=False):
-        """
-            remove o from self.getObjects()
-            unlink if bDom
-        """
-        self.getObjects().remove(o)
-        if bDom: 
-            if o.getNode() is not None and self.getNode() is not None:
-                o.getNode().getparent().remove(o.getNode())
+    
     
     def resizeMe(self,objectType):
-        
         assert len(self.getAllNamedObjects(objectType)) != 0
         
         minbx = 9e9
@@ -127,28 +92,18 @@ class  XMLDSObjectClass(XMLObjectClass):
                 if elt.getX() + elt.getWidth() > maxbx: maxbx = elt.getX() + elt.getWidth()
                 if elt.getY() + elt.getHeight()  > maxby: maxby = elt.getY() + elt.getHeight()
         assert minby != 9e9
-        self.setX( minbx)
-        self.setY( minby)
-        self.setWidth(maxbx-minbx)
-        self.setHeight(maxby-minby)
+        self.addAttribute('x', minbx)
+        self.addAttribute('y', minby)
+        self.addAttribute('width', maxbx-minbx)
+        self.addAttribute('height', maxby-minby)
         self.addAttribute('x2', maxbx)
         self.addAttribute('y2', maxby)
 
+        
         self._BB = [minbx,minby,maxby-minby,maxbx-minbx]    
     
 
-    def setXYHW(self,x,y,h,w):
-        self.setX(x)
-        self.setY(y)
-        self.setHeight(h)
-        self.setWidth(w)
         
-    def copyXYHW(self,o):
-        self._x = o.getX()
-        self._y  =o.getY()
-        self._h = o.getHeight()
-        self._w = o.getWidth()
-          
     def fromDom(self,domNode):
         
         ## if domNode in mappingTable:
@@ -164,13 +119,10 @@ class  XMLDSObjectClass(XMLObjectClass):
         # get properties
         for prop in domNode.keys():
             self.addAttribute(prop,domNode.get(prop))
-            if prop =='x': self._x= float(domNode.get(prop))
-            elif prop =='y': self._y = float(domNode.get(prop))
-            elif prop =='height': self._h = float(domNode.get(prop))
-            elif prop =='width': self.setWidth(float(domNode.get(prop)))
         
-        self.addAttribute('x2', self.getX()+self.getWidth())
-        self.addAttribute('y2',self.getY()+self.getHeight() )
+        self.addAttribute('x2', float(self.getAttribute('x'))+self.getWidth())
+        self.addAttribute('y2',float(self.getAttribute('y'))+self.getHeight() )
+        
         
         self._id = self.getAttribute('id')
         if self.getID() is None:
@@ -217,62 +169,20 @@ class  XMLDSObjectClass(XMLObjectClass):
                     self.addObject(myObject)
                     myObject.setPage(self.getPage())
                     myObject.fromDom(child)   
+                
+         
          
         
-         
-
-    def bestRegionsAssignment(self,lRegions,bOnlyBaseline=False):
+    def bestRegionsAssignment(self,lRegions):
         """
             find the best (max overlap for self) region  for self
-            bOnlyBaseline: reduce the height so that baseline position is more important
-        """
-        from rtree import index
-        
-        assert self.toPolygon().convex_hull.is_valid
-         
-        txtidx = index.Index()
-        lP = []
-        [lP.append(e.toPolygon()) for e in lRegions if e.toPolygon().is_valid]
-        for i,elt in enumerate(lRegions):
-            txtidx.insert(i, lP[i].bounds)
-        lSet = txtidx.intersection(self.toPolygon().bounds)
-        lOverlap = []
-        for ei in lSet:
-            if lP[ei].is_valid:
-                intersec= self.toPolygon().intersection(lP[ei]).area
-                if intersec >0:
-                    lOverlap.append((ei,lP[ei],intersec))
-        if lOverlap != []:        
-            lOverlap.sort(key=lambda xyz:xyz[-1])
-#             print ("??",self,lRegions[lOverlap[-1][0]])
-            return lRegions[lOverlap[-1][0]]
-        
-        return None
-        
-    def bestRegionsAssignmentOld(self,lRegions,bOnlyBaseline=False):
-        """
-            find the best (max overlap for self) region  for self
-            bOnlyBaseline: reduce the height so that baseline position is more important
         """
 
-        if bOnlyBaseline:
-            #backup height
-            Hbackup = self.getHeight()
-            Ybackup= self.getY()
-            self.setHeight(1)
-            self.setY(Hbackup+self.getY())
         lOverlap=[]        
         for region in lRegions:
-#             lOverlap.append(self.signedRatioOverlap(region))
-            lOverlap.append(self.signedRatioOverlapY(region))
-#             print(self.getX(),self.getWidth(),region, self.signedRatioOverlapX(region))
-
-        if bOnlyBaseline:
-            #restaure height
-            self.setHeight(Hbackup)
-            self.setY(Ybackup)
+            lOverlap.append(self.signedRatioOverlap(region))
         
-        if lOverlap ==[] : return None
+        if max(lOverlap) == 0: return None
         return lRegions[lOverlap.index(max(lOverlap))]
         
     def clipMe(self,clipRegion,lSubObject=[]):
@@ -299,10 +209,10 @@ class  XMLDSObjectClass(XMLObjectClass):
             newW = min(self.getX2(),clipRegion.getX2()) - newX
             newH = min(self.getY2(),clipRegion.getY2()) - newY
             
-            myNewObject.setX(newX)
-            myNewObject.setY(newY)
-            myNewObject.setHeight(newH)
-            myNewObject.setWidth(newW)            
+            myNewObject.addAttribute('x',newX)
+            myNewObject.addAttribute('y',newY)
+            myNewObject.addAttribute('height',newH)
+            myNewObject.addAttribute('width',newW)            
             
 #             print self.getID(),self.getName(),self.getContent()
 #             print '\tnew dimensions',myNewObject.getX(),myNewObject.getY(),myNewObject.getWidth(),myNewObject.getHeight()
@@ -324,21 +234,7 @@ class  XMLDSObjectClass(XMLObjectClass):
             return None
         
          
-    def signedRatioOverlapY(self,zone):
-        """
-            return the overlap ratio betwenn self and zone
-        """     
-        [a1,a2] = self.getY(),self.getY() + self.getHeight()
-        [b1,b2] = zone.getY(),zone.getY() + zone.getHeight()
-        if min(a2, b2) >=  max(a1, b1): return min(a2, b2) -  max(a1, b1)
-        else: return -1  
-        
-    def signedRatioOverlapX(self,zone):
-        
-        [a1,a2] = self.getX(),self.getX()+ self.getWidth()
-        [b1,b2] = zone.getX(),zone.getX()+ zone.getWidth()
-        if  min(a2, b2) >=   max(a1, b1): return    min(a2, b2) -   max(a1, b1)
-        else: return -1  
+         
     
     def signedRatioOverlap(self,zone):
         """
@@ -425,30 +321,6 @@ class  XMLDSObjectClass(XMLObjectClass):
         [a1,a2] = self.getY(),self.getY() + self.getHeight()
         [b1,b2] = zone.getY(),zone.getY() + zone.getHeight()
         return min(a2, b2) >=  max(a1, b1)   
-        
-        
-    def getSetOfX1X2Attributes(self,TH,foo,myObject):
-        """
-            input: feature threshold (eq) 
-        """
-        from spm.feature import featureObject,TwoDFeature
-     
-        if self._lBasicFeatures is None:
-            self._lBasicFeatures = []
-        # needed to keep canonical values!
-        elif self.getSetofFeatures() != []:
-            return self.getSetofFeatures()
-        
-        for elt in self.getAllNamedObjects(myObject):
-            ftype= featureObject.COMPLEX
-            feature = TwoDFeature()
-            feature.setName("x1x2")
-            feature.setTH(TH)
-            feature.addNode(elt)
-            feature.setObjectName(self)
-            feature.setValue((elt.getX(),elt.getX2()))
-            feature.setType(ftype)
-            self.addFeature(feature)        
         
     def getSetOfListedAttributes(self,TH,lAttributes,myObject):
         """

@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
+# -*- coding: latin-1 -*-
 """
 
     XML object class 
     
-    Hervï¿½ Dï¿½jean
+    Hervé Déjean
     cpy Xerox 2009
     
     a class for object from a XMLDocument
@@ -72,9 +72,7 @@ class  XMLObjectClass(objectClass):
         """
              create a dom elt and add it to the doc
         """
-        if sLabel is None:
-            newNode = etree.Element(self.getName())
-        else: newNode = etree.Element(sLabel)
+        newNode = etree.Element(self.tagName)
         
         newNode.set('x',str(self.getX()))
         newNode.set('y',str(self.getY()))
@@ -103,6 +101,7 @@ class  XMLObjectClass(objectClass):
 #         for o in self.getObjects():
 #             o.setParent(self)
 #             o.tagMe()
+            
         return newNode
     
     def fromDom(self,domNode):

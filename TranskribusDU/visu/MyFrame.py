@@ -9,6 +9,7 @@ from lxml import etree
 
 from document import Document
 from config import Config
+from deco import DecoImage
 
 # begin wxGlade: dependencies
 # end wxGlade
@@ -97,10 +98,12 @@ class MyFrame(wx.Frame):
         id_saveas = wx.NewId()
         id_close = wx.NewId()
         id_quit = wx.NewId()
+        id_imgfolder = wx.NewId()
         wxglade_tmp_menu.Append(id_load, "&Load Xml File", "", wx.ITEM_NORMAL)
         wxglade_tmp_menu.Append(id_reload, "&Re-load the Xml File", "", wx.ITEM_NORMAL)
         wxglade_tmp_menu.Append(id_save, "&Save Xml File", "", wx.ITEM_NORMAL)
         wxglade_tmp_menu.Append(id_saveas, "Save &As Xml File", "", wx.ITEM_NORMAL)
+        wxglade_tmp_menu.Append(id_imgfolder, "Select image folder", "", wx.ITEM_NORMAL)
         
         #MARCHE PAS wxglade_tmp_menu.Append(id_reloadini, "&Reload INI File", "", wx.ITEM_NORMAL)
         #wxglade_tmp_menu.Append(id_close, "&Close", "", wx.ITEM_NORMAL)
@@ -129,6 +132,7 @@ class MyFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnMenu_ReloadINI, id=id_reloadini)
         self.Bind(wx.EVT_MENU, self.OnMenu_SaveXML, id=id_save)
         self.Bind(wx.EVT_MENU, self.OnMenu_SaveAsXML, id=id_saveas)
+        self.Bind(wx.EVT_MENU, self.OnMenu_ImgFolder, id=id_imgfolder)
         
         self.Bind(wx.EVT_MENU, self.OnMenu_Quit, id=id_quit)
         self.Bind(wx.EVT_MENU, self.OnMenu_Help, id=id_help)
@@ -330,6 +334,18 @@ def OnMenu_LoadRecent%d(event):
         dlg.Destroy()
         if ret: self.bModified = False
         
+    def OnMenu_ImgFolder(self, event):
+        curdir = os.path.dirname(self.doc.getFilename())
+        if not curdir: curdir = os.getcwd()
+        dlg = wx.DirDialog (None, "Select the image folder", "",
+                    wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST)        
+        dlg.CenterOnScreen()
+        val = dlg.ShowModal()
+        if val == wx.ID_OK:
+            DecoImage.sImageFolder = dlg.GetPath()
+        dlg.Destroy()
+        self.bModified = True
+        self.display_page()
         
     def OnMenu_Quit(self, event):
         if self.bModified:
@@ -433,22 +449,37 @@ def OnMenu_LoadRecent%d(event):
                 
     def OnCanvas_RightMouse(self, obj):
         """Click on a widget in the canvas with the right mouse"""
-        menu = wx.Menu() 
-        # get the id of the corresponding node
-        self.n = self.doc.obj_n[obj]
-        tree_id = wx.NewId()     
-        self.Bind(wx.EVT_MENU, self.OnPopup_RightCanvas, id=tree_id)
-        menu.Append(tree_id, "XPath lab")
-        c = self.wysi.Canvas
-        pos = (c.PixelToWorld(obj.XY[0]),
-               c.PixelToWorld(c.GetSize()[1]-obj.XY[1]))
-        self.PopupMenu(menu, pos)
-        menu.Destroy()
+#         menu = wx.Menu() 
+#         # get the id of the corresponding node
+#         self.n = self.doc.obj_n[obj]
+#         tree_id = wx.NewId()     
+#         self.Bind(wx.EVT_MENU, self.OnPopup_RightCanvas, id=tree_id)
+#         menu.Append(tree_id, "XPath lab")
+#         c = self.wysi.Canvas
+#         pos = (c.PixelToWorld(obj.XY[0]),
+#                c.PixelToWorld(c.GetSize()[1]-obj.XY[1]))
+#         self.PopupMenu(menu, pos)
+#         menu.Destroy()
+        print("Clicked: ", obj)
+        try:
+            txt = etree.tostring(self.doc.obj_n[obj].getparent())
+        except KeyError:
+            print("No deco associated")
+            return
+        txt = unicode(txt, sEncoding)
+        tip = wx.TipWindow(self, txt, maxLength=1200)
+        wx.FutureCall(30000, tip.Close)
+              
         
     def OnCanvas_LeftMouse(self, obj):
-        txt = etree.tostring(self.doc.obj_n[obj])
+        print("Clicked: ", obj)
+        try:
+            txt = etree.tostring(self.doc.obj_n[obj])
+        except KeyError:
+            print("No deco associated")
+            return
         txt = unicode(txt, sEncoding)
-        tip = wx.TipWindow(self, txt)
+        tip = wx.TipWindow(self, txt, maxLength=1200)
         wx.FutureCall(30000, tip.Close)      
 
     def OnCanvas_LeftMouseDecoAction(self, obj):
@@ -493,10 +524,18 @@ def OnMenu_LoadRecent%d(event):
     def cbkDecoCheckBox(self, event): # wxGlade: MyFrame.<event_handler>
         """enable or disbale a decoration type"""
         deco = self.dChekBox2Deco[ event.GetEventObject() ]
-        deco.setEnabled(event.IsChecked())
+        
+        # try to only update the page, when the user adds a decoration, for display speedup
+        #  of course, the deco will be on top of all others, even if not at bottom of list of deco
+        b = event.IsChecked()
+        deco.setEnabled(b)
         if self.doc:
             d = self.doc.displayed
-            self.display_page(d)
+            if b:
+                # deco was enabled
+                self.update_page(d, deco)
+            else:
+                self.display_page(d)
     
     def cbkDecoNext(self, event):
         """jump on the next page that has such a decoration"""
@@ -606,7 +645,7 @@ def OnMenu_LoadRecent%d(event):
                                  LineColor=self.config.page_border_color,
                                  FillColor=self.config.page_background_color,
                                  FillStyle="Solid") 
-        self.doc.obj_n[page_rect] = self.current_page_node
+        # useless self.doc.obj_n[page_rect] = self.current_page_node
         page_rect.Bind(FloatCanvas.EVT_FC_RIGHT_DOWN, self.OnCanvas_RightMouse)
         page_rect.Bind(FloatCanvas.EVT_FC_LEFT_DOWN, self.OnCanvas_LeftMouse)
 #        page_rect.Bind(FloatCanvas.EVT_FC_ENTER_OBJECT, self.OnCanvas_Enter) 
@@ -629,14 +668,14 @@ def OnMenu_LoadRecent%d(event):
                     
                     #let's bind on the first object of the list
                     if lo:
-                        obj = lo[0]
-                        self.doc.obj_n[obj] = n
-                        obj.Bind(FloatCanvas.EVT_FC_RIGHT_DOWN, self.OnCanvas_RightMouse)
+                        for obj in lo: self.doc.obj_n[obj] = n
+                        obj0 = lo[0]
+                        obj0.Bind(FloatCanvas.EVT_FC_RIGHT_DOWN, self.OnCanvas_RightMouse)
                         if deco.isActionable():
-                            self.doc.obj_deco[obj] = deco
-                            obj.Bind(FloatCanvas.EVT_FC_LEFT_DOWN,     self.OnCanvas_LeftMouseDecoAction)
+                            self.doc.obj_deco[obj0] = deco
+                            obj0.Bind(FloatCanvas.EVT_FC_LEFT_DOWN,     self.OnCanvas_LeftMouseDecoAction)
                         else:
-                            obj.Bind(FloatCanvas.EVT_FC_LEFT_DOWN,     self.OnCanvas_LeftMouse)
+                            obj0.Bind(FloatCanvas.EVT_FC_LEFT_DOWN,     self.OnCanvas_LeftMouse)
     #                    obj.Bind(FloatCanvas.EVT_FC_ENTER_OBJECT, self.OnCanvas_Enter) 
                 deco.endPage(self.current_page_node)
                 
@@ -654,3 +693,53 @@ def OnMenu_LoadRecent%d(event):
 
         c.ZoomToBB() 
         
+    def update_page(self, i, deco):
+        """Update the page in the interface by drawing a single deco (just enabled)
+        """        
+        assert deco.isEnabled()
+        
+        c = self.wysi.Canvas
+        # self.doc.new_page(i)
+        
+        try:
+            self.current_page_node = self.doc.getPageByIndex(i)
+        except IndexError:
+            dlg = wx.MessageDialog(self, message="This XML file has no such page (%dth '%s' element) Try passing another .ini file as application parameter."%(i+1, self.config.page_tag), 
+                            caption="Error",
+                            style=wx.ICON_ERROR)
+            dlg.CenterOnScreen()
+            val = dlg.ShowModal()
+            dlg.Destroy()
+            return
+ 
+        #Now let's decorate the page according to the configuration
+        ln = self.doc.xpathEval( deco.getMainXPath(), self.current_page_node )
+        deco.beginPage(self.current_page_node)
+        
+        for n in ln:
+            #TODO: deal with that!!!
+            inc = 1
+            try:
+                lo = deco.draw(c, n)
+            except:
+                lo = None
+                traceback.print_exc()
+            
+            #let's bind on the first object of the list
+            if lo:
+                # bind all objects... (since the click fails from time to time...)
+#                 obj = lo[0]
+#                 self.doc.obj_n[obj] = n
+                for obj in lo: self.doc.obj_n[obj] = n
+                obj0 = lo[0]
+                obj0.Bind(FloatCanvas.EVT_FC_RIGHT_DOWN, self.OnCanvas_RightMouse)
+                if deco.isActionable():
+                    self.doc.obj_deco[obj0] = deco
+                    obj0.Bind(FloatCanvas.EVT_FC_LEFT_DOWN,     self.OnCanvas_LeftMouseDecoAction)
+                else:
+                    obj0.Bind(FloatCanvas.EVT_FC_LEFT_DOWN,     self.OnCanvas_LeftMouse)
+#                    obj.Bind(FloatCanvas.EVT_FC_ENTER_OBJECT, self.OnCanvas_Enter) 
+        deco.endPage(self.current_page_node)
+                
+        c.ZoomToBB() 
+

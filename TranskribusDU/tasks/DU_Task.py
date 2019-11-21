@@ -5,18 +5,7 @@
     
     Copyright Xerox(C) 2016, 2017 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -27,7 +16,9 @@
 import sys, os, glob, datetime
 import json
 from importlib import import_module
-import random
+from io import StringIO
+import traceback
+import lxml.etree as etree
 
 import numpy as np
 
@@ -40,15 +31,18 @@ try: #to ease the use without proper Python installation
 except ImportError:
     sys.path.append( os.path.dirname(os.path.dirname( os.path.abspath(sys.argv[0]) )) )
     import TranskribusDU_version
+TranskribusDU_version
 
 from common.trace import trace, traceln
-from common.chrono import chronoOn, chronoOff
+from common.chrono import chronoOn, chronoOff, pretty_time_delta
 from common.TestReport import TestReportConfusion
 from xml_formats.PageXml import MultiPageXml
 
-from graph.GraphModel import GraphModel, GraphModelException
+from graph.GraphModel import GraphModel, GraphModelException, GraphModelNoEdgeException
+from graph.Graph_JsonOCR import Graph_JsonOCR
+from graph.Graph_DOM import Graph_DOM
 import graph.FeatureDefinition
-from tasks import _checkFindColDir, _exit
+from tasks import _checkFindColDir
 
 
 class DU_Task:
@@ -89,7 +83,7 @@ See DU_StAZH_b.py
     
     cFeatureDefinition   = None # FeatureDefinition_PageXml_StandardOnes   #I keep this for backward compa
     
-    sMetadata_Creator = "NLE Document Understanding"
+    sMetadata_Creator = "NLE Document Understanding: DU_Task"
     sMetadata_Comments = ""
 
     #dGridSearch_LR_conf = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for LR baseline method training
@@ -100,6 +94,8 @@ See DU_StAZH_b.py
     sXmlFilenamePattern = "*"+MultiPageXml.sEXT    #how to find the Xml files
 
     iNbNodeType = 1     # as of today, only CRF can do multitype
+    
+    bConjugate = False
     
     def configureGraphClass(self, configuredClass=None):
         """
@@ -114,9 +110,11 @@ See DU_StAZH_b.py
                 assert configuredClass is not None, "getConfiguredGraphClass returned None"
                 
             self.cGraphClass = configuredClass
+            self.bConjugate  = configuredClass.bConjugate
 
         assert self.cGraphClass is not None
         traceln("SETUP: Graph class is %s  (graph mode %d)" % (self.cGraphClass, self.cGraphClass.getGraphMode()))
+        traceln("SETUP: Input format is '%s'" % (self.cGraphClass.getDocInputFormat()))
         
         return self.cGraphClass
 
@@ -144,10 +142,6 @@ See DU_StAZH_b.py
         
         self._mdl = None
         
-        # for the conjugate mode
-        self.bConjugate = False
-        self.nbEdgeClass = None
-                
         self._lBaselineModel = []
         self.bVerbose = True
         
@@ -173,10 +167,16 @@ See DU_StAZH_b.py
 
     def standardDo(self, options):
         """
-        do whatever is reuested by an option from the parsed command line
+        do whatever is requested by an option from the parsed command line
         
         return None
         """
+        if bool(options.iServer):
+            self.load()
+            # run in server mode!
+            self.serve_forever(options.iServer, options.bServerDebug, options=options)
+            return
+        
         if options.rm:
             self.rm()
             return
@@ -252,7 +252,7 @@ See DU_StAZH_b.py
 #                     lsOutputFilename = self.runForExternalMLMethod(lRun, options.storeX, options.applyY, options.bRevertEdges)
 #                 else:
                 self.load()
-                lsOutputFilename = self.predict(lRun, bGraph=options.bGraph)
+                lsOutputFilename = self.predict(lRun, bGraph=options.bGraph,bOutXML=options.bOutXML)
         
                 traceln("Done, see in:\n  %s"%lsOutputFilename)
         else:
@@ -269,7 +269,113 @@ See DU_StAZH_b.py
         del self.cFeatureDefinition
         del self.cModelClass         
     
+    #---  SERVER MODE ---------------------------------------------------------
+    def serve_forever(self, iPort, bDebug=False, options={}):
+        self.sTime_start = datetime.datetime.now().isoformat()
+        self.sTime_load = self.sTime_start
         
+        import socket
+        sURI = "http://%s:%d" % (socket.gethostbyaddr(socket.gethostname())[0], iPort)
+        sDescr = """
+- home page for humans: %s
+- POST or GET on %s/predict with argument xml=... 
+""" % ( sURI, sURI)
+        traceln("SERVER MODE")
+        traceln(sDescr)
+        
+        from flask import Flask
+        from flask import request, abort
+        from flask import render_template_string #, render_template
+        from flask import redirect, url_for      #, send_from_directory, send_file
+        
+        
+        # Create Flask app load app.config
+        app = Flask(self.__class__.__name__)
+
+        @app.route('/')
+        def home_page():
+            # String-based templates
+            return render_template_string("""<!doctype html>
+<title>DU_Task server</title>
+<ul>
+<li> <pre>Server start time : {{ start_time }}</pre>
+<li> <pre>Model load time   : {{ load_time }}</pre>
+<li> Model : ({{ model_type }}) {{ model_spec }}
+</ul>
+<p>
+<a href='/reload'>reload the model</a>
+<p>Provide some {{ input_format }} data and get PageXml output:
+<form action="/predict" method="post">
+  <textarea name="data" id="data" required rows="25" cols="80"></textarea>
+  <input type="submit" value="predict"/>
+</form>
+<p>
+This server runs with those options: {{ sOptions }}
+"""
+                    , model_type=self.__class__.__name__
+                    , model_spec=os.path.abspath(self.getModel().getModelFilename())
+                    , input_format=self.getGraphClass().getDocInputFormat()
+                    , start_time=self.sTime_start
+                    , load_time=self.sTime_load
+                    , sOptions=str(options))
+            traceln("SERVER ENDING. BYE")
+            
+        @app.route('/predict', methods = ['POST'])
+        def predict():
+            try:    
+                sData = request.form['data']
+                if sData.startswith("<?xml"):
+                    # horrible hack....
+                    # lxml rejects the XML declaration, want bytes, but reject bytes...
+                    # did not find a good way to get raw value of the posted data
+                    sData = sData[sData.index("?>")+2:]
+
+                doc, lg = self._predict_file(self.getGraphClass(), [], StringIO(sData), bGraph=options.bGraph)
+                
+                # if nothing to do, the method returns None...
+                if doc is None:
+                    # doc = etree.parse(StringIO(sXml))
+                    return sData
+                else:
+                    if not(isinstance(doc, etree._ElementTree)):
+                        traceln(" converting to PageXml...")
+                        doc = Graph_DOM.exportToDom(lg)
+                    return etree.tostring(doc.getroot(), encoding='UTF-8', xml_declaration=False)
+
+            except Exception as e:
+                traceln("-----  predict exception -------------------------")
+                traceln(traceback.format_exc())
+                traceln("--------------------------------------------------")
+                abort(418, repr(e))
+
+        @app.route('/reload')
+        def reload():
+            """
+            Force to reload the model
+            """
+            self.load(bForce=True)
+            self.sTime_load = datetime.datetime.now().isoformat()
+            return redirect(url_for('home_page'))
+        
+        # RUN THE SERVER !!
+        # CAUTION: TensorFlow incompatible with debug=True  (double load => GPU issue)
+        app.run(host='0.0.0.0', port=iPort, debug=bDebug)
+        
+        @app.route('/stop')
+        def stop():
+            """
+            Force to exit
+            """
+            traceln("Exiting")
+            sys.exit(0)
+        # RUN THE SERVER !!
+        # CAUTION: TensorFlow incompatible with debug=True  (double load => GPU issue)
+        app.run(host='0.0.0.0', port=iPort, debug=bDebug)
+        
+
+        return
+
+       
     #---  CONFIGURATION setters --------------------------------------------------------------------
     def getGraphClass(self):    
         return self.cGraphClass
@@ -318,40 +424,15 @@ See DU_StAZH_b.py
         """
         return self.nbClass
     
-    def setConjugateMode(self
-                         , lEdgeLabel       = None    # list of labels (list of strings, or of int)
-                         , funEdgeLabel_get = None    # to compute the edge labels
-                         , funEdgeLabel_set = None    # to use the predicted edge labels
-                         ):
+    def setXmlFilenamePattern(self, sExt):
         """
-        to learn and predict on the conjugate graph instead of the usual graph.
-        1 - The usual graph is created as always
-        2 - the function <funEdgeLabel_computer> is called on each edge to compute the edge label
-        3 - the conjugate is created and used for learning or predicting
-        4 - the function <funEdgeLabel_applier> is called on each edge to exploit the edge predicted label
+        Set the expected file extension of the input data
+        """    
+        assert sExt, "Empty extension not allowed"
+        if not sExt.startswith("."): sExt = "." + sExt
+        self.sXmlFilenamePattern = "*" + sExt
+
         
-        
-        The prototype of the functions are:
-            funEdgeLabel_get(primal_graph, primal_X, primal_Y) 
-                -> dual_Y
-            funEdgeLabel_set(primal_graph, nd_node, edge_matrix, dual_Y) 
-                -> None
-                
-            the dual_Y has as many rows as the primal Edge array, and in the same order
-            this order also corresponds to the lEdge attribute of the graph object
-            
-        In case the graph has some pre-established settings, you can omit the parameters.
-        """
-        self.bConjugate = True
-        self.cModelClass.setConjugateMode()
-        self.cGraphClass.setConjugateMode(lEdgeLabel
-                                         , funEdgeLabel_get
-                                         , funEdgeLabel_set)
-        self.nbEdgeLabel = len(self.cGraphClass.getEdgeLabelNameList())
-        
-        return self.bConjugate
-        
-                
     #----------------------------------------------------------------------------------------------------------    
     def setBaselineList(self, lMdl):
         """
@@ -432,7 +513,7 @@ See DU_StAZH_b.py
         return a test report object
         """
         self.traceln("-"*50)
-        self.traceln("Model files of '%s' in folder '%s'"%(self.sModelName, self.sModelDir))
+        self.traceln("Model files of '%s' in folder '%s'"%(self.sModelName, os.path.abspath(self.sModelDir)))
         self.traceln("Training with collection(s):", lsTrnColDir)
         self.traceln("Testing with  collection(s):", lsTstColDir)
         if lsVldColDir: self.traceln("Validating with  collection(s):", lsVldColDir)
@@ -473,33 +554,23 @@ See DU_StAZH_b.py
         if lPageConstraint: 
             for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
         
-        if True:
-            oReport = self._mdl.testFiles(lFilename_tst, lambda fn: DU_GraphClass.loadGraphs(self.cGraphClass, [fn], bDetach=True, bLabelled=True, iVerbose=1)
-                                          , self.getBaselineList() != [])
-        else:
-            self.traceln("- loading test graphs")
-            lGraph_tst = DU_GraphClass.loadGraphs(self.cGraphClass, lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
-            if self.bConjugate:
-                for _g in lGraph_tst: _g.computeEdgeLabels()
-            
-            self.traceln(" %d graphs loaded"%len(lGraph_tst))
-            oReport = self._mdl.test(lGraph_tst)
+        oReport = self._mdl.testFiles(lFilename_tst, lambda fn: DU_GraphClass.loadGraphs(self.cGraphClass, [fn], bDetach=True, bLabelled=True, iVerbose=1)
+                                      , self.getBaselineList() != [])
 
         return oReport
 
 
-    def predict(self, lsColDir, docid=None, bGraph=False):
+    def predict(self, lsColDir, docid=None, bGraph=False, bOutXML=True):
         """
         Return the list of produced files
         """
-        self.traceln("-"*50)
-        self.traceln("Predicting for collection(s):", lsColDir)
-        self.traceln("-"*50)
-
         if not self._mdl: raise Exception("The model must be loaded beforehand!")
 
         #list files
         if docid is None:
+            self.traceln("-"*50)
+            self.traceln("Predicting for collection(s):", lsColDir, "  (%s)" % self.sXmlFilenamePattern)
+            self.traceln("-"*50)
             _     , lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
         # predict for this file only
         else:
@@ -517,123 +588,84 @@ See DU_StAZH_b.py
 
         chronoOn("predict")
         self.traceln("- loading collection as graphs, and processing each in turn. (%d files)"%len(lFilename))
-        du_postfix = "_du"+MultiPageXml.sEXT
         lsOutputFilename = []
         for sFilename in lFilename:
-            if sFilename.endswith(du_postfix): continue #:)
-            chronoOn("predict_1")
-            lg = DU_GraphClass.loadGraphs(self.cGraphClass, [sFilename], bDetach=False, bLabelled=False, iVerbose=1)
-            #normally, we get one graph per file, but in case we load one graph per page, for instance, we have a list
-            if lg:
-                for i, g in enumerate(lg):
-                    doc = g.doc
-                    if lPageConstraint:
-                        self.traceln("\t- prediction with logical constraints: %s"%sFilename)
+            if DU_GraphClass.isOutputFilename(sFilename):
+                traceln(" - ignoring '%s' because of its extension" % sFilename) 
+                continue 
+            
+            doc, lg = self._predict_file(DU_GraphClass, lPageConstraint, sFilename, bGraph=bGraph)
+            
+            if doc is None:
+                self.traceln("\t- no prediction to do for: %s"%sFilename)
+            else:
+                sCreator = self.sMetadata_Creator + " " + self.getVersion()
+                sComment = self.sMetadata_Comments          \
+                           if bool(self.sMetadata_Comments) \
+                           else "Model: %s  %s  (%s)" % (
+                               self.sModelName
+                               , self._mdl.__class__.__name__
+                               , os.path.abspath(self.sModelDir))
+                # which output format
+                if bOutXML:
+                    if DU_GraphClass == Graph_DOM:
+                        traceln(" ignoring export-to-DOM (already DOM output)")
+                        pass
                     else:
-                        self.traceln("\t- prediction : %s"%sFilename)
+                        doc = Graph_DOM.exportToDom(lg)
+                        sDUFilename = Graph_DOM.saveDoc(sFilename, doc, lg, sCreator, sComment)
+                        traceln(" - exported as XML to ", sDUFilename)
+                else:
+                    sDUFilename = DU_GraphClass.saveDoc(sFilename, doc, lg
+                                                    , sCreator=sCreator
+                                                    , sComment=sComment)
 
-                    if self.bConjugate:
-                        Y = self._mdl.predict(g, bProba=True)
-                        g.exploitEdgeLabels(Y)
-                    else:
-                        Y = self._mdl.predict(g)
-                        g.setDomLabels(Y)
-                    if bGraph: g.addEdgeToDOM(Y)
-                    del Y
-
-                MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
-                sDUFilename = sFilename[:-len(MultiPageXml.sEXT)]              +du_postfix
-                doc.write(sDUFilename,
-                          xml_declaration=True,
-                          encoding="utf-8",
-                          pretty_print=True
-                          #compression=0,  #0 to 9
-                          )
                 del doc
                 del lg
-
-                lsOutputFilename.append(sDUFilename)
-            else:
-                self.traceln("\t- no prediction to do for: %s"%sFilename)
-
-            self.traceln("\t done [%.2fs]"%chronoOff("predict_1"))
+                lsOutputFilename.append(sDUFilename)                
         self.traceln(" done [%.2fs]"%chronoOff("predict"))
-
         return lsOutputFilename
 
-    def runForExternalMLMethod(self, lsColDir, storeX, applyY, bRevertEdges=False):
+    def _predict_file(self, DU_GraphClass, lPageConstraint, sFilename, bGraph=False):
         """
-        HACK: to test new ML methods, not yet integrated in our SW: storeX=None, storeXY=None, applyY=None
-        Return the list of produced files
+        Return the doc (a DOM?, a JSON?, another ?), the list of graphs
+            Note: the doc can be None is no graph
         """
+        chronoOn("predict_1")
+        doc = None
+        lg = DU_GraphClass.loadGraphs(self.cGraphClass, [sFilename], bDetach=False, bLabelled=False, iVerbose=1)
 
-        self.traceln("-"*50)
-        if storeX: traceln("Loading data and storing [X] (1 X per graph)")
-        if applyY: traceln("Loading data, loading Y, labelling data, storing annotated data")
-        self.traceln("-"*50)
+        #normally, we get one graph per file, but in case we load one graph per page, for instance, we have a list
+        for i, g in enumerate(lg):
+            if not g.lNode: continue  # no node...
+            doc = g.doc
+            if lPageConstraint:
+                #self.traceln("\t- prediction with logical constraints: %s"%sFilename)
+                self.traceln("\t- page constraints IGNORED!!")
+            self.traceln("\t- prediction : %s"%sFilename)
 
-        if storeX and applyY:
-            raise ValueError("Either store X or applyY, not both")
+            self._predict_graph(g, lPageConstraint=lPageConstraint, bGraph=bGraph)
+        self.traceln("\t done [%.2fs]"%chronoOff("predict_1"))
+        return doc, lg
 
-        if not self._mdl: raise Exception("The model must be loaded beforehand!")
-        
-        #list files
-        _     , lFilename = self.listMaxTimestampFile(lsColDir, self.sXmlFilenamePattern)
-        
-        DU_GraphClass = self.getGraphClass()
-
-        lPageConstraint = DU_GraphClass.getPageConstraint()
-        if lPageConstraint: 
-            for dat in lPageConstraint: self.traceln("\t\t%s"%str(dat))
-        
-        if applyY: 
-            self.traceln("LOADING [Y] from %s"%applyY)
-            lY = self._mdl.gzip_cPickle_load(applyY)
-        if storeX: lX = []
-        
-        chronoOn("predict")
-        self.traceln("- loading collection as graphs, and processing each in turn. (%d files)"%len(lFilename))
-        du_postfix = "_du"+MultiPageXml.sEXT
-        lsOutputFilename = []
-        for sFilename in lFilename:
-            if sFilename.endswith(du_postfix): continue #:)
-            chronoOn("predict_1")
-            lg = DU_GraphClass.loadGraphs(self.cGraphClass, [sFilename], bDetach=False, bLabelled=False, iVerbose=1)
-            #normally, we get one graph per file, but in case we load one graph per page, for instance, we have a list
-            if lg:
-                for g in lg:
-                    if self.bConjugate: g.computeEdgeLabels()
-                    doc = g.doc
-                    if bRevertEdges: g.revertEdges()    #revert the directions of the edges
-                    if lPageConstraint:
-                        self.traceln("\t- prediction with logical constraints: %s"%sFilename)
-                    else:
-                        self.traceln("\t- prediction : %s"%sFilename)
-                    if storeX:
-                        [X] = self._mdl.get_lX([g])
-                        lX.append(X)
-                    else:
-                        Y = lY.pop(0)
-                        g.setDomLabels(Y)
-                del lg
-                
-                if applyY:
-                    MultiPageXml.setMetadata(doc, None, self.sMetadata_Creator, self.sMetadata_Comments)
-                    sDUFilename = sFilename[:-len(MultiPageXml.sEXT)]+du_postfix
-                    doc.saveFormatFileEnc(sDUFilename, "utf-8", True)  #True to indent the XML
-                    doc.freeDoc()
-                    lsOutputFilename.append(sDUFilename)
-            else:
-                self.traceln("\t- no prediction to do for: %s"%sFilename)
-                
-            self.traceln("\t done [%.2fs]"%chronoOff("predict_1"))
-        self.traceln(" done [%.2fs]"%chronoOff("predict"))
-
-        if storeX:
-            self.traceln("STORING [X] in %s"%storeX)
-            self._mdl.gzip_cPickle_dump(storeX, lX)
-            
-        return lsOutputFilename
+    def _predict_graph(self, g, lPageConstraint=None, bGraph=False):
+        """
+        predict for a graph
+        side effect on the graph g
+        return the graph
+        """
+        try:
+            Y = self._mdl.predict(g, bProba=g.bConjugate)
+            g.setDocLabels(Y)
+            if bGraph and not Y is None:
+                if g.bConjugate: 
+                    g.addEdgeToDoc(Y)
+                else:
+                    g.addEdgeToDoc()
+            del Y
+        except GraphModelNoEdgeException:
+            traceln("*** ERROR *** cannot predict due to absence of edge in graph")
+        return g
 
     def checkLabelCoverage(self, lY):
         #check that all classes are represented in the dataset
@@ -882,7 +914,7 @@ See DU_StAZH_b.py
 
         #for this check, we load the Y once...
         if self.bConjugate:
-            mdl.setNbClass(self.nbEdgeLabel)
+            mdl.setNbClass(len(self.cGraphClass.getEdgeLabelNameList()))
             for _g in lGraph_trn: _g.computeEdgeLabels()
             for _g in lGraph_vld: _g.computeEdgeLabels()
         else:
@@ -921,7 +953,8 @@ See DU_StAZH_b.py
         chronoOn("MdlTrn")
         mdl.train(lGraph_trn, lGraph_vld, True, ts_trn, verbose=1 if self.bVerbose else 0)
         mdl.save()
-        self.traceln(" done [%.1fs]"%chronoOff("MdlTrn"))
+        tTrn = chronoOff("MdlTrn")
+        self.traceln(" training done [%.1f s]  (%s)" % (tTrn, pretty_time_delta(tTrn)))
         
         # OK!!
         self._mdl = mdl
@@ -966,9 +999,7 @@ See DU_StAZH_b.py
     listMaxTimestampFile = classmethod(listMaxTimestampFile)
 
 
-# ------------------------------------------------------------------------------------------------------------------------------
-
-
+# -----------------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
 
     usage, parser = DU_Task.getStandardOptionsParser(sys.argv[0])

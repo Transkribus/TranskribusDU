@@ -5,18 +5,7 @@
 
     Copyright Xerox(C) 2016 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -77,12 +66,13 @@ class NodeType_PageXml(NodeType):
         """
         return (self.sxpNode, self.sxpTextual)
     
-    def parseDomNodeLabel(self, domnode, defaultCls=None):
+    def parseDocNodeLabel(self, graph_node, defaultCls=None):
         """
         Parse and set the graph node label and return its class index
         raise a ValueError if the label is missing while bOther was not True, or if the label is neither a valid one nor an ignored one
         """
         sLabel = self.sDefaultLabel
+        domnode = graph_node.node
         try:
             try:
                 sXmlLabel = PageXml.getCustomAttr(domnode, self.sCustAttr_STRUCTURE, self.sCustAttr2_TYPE)
@@ -107,12 +97,12 @@ class NodeType_PageXml(NodeType):
         return sLabel
 
 
-    def setDomNodeLabel(self, domnode, sLabel):
+    def setDocNodeLabel(self, graph_node, sLabel):
         """
         Set the DOM node label in the format-dependent way
         """
         if sLabel != self.sDefaultLabel:
-            PageXml.setCustomAttr(domnode, self.sCustAttr_STRUCTURE, self.sCustAttr2_TYPE, self.dLabel2XmlLabel[sLabel])
+            PageXml.setCustomAttr(graph_node.node, self.sCustAttr_STRUCTURE, self.sCustAttr2_TYPE, self.dLabel2XmlLabel[sLabel])
         return sLabel
 
 
@@ -175,7 +165,7 @@ class NodeType_PageXml(NodeType):
             
             yield blk
             
-        raise StopIteration()        
+        return         
         
     def _get_GraphNodeText(self, doc, domNdPage, ndBlock):
         """
@@ -188,7 +178,8 @@ class NodeType_PageXml(NodeType):
         lNdText = ndBlock.xpath(self.sxpTextual, namespaces=self.dNS)
         if len(lNdText) != 1:
             if len(lNdText) <= 0:
-                raise ValueError("I found no useful TextEquiv below this node... \n%s"%etree.tostring(ndBlock))
+                # raise ValueError("I found no useful TextEquiv below this node... \n%s"%etree.tostring(ndBlock))
+                return None
             else:
                 raise ValueError("I expected exactly one useful TextEquiv below this node. Got many... \n%s"%etree.tostring(ndBlock))
         
@@ -214,12 +205,13 @@ class NodeType_PageXml_type(NodeType_PageXml):
         """
         self.sLabelAttr = sAttrName
                     
-    def parseDomNodeLabel(self, domnode, defaultCls=None):
+    def parseDocNodeLabel(self, graph_node, defaultCls=None):
         """
         Parse and set the graph node label and return its class index
         raise a ValueError if the label is missing while bOther was not True, or if the label is neither a valid one nor an ignored one
         """
         sLabel = self.sDefaultLabel
+        domnode = graph_node.node
         sXmlLabel = domnode.get(self.sLabelAttr)
         try:
             sLabel = self.dXmlLabel2Label[sXmlLabel]
@@ -241,12 +233,12 @@ class NodeType_PageXml_type(NodeType_PageXml):
         return sLabel
 
 
-    def setDomNodeLabel(self, domnode, sLabel):
+    def setDocNodeLabel(self, graph_node, sLabel):
         """
         Set the DOM node label in the format-dependent way
         """
         if sLabel != self.sDefaultLabel:
-            domnode.set(self.sLabelAttr, self.dLabel2XmlLabel[sLabel])
+            graph_node.node.set(self.sLabelAttr, self.dLabel2XmlLabel[sLabel])
         return sLabel
 
 class NodeType_PageXml_type_woText(NodeType_PageXml_type):
@@ -299,13 +291,17 @@ def test_getset():
                 <Coords points="972,43 1039,43 1039,104 972,104"/>
             </TextRegion>
             """
+    class MyNode:
+        def __init__(self, nd): self.node = nd
+        
     doc = etree.parse(BytesIO(sXml))
     nd = doc.getroot()
+    graph_node = MyNode(nd)
     obj = NodeType_PageXml("foo", ["page-number", "index"])
-    assert obj.parseDomNodeLabel(nd) == 'foo_page-number', obj.parseDomNodeLabel(nd)
-    assert obj.parseDomNodeLabel(nd, "toto") == 'foo_page-number'
-    assert obj.setDomNodeLabel(nd, "foo_index") == 'foo_index'
-    assert obj.parseDomNodeLabel(nd) == 'foo_index'
+    assert obj.parseDocNodeLabel(graph_node) == 'foo_page-number', obj.parseDocNodeLabel(nd)
+    assert obj.parseDocNodeLabel(graph_node) == 'foo_page-number'
+    assert obj.setDocNodeLabel(graph_node, "foo_index") == 'foo_index'
+    assert obj.parseDocNodeLabel(graph_node) == 'foo_index'
 
 def test_getset2():
     from lxml import etree
@@ -316,12 +312,16 @@ def test_getset2():
                 <Coords points="972,43 1039,43 1039,104 972,104"/>
             </TextRegion>
             """
+    class MyNode:
+        def __init__(self, nd): self.node = nd
+
     doc = etree.parse(BytesIO(sXml))
     nd = doc.getroot()
+    graph_node = MyNode(nd)
     obj = NodeType_PageXml("foo", ["page-number", "index"], [""])
-    assert obj.parseDomNodeLabel(nd) == 'foo_OTHER'
-    assert obj.setDomNodeLabel(nd, "foo_index") == 'foo_index'
-    assert obj.parseDomNodeLabel(nd) == 'foo_index'
+    assert obj.parseDocNodeLabel(graph_node) == 'foo_OTHER'
+    assert obj.setDocNodeLabel(graph_node, "foo_index") == 'foo_index'
+    assert obj.parseDocNodeLabel(graph_node) == 'foo_index'
     
     
 def test_getset3():
@@ -334,10 +334,14 @@ def test_getset3():
                 <Coords points="972,43 1039,43 1039,104 972,104"/>
             </TextRegion>
             """
+    class MyNode:
+        def __init__(self, nd): self.node = nd
+
     doc = etree.parse(BytesIO(sXml))
     nd = doc.getroot()
+    graph_node = MyNode(nd)
     obj = NodeType_PageXml("foo", ["page-number", "index"], [""], bOther=False)
     with pytest.raises(PageXmlException):
-        assert obj.parseDomNodeLabel(nd) == 'foo_OTHER'
-    assert obj.setDomNodeLabel(nd, "foo_index") == 'foo_index'
-    assert obj.parseDomNodeLabel(nd) == 'foo_index'
+        assert obj.parseDocNodeLabel(graph_node) == 'foo_OTHER'
+    assert obj.setDocNodeLabel(graph_node) == 'foo_index'
+    assert obj.parseDocNodeLabel(graph_node) == 'foo_index'

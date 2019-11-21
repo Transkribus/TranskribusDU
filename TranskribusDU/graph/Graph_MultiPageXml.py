@@ -5,18 +5,7 @@
 
     Copyright Xerox(C) 2016 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -25,28 +14,31 @@
     
 """
 
-
-
-
 from  lxml import etree
 
 from common.trace import traceln
 from xml_formats.PageXml import PageXml
 
-from .Graph import Graph
+from .Graph_DOM import Graph_DOM
 from .Transformer_PageXml import  EdgeTransformerClassShifter
 from .Block import Block, BlockShallowCopy
 from .Edge import Edge, HorizontalEdge, VerticalEdge, CrossPageEdge, CrossMirrorContinuousPageVerticalEdge
 from .Page import Page
 
-class Graph_MultiPageXml(Graph):
+
+class Graph_MultiPageXml(Graph_DOM):
     '''
     Computing the graph for a MultiPageXml document
-
-        USAGE:
-        - call parseFile to load the DOM and create the nodes and edges
-        - call detachFromDOM before freeing the DOM
     '''
+    # --- NODE TYPES and LABELS
+    _lNodeType       = []       #the list of node types for this class of graph
+    _bMultitype      = False    # equivalent to len(_lNodeType) > 1
+    _dLabelByCls     = None     #dictionary across node types
+    _dClsByLabel     = None     #dictionary across node types
+    _nbLabelTot      = 0        #total number of labels
+
+    sIN_FORMAT  = "(Multi)PageXML"   # tell here which input format is expected
+
     #Namespace, of PageXml, at least
     dNS = {"pc":PageXml.NS_PAGE_XML}
     
@@ -54,10 +46,10 @@ class Graph_MultiPageXml(Graph):
     sxpPage     = "//pc:Page"
 
     def __init__(self, lNode = [], lEdge = []):
-        Graph.__init__(self, lNode, lEdge)
+        Graph_DOM.__init__(self, lNode, lEdge)
 
     # ---------------------------------------------------------------------------------------------------------        
-    def _iter_Page_DomNode(self, doc):
+    def _iter_Page_DocNode(self, doc):
         """
         Parse a Multi-pageXml DOM, by page
 
@@ -78,7 +70,7 @@ class Graph_MultiPageXml(Graph):
             page = Page(pnum, pagecnt, iPageWidth, iPageHeight, cls=None, domnode=ndPage, domid=ndPage.get("id"))
             yield (pnum, page, ndPage)
             
-        raise StopIteration()        
+        return       
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
         
@@ -120,7 +112,7 @@ class ContinousPage:
                     for blk in lNextHalfPage: blk.mirrorHorizontally(w1)            
                 
                 lVirtualPageBlk.extend(lNextHalfPage)
-                lEdge = Block._findVerticalNeighborEdges(lVirtualPageBlk, CrossMirrorContinuousPageVerticalEdge)
+                lEdge = Block._findVerticalNeighborEdges_g1(lVirtualPageBlk, CrossMirrorContinuousPageVerticalEdge)
                 
                 #keep only those edge accross pages, and make them to link original blocks!
                 lAllEdge = [CrossMirrorContinuousPageVerticalEdge(edge.A.getOrigBlock(), edge.B.getOrigBlock(), edge.length) \
@@ -143,7 +135,7 @@ class Graph_MultiContinousPageXml(Graph_MultiPageXml, ContinousPage):
         Graph_MultiPageXml.__init__(self, lNode, lEdge)
         EdgeTransformerClassShifter.setDefaultEdgeClass([HorizontalEdge, VerticalEdge, CrossPageEdge, CrossMirrorContinuousPageVerticalEdge])
 
-    def parseXmlFile(self, sFilename, iVerbose=0):
+    def parseDocFile(self, sFilename, iVerbose=0):
         """
         Load that document as a CRF Graph.
         Also set the self.doc variable!
@@ -156,7 +148,7 @@ class Graph_MultiContinousPageXml(Graph_MultiPageXml, ContinousPage):
         #load the block of each page, keeping the list of blocks of previous page
         lPrevPageNode = None
 
-        for pnum, page, domNdPage in self._iter_Page_DomNode(self.doc):
+        for pnum, page, domNdPage in self._iter_Page_DocNode(self.doc):
             #now that we have the page, let's create the node for each type!
             lPageNode = list()
             setPageNdDomId = set() #the set of DOM id

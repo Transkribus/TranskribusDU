@@ -8,18 +8,7 @@
     a class for table cell from a XMLDocument
     READ project 
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -96,17 +85,7 @@ class  XMLDSTABLECELLClass(XMLDSObjectClass):
         self.setNode(domNode)
         # get properties
         for prop in domNode.keys():
-            try:
-                self.addAttribute(prop,domNode.get(prop))
-                if prop =='x': self._x= float(domNode.get(prop))
-                elif prop =='y': self._y = float(domNode.get(prop))
-                elif prop =='height': self._h = float(domNode.get(prop))
-                elif prop =='width': self.setWidth(float(domNode.get(prop)))   
-            except:
-                self._x=-1
-                self._y=-1
-                self._h=0
-                self._w=0         
+            self.addAttribute(prop,domNode.get(prop))
             
         self.setIndex(int(self.getAttribute('row')),int(self.getAttribute('col')))
         

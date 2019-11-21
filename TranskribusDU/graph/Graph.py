@@ -5,18 +5,7 @@
     
     Copyright Xerox(C) 2016 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -25,20 +14,14 @@
     
 """
 
-
-
-
 import collections
-#import gc
 
 import numpy as np
-from lxml import etree
 
 from common.trace import traceln
-from xml_formats.PageXml import PageXmlException
 
 from . import Edge
-from xml_formats.PageXml import PageXml
+
 
 class GraphException(Exception): pass
 
@@ -55,61 +38,71 @@ class Graph:
     _nbLabelTot      = 0        #total number of labels
 
     iGraphMode       = 1        # how to compute edges 1=historical 2=dealing properly with line-of-sight
-        
+    
+    bConjugate = False
+    
+    sIN_FORMAT  = "undefined"   # tell here which input format is expected, subclasses must specialise this
+    sDU         = "_du"
+    sOUTPUT_EXT = ".out"
+
     #--- CONSTRAINTS
     _lPageConstraintDef = None  #optionnal page-level constraints
 
-    # do we use the conjugate graph?
-    bConjugate = False
-                
     def __init__(self, lNode = [], lEdge = []):
         self.lNode = lNode
         self.lEdge = lEdge
-        self.doc   = None
+        self.doc   = None   # the document object (can be a DOM, or a JSON, or...)
         
+        self.lCluster = None # list of clusters (resulting from a segmentation task)
         
         self.aNeighborClassMask = None   #did we compute the neighbor class mask already?
         
         self.aLabelCount = None #count of seen labels
-        
-    # --- CONJUGATE -----------------------------------------------------
+    
+    # --- I/O
     @classmethod
-    def setConjugateMode(cls
-                         , lEdgeLabel        = None   # list of labels (list of strings, or of int)
-                         , computeEdgeLabels = None   # to compute the edge labels
-                         , exploitEdgeLabels = None   # to use the predicted edge labels
-                         ):
-        """
-        learn and predict on the conjugate graph instead of the usual graph.
-        1 - The usual graph is created as always
-        2 - the function computeEdgeLabels is called to compute the edge labels
-        3 - the conjugate is created and used for learning or predicting
-        4 - the function exploitEdgeLabels is called once the edge labels are predicted
-        
-        The prototype of the functions are as shown in the code below.
-        
-        NOTE: since the graph class may already be dedicated to the Conjugate mode,
-        we do not force to pass the list of edge labels and the 2 methods
-        But bConjugate must be True already!
-        """
-        if cls.bConjugate is True:
-            # then we accept to override some stuff...
-            if not lEdgeLabel        is None: cls.lEdgeLabel          = lEdgeLabel
-            if not computeEdgeLabels is None: cls.computeEdgeLabels   = computeEdgeLabels
-            if not exploitEdgeLabels is None: cls.exploitEdgeLabels   = exploitEdgeLabels            
-        else:
-            if None in [lEdgeLabel, computeEdgeLabels, exploitEdgeLabels]:
-                raise GraphException("You must provide lEdgeLabel, computeEdgeLabels, and exploitEdgeLabels")
-            cls.bConjugate          = True
-            cls.lEdgeLabel          = lEdgeLabel
-            cls.computeEdgeLabels   = computeEdgeLabels
-            cls.exploitEdgeLabels   = exploitEdgeLabels
-            
-        assert len(cls.lEdgeLabel) > 1, ("Invalid number of edge labels (graph conjugate mode)", lEdgeLabel)
-        traceln("SETUP: Conjugate mode: %s" % str(cls))
-        
-        return cls.bConjugate
+    def isOutputFilename(cls, sFilename):
+        return sFilename.endswith(cls.sDU+cls.sOUTPUT_EXT)
 
+    @classmethod
+    def getOutputFilename(cls, sFilename):
+        return sFilename[:sFilename.rindex(".")] + cls.sDU + cls.sOUTPUT_EXT
+
+
+    def parseDocFile(self, sFilename, iVerbose=0):
+        """
+        Load that document as a Graph.
+        Also set the self.doc variable!
+        
+        Return a Graph object
+        """
+        raise GraphException("You must specialise this class method")
+
+    @classmethod
+    def getDocInputFormat(cls):
+        """
+        return a human-readable string describing the expected input format
+        """
+        return cls.sIN_FORMAT
+    
+    def detachFromDoc(self):
+        """
+        Graph and graph nodes may have kept a reference to other data .
+        Here we detach them
+        """
+        return
+            
+    @classmethod
+    def saveDoc(cls, sFilename, doc, lG, sCreator, sComment):
+        """
+        sFile is the input filename
+        doc   is the input data (DOM, or JSON for now) possibly enriched by the 
+            prediction, depending on the class of graph
+        lG    is the list of graphs, possibly enriched by the prediction
+        """
+        raise GraphException("You must specialise this class method")
+
+    # --- Graph COnstruction Mode
     @classmethod
     def getGraphMode(cls):
         return cls.iGraphMode
@@ -134,19 +127,14 @@ class Graph:
     
         return the set of observed class (set of integers in N+)
         """
-        raise GraphException("You must specialize this class method")
+        raise GraphException("You must specialise this class method")
 
-    def exploitEdgeLabels(self, Y_proba):
+    def form_cluster(self, Y_proba):
         """
         Do whatever is required on the (primal) graph, given the edge labels
             Y_proba is the predicted edge label probability array of shape (N_edges, N_labels)
         
-        return None
-        
-        The node and edge indices corresponding to the order of the lNode
-        and lEdge attribute of the graph object.
-        
-        Here we choose to set an XML attribute DU_cluster="<cluster_num>"
+        return a ClusterList of Cluster object
         """
         raise GraphException("You must specialize this class method")
         
@@ -205,12 +193,9 @@ class Graph:
         """
         Return the list of label names for all label sets
         """
-#         if cls.bConjugate:
-#             return cls.getEdgeLabelNameList()
-#         else:
         return [sLabelName for lblSet in cls._lNodeType for sLabelName in lblSet.getLabelNameList()]
 
-    def parseDomLabels(self):
+    def parseDocLabels(self):
         """
         Parse the label of the graph from the dataset, and set the node label
         return the set of observed class (set of integers in N+)
@@ -219,10 +204,7 @@ class Graph:
         for nd in self.lNode:
             nodeType = nd.type 
             #a LabelSet object knows how to parse a DOM node of a Graph object!!
-            try:
-                sLabel = nodeType.parseDomNodeLabel(nd.node)
-            except PageXmlException:
-                sLabel='TR_OTHER'
+            sLabel = nodeType.parseDocNodeLabel(nd)
             try:
                 cls = self._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
             except KeyError:
@@ -231,16 +213,15 @@ class Graph:
             setSeensLabels.add(cls)
         return setSeensLabels    
 
-    def setDomLabels(self, Y):
+    def setDocLabels(self, Y):
         """
         Set the labels of the graph nodes from the Y matrix
-        return the DOM
         """
         for i,nd in enumerate(self.lNode):
             sLabel = self._dLabelByCls[ Y[i] ]
-            nd.type.setDomNodeLabel(nd.node, sLabel)
-        return self.doc
-
+            nd.type.setDocNodeLabel(nd, sLabel)
+        return
+    
     # --- Constraints -----------------------------------------------------------
     def setPageConstraint(cls, lPageConstraintDef):
         """
@@ -287,11 +268,10 @@ class Graph:
                    , cGraphClass          # graph class (must be subclass)
                    , lsFilename
                    , bNeighbourhood=True  # incident edges for each node, by type of edge
-                   , bDetach=False        # keep or free the DOM
+                   , bDetach=False        # keep or free the source data
                    , bLabelled=False      # do we read node labels?
                    , iVerbose=0 
                    , attachEdge=False     # all incident edges for each node
-                   , bConjugate=False     # Conjugate mode
                    ):
         """
         Load one graph per file, and detach its DOM
@@ -301,54 +281,42 @@ class Graph:
         for sFilename in lsFilename:
             if iVerbose: traceln("\t%s"%sFilename)
             g = cGraphClass()
-            g.parseXmlFile(sFilename, iVerbose)
+            g.parseDocFile(sFilename, iVerbose)
+            g._index()
             if not g.isEmpty():
                 if attachEdge and bNeighbourhood: g.collectNeighbors(attachEdge=attachEdge)
                 if bNeighbourhood: g.collectNeighbors()
-                if bLabelled: g.parseDomLabels()
-                if bDetach: g.detachFromDOM()
-                lGraph.append(g)
+                if bLabelled: g.parseDocLabels()
+                if bDetach: g.detachFromDoc()
+            lGraph.append(g)
         return lGraph
 
-    def parseXmlFile(self, sFilename, iVerbose=0):
+    @classmethod
+    def castGraphList(cls
+                   , cGraphClass          # graph class (must be subclass)
+                   , lGraph
+                   , iVerbose=0 
+                   ):
         """
-        Load that document as a CRF Graph.
-        Also set the self.doc variable!
-        
-        Return a CRF Graph object
+        Here we create an instance of graph that reuses the lists of nodes and edge from another graph
         """
-    
-        self.doc = etree.parse(sFilename)
-        self.lNode, self.lEdge = list(), list()
-        #load the block of each page, keeping the list of blocks of previous page
-        lPrevPageNode = None
+        assert len(cGraphClass.getNodeTypeList()) == 1
+        new_ndType = cGraphClass.getNodeTypeList()[0]
+        lNewGraph = []
+        for g in lGraph:
+            new_g = cGraphClass()
+            new_g.doc   = g.doc
 
-        for pnum, page, domNdPage in self._iter_Page_DomNode(self.doc):
-            #now that we have the page, let's create the node for each type!
-            lPageNode = list()
-            setPageNdDomId = set() #the set of DOM id
-            # because the node types are supposed to have an empty intersection
-                            
-            lPageNode = [nd for nodeType in self.getNodeTypeList() for nd in nodeType._iter_GraphNode(self.doc, domNdPage, page) ]
-            
-            #check that each node appears once
-            setPageNdDomId = set([nd.domid for nd in lPageNode])
-            assert len(setPageNdDomId) == len(lPageNode), "ERROR: some nodes fit with multiple NodeTypes"
-            
-        
-            self.lNode.extend(lPageNode)
-            
-            lPageEdge = Edge.Edge.computeEdges(lPrevPageNode, lPageNode, self.iGraphMode)
-            
-            self.lEdge.extend(lPageEdge)
-            if iVerbose>=2: traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(lPageNode), len(lPageEdge)))
-            
-            lPrevPageNode = lPageNode
-        if iVerbose: traceln("\t\t (%d nodes,  %d edges)"%(len(self.lNode), len(self.lEdge)) )
-        
-        return self
+            new_g.lNode = g.lNode
+            # we need to change the node type of all nodes...
+            # I always knew it was bad to have one type attribute on each node in signle-type graphs...
+            for _nd in g.lNode: _nd.type = new_ndType
 
-    def _iter_Page_DomNode(self, doc):
+            new_g.lEdge = g.lEdge
+            lNewGraph.append(new_g)
+        return lNewGraph
+
+    def _iter_Page_DocNode(self, doc):
         """
         Parse a Xml DOM, by page
 
@@ -358,8 +326,8 @@ class Graph:
         """
         raise Exception("Must be specialized")
 
-    def isEmpty(self): return self.lNode == []
-
+    def isEmpty(self): 
+        return self.lNode == []
 
     def collectNeighbors(self,attachEdge=False):
         """
@@ -415,57 +383,13 @@ class Graph:
                     
         return self.aNeighborClassMask
         
-    def detachFromDOM(self):
-        """
-        Detach the graph from the DOM node, which can then be freed
-        """
-        if self.doc != None:
-            for nd in self.lNode: nd.detachFromDOM()
-            self.doc = None
-        #gc.collect()
-        
     def revertEdges(self):
         """
         revert the direction of each edge of the graph
         """
         for e in self.lEdge: e.revertDirection()
 
-    def addEdgeToDOM(self, Y=None):
-        """
-        To display the graph conveniently we add new Edge elements
-        """
-        ndPage = self.lNode[0].page.node    
-        # w = int(ndPage.get("imageWidth"))
-        ndPage.append(etree.Comment("Edges added to the XML for convenience"))
-        for edge in self.lEdge:
-            A, B = edge.A , edge.B   #shape.centroid, edge.B.shape.centroid
-            ndEdge = PageXml.createPageXmlNode("Edge")
-            ndEdge.set("src", edge.A.node.get("id"))
-            ndEdge.set("tgt", edge.B.node.get("id"))
-            ndEdge.set("type", edge.__class__.__name__)
-            ndEdge.tail = "\n"
-            ndPage.append(ndEdge)
-            PageXml.setPoints(ndEdge, [(A.x1, A.y1), (B.x1, B.y1)]) 
-                           
-        return         
-                
     # --- Numpy matrices --------------------------------------------------------
-    def getXY(self, node_transformer, edge_transformer):
-        """
-        return a tuple (X,Y) for the graph  (X is a triplet)
-        """
-        self._index()
-        
-        if self._bMultitype:
-            if self.bConjugate: 
-                raise "Not yet implemented: conjugate of multitype graph"
-            X, Y =  self._buildNodeEdgeLabelMatrices_T(node_transformer, edge_transformer, bY=True)
-        else:
-            X, Y = (  self.getX(node_transformer, edge_transformer)
-                    , self.getY() )
-
-        return (X, Y)
-
     def getX(self, node_transformer, edge_transformer):
         """
         make 1 node-feature matrix     (or list of matrices for multitype graphs)
@@ -478,67 +402,17 @@ class Graph:
         """
         self._index()
         if self._bMultitype:
-            if self.bConjugate: raise "Not yet implemented: conjugate of multitype graph"
             X = self._buildNodeEdgeLabelMatrices_T(node_transformer, edge_transformer, bY=False)
         else:
             X = self._buildNodeEdgeMatrices_S(node_transformer, edge_transformer)
-            if self.bConjugate: 
-                X = self.convert_X_to_LineDual(X)
         return X
 
     def getY(self):
         """
         WARNING, in multitype graphs, the order of the Ys is bad
         """
-        if self.bConjugate:
-            Y = self._buildLabelMatrix_S_Y()
-        else:
-            Y = self._buildLabelMatrix_S()
+        Y = np.fromiter( (nd.cls for nd in self.lNode), dtype=np.int, count=len(self.lNode))
         return Y
-
-    # --- Conjugate --------------------------------------------------------
-    def convert_X_to_LineDual(self, X):
-        """
-        Convert to a dual graph
-        Animesh 2018
-        Revisited by JL April 2019
-        
-        NOTE: isolated nodes are not reflected in the dual.
-        Should we add a reflexive edge to have the node in the dual??
-        """
-        (nf, edge, ef) = X
-
-        nb_edge = edge.shape[0]
-        
-        all_edges = []      # all edges created so far
-
-        nf_dual     = ef    # edges become nodes
-        edge_dual   = []
-        ef_dual     = []            
-        
-        for i in range(nb_edge):
-            edgei_from_idx, edgei_to_idx = edge[i]
-            
-            edge_from  = set([edgei_from_idx, edgei_to_idx])
-            for j in range(i+1, nb_edge):    
-                edge_to = set([edge[j][0], edge[j][1]])
-                edge_candidate = edge_from.symmetric_difference(edge_to)
-                # we should get 4, 2 or 0 primal nodes
-                if len(edge_candidate) == 2 and edge_candidate not in all_edges:
-                    # edge_to and edge_from share 1 primal node => create dual edge! 
-                    all_edges.append(edge_candidate)
-                    [shared_node_idx] = edge_from.intersection(edge_to)
-                    shared_node_nf = nf[shared_node_idx]
-                    ef_dual.append(shared_node_nf)
-                    edge_dual.append([i, j])
-
-        nf_dual     = np.array(nf_dual)
-        edge_dual   = np.array(edge_dual)
-        ef_dual     = np.array(ef_dual)
-
-        assert (edge_dual.shape[0] == ef_dual.shape[0])
-
-        return (nf_dual, edge_dual, ef_dual)
 
     #----- Indexing Graph Objects -----   
     def _index(self, bForce=False):
@@ -551,17 +425,11 @@ class Graph:
             bForce or self.__bNodeIndexed
             return False
         except AttributeError:
-            self._indexNodeTypes()
-            for i, nd in enumerate(self.lNode): nd._index = i
+            for i, nt in enumerate(self._lNodeType): nt._index = i
+            for i, nd in enumerate(self.lNode)     : nd._index = i
             self.__bNodeIndexed = True
             return True
             
-    def _indexNodeTypes(self):
-        """
-        add _index attribute to registered NodeType
-        """
-        for i, nt in enumerate(self._lNodeType): nt._index = i
-
     #----- SINGLE TYPE -----   
     def _buildNodeEdgeMatrices_S(self, node_transformer, edge_transformer):
         """
@@ -593,24 +461,6 @@ class Graph:
 #             edge = edges.reshape(len(self.lEdge), 2)
         return edges
 
-    def _buildLabelMatrix_S(self):
-        """
-        Return the matrix of labels
-        """
-        #better code based on fromiter is below (I think, JLM April 2017) 
-        #Y = np.array( [nd.cls for nd in self.lNode] , dtype=np.uint8)
-        Y = np.fromiter( (nd.cls for nd in self.lNode), dtype=np.int, count=len(self.lNode))
-        return Y
-
-    def _buildLabelMatrix_S_Y(self):
-        """
-        Return the matrix of labels of edges
-        """
-        #better code based on fromiter is below (I think, JLM April 2017) 
-        #Y = np.array( [nd.cls for nd in self.lNode] , dtype=np.uint8)
-        Y = np.fromiter( (e.cls for e in self.lEdge), dtype=np.int, count=len(self.lEdge))
-        return Y
-   
     #----- MULTITYPE -----  
     def _buildNodeEdgeLabelMatrices_T(self, node_transformer, edge_transformer, bY=True):
         """
@@ -688,10 +538,4 @@ class Graph:
         for pnum in sorted(dlIndexByPage.keys()):
             llIndexByPage.append( sorted(dlIndexByPage[pnum]) )
         return llIndexByPage
-            
-        
-        
-        
 
-        
-        

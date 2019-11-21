@@ -7,18 +7,7 @@
 
     Copyright NAVER(C) 2016-2019 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -51,14 +40,17 @@ class GraphModelException(Exception):
     """
     pass
 
+class GraphModelNoEdgeException(Exception):
+    """
+    Exception specific to this class: absence of edge in the graph
+    """
+    pass
+
 
 class GraphModel:
 
     _balancedWeights = False   #  Uniform does same or better, in general
 
-    # conjugate mode
-    bConjugate  = False
-    
     sSurname = ""  #surname is added to each generated filename, e.g. crf, ecn, ...
     
     def __init__(self, sName, sModelDir):
@@ -79,7 +71,6 @@ class GraphModel:
         self.bTrainEdgeBaseline  = False
         
         self._nbClass = None
-
         
     def configureLearner(self, **kwargs):
         """
@@ -87,44 +78,37 @@ class GraphModel:
         """
         raise Exception("Method must be overridden")
 
-    # --- Conjugate -------------------------------------------------------------
-    @classmethod
-    def setConjugateMode(cls):
-        cls.bConjugate = True
-        traceln("SETUP: Conjugate mode: %s" % str(cls))
-        return cls.bConjugate
+    def setName(self, sName):
+        self.sName = sName
         
     # --- Utilities -------------------------------------------------------------
+    def getMetadataComment(self):
+        """
+        Return an informative short string for storing a metadata comment in output XML
+        """
+        return "%s: %s (%s)" % (self.__class__.__name__, self.sName, os.path.abspath(self.sDir))
+
+        
     def getModelFilename(self):
-        return os.path.join(self.sDir, self.sName+'.'+self.sSurname+".model.pkl")
+        return os.path.join(self.sDir, self.sName+'._.'+self.sSurname+".model.pkl")
     def getTransformerFilename(self):
-        return os.path.join(self.sDir, self.sName+                  ".transf.pkl")
+        return os.path.join(self.sDir, self.sName+'._.'+              ".transf.pkl")
     def getConfigurationFilename(self):
-        return os.path.join(self.sDir, self.sName+'.'+self.sSurname+".config.json")
+        return os.path.join(self.sDir, self.sName+'._.'+self.sSurname+".config.json")
     def getBaselineFilename(self):
-        return os.path.join(self.sDir, self.sName+'.'+self.sSurname+".baselines.pkl")
+        return os.path.join(self.sDir, self.sName+'._.'+self.sSurname+".baselines.pkl")
     def getTrainDataFilename(self, name):
-        return os.path.join(self.sDir, self.sName+'.'+self.sSurname+".tlXlY_%s.pkl"%name)
+        return os.path.join(self.sDir, self.sName+'._.'+self.sSurname+".tlXlY_%s.pkl"%name)
         
     @classmethod
     def _getParamsFilename(cls, sDir, sName):
-        return os.path.join(sDir, sName+"_params.json")
+        return os.path.join(sDir, sName+"._."+"_params.json")
 
-    """
-    When some class is not represented on some graph, you must specify the number of class.
-    Otherwise pystruct will complain about the number of states differeing from the number of weights
-    """
     def setNbClass(self, lNbClass):
         """
         in multitype case we get a list of class number (one per type)
         """
         self._nbClass = lNbClass
-        
-    def getNbClass(self):
-        if self.bConjugate:
-            return len(self.lEdgeLabel)
-        else:
-            return self._nbClass
 
     def _getNbFeatureAsText(self):
         """

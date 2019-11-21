@@ -5,18 +5,7 @@
 
     Copyright Xerox(C) 2016 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -70,7 +59,7 @@ class FactorialGraph_MultiPageXml(Graph_MultiPageXml, FactorialGraph):
             if nt.getXpathExpr() != nt0.getXpathExpr(): raise ValueError("FactorialCRF requires all NodeType to have same Xpath selection expressions.")
 
     # --- Labels ----------------------------------------------------------
-    def parseDomLabels(self):
+    def parseDocLabels(self):
         """
         Parse the label of the graph from the dataset, and set the node label
         return the set of observed class (set of integers in N+)
@@ -81,7 +70,7 @@ class FactorialGraph_MultiPageXml(Graph_MultiPageXml, FactorialGraph):
         setSeensLabels = set()
         for nd in self.lNode:
             try:
-                lcls = [self._dClsByLabel[nodeType.parseDomNodeLabel(nd.node)] for nodeType in self.getNodeTypeList()]
+                lcls = [self._dClsByLabel[nodeType.parseDocNodeLabel(nd)] for nodeType in self.getNodeTypeList()]
             except KeyError:
                 raise ValueError("Page %d, unknown label in %s (Known labels are %s)"%(nd.pnum, str(nd.node), self._dClsByLabel))
             nd.cls = lcls
@@ -89,7 +78,7 @@ class FactorialGraph_MultiPageXml(Graph_MultiPageXml, FactorialGraph):
                 setSeensLabels.add(cls)
         return setSeensLabels    
 
-    def setDomLabels(self, Y):
+    def setDocLabels(self, Y):
         """
         Set the labels of the graph nodes from the Y matrix
         return the DOM
@@ -102,11 +91,11 @@ class FactorialGraph_MultiPageXml(Graph_MultiPageXml, FactorialGraph):
         for nodeType in self.getNodeTypeList():
             for i,nd in enumerate(self.lNode):
                 sLabel = self._dLabelByCls[ Y[zeroType+i] ]
-                nodeType.setDomNodeLabel(nd.node, sLabel)
+                nodeType.setDocNodeLabel(nd, sLabel)
             zeroType += nbNode
         return self.doc
     
-    def parseXmlFile(self, sFilename, iVerbose=0):
+    def parseDocFile(self, sFilename, iVerbose=0):
         """
         Load that document as a CRF Graph.
         Also set the self.doc variable!
@@ -124,7 +113,7 @@ class FactorialGraph_MultiPageXml(Graph_MultiPageXml, FactorialGraph):
 
         nodeType0 = self.getNodeTypeList()[0]    #all nodes have same type
         
-        for pnum, page, domNdPage in self._iter_Page_DomNode(self.doc):
+        for pnum, page, domNdPage in self._iter_Page_DocNode(self.doc):
             #now that we have the page, let's create the node for each type!
             lPageNode = list()
             #setPageNdDomId = set() #the set of DOM id

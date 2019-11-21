@@ -4,20 +4,9 @@
     Utilities to deal with the PageXMl 2D objects using shapely
     
 
-    Copyright NAVER(C) 2018 JL. Meunier
+    Copyright Xerox(C) 2018 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -28,6 +17,7 @@
 
 import shapely.geometry as geom
 from shapely.prepared import prep
+from shapely.ops import cascaded_union        
 from rtree import index
 
 import numpy as np
@@ -36,6 +26,77 @@ from xml_formats.PageXml import MultiPageXml
 
 class ShapeLoader:
 
+    @classmethod
+    def getCoordsString(cls, o, bFailSafe=False):
+        """
+        Produce the usual content of the "Coords" attribute, e.g.:
+            "3162,1205 3162,1410 126,1410 126,1205 3162,1205"
+        may raise an exception
+        """
+        try:
+            lt2 = o.exterior.coords  # e.g. [(0.0, 0.0), (1.0, 1.0), (1.0, 0.0)]
+        except:
+            if bFailSafe:
+                try:
+                    lt2 = o.coords
+                except:
+                    return ""
+            else:
+                lt2 = o.coords
+        return " ".join("%d,%d" % (a,b) for a,b in lt2)
+
+    
+    @classmethod
+    def contourObject(cls, lNd):
+        """
+        return the stringified list of coordinates of the contour 
+        for the list of PageXml node.
+            e.g. "3162,1205 3162,1410 126,1410 126,1205 3162,1205"
+        return "" upon error
+        
+        if bShapelyObjecy is True, then return the Shapely object
+        raise an Exception upon error
+        """
+        lp = []
+        for nd in lNd:
+            try:
+                lp.append(ShapeLoader.node_to_Polygon(nd))
+            except:
+                pass
+            
+        o = cascaded_union([p if p.is_valid else p.convex_hull for p in lp ]) 
+        return o
+
+    @classmethod
+    def minimum_rotated_rectangle(cls, lNd, bShapelyObject=False):
+        """
+        return the stringified list of coordinates of the minimum rotated 
+        rectangle for the list of PageXml node.
+            e.g. "3162,1205 3162,1410 126,1410 126,1205 3162,1205"
+        return "" upon error
+        
+        if bShapelyObjecy is True, then return the Shapely object
+        raise an Exception upon error
+        """
+        contour = cls.contourObject(lNd) 
+        o = contour.minimum_rotated_rectangle
+        return o if bShapelyObject else cls.getCoordsString(o, bFailSafe=True)
+
+    @classmethod
+    def convex_hull(cls, lNd, bShapelyObject):    
+        """
+        return the stringified list of coordinates of the minimum rotated 
+        rectangle for the list of PageXml node.
+            e.g. "3162,1205 3162,1410 126,1410 126,1205 3162,1205"
+        return "" upon error
+        
+        if bShapelyObjecy is True, then return the Shapely object
+        raise an Exception upon error
+        """
+        contour = cls.contourObject(lNd) 
+        o = contour.convex_hull
+        return o if bShapelyObject else cls.getCoordsString(o, bFailSafe=True)
+        
     @classmethod
     def node_to_Point(cls, nd):
         """
@@ -73,14 +134,18 @@ class ShapeLoader:
             return cls.LinearRegression(o)
 
     @classmethod
-    def node_to_Polygon(cls, nd):
+    def node_to_Polygon(cls, nd, bValid=True):
         """
         Find the points attribute (either in the DOM node itself or in a 
         children Coord node)
         Parse the points series
         Return a Polygon shapely object
         """
-        return cls._shapeFromNodePoints(nd, geom.Polygon)
+        p = cls._shapeFromNodePoints(nd, geom.Polygon)
+        if bValid and not p.is_valid: 
+            # making sure it is a valid shape
+            p = p.buffer(0)
+        return p
 
     @classmethod
     def children_to_LineString(cls, node, name, fun=None):
@@ -393,7 +458,12 @@ def test_ShapeLoader():
     o = ShapeLoader._shapeFromPoints("0,0 0,9", geom.LineString)
     assert o.length == 9
     assert o.area == 0.0
-    
+
+def test_ShapeLoader_Coords():
+    s = "3162,1205 3162,1410 126,1410 3162,1205"
+    o = ShapeLoader._shapeFromPoints(s, geom.Polygon)
+    assert ShapeLoader.getCoordsString(o) == s
+
 # -----------------------------------------------------------------------
 def test_ShapePartition_object_above(capsys):
         with capsys.disabled():

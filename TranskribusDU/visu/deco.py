@@ -6,6 +6,8 @@ A class that reflect a decoration to be made on certain XML node using WX
 import types, os
 from collections import defaultdict
 import glob
+import logging
+import random
 from lxml import etree
 #import cStringIO
 import wx
@@ -90,19 +92,49 @@ class Deco:
     
     def xpathError(self, node, xpExpr, eExcpt, sMsg=""):
         """report an xpath error"""
+        try:
+            Deco._s_prev_xpath_error
+        except AttributeError:
+            Deco._s_prev_xpath_error = ""
+            Deco._prev_xpath_error_count = 0
+            
         iMaxLen = 200 # to truncate the node serialization
-        print "-"*60
-        print "--- XPath ERROR on class %s"%self.__class__
-        print "---   xpath=%s" % xpExpr
-        print "---   Python Exception=%s" % str(eExcpt)
-        if sMsg: print "---   Info: %s" % sMsg
+        s = "-"*60
+        s += "\n--- XPath ERROR on class %s"%self.__class__
+        s += "\n---   xpath=%s" % xpExpr
+        s += "\n---   Python Exception=%s" % str(eExcpt)
+        if sMsg: s += "\n---   Info: %s" % sMsg
+        
+        if s == Deco._s_prev_xpath_error:
+            # let's not overload the console.
+            return
+        Deco._s_prev_xpath_error = s
+        
+        Deco._prev_xpath_error_count += 1
+        if Deco._prev_xpath_error_count > 10:
+            return
+            
         try:
             sNode = etree.tostring(node)
         except:
             sNode = str(node)
         if len(sNode) > iMaxLen: sNode = sNode[:iMaxLen] + "..."
-        print "--- XML node = %s" % sNode
-        print "-"*60
+        s += "\n--- XML node = %s" % sNode
+        s += "\n" + "-"*60 + "\n"
+        logging.warning(s)
+
+    def warning(self, sMsg):
+        """report an xpath error"""
+        try:
+            Deco._s_prev_warning
+        except AttributeError:
+            Deco._s_prev_warning = ""
+            Deco._warning_count = 0
+        # if sMsg != Deco._s_prev_warning and Deco._warning_count < 1000:
+        if sMsg != Deco._s_prev_warning:  
+            logging.warning(sMsg)
+            Deco._warning_count += 1
+        Deco._s_prev_warning = sMsg
     
     def toInt(cls, s):
         try:
@@ -338,7 +370,7 @@ class DecoUnicodeChar(DecoText):
         try:
             return eval('u"\\u%04x"' %  int(sEncodedText, self.base))
         except ValueError:
-            print "DecoUnicodeChar: ERROR: base=%d code=%s"%(self.base, sEncodedText)
+            logging.error("DecoUnicodeChar: ERROR: base=%d code=%s"%(self.base, sEncodedText))
             return ""
 
 
@@ -370,7 +402,7 @@ class DecoImageBox(DecoRectangle):
                 obj = wxh.AddScaledBitmap(img, (x,-y), h)
                 lo.append(obj)
             except Exception, e:
-                print "DecoImageBox ERROR: File %s: %s"%(sFilePath, str(e))
+                self.warning("DecoImageBox ERROR: File %s: %s"%(sFilePath, str(e)))
         
         lo.append( DecoRectangle.draw(self, wxh, node) )
         return lo
@@ -379,6 +411,8 @@ class DecoImageBox(DecoRectangle):
 class DecoImage(DecoBBXYWH):
     """An image
     """
+    # in case the use wants to specify it via the menu
+    sImageFolder = None
     
     def __init__(self, cfg, sSurname, xpCtxt):
         DecoBBXYWH.__init__(self, cfg, sSurname, xpCtxt)
@@ -399,6 +433,20 @@ class DecoImage(DecoBBXYWH):
         x,y,w,h,inc = self.runXYWHI(node)
         sFilePath = self.xpathToStr(node, self.xpHRef, "")
         if sFilePath:
+            if self.sImageFolder:
+                sCandidate = os.path.join(self.sImageFolder, sFilePath)
+                if os.path.exists(sCandidate):
+                    sFilePath = sCandidate
+                else:
+                    # maybe the file is in a subfolder ?
+                    # e.g. "S_Aicha_an_der_Donau_004-03_0005.jpg" is in folder "S_Aicha_an_der_Donau_004-03"
+                    try:
+                        sDir = sFilePath[:sFilePath.rindex("_")]
+                        sCandidate = os.path.join(self.sImageFolder, sDir, sFilePath)
+                        if os.path.exists(sCandidate):
+                            sFilePath = sCandidate
+                    except ValueError:
+                        pass
             if not os.path.exists(sFilePath): 
                 #maybe the image is in a folder with same name as XML file? (Transkribus style)
                 sUrl = node.getroottree().docinfo.URL.decode('utf-8') # py2 ...
@@ -421,7 +469,7 @@ class DecoImage(DecoBBXYWH):
                         bKO = False
                         break
                 if bKO:
-                    print "WARNING: deco Image: file does not exists: '%s'"%sFilePath
+                    self.warning("WARNING: deco Image: file does not exists: '%s'"%sFilePath)
                     sFilePath = None
             if bool(sFilePath):
                 img = wx.Image(sFilePath, wx.BITMAP_TYPE_ANY)
@@ -432,7 +480,7 @@ class DecoImage(DecoBBXYWH):
                         obj = wxh.AddScaledBitmap(img, (x,-y), img.GetHeight())
                     lo.append(obj)
                 except Exception, e:
-                    print "DecoImage ERROR: File %s: %s"%(sFilePath, str(e))
+                    self.warning("DecoImage ERROR: File %s: %s"%(sFilePath, str(e)))
         
         return lo
     
@@ -537,13 +585,20 @@ class DecoREAD(Deco):
 
     def _getCoordList(self, node):
         sCoords = self.xpathToStr(node, self.xpCoords, "")
+        if not sCoords:
+            if node.get("id") is None: 
+                self.warning("No coordinates: node = %s" % etree.tostring(node))
+            else:
+                self.warning("No coordinates: node id = %s" % node.get("id"))
+            return [(0,0)]
         try:
             ltXY = []
             for _sPair in sCoords.split(' '):
                 (sx, sy) = _sPair.split(',')
                 ltXY.append((Deco.toInt(sx), Deco.toInt(sy)))
-        except Exception, e:
-            print "ERROR: polyline coords are bad: '%s'"%sCoords
+        except Exception as e:
+            logging.error("ERROR: polyline coords are bad: '%s' -> '%s'" % (
+                self.xpCoords, sCoords))
             raise e        
         return ltXY
     
@@ -584,27 +639,31 @@ class DecoREADTextLine(DecoREAD):
         return iFontSize, ExtentX, ExtentY
         """
         (x1, y1), (x2, y2) = self._coordList_to_BB(ltXY)
-        
-        dc = wx.ScreenDC()
-        # compute for font size of 24 and do proportional
-        dc.SetFont(wx.Font(24, Family, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
-        Ex, Ey = dc.GetTextExtent("x")
-        try:
-            iFontSizeX = 24 * abs(x2-x1) / Ex / len(txt)
-        except:
-            print "absence of text: cannot compute font size along X axis"
-            iFontSizeX = 8
-        iFontSizeY = 24 * abs(y2-y1) / Ey
         sFit = self.xpathToStr(node, self.xpFit, 'xy', bShowError=False)
-        if sFit == "x":
-            iFontSize = iFontSizeX
-        elif sFit == "y":
-            iFontSize = iFontSizeY
-        else:
-            iFontSize = min(iFontSizeX, iFontSizeY)
-        dc.SetFont(wx.Font(iFontSize, Family, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
-        Ex, Ey = dc.GetTextExtent("x")
-        del dc
+
+        try:
+            iFontSize = int(sFit)       
+            Ex, Ey = None, None
+        except ValueError: 
+            dc = wx.ScreenDC()
+            # compute for font size of 24 and do proportional
+            dc.SetFont(wx.Font(24, Family, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+            Ex, Ey = dc.GetTextExtent("x")
+            try:
+                iFontSizeX = 24 * abs(x2-x1) / Ex / len(txt)
+            except:
+                self.warning("absence of text: cannot compute font size along X axis")
+                iFontSizeX = 8
+            iFontSizeY = 24 * abs(y2-y1) / Ey
+            if sFit == "x":
+                iFontSize = iFontSizeX
+            elif sFit == "y":
+                iFontSize = iFontSizeY
+            else:
+                iFontSize = min(iFontSizeX, iFontSizeY)
+            dc.SetFont(wx.Font(iFontSize, Family, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+            Ex, Ey = dc.GetTextExtent("x")
+            del dc
         
         return iFontSize, Ex, Ey
 
@@ -624,7 +683,9 @@ class DecoREADTextLine(DecoREAD):
         
         iFontSize, Ex, Ey = self._getFontSize(node, ltXY, txt, Family=wx.FONTFAMILY_TELETYPE)
         
-        x, y = ltXY[0] 
+        # x, y = ltXY[0]
+        (x, _y1), (_x2, y) = self._coordList_to_BB(ltXY)
+        
         obj = wxh.AddScaledText(txt, (x, -y+iFontSize/6), Size=iFontSize
                                        , Family=wx.FONTFAMILY_TELETYPE
                                        , Position='tl'
@@ -845,7 +906,141 @@ class DecoTextPolyLine(DecoPolyLine, DecoText):
         lo.append(obj)    
         return lo
 
-    
+
+class DecoClusterCircle(DecoREAD):
+    """
+    [Cluster]
+    type=DecoClusterCircle
+    xpath=.//Cluster
+    xpath_content=@content
+    xpath_radius=40
+    xpath_item_lxy=./pg:Coords/@points
+    xpath_LineWidth="1"
+    xpath_FillStyle="Transparent"
+    LineColors="BLUE SIENNA YELLOW ORANGE RED GREEN"
+    FillColors="BLUE SIENNA YELLOW ORANGE RED GREEN"
+    enabled=1
+    """    
+    count = 0
+    def __init__(self, cfg, sSurname, xpCtxt):
+        DecoREAD.__init__(self, cfg, sSurname, xpCtxt)
+        self.xpCluster  = cfg.get(sSurname, "xpath")
+        self.xpContent  = cfg.get(sSurname, "xpath_content")
+        self.xpRadius   = cfg.get(sSurname, "xpath_radius")
+        self.xpLineWidth  = cfg.get(sSurname, "xpath_LineWidth")
+        self.xpFillStyle  = cfg.get(sSurname, "xpath_FillStyle")        
+        self.lsLineColor = cfg.get(sSurname, "LineColors").split()
+        self.lsFillColor = cfg.get(sSurname, "FillColors").split()
+        #cached values
+        self._node = None         
+        self._laxyr = None
+        
+        print "DecoClusterCircle lsLineColor = ", self.lsLineColor
+        print "DecoClusterCircle lsFillColor = ", self.lsFillColor
+        
+    def __str__(self):
+        s = "%s="%self.__class__
+        s += "+(coords=%s)" % (self.xpCoords)
+        return s
+
+    def getArea_and_CenterOfMass(self, lXY):
+        """
+        https://fr.wikipedia.org/wiki/Aire_et_centre_de_masse_d'un_polygone
+        
+        return A, (Xg, Yg) which are the area and the coordinates (float) of the center of mass of the polygon
+        """
+        if len(lXY) < 2: raise ValueError("Only one point: polygon area is undefined.")
+        
+        fA = 0.0
+        xSum, ySum = 0, 0
+        
+        
+        xprev, yprev = lXY[-1]
+        for x, y in lXY:
+            iTerm = xprev*y - yprev*x
+            fA   += iTerm
+            xSum += iTerm * (xprev+x)
+            ySum += iTerm * (yprev+y)
+            xprev, yprev = x, y
+        if fA == 0.0: raise ValueError("surface == 0.0")
+        fA = fA / 2
+        xg, yg = xSum/6/fA, ySum/6/fA
+        
+        if fA <0:
+            return -fA, (xg, yg)
+        else:
+            return fA, (xg, yg)
+        assert fA >0 and xg >0 and  yg >0, "%s\t%s"%(lXY (fA, (xg, yg)))
+        return fA, (xg, yg)
+
+    def draw(self, wxh, node):
+        """draw itself using the wx handle
+        return a list of created WX objects"""
+
+        DecoClusterCircle.count = DecoClusterCircle.count + 1
+                
+        lo = DecoREAD.draw(self, wxh, node)
+        if self._node != node:
+            self._laxyr = []
+            #need to go thru each item
+            ndPage = node.xpath("ancestor::*[local-name()='Page']")[0]
+            sIds = self.xpathEval(node, self.xpContent)[0]
+            for sId in sIds.split():
+                l = self.xpathEval(ndPage, './/*[@id="%s"]'%sId)
+                ndItem = l[0]
+                lxy = self._getCoordList(ndItem)
+                fA, (xg, yg) = self.getArea_and_CenterOfMass(lxy)
+                r = self.xpathToInt(ndItem, self.xpRadius, 1)
+                self._laxyr.append( (fA, xg, yg, r) )
+            self._node = node
+        
+        if self._laxyr:
+            iMaxFC = len(self.lsFillColor)
+            iMaxLC = len(self.lsLineColor)
+            if False:
+                Nf = DecoClusterCircle.count
+                Nl = Nf
+            else:
+                Nf = random.randrange(iMaxFC)
+                Nl = random.randrange(iMaxFC)
+
+            iLineWidth = self.xpathToInt(node, self.xpLineWidth, 1)
+            sFillStyle = self.xpathToStr(node, self.xpFillStyle, "Solid")
+            for (_a, x, y, r) in self._laxyr:
+                #draw a circle
+                sFillColor = self.lsFillColor[Nf % iMaxFC]
+                if self.lsLineColor:
+                    sLineColor = self.lsLineColor[Nl % iMaxLC]
+                else:
+                    sLineColor = sFillColor
+                obj = wxh.AddCircle((x, -y), r, 
+                             LineWidth=iLineWidth,
+                             LineColor=sLineColor,
+                             FillColor=sFillColor,
+                             FillStyle=sFillStyle)
+#                 obj = wxh.AddRectangle((x, -y), (20, 20),
+#                              LineWidth=iLineWidth,
+#                              LineColor=sLineColor,
+#                              FillColor=sFillColor,
+#                              FillStyle=sFillStyle)
+                
+                lo.append(obj)             
+        
+        """
+        lo = DecoBBXYWH.draw(self, wxh, node)
+        x,y,w,h,inc = self.runXYWHI(node)
+        sLineColor = self.xpathToStr(node, self.xpLineColor, "#000000")
+        iLineWidth = self.xpathToInt(node, self.xpLineWidth, 1)
+        sFillColor = self.xpathToStr(node, self.xpFillColor, "#000000")
+        sFillStyle = self.xpathToStr(node, self.xpFillStyle, "Solid")
+        obj = wxh.AddRectangle((x, -y), (w, -h), 
+                                             LineWidth=iLineWidth,
+                                             LineColor=sLineColor,
+                                             FillColor=sFillColor,
+                                             FillStyle=sFillStyle)
+        """
+        return lo
+                                
 class DecoLink(Deco):
     """A link from x1,y1 to x2,y2
     """

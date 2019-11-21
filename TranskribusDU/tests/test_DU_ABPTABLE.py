@@ -8,8 +8,6 @@ Created on 10 janv. 2018
 @author: meunier
 '''
 
-from __future__ import absolute_import, print_function
-
 import sys
 import os.path
 
@@ -19,7 +17,7 @@ sTESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 sDATA_DIR = os.path.join(sTESTS_DIR, "data")
 sys.path.append(os.path.dirname(sTESTS_DIR))
 
-import crf.Graph
+import graph.Graph
 
 import tasks.DU_ABPTable
 
@@ -37,7 +35,7 @@ class FakeOption:
         self.pkl = False
         self.rm = False
         self.crf_njobs = 2
-        self.crf_max_iter = 2
+        self.max_iter = 2
         self.crf_C = None
         self.crf_tol = None
         self.crf_inference_cache = None
@@ -47,7 +45,7 @@ class FakeOption:
         self.applyY = None
         
 def test_ABPTable_train():
-    crf.Graph.Graph.resetNodeTypes()
+    graph.Graph.Graph.resetNodeTypes()
     
     sModelDir = os.path.join(sTESTS_DIR, "models")
     sModelName = "test_ABPTable_train"

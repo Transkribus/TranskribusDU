@@ -5,18 +5,7 @@
     
     Copyright NAVER(C) 2019 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -24,6 +13,7 @@
     under grant agreement No 674943.
     
 """
+from sklearn.preprocessing.data import QuantileTransformer
 
 from graph.Edge                       import HorizontalEdge, VerticalEdge
 
@@ -39,6 +29,14 @@ from graph.FeatureDefinition_Standard import Edge_Target_Text_NGram
 from graph.FeatureDefinition_Standard import EdgeClassShifter
 from graph.Transformer                import Pipeline, FeatureUnion
 
+from graph.pkg_GraphBinaryConjugateSegmenter.PageXmlSeparatorRegion import Separator_boolean, Separator_num
+
+
+# EDGES
+# which types of edge can we get??
+# It depends on the type of graph!!
+lEdgeClass = [HorizontalEdge, VerticalEdge]
+
 
 class Features_June19_Simple(FeatureDefinition):
     """
@@ -50,24 +48,29 @@ class Features_June19_Simple(FeatureDefinition):
     n_QUANTILES = 16
     
     bShiftEdgeByClass = False
-
+    bSeparator        = False
+    
     def __init__(self): 
         FeatureDefinition.__init__(self)
         
         # NODES
-        node_transformer = FeatureUnion([                               \
+        self.lNodeFeature = [
               ("geometry"           , Node_Geometry())         # one can set nQuantile=...
-                                        ])
+                                        ]
+        node_transformer = FeatureUnion(self.lNodeFeature)
     
         # EDGES
-        # which types of edge can we get??
-        # It depends on the type of graph!!
-        lEdgeClass = [HorizontalEdge, VerticalEdge]
         # standard set of features, including a constant 1 for CRF
-        edge_transformer =  FeatureUnion([                                            \
+        self.lEdgeFeature = [
                   ('1hot'   , Edge_Type_1Hot(lEdgeClass=lEdgeClass)) # Edge class 1 hot encoded (PUT IT FIRST)
                 , ('geom'   , Edge_Geometry())                       # one can set nQuantile=...
-                            ])        
+                            ]
+        if self.bSeparator:
+            self.lEdgeFeature = self.lEdgeFeature + [ 
+                  ('sprtr_bool', Separator_boolean())
+                , ('sprtr_num' , Separator_num())
+                            ]
+        edge_transformer =  FeatureUnion(self.lEdgeFeature)        
         
         # OPTIONNALLY, you can have one range of features per type of edge.
         # the 1-hot encoding must be the first part of the union and it will determine
@@ -101,12 +104,13 @@ class Features_June19_Full(FeatureDefinition):
     n_QUANTILES = 16
     
     bShiftEdgeByClass = False
+    bSeparator        = False
     
     def __init__(self): 
         FeatureDefinition.__init__(self)
         
         # NODES
-        node_transformer = FeatureUnion([                               \
+        self.lNodeFeature = [                               \
               ("geometry"           , Node_Geometry())         # one can set nQuantile=...
             , ("neighbor_count"     , Node_Neighbour_Count())  # one can set nQuantile=...
             , ("text"               , Node_Text_NGram( 'char'    # character n-grams
@@ -114,14 +118,15 @@ class Features_June19_Full(FeatureDefinition):
                                                        , (2,3)    # N
                                                        , False    # lowercase?))
                                                        ))
-                                        ])
-    
+                            ]
+        node_transformer = FeatureUnion(self.lNodeFeature)
+        
         # EDGES
         # which types of edge can we get??
         # It depends on the type of graph!!
         lEdgeClass = [HorizontalEdge, VerticalEdge]
         # standard set of features, including a constant 1 for CRF
-        fu =  FeatureUnion([                                            \
+        self.lEdgeFeature = [                                            \
                   ('1hot'   , Edge_Type_1Hot(lEdgeClass=lEdgeClass)) # Edge class 1 hot encoded (PUT IT FIRST)
                 , ('1'      , Edge_1())                              # optional constant 1 for CRF
                 , ('geom'   , Edge_Geometry())                       # one can set nQuantile=...
@@ -135,7 +140,13 @@ class Features_June19_Full(FeatureDefinition):
                                                , (2,3)    # N
                                                , False    # lowercase?))
                                                ))
-                            ])        
+                            ]
+        if self.bSeparator:
+            self.lEdgeFeature = self.lEdgeFeature + [ 
+                  ('sprtr_bool', Separator_boolean())
+                , ('sprtr_num' , Separator_num())
+                            ]
+        fu =  FeatureUnion(self.lEdgeFeature)        
         
         # you can use directly this union of features!
         edge_transformer = fu
@@ -161,3 +172,27 @@ class Features_June19_Full_Shift(Features_June19_Full):
     """
     bShiftEdgeByClass = True
 
+# --- Separator ------------------------------------------------------
+class Features_June19_Simple_Separator(Features_June19_Simple):
+    """
+    Same as Features_June19_Simple, with additional features on edges
+    """
+    bSeparator = True
+
+
+class Features_June19_Full_Separator(Features_June19_Full):
+    """
+    Same as Features_June19_Full, with additional features on edges
+    """
+    bSeparator = True
+
+
+# --- Separator Shifted ------------------------------------------------------
+class Features_June19_Simple_Separator_Shift(Features_June19_Simple_Separator
+                                           , Features_June19_Simple_Shift):
+    pass
+
+
+class Features_June19_Full_Separator_Shift(Features_June19_Full_Separator
+                                         , Features_June19_Full_Shift):
+    pass

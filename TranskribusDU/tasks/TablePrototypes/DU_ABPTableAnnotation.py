@@ -5,18 +5,7 @@
     
     Copyright Xerox(C) 2017 H. Déjean
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -223,16 +212,16 @@ class DU_ABPTableAnnotator(DU_CRF_Task):
             ## TEXT
             for tl in lTextLine:
                 try:
-                    sLabel = tl.type.parseDomNodeLabel(tl.node)
+                    sLabel = tl.type.parseDocNodeLabel(tl)
 #                     cls = DU_GRAPH._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
 #                 except KeyError:
                 except ValueError:              
                     tl.node.setProp(tl.type.sLabelAttr,lLabels[4])
             ## SEP
             for sep in lSeparator:
-#                 sLabel = sep.type.parseDomNodeLabel(sep.node)
+#                 sLabel = sep.type.parseDocNodeLabel(sep)
                 try:
-                    sLabel = sep.type.parseDomNodeLabel(sep.node)
+                    sLabel = sep.type.parseDocNodeLabel(sep)
 #                     cls = DU_GRAPH._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
                 except ValueError:  
                     sep.node.setProp(sep.type.sLabelAttr,lLabels[6])
