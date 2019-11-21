@@ -2,6 +2,24 @@
 		RELEASE NOTES - TranskribusDU
 		-----------------------------
 
+--- Chrysanthème - 2019-11-21
+- ICDAR19 papers are reproducible
+- major code reorganisation
+- Multipage XML bug fixes
+- standard projection profile method
+- convex hull for cluster Coords
+- ECN ensemble bug fix
+- various bug fixes
+- --server mode
+- segmentation task using agglomerative clustering
+- Json input
+- pipe example 
+- table reconstruction
+- generic features (when no page info)
+- edge features reworked
+- cluster evaluation metrics
+
+
 --- Iris - 2019-04-25
 - CRF, ECN GAT supported
 - conjugate mode supported
