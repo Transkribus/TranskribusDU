@@ -9,6 +9,10 @@ Utility to extract several pages from several document to a folder or a MultiPag
 @author: meunier
 '''
 
+
+
+
+
 import os
 from io import open
 import json
@@ -70,7 +74,7 @@ class DocPageSet:
         for a,b in self._ltiRange:
             for n in range(a,b+1):
                 yield n
-        raise StopIteration
+        return
     
     # -----    
     def __str__(self):

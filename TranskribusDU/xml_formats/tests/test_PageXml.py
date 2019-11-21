@@ -149,6 +149,48 @@ def test_CreationPageXmlDocument():
     doc= PageXml.createPageXmlDocument(creatorName='HerveforTest', filename='hervefortest.jpg', imgW=100, imgH=100)
     print(doc)
     
+def test_countTextLineWithText():
+    sXml = b"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd">
+            <Metadata>
+                <Creator>Tilla</Creator>
+                <Created>2016-08-18T13:35:08.252+07:00</Created>
+                <LastChange>2016-12-01T09:53:39.610+01:00</LastChange>
+            </Metadata>
+            <Page imageFilename="MM_1_001_001.jpg" imageWidth="1277" imageHeight="3518" type="other">
+    <TextRegion id="region_1502087153356_21" custom="readingOrder {index:0;}">
+      <Coords points="503,75 705,75 705,195 503,195"/>
+      <TextLine id="line_1502089038759_357" custom="readingOrder {index:0;}" DU_row="O" DU_col="O" DU_header="O">
+        <Coords points="545,131 679,131 679,181 545,181"/>
+        <Baseline points="545,176 679,176"/>
+        <TextEquiv>
+          <Unicode>52.</Unicode>
+        </TextEquiv>
+      </TextLine>
+      <TextEquiv>
+        <Unicode/>
+      </TextEquiv>
+    </TextRegion>
+    <TextRegion id="region_1502087156278_22" custom="readingOrder {index:1;}">
+      <Coords points="2267,48 2832,48 2832,192 2267,192"/>
+      <TextLine id="line_1502089042728_358" custom="readingOrder {index:0;}" DU_row="O" DU_col="O" DU_header="O">
+        <Coords points="2307,110 2817,112 2817,162 2307,160"/>
+        <Baseline points="2307,155 2817,157"/>
+        <TextEquiv>
+          <Unicode></Unicode>
+        </TextEquiv>
+      </TextLine>
+      <TextEquiv>
+        <Unicode/>
+      </TextEquiv>
+    </TextRegion>
+            </Page>
+        </PcGts>"""
+    doc = etree.parse(BytesIO(sXml))
+    
+    assert (1, 2) == PageXml.countTextLineWithText(doc)
+    return doc
+    
 if __name__ == "__main__":
     test_setMetadata()
     test_CreationPageXmlDocument()

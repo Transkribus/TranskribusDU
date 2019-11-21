@@ -6,6 +6,10 @@ Sophie Andrieu - October 2006
 Copyright Xerox XRCE 2006
 
 """
+
+
+
+
 import config.ds_xml_def as ds_xml
 from lxml import  etree
 

@@ -5,18 +5,7 @@
     
     Copyright NAVER(C) 2019 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -38,15 +27,16 @@ except ImportError:
 from common.trace import traceln
 from graph.Graph import Graph
 from tasks.DU_CRF_Task import DU_CRF_Task
-from tasks.DU_ECN_Task import DU_ECN_Task
+from tasks.DU_ECN_Task import DU_ECN_Task, DU_Ensemble_ECN_Task
 from tasks.DU_GAT_Task import DU_GAT_Task
+
 
 class DU_Task_Factory:
     VERSION = "Factory_19"
 
     version          = None     # dynamically computed
     
-    l_CHILDREN_CLASS = [DU_CRF_Task, DU_ECN_Task, DU_GAT_Task]
+    l_CHILDREN_CLASS = [DU_CRF_Task, DU_ECN_Task, DU_Ensemble_ECN_Task, DU_GAT_Task]
     # faster load for debug... l_CHILDREN_CLASS = [DU_CRF_Task]
 
     @classmethod
@@ -55,6 +45,7 @@ class DU_Task_Factory:
 or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish] [--fold <col-dir>]+
 [--pkl]
 [--g1|--g2]
+[--server <PORT>]
 
         For the named MODEL using the given FOLDER for storage:
         --rm  : remove all model data from the folder
@@ -77,6 +68,9 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
         --graph       : store the graph in the output XML
         --g1          : default mode (historical): edges created only to closest overlapping block (downward and rightward)
         --g2          : implements the line-of-sight edges (when in line of sight, then link by an edge)
+        --server port : run in server mode, offering a predict method
+        --server-debug: run the server in debug
+        --outxml port : output PageXML files, whatever th einput format is.
         """%sys_argv0
 
         #prepare for the parsing of the command line
@@ -116,6 +110,14 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
                           , help="default mode (historical): edges created only to closest overlapping block (downward and rightward)")   
         parser.add_option("--g2", dest='bG2',  action="store_true"
                           , help="implements the line-of-sight edges (when in line of sight, then link the nodes by an edge)")   
+        parser.add_option("--ext", dest='sExt',  action="store", type="string"
+                          , help="Expected extension of the data files, e.g. '.pxml'")    
+        parser.add_option("--server", dest='iServer',  action="store", type="int"
+                          , help="run in server mode, offering a predict method, for the given model")    
+        parser.add_option("--server_debug", dest='bServerDebug',  action="store_true"
+                          , help="run the server in debug mode (incompatible with TensorFLow)")    
+        parser.add_option("--outxml", dest='bOutXML',  action="store_true"
+                          , help="output XML files, whatever the input format is.")   
 
             
         # consolidate...
@@ -139,13 +141,10 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
     @classmethod
     def getDoer(cls, sModelDir, sModelName
                 , options = None
-                , bCRF    = None
-                , bECN    = None
-                , bGAT    = None
                 , fun_getConfiguredGraphClass   = None
                 , sComment                      = None
                 , cFeatureDefinition            = None
-                , dFeatureConfig                = {}                
+                , dFeatureConfig                = {}       
                 ):
         """
         Create the requested doer object 
@@ -160,20 +159,25 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
         if options.bG2: iGraphMode = 2
         Graph.setGraphMode(iGraphMode)
 
-        bCRF = bCRF or (not(options is None) and options.bCRF)
-        bECN = bECN or (not(options is None) and options.bECN)
-        bGAT = bGAT or (not(options is None) and options.bGAT)
+#         bCRF = bCRF or (not(options is None) and options.bCRF)
+#         bECN = bECN or (not(options is None) and options.bECN)
+#         bECNEnsemble = bECNEnsemble or (not(options is None) and options.bECN)
+#         bGAT = bGAT or (not(options is None) and options.bGAT)
+
+        assert (options.bCRF 
+                or options.bECN or options.bECNEnsemble 
+                or options.bGAT)       , "You must specify one learning method."
+        assert [options.bCRF, options.bECN, options.bECNEnsemble, options.bGAT].count(True) == 1  , "You must specify only one learning method."
         
-        assert (bCRF or bECN or bGAT)       , "You must specify one learning method."
-        assert [bCRF, bECN, bGAT].count(True) == 1  , "You must specify only one learning method."
-        
-        if bECN: 
+        if options.bECN: 
             c = DU_ECN_Task
-        elif bCRF: 
+        elif options.bECNEnsemble:
+            c = DU_Ensemble_ECN_Task            
+        elif options.bCRF: 
             c = DU_CRF_Task
-        elif bGAT: 
+        elif options.bGAT: 
             c = DU_GAT_Task
-            
+        
         c.getConfiguredGraphClass = fun_getConfiguredGraphClass
 
         doer = c(sModelName, sModelDir
@@ -181,6 +185,9 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
                  , cFeatureDefinition   = cFeatureDefinition
                  , dFeatureConfig       = dFeatureConfig)
 
+        if options.sExt:
+            doer.setXmlFilenamePattern(options.sExt)
+        
         if options.seed is None:
             random.seed()
             traceln("SETUP: Randomizer initialized automatically")

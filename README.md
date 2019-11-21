@@ -1,7 +1,9 @@
 # TranskribusDU
 Document Understanding tools
 
-### Requirements, installation & testing
+Updated: 2019-11-20
+
+### Requirements, installation
 
 #### Python
 
@@ -9,9 +11,14 @@ Document Understanding tools
 
 We recommend installing __anaconda3__ . You can then train using pystruct and/or tensorflow (both to be installed on top of anaconda).
 
- * conda install shapely rtree
+ * conda install shapely rtree lxml scipy
+ * pip install future scikit-learn pytest --upgrade
+ 
+To learn with pystruct (using a graph-CRF model):
+ * pip install cvxopt ad3 pystruct --upgrade
+
+To learn with Tensorflow (using an Edge Convolutional Network):
  * conda install -c anaconda tensorflow(-gpu)
- * pip install future lxml scipy scikit-learn pytest cvxopt ad3 pystruct --upgrade
 
 ### Usage
  * see use-cases

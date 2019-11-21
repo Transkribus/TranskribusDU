@@ -118,10 +118,8 @@ class tableTemplateClass(templateClass):
         for sslice,_, lFields in self._lLabellingInstruction:
             for field in lFields:
                 if field is not None:
-                    try:
-                       for cell in np.nditer(table.getNPArray()[sslice],['refs_ok'],op_dtypes=np.dtype(object)):
-                           cell[()].addField(field.cloneMe())
-                    except: pass
+                    for cell in np.nditer(table.getNPArray()[sslice],['refs_ok'],op_dtypes=np.dtype(object)):
+                        cell[()].addField(field.cloneMe())
         
     def registration(self,o):
         raise "SOFTWARE ERROR: your component must define a testRun method"

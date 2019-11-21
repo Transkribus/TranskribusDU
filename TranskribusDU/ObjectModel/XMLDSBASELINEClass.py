@@ -45,12 +45,10 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
         if self.lPoints is None:
             self.lPoints = self.getAttribute('blpoints')
 #             print 'after split?',self.lPoints
-        
-        self.lPoints = self.lPoints.replace(" ",",")
         if self.lPoints is not None:
             lX = list(map(lambda x:float(x),self.lPoints.split(',')))[0::2]
             lY = list(map(lambda x:float(x),self.lPoints.split(',')))[1::2]
-            self.lPoints = list(zip(lX,lY))
+            self.lPoints = zip(lX,lY)
 #             lY.sort()
 #             if len(lY)> 10:  ## if basline automatically generated: beg and end noisy 
 #                 lY= lY[1:-2]
@@ -67,9 +65,14 @@ class  XMLDSBASELINEClass(XMLDSObjectClass):
             import numpy as np
             a,b = np.polyfit(lX, lY, 1)
             self.setAngle(a)
-            self.setBx(b)
 #             ymax = a * self.getX2() +b
 #             ymin = a*self.getX() + b
+#             import libxml2
+#             verticalSep  = libxml2.newNode('PAGEBORDER')
+#             verticalSep.setProp('points', '%f,%f,%f,%f'%(self.getX(),ymin,self.getX2(),ymax))         
+# #             print 'p',self.getParent()
+# #             print 'pp',self.getParent().getParent() 
+#             self.getParent().getNode().addChild(verticalSep)
             
     """
         TO simulate 'DS' objects

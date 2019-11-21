@@ -2,11 +2,18 @@
 		RELEASE NOTES - TranskribusDU
 		-----------------------------
 
---- Edelweiss - 2019-07-22
-- ECN/GAT
-- conjugate
-- --g1 --g2
-- table understanding
+--- Iris - 2019-04-25
+- CRF, ECN GAT supported
+- conjugate mode supported
+- --vld option to specify a validation set, or a ratio of validation graphs 
+	taken from the training set. The best model on validation set is kept.
+- --graph option to store the edges in the output XML
+- --max_iter applies to all learning methods
+- --seed to seed the randomizer with a constant
+- dynamic load of the learners
+- major code re-organization
+- for example of use, see in tasks: DU_TABLE_BIO.py or DU_Table_Row_Edge.py
+
 
 --- Jonquille - 2017-04-28
 - multi-type classification supported
@@ -30,20 +37,9 @@
 
 
 ---------------------------------------------------------------------------------
-    Copyright (C) 2016, 2017 H. Déjean, JL Meunier
+    Copyright (C)  2016-2019  H. Déjean, JL Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     Developed  for the EU project READ. The READ project has received funding 
     from the European Union's Horizon 2020 research and innovation programme 

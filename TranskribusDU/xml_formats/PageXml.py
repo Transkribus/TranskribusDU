@@ -9,6 +9,10 @@ Various utilities to deal with PageXml format
 @author: meunier
 '''
 
+
+
+
+
 import os
 import datetime
 from copy import deepcopy
@@ -128,18 +132,25 @@ class PageXml:
         return the Metadata DOM node
         """
         ndMetadata, ndCreator, _ndCreated, ndLastChange, ndComments = cls._getMetadataNodes(doc, domNd)
-        ndCreator.text = Creator
+        if bool(Creator):
+            if ndCreator.text:
+                ndCreator.text = ndCreator.text + "\n" + Creator
+            else:
+                ndCreator.text = Creator
         #The schema seems to call for GMT date&time  (IMU)
         #ISO 8601 says:  "If the time is in UTC, add a Z directly after the time without a space. Z is the zone designator for the zero UTC offset."
         #Python seems to break the standard unless one specifies properly a timezone by sub-classing tzinfo. But too complex stuff
         #So, I simply add a 'Z' 
         ndLastChange.text = datetime.datetime.utcnow().isoformat()+"Z" 
-        if Comments != None:
+        if bool(Comments):
             ## if not ndComments: #we need to add one!
             ## FutureWarning: The behavior of this method will change in future versions. Use specific 'len(elem)' or 'elem is not None' test instead.   
             if ndComments is None : #we need to add one!
                 ndComments = etree.SubElement(ndMetadata, cls.sCOMMENTS_ELT)
-            ndComments.text = Comments
+            if bool(ndComments.text):
+                ndComments.text = ndComments.text + "\n" + Comments
+            else:
+                ndComments.text = Comments
         return ndMetadata
     setMetadata = classmethod(setMetadata)        
     
@@ -346,7 +357,12 @@ class PageXml:
         
         nd4 = nd3.getnext()
         if nd4 is not None:
-            if etree.QName(nd4.tag).localname not in [cls.sCOMMENTS_ELT,cls.sTranskribusMetadata_ELT] : raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
+            if etree.QName(nd4.tag).localname not in [cls.sCOMMENTS_ELT,cls.sTranskribusMetadata_ELT] : raise ValueError("PageXMl mal-formed Metadata: expected a Transkribus metadata or some comment as 4th element")
+            if etree.QName(nd4.tag).localname == cls.sTranskribusMetadata_ELT:
+                nd4 = nd4.getnext()
+                if nd4 is not None:
+                    if etree.QName(nd4.tag).localname != cls.sCOMMENTS_ELT : raise ValueError("PageXMl mal-formed Metadata: expected a comment element")
+                    
         return domNd, nd1, nd2, nd3, nd4
     _getMetadataNodes = classmethod(_getMetadataNodes)
 
@@ -651,29 +667,44 @@ class MultiPageXml(PageXml):
     
             #to jump to the PAGE sibling node (we do it now, defore possibly unlink...)
             node = metadataNd.getnext()
+            xmlPAGERoot.append(metadataNd)
+#             node = metadataNd.getnext()
+            xmlPAGERoot.append(node)
 
+
+            """
+                 Hervé 28/05/2019: I comment since I don't understand
+            """ 
 #             #Add a copy of the METADATA node and sub-tree
-            if bInPlace:
-                metadataNd.getparent().remove(metadataNd)
-                xmlPAGERoot.append(metadataNd)
-            else:
-                newMetadataNd=deepcopy(metadataNd)
-                xmlPAGERoot.append(newMetadataNd)
+#             if bInPlace:
+# #                 metadataNd.unlinkNode()
+#                 metadataNd.getparent().remove(metadataNd)
+#                 newRootNd.append(metadataNd)
+#             else:
+# #                 newMetadataNd = metadataNd.copyNode(1)
+#                 newMetadataNd=deepcopy(metadataNd)
+#                 metadataNd.getparent().remove(metadataNd)
+#                 newRootNd.append(newMetadataNd)
             
 #             #jump to the PAGE sibling node
 #             node = metadataNd.next
-            
+
             while node is not None:
 #                 if node.type == "element": break
 #                 node = node.next
                 if node.tag != etree.Comment: break
                 node = node.getnext()
             if etree.QName(node.tag).localname != "Page": raise ValueError("Input multi-page PageXml for page %d should have a PAGE node after the METADATA node."%pnum)
+            
             #Add a copy of the PAGE node and sub-tree
             if bInPlace:
-                xmlPAGERoot.append(node)
+#                 node.unlinkNode()
+#                 newNode = newRootNd.addChild(node)
+                newRootNd.append(node)
                 newNode= node
             else:
+#                 newPageNd = node.copyNode(1)
+#                 newNode = newRootNd.addChild(newPageNd)
                 newNode = deepcopy(node)
                 newRootNd.append(newNode)
             #Remove the prefix on the "id" attributes
@@ -691,10 +722,8 @@ class MultiPageXml(PageXml):
 #         ctxt.xpathFreeContext()
 #         for doc in lDocToBeFreed: doc.freeDoc()
            
-        raise StopIteration
+        return
     _iter_splitMultiPageXml = classmethod(_iter_splitMultiPageXml)
-
-
 # ---  Metadata of PageXml  --------------------------------            
 class Metadata:
     

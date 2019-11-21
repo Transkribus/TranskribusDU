@@ -6,18 +6,7 @@
     Copyright NAVER(C) 2018, 2019  Stéphane Clinchant, Animesh Prasad
          Hervé Déjean, Jean-Luc Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -45,7 +34,7 @@ from common.chrono import chronoOn, chronoOff
 from common.TestReport import TestReport
 from common.LabelBinarizer2 import LabelBinarizer2
 
-from graph.GraphModel import GraphModel, GraphModelException
+from graph.GraphModel import GraphModel, GraphModelException, GraphModelNoEdgeException
 from graph.Graph import Graph
 import gcn.gcn_models as gcn_models
 from gcn.gcn_datasets import GCNDataset
@@ -67,12 +56,18 @@ class DU_Model_ECN(GraphModel):
         # A binarizer that uses 2 columns for binary classes (instead of only 1)
         self.labelBinarizer = LabelBinarizer2()
 
+    def getMetadataComment(self):
+        s = super().getMetadataComment()
+        s += "\n" + repr(self.model_config)
+        return s
+
     @staticmethod
     def getBaselineConfig():
         '''
         Return A Baseline Edge Conv Net Configuration with 3 layers and 10 convolutions per layer
         :return:
         '''
+        assert False, "code to be checked"
         config={}
         config['name'] = '3Layers-10conv-stack'
         config['nb_iter'] = 2000
@@ -99,37 +94,20 @@ class DU_Model_ECN(GraphModel):
         #Pass arguments
         self.model_config=kwargs
 
-        '''
-               lr=0.001,
-               stack_convolutions=True,
-               mu=0.0,
-               num_layers=3,
-               node_indim=-1,
-               nconv_edge=10,
-               fast_convolve = True,
-               dropout_rate_edge = 0.0,
-               dropout_rate_edge_feat = 0.0,
-               dropout_rate_node = 0.0,
-               nb_iter=2000,
-               ratio_train_val=0.15,
-               activation=tf.nn.tanh,
-               ):
-               '''
-
     def getModelFilename(self):
-        return os.path.join(self.sDir, self.sName+"."+self.sSurname+".bestmodel.ckpt")
+        return os.path.join(self.sDir, self.sName+"._."+self.sSurname+".bestmodel.ckpt")
 
     def getTmpModelFilename(self):
-        return os.path.join(self.sDir, self.sName+"."+self.sSurname+".tmpmodel.ckpt")
+        return os.path.join(self.sDir, self.sName+"._."+self.sSurname+".tmpmodel.ckpt")
 
     def getValScoreFilename(self):
-        return os.path.join(self.sDir, self.sName+"."+self.sSurname+'.validation_scores.pkl')
+        return os.path.join(self.sDir, self.sName+"._."+self.sSurname+'.validation_scores.pkl')
 
     def getlabelBinarizerFilename(self):
-        return os.path.join(self.sDir, self.sName+"."+self.sSurname+'.label_binarizer.pkl')
+        return os.path.join(self.sDir, self.sName+"._."+self.sSurname+'.label_binarizer.pkl')
 
     def getModelConfigFilename(self):
-        return os.path.join(self.sDir, self.sName+"."+self.sSurname+'.model_config.pkl')
+        return os.path.join(self.sDir, self.sName+"._."+self.sSurname+'.model_config.pkl')
 
 
     @classmethod
@@ -171,7 +149,7 @@ class DU_Model_ECN(GraphModel):
             
             # ECN need directed edges, but for the conjugate graph, we proceed differently
             # because the features remain the same in both directions.
-            if self.bConjugate:
+            if g.bConjugate:
                 [(node_features, new_edges, new_edges_feat)] = self.addConjugateRevertedEdge([g], [X])
             else:
                 # in conjugate graph mode, we "duplicate" the edges in the conjugate graph
@@ -269,6 +247,14 @@ class DU_Model_ECN(GraphModel):
 
         return graph
 
+    def _init_TF_graph(self):
+        tf_graph = tf.Graph()
+        with tf_graph.as_default():
+            self._init_model()
+            #This create a session containing the correct model
+            self.restore()
+        self.tf_graph = tf_graph
+        
     def _init_model(self):
         '''
         Create the tensorflow graph.
@@ -284,29 +270,29 @@ class DU_Model_ECN(GraphModel):
                                                 node_indim=self.model_config['node_indim'],
                                                 nconv_edge=self.model_config['nconv_edge'],
                                                 )
-        '''
-        self.gcn_model.stack_instead_add = self.model_config['stack_convolutions']
-        #TODO Clean Constructor
-        if 'activation' in self.model_config:
-            self.gcn_model.activation = self.model_config['activation']
-
-        if 'fast_convolve' in self.model_config:
-            self.gcn_model.fast_convolve = self.model_config['fast_convolve']
-
-        if 'dropout_rate_edge' in self.model_config:
-            self.gcn_model.dropout_rate_edge = self.model_config['dropout_rate_edge']
-            print('Dropout Edge', self.gcn_model.dropout_rate_edge)
-
-        if 'dropout_rate_edge_feat' in self.model_config:
-            self.gcn_model.dropout_rate_edge_feat = self.model_config['dropout_rate_edge_feat']
-            print('Dropout Edge', self.gcn_model.dropout_rate_edge_feat)
-
-        if 'dropout_rate_node' in self.model_config:
-            self.gcn_model.dropout_rate_node = self.model_config['dropout_rate_node']
-            print('Dropout Node', self.gcn_model.dropout_rate_node)
-        '''
         self.gcn_model.set_learning_options(self.model_config)
         self.gcn_model.create_model()
+
+#         self.gcn_model.stack_instead_add = self.model_config['stack_convolutions']
+#         #TODO Clean Constructor
+#         if 'activation' in self.model_config:
+#             self.gcn_model.activation = self.model_config['activation']
+# 
+#         if 'fast_convolve' in self.model_config:
+#             self.gcn_model.fast_convolve = self.model_config['fast_convolve']
+# 
+#         if 'dropout_rate_edge' in self.model_config:
+#             self.gcn_model.dropout_rate_edge = self.model_config['dropout_rate_edge']
+#             print('Dropout Edge', self.gcn_model.dropout_rate_edge)
+# 
+#         if 'dropout_rate_edge_feat' in self.model_config:
+#             self.gcn_model.dropout_rate_edge_feat = self.model_config['dropout_rate_edge_feat']
+#             print('Dropout Edge', self.gcn_model.dropout_rate_edge_feat)
+# 
+#         if 'dropout_rate_node' in self.model_config:
+#             self.gcn_model.dropout_rate_node = self.model_config['dropout_rate_node']
+#             print('Dropout Node', self.gcn_model.dropout_rate_node)
+
 
     def _cleanTmpCheckpointFiles(self):
         '''
@@ -326,16 +312,11 @@ class DU_Model_ECN(GraphModel):
         return nb_clean
 
 
-    def train(self, lGraph, lGraph_vld, bWarmStart=True, expiration_timestamp=None, verbose=0):
+    def _prepare_for_train(self, lGraph, lGraph_vld):
         """
-        Return a model trained using the given labelled graphs.
-        The train method is expected to save the model into self.getModelFilename(), at least at end of training
-        If bWarmStart==True, The model is loaded from the disk, if any, and if fresher than given timestamp, and training restarts
-
-        if some baseline model(s) were set, they are also trained, using the node features
-
+        Prepare for training eCN or EnsembleECN
         """
-        traceln('ECN Training',self.sName)
+        traceln('ECN Training ', self.sName)
         traceln("\t- computing features on training set")
         traceln("\t\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber(lGraph))
         chronoOn()
@@ -345,10 +326,7 @@ class DU_Model_ECN(GraphModel):
         # self._tNF_EF contains the number of node features and edge features
         traceln("\t\t %s" % self._getNbFeatureAsText())
         traceln("\t [%.1fs] done\n" % chronoOff())
-        if self.bConjugate:
-            nb_class = len(lGraph[0].getEdgeLabelNameList())  #Is it better to do Y.shape ?
-        else:
-            nb_class = len(lGraph[0].getLabelNameList())  #Is it better to do Y.shape ?
+        nb_class = len(lGraph[0].getLabelNameList())  #Is it better to do Y.shape ?
         traceln("\t- %d classes" % nb_class)
         
         traceln("\t- retrieving or creating model...")
@@ -361,15 +339,6 @@ class DU_Model_ECN(GraphModel):
             with open ('linear_reg', 'wb') as save_file:
                 pickle.dump((lX,lY), save_file, pickle.HIGHEST_PROTOCOL)
             
-                #This call the ECN internal constructor and defines the tensorflow graph
-        self._init_model()
-
-        #This call the ECN internal constructor and defines the tensorflow graph
-        tf_graph=tf.Graph()
-        with tf_graph.as_default():
-            self._init_model()
-        self.tf_graph=tf_graph
-
         #This converts the lX,lY in the format necessary for GCN Models
         gcn_graph = self.convert_lX_lY_to_GCNDataset(lX,lY,training=True)
 
@@ -377,10 +346,6 @@ class DU_Model_ECN(GraphModel):
         fd_lb =open(self.getlabelBinarizerFilename(),'wb')
         pickle.dump(self.labelBinarizer,fd_lb)
         fd_lb.close()
-        #Save the model config in order to restore the model later
-        fd_mc = open(self.getModelConfigFilename(), 'wb')
-        pickle.dump(self.model_config, fd_mc)
-        fd_mc.close()
 
         #TODO Save the validation set too to reproduce experiments
         random.shuffle(gcn_graph)
@@ -392,16 +357,47 @@ class DU_Model_ECN(GraphModel):
             del lX_vld, lY_vld
         else:
             #Get a validation set from the training set
-            split_idx = int(self.model_config['ratio_train_val'] * len(gcn_graph))
+            split_idx = max(1, int(self.model_config['ratio_train_val'] * len(gcn_graph)))
+            traceln(" - using %d train graphs as validation graphs" % split_idx)
             gcn_graph_train = []
             gcn_graph_val = []
             gcn_graph_val.extend(gcn_graph[:split_idx])
             gcn_graph_train.extend(gcn_graph[split_idx:])
-
+        traceln("%d training graphs --  %d validation graphs"%(len(gcn_graph_train), len(gcn_graph_val)))
         self._cleanTmpCheckpointFiles()
 
+        return gcn_graph_train, gcn_graph_val
+        
+    def train(self, lGraph, lGraph_vld, bWarmStart=True, expiration_timestamp=None, verbose=0):
+        """
+        Return a model trained using the given labelled graphs.
+        The train method is expected to save the model into self.getModelFilename(), at least at end of training
+        If bWarmStart==True, The model is loaded from the disk, if any, and if fresher than given timestamp, and training restarts
+
+        if some baseline model(s) were set, they are also trained, using the node features
+
+        """
+
+        gcn_graph_train, gcn_graph_val = self._prepare_for_train(lGraph, lGraph_vld)
+
+        self._train(gcn_graph_train, gcn_graph_val)
+        
+    def _train(self, gcn_graph_train, gcn_graph_val):
+        """
+        In ECN Ensemble mode, many steps have been alread performed by the ECNEnsemble model
+        """
         patience = self.model_config['patience'] if 'patience' in self.model_config else self.model_config['nb_iter']
         
+        #Save the model config in order to restore the model later
+        fd_mc = open(self.getModelConfigFilename(), 'wb')
+        pickle.dump(self.model_config, fd_mc)
+        fd_mc.close()
+        
+        #This call the ECN internal constructor and defines the tensorflow graph
+        tf_graph=tf.Graph()
+        with tf_graph.as_default():
+            self._init_model()
+        self.tf_graph = tf_graph
         
         # SC  with tf.Session() as session:
         # Animesh
@@ -421,7 +417,6 @@ class DU_Model_ECN(GraphModel):
         
         #We reopen a session here and load the selected model if we need one
         self.restore()
-
 
     def _getBestModelVal(self):
         val_pickle = self.getValScoreFilename()
@@ -509,15 +504,7 @@ class DU_Model_ECN(GraphModel):
         self.labelBinarizer = pickle.load(fd_lb)
         fd_lb.close()
 
-
-        # SC self._init_model()
-        # Animesh
-        tf_graph = tf.Graph()
-        with tf_graph.as_default():
-            self._init_model()
-            #This create a session containing the correct model
-            self.restore()
-        self.tf_graph = tf_graph
+        self._init_TF_graph()
         
         return self
 
@@ -605,6 +592,19 @@ class DU_Model_ECN(GraphModel):
 
 
 
+    def _prepare_for_test(self, lGraph):
+
+        traceln("\t- computing features on test set")
+        traceln("\t\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber(lGraph))
+        chronoOn()
+
+        lX, lY = self.get_lX_lY(lGraph)
+        traceln("\t [%.1fs] done\n" % chronoOff())
+
+        gcn_graph_test = self.convert_lX_lY_to_GCNDataset(lX, lY, training=False,test=True)
+        
+        return gcn_graph_test, lX, lY
+     
     def test(self, lGraph
              , lsDocName=None
              , predict_proba=False
@@ -617,21 +617,11 @@ class DU_Model_ECN(GraphModel):
         Return a Report object
         """
         #Assume the model was created or loaded
-
         assert lGraph
 
-        if self.bConjugate:
-            lLabelName = lGraph[0].getEdgeLabelNameList()
-        else:
-            lLabelName = lGraph[0].getLabelNameList()
-        traceln("\t- computing features on test set")
-        traceln("\t\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber(lGraph))
-        chronoOn()
-
-        lX, lY = self.get_lX_lY(lGraph)
-        traceln("\t [%.1fs] done\n" % chronoOff())
-
-        gcn_graph_test = self.convert_lX_lY_to_GCNDataset(lX, lY, training=False,test=True)
+        gcn_graph_test, lX, lY = self._prepare_for_test(lGraph)
+        
+        lLabelName = lGraph[0].getLabelNameList()
 
         chronoOn("test2")
         session=self.tf_session
@@ -690,12 +680,12 @@ class DU_Model_ECN(GraphModel):
             
             lg = loadFun(sFilename)  # returns a singleton list
             for g in lg:
-                if self.bConjugate: g.computeEdgeLabels()
+                if g.bConjugate: g.computeEdgeLabels()
                 [X], [Y] = self.get_lX_lY([g])
                 
                 gcn_graph_test = self.convert_lX_lY_to_GCNDataset([X], [Y], training=False, test=True)
                 if lLabelName == None:
-                    lLabelName = g.getEdgeLabelNameList() if self.bConjugate else g.getLabelNameList()
+                    lLabelName = g.getEdgeLabelNameList() if g.bConjugate else g.getLabelNameList()
                     traceln("\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber([g]))
                     tNF_EF = (X[0].shape[1], X[2].shape[1])
                     traceln("node-dim,edge-dim", tNF_EF)
@@ -710,7 +700,6 @@ class DU_Model_ECN(GraphModel):
                 
                 lX.append(X)
                 lY.append(Y)
-#                 g.detachFromDOM()
                 del g  # this can be very large
                 gc.collect()
 
@@ -737,8 +726,8 @@ class DU_Model_ECN(GraphModel):
         session=tf.Session(graph=self.tf_graph)
         session.run(self.gcn_model.init)
         self.gcn_model.restore_model(session, self.getModelFilename())
-        traceln(" ... done loaded",self.sName)
-        self.tf_session=session
+        traceln(" ... done loaded ",self.sName)
+        self.tf_session = session
         return session
 
 
@@ -748,6 +737,7 @@ class DU_Model_ECN(GraphModel):
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph.
         """
         [X] = self.get_lX([g])
+        if X[1].shape[0] == 0: raise GraphModelNoEdgeException  # no edge in this graph!
 
         gcn_graph_test = self.convert_X_to_GCNDataset(X)
         #lY_pred = self.gcn_model.predict_lG(self.tf_session, gcn_graph_test, verbose=False)
@@ -808,10 +798,10 @@ class DU_Model_GAT(DU_Model_ECN):
 
 
 class DU_Ensemble_ECN(DU_Model_ECN):
-    sSurname = "ensemble_ecn_"
+    sSurname = "ecn_ensemble"
     
     def __init__(self, sName, sModelDir):
-        super(DU_Ensemble_ECN,self).__init__(sName,sModelDir)
+        super(DU_Ensemble_ECN,self).__init__(sName, sModelDir)
         self.tf_graphs=[]
         self.models=[]
 
@@ -823,69 +813,52 @@ class DU_Ensemble_ECN(DU_Model_ECN):
         This function is called in the train operation and in the load function for testing  on new documents
         :return:
         '''
-        traceln('Ensemble config')
-        traceln(self.model_config)
-        for model_config in self.model_config['ecn_ensemble']:
-            traceln(model_config)
+        traceln(' ---- Ensemble config')
+        assert self.model_config['ratio_train_val'], "The ensemble as a whole must have one ratio 'ratio_train_val'"       
+        for iMdl, model_config in enumerate(self.model_config['ecn_ensemble']):
             if model_config['type']=='ecn':
-                sName= model_config['name']
-                du_model = DU_Model_ECN(sName,self.sDir)
-                #Propagate the values of node dim edge dim nb_class
-                model_config['node_dim']=self.model_config['node_dim']
-                model_config['edge_dim'] = self.model_config['edge_dim']
-                model_config['nb_class'] = self.model_config['nb_class']
-
+                sName = self.getSubModelName(iMdl, model_config['name'])
+                
+                traceln(' ---- Configuration of ', sName)
+                du_model = DU_Model_ECN(sName, self.sDir)
+                
                 du_model.configureLearner(**model_config)
-                du_model.setTranformers(self.getTransformers())
-                du_model.saveTransformers()
-                #TODO Unclear why this is not set bye default
-                du_model.setNbClass(self.getNbClass())
+                
+                du_model.model_config['name']            = sName
+                try:
+                    traceln(" -- Max iteration forced to %d"%du_model.model_config['nb_iter'])
+                    du_model.model_config['nb_iter'] = self.model_config['nb_iter']
+                except KeyError: pass
+                du_model.model_config['ratio_train_val'] = self.model_config['ratio_train_val']
+                du_model.model_config['node_dim']        = self.model_config['node_dim']
+                du_model.model_config['edge_dim']        = self.model_config['edge_dim']
+                du_model.model_config['nb_class']        = self.model_config['nb_class']
+                
+                du_model._init_model()
+
                 self.models.append(du_model)
             else:
                 raise Exception('Invalid ECN Model')
-
-    def train(self, lGraph, bWarmStart=True, expiration_timestamp=None,verbose=0):
-        traceln('Ensemble ECN Training')
-        traceln("\t- computing features on training set")
-        traceln("\t\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber(lGraph))
-        chronoOn()
-        lX, lY = self.get_lX_lY(lGraph)
-
-        self._computeModelCaracteristics(lX)  # we discover here dynamically the number of features of nodes and edges
-        # self._tNF_EF contains the number of node features and edge features
-        traceln("\t\t %s" % self._getNbFeatureAsText())
-        traceln("\t [%.1fs] done\n" % chronoOff())
-
-        nb_class = self.getNbClass()  # Is it better to do Y.shape ?
-        traceln('nb_class', nb_class)
-
-        self.model_config['node_dim'] = self._tNF_EF[0]
-        self.model_config['edge_dim'] = self._tNF_EF[1]
-        self.model_config['nb_class'] = nb_class
-        traceln("\t- creating the sub-models")
-
-        # TODO
-        # This converts the lX,lY in the format necessary for GCN Models
-        #DO we need that , can we share the label binarizer and so on ...
-        #This sets the label binarizer
-        gcn_graph = self.convert_lX_lY_to_GCNDataset(lX, lY, training=True)
-
-        # Save the label Binarizer for prediction usage
-        fd_lb = open(self.getlabelBinarizerFilename(), 'wb')
-        pickle.dump(self.labelBinarizer, fd_lb)
-        fd_lb.close()
-        # Save the model config in order to restore the model later
-        fd_mc = open(self.getModelConfigFilename(), 'wb')
-        pickle.dump(self.model_config, fd_mc)
-        fd_mc.close()
-
-        #This would create all the DU_MODEL
+        traceln('Ensemble config done: %d models initialized' % len(self.models))
+            
+    def getSubModelName(self, iMdl, sSubModelName):
+        """
+        Make a name that is globally unique and art of the family of names for this ECN Ensemble
+        """
+        return self.sName + "._.%d_" % iMdl + sSubModelName
+    
+    def train(self, lGraph, lGraph_vld, bWarmStart=True, expiration_timestamp=None, verbose=0):
+        
+        gcn_graph_train, gcn_graph_val = self._prepare_for_train(lGraph, lGraph_vld)
+        
         self._init_model()
-
+        
+        traceln(' ---- Ensemble ECN Training')
         for du_model in self.models:
-            #The train will create a tf graph and create the model
-            du_model.train(lGraph,bWarmStart=bWarmStart)
-        #TODO assert label binarizer are the same
+            traceln(" ---- training %s" % du_model.model_config['name'])
+            du_model._tNF_EF = self._tNF_EF  # not sure it is required
+            du_model._train(gcn_graph_train, gcn_graph_val)
+#         #TODO assert label binarizer are the same
 
     def load(self, expiration_timestamp=None):
         """
@@ -905,7 +878,7 @@ class DU_Ensemble_ECN(DU_Model_ECN):
         fd_mc = open(self.getModelConfigFilename(), 'rb')
         self.model_config=pickle.load(fd_mc)
         fd_mc.close()
-
+        
         fd_lb = open(self.getlabelBinarizerFilename(), 'rb')
         self.labelBinarizer = pickle.load(fd_lb)
         fd_lb.close()
@@ -915,11 +888,20 @@ class DU_Ensemble_ECN(DU_Model_ECN):
         #Still unclear if the load should load all the submodels
         #In principle yes
         self._init_model()
-        for du_model in self.models:
+        
+        for iMdl, du_model in enumerate(self.models):
             #Load each model, init and restore the checkpoint
             # Create also a corresponding tf.Session
-            du_model.load()
+            # du_model.load()  the load method does too many inapropriate things
+            du_model.setTranformers(self.getTransformers())
+            du_model.labelBinarizer = self.labelBinarizer
 
+            fd_mc = open(du_model.getModelConfigFilename(), 'rb')
+            du_model.model_config=pickle.load(fd_mc)
+            fd_mc.close()
+            
+            du_model._init_TF_graph()
+            
         return self
 
 
@@ -928,7 +910,7 @@ class DU_Ensemble_ECN(DU_Model_ECN):
         Get some basic model info
         Return a textual report
         """
-        return "Ensemble_Model"
+        return "Ensemble_ECN_Model"
 
 
 
@@ -943,23 +925,25 @@ class DU_Ensemble_ECN(DU_Model_ECN):
         #Assume the model was created or loaded
 
         assert lGraph
-        lLabelName = lGraph[0].getEdgeLabelNameList() if self.bConjugate else lGraph[0].getLabelNameList()
-        traceln("\t- computing features on test set")
-        traceln("\t\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber(lGraph))
-        chronoOn()
-        lY = self.get_lY(lGraph)
+        
+        gcn_graph_test, lX, lY = self._prepare_for_test(lGraph)
+
+        lLabelName = lGraph[0].getLabelNameList()
 
         lY_pred_proba=[]
         for du_model in self.models:
-            model_pred=du_model.test(lGraph,lsDocName=lsDocName,predict_proba=True)
+            model_pred = du_model.gcn_model.predict_prob_lG(du_model.tf_session
+                                                            , gcn_graph_test
+                                                            , verbose=False)
             lY_pred_proba.append(model_pred)
 
-        traceln('Number of Models',len(lY_pred_proba))
+        traceln(' -- Number of Models : ',len(lY_pred_proba))
+        
         lY_pred,_ = DU_Ensemble_ECN.average_prediction(lY_pred_proba)
         tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsDocName)
 
         # do some garbage collection
-        del lY
+        del lX, lY
         gc.collect()
 
         return tstRpt
@@ -996,79 +980,73 @@ class DU_Ensemble_ECN(DU_Model_ECN):
 
         Return a Report object
         """
-        raise NotImplementedError
-        lX, lY, lY_pred = [], [], []
-        lLabelName = None
         traceln("- predicting on test set")
         chronoOn("testFiles")
+        lX, lY, lY_pred = [], [], []
+        lLabelName = None
 
-        # ? Iterate over files or over models
-
-
-        for du_model in self.models:
-            #du_model.load()
-
-            m_pred=[]
-            #with tf.Session(graph=du_model.tf_graph) as session:
-                #session.run(du_model.gcn_model.init)
-                #du_model.gcn_model.restore_model(session, du_model.getModelFilename())
-
-            for sFilename in lsFilename:
-                [g] = loadFun(sFilename)  # returns a singleton list
-                if self.bConjugate: g.computeEdgeLabels()
+        for sFilename in lsFilename:
+            
+            lg = loadFun(sFilename)  # returns a singleton list
+            for g in lg:
+                if g.bConjugate: g.computeEdgeLabels()
                 [X], [Y] = self.get_lX_lY([g])
+                
+                [gcn_graph_test] = self.convert_lX_lY_to_GCNDataset([X], [Y], training=False, test=True)
 
-                gcn_graph_test = self.convert_lX_lY_to_GCNDataset([X], [Y], training=False, test=True)
                 if lLabelName == None:
-                    lLabelName = g.getEdgeLabelNameList() if self.bConjugate else g.getLabelNameList()
+                    lLabelName = g.getLabelNameList()
                     traceln("\t #nodes=%d  #edges=%d " % Graph.getNodeEdgeTotalNumber([g]))
                     tNF_EF = (X[0].shape[1], X[2].shape[1])
                     traceln("node-dim,edge-dim", tNF_EF)
-#                 else:
-#                     assert lLabelName == g.getLabelNameList(), "Inconsistency among label spaces"
 
-                model_pred = du_model.test(gcn_graph_test, predict_proba=True)
-
-
-                # binary only m_pred.append(model_pred[0])
-                m_pred.append(model_pred.argmax(axis=1))
+                m_pred=[]
+                for du_model in self.models:
+                    [Y_pred] = du_model.gcn_model.predict_prob_lG(du_model.tf_session, [gcn_graph_test], verbose=False)
+                    m_pred.append([Y_pred])
+                    
+                [Y_pred], [_Y_pred_proba] = DU_Ensemble_ECN.average_prediction(m_pred)
                 
-                if bBaseLine: lX.append(X)
+                #lX.append(X)
                 lY.append(Y)
-                g.detachFromDOM()
+                lY_pred.append(Y_pred)
+                del _Y_pred_proba
+                g.detachFromDoc()
                 del g  # this can be very large
-                gc.collect()
-            lY_pred.append(model_pred)
+            gc.collect()
 
-        lY_pred,_ = DU_Ensemble_ECN.average_prediction(lY_pred)
         traceln("[%.1fs] done\n" % chronoOff("testFiles"))
 
         tstRpt = TestReport(self.sName, lY_pred, lY, lLabelName, lsDocName=lsFilename)
 
-        if bBaseLine:
-            lBaselineTestReport = self._testBaselinesEco(lX, lY, lLabelName, lsDocName=lsFilename)
-            tstRpt.attach(lBaselineTestReport)
-
-        del lX, lY
+        del lX, lY, lY_pred
         gc.collect()
 
         return tstRpt
 
 
-    def predict(self, g):
+    def predict(self, g, bProba=False):
         """
         predict the class of each node of the graph
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph.
         """
+        
+        [X] = self.get_lX([g])
+        if X[1].shape[0] == 0: raise GraphModelNoEdgeException  # no edge in this graph!
+
+        gcn_graph_test = self.convert_X_to_GCNDataset(X)
+        
         m_pred=[]
         for du_model in self.models:
-            #du_model.load()
-            ly_pred = du_model.test([g],predict_proba=True)
-            m_pred.append(ly_pred)
-        #traceln('Ensemble_predict',m_pred)
-        y_pred,_ = DU_Ensemble_ECN.average_prediction(m_pred)
+            assert not du_model.tf_session is None
+            [Y_pred] = du_model.gcn_model.predict_prob_lG(du_model.tf_session, [gcn_graph_test], verbose=False)
+            m_pred.append([Y_pred])
+            
+        [y_pred], [y_pred_proba] = DU_Ensemble_ECN.average_prediction(m_pred)
         
-        #traceln(y_pred)
-        #return y_pred[0]
-        return y_pred.argmax(axis=1)
+        if bProba:
+            return y_pred_proba
+        else:
+            return y_pred
+            
 

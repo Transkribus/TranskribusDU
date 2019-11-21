@@ -9,18 +9,7 @@
 
     READ project 
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -32,19 +21,20 @@ from __future__ import  print_function
 from __future__ import unicode_literals
 
 from .XMLDSObjectClass import XMLDSObjectClass
+from config import ds_xml_def as ds_xml
 
 class  XMLDSTABLECOLUMNClass(XMLDSObjectClass):
     """
         Column class
     """
-    name = 'COL'
+    name = ds_xml.sCOL_Elt
     def __init__(self,index=None,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
         self._domNode = domNode
         self._index= index
         self._lcells=[]
-#         self.tagname= 'COL'
+        self.tagName= 'COL'
         self.setName(XMLDSTABLECOLUMNClass.name)
     
     def __repr__(self):
@@ -56,9 +46,8 @@ class  XMLDSTABLECOLUMNClass(XMLDSObjectClass):
     def setIndex(self,i): self._index = i
     
     def delCell(self,cell):
-        self._lcells.remove(cell)
-#         try:self._lcells.remove(cell)
-#         except:pass
+        try:self._lcells.remove(cell)
+        except:pass
     def getCells(self): return self._lcells
     def addCell(self,c): 
         if c not in self.getCells():

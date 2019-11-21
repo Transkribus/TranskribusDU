@@ -31,18 +31,22 @@ Utility to create a set of pageXml XML files from a mpxml file.
     (options, args) = parser.parse_args()
 
     try:
-        dir  = args[0]
-        docid= args[1]
+        _dir  = args[0]
+        _docid= args[1]
     except:
         parser.print_help()
         parser.exit(1, "")
     
-    sDocFilename = "%s%scol%s%s.mpxml" % (dir,os.sep,os.sep,docid)        
+    sDocFilename = "%s%scol%s%s.mpxml" % (_dir,os.sep,os.sep,_docid)        
         
     doc = etree.parse(sDocFilename)
 
-    for pnum, pageDoc in PageXml.MultiPageXml._iter_splitMultiPageXml(doc, bInPlace=False):
-        outfilename = "%s%s%s%s%s_%03d.pxml" % (dir,os.sep,options.destdir,os.sep,docid,pnum)
+    ## sDocFilename = "%s%scol%s%s.bar_mpxml" % (_dir,os.sep,os.sep,_docid)        
+    ## doc = etree.parse(sDocFilename)
+    ## for pnum, pageDoc in PageXml.MultiPageXml._iter_splitMultiPageXml(doc, bInPlace=False):
+    for pnum, pageDoc in PageXml.MultiPageXml._iter_splitMultiPageXml(doc, bInPlace=True):
+        outfilename = "%s%s%s%s%s_%03d.pxml" % (_dir,os.sep,options.destdir,os.sep,_docid,pnum)
         print(outfilename)        
         pageDoc.write(outfilename, xml_declaration ='UTF-8',encoding="utf-8", pretty_print = bool(options.bIndent))
+    doc.freeDoc()
     print ("DONE")    

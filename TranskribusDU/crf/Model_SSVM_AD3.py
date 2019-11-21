@@ -8,18 +8,7 @@
 
     Copyright Xerox(C) 2016 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -47,7 +36,7 @@ except ImportError:
 
 from common.chrono import chronoOn, chronoOff
 from common.TestReport import TestReport
-from graph.GraphModel import GraphModel
+from graph.GraphModel import GraphModel, GraphModelNoEdgeException
 from graph.Graph import Graph
 from crf.OneSlackSSVM import OneSlackSSVM
 
@@ -185,6 +174,13 @@ class Model_SSVM_AD3(GraphModel):
         lX      , lY      = self.get_lX_lY(lGraph_trn)
         lX_vld  , lY_vld  = self.get_lX_lY(lGraph_vld)
         bMakeSlim = not bWarmStart  # for warm-start mode, we do not make the model slimer!"
+        self._computeModelCaracteristics(lX)
+        traceln("\t\t %s" % self._getNbFeatureAsText())
+        if False:
+            np.set_printoptions(threshold=sys.maxsize)
+            print(lX[0][0])
+            traceln("\t\t %s" % self._getNbFeatureAsText())
+            sys.exit(1)
         
         traceln("\t- retrieving or creating model...")
         self.ssvm = None
@@ -473,7 +469,7 @@ class Model_SSVM_AD3(GraphModel):
         for sFilename in lsFilename:
             lg = loadFun(sFilename) #returns a singleton list
             for g in lg:
-                if self.bConjugate: g.computeEdgeLabels()
+                if g.bConjugate: g.computeEdgeLabels()
                 [X], [Y] = self.get_lX_lY([g])
     
                 if lLabelName == None:
@@ -496,7 +492,6 @@ class Model_SSVM_AD3(GraphModel):
                 lX     .append(X)
                 lY     .append(Y)
                 lY_pred.append(Y_pred)
-                #g.detachFromDOM()
                 del g   #this can be very large
                 gc.collect() 
         traceln("[%.1fs] done\n"%chronoOff("testFiles"))
@@ -529,6 +524,7 @@ class Model_SSVM_AD3(GraphModel):
         return a numpy array, which is a 1-dim array of size the number of nodes of the graph. 
         """
         [X] = self.get_lX([graph])
+        if X[1].shape[0] == 0: raise GraphModelNoEdgeException  # no edge in this graph!
         bConstraint  = graph.getPageConstraint()
         traceln("\t\t #nodes=%d  #edges=%d "%Graph.getNodeEdgeTotalNumber([graph]))
         self._computeModelCaracteristics([X])    #we discover here dynamically the number of features of nodes and edges

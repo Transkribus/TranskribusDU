@@ -828,44 +828,43 @@ class Component:
 
 		i = 0
 		ltisRefsRunbErrbMiss = list()
-		try:
-			while True:
-				i += 1
-				bErr, bMiss = False, False
-				ref, run = itreflLen.next().text, itrunlLen.next().text
-				if funNormalize:
-					srunnorm = funNormalize(run) #using also our normalization in addition to the standard one				
-					srefnorm = funNormalize(ref)
+		
+		for ref,run in zip(itreflLen,itrunlLen):
+			ref=ref.text
+			run=run.TExt
+			i += 1
+			bErr, bMiss = False, False
+			#ref, run = itreflLen.next().text, itrunlLen.next().text
+			if funNormalize:
+				srunnorm = funNormalize(run) #using also our normalization in addition to the standard one				
+				srefnorm = funNormalize(ref)
+			else:
+				srunnorm, srefnorm = run, ref
+			#traceln((i, ref, run))
+			if run: #it found something
+				if funCompare:
+					bOk = funCompare(srunnorm, srefnorm) 
 				else:
-					srunnorm, srefnorm = run, ref
-				#traceln((i, ref, run))
-				if run: #it found something
-					if funCompare:
-						bOk = funCompare(srunnorm, srefnorm) 
-					else:
-						bOk = (srunnorm == srefnorm)
-					if bOk:
-						nok += 1
-						if bVisual: traceln("<OK> *** : page %d: '%s' got '%s'"%(i, ref, run))
-					else:
-						nerr += 1   #something wrong
-						bErr = True
-						if ref: 
-							nmiss += 1 #but this is also a miss
-							bMiss = True
-						if bVisual: traceln("<ERR>	: page %d: '%s' expected but got *** '%s'"%(i, ref, run))
-				else:   #it found nothing
-					if ref:
-						nmiss += 1  #it missed something	
+					bOk = (srunnorm == srefnorm)
+				if bOk:
+					nok += 1
+					if bVisual: traceln("<OK> *** : page %d: '%s' got '%s'"%(i, ref, run))
+				else:
+					nerr += 1   #something wrong
+					bErr = True
+					if ref: 
+						nmiss += 1 #but this is also a miss
 						bMiss = True
-						if bVisual: traceln("<MISS>   : page %d: '%s' expected ***"%(i, ref))
-					else:
-						nok += 1  #just fine!!
-				ltisRefsRunbErrbMiss.append( (i, ref, run, bErr, bMiss) )
+					if bVisual: traceln("<ERR>	: page %d: '%s' expected but got *** '%s'"%(i, ref, run))
+			else:   #it found nothing
+				if ref:
+					nmiss += 1  #it missed something	
+					bMiss = True
+					if bVisual: traceln("<MISS>   : page %d: '%s' expected ***"%(i, ref))
+				else:
+					nok += 1  #just fine!!
+			ltisRefsRunbErrbMiss.append( (i, ref, run, bErr, bMiss) )
 						
-		except StopIteration:
-			pass
-# 		refctxt.xpathFreeContext(), runctxt.xpathFreeContext()
 
 		assert len(reflpnum) == len(runlpnum), "***** ERROR: inconsistent ref (%d) and run (%d) lengths. *****"%(len(reflpnum), len(runlpnum))
 
