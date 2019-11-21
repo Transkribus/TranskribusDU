@@ -7,18 +7,7 @@
     
     Copyright NAVER(C) 2019 JL. Meunier
     
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -250,7 +239,7 @@ class Edge_Geometry(Pipeline):
         a range of features is dedicated for each class of edges (depends on bMultiPage).
         (Vertical, horizontal, cross-page, ...)
         """    
-        N = 12
+        N = 21
         def transform(self, lEdge):
             a = np.zeros( ( len(lEdge), self.N ) , dtype=np.float64)
             for i, edge in enumerate(lEdge):
@@ -261,8 +250,12 @@ class Edge_Geometry(Pipeline):
                 l_nv = l / float(edge.A.page.h) 
                 l_nh = l / float(edge.A.page.w) # normalized horizontally
     
-                # overlap
+                # overlap due to masking
                 ovrl = edge.overlap
+                # overlap ignoring masking
+                # ovrl_max = edge.computeOverlap()                # new 9/8/19
+                ovrl_max, pA, pB = edge.computeOverlapPosition()  # new 8/8/19
+                r_ovrl = (ovrl+0.001) / (0.001+ovrl_max) # avoid zero div.
                 
                 # IoU
                 iou = edge.iou
@@ -275,8 +268,13 @@ class Edge_Geometry(Pipeline):
                            , l_nh       , l_nh*l_nh
                            , l_nv       , l_nv*l_nv
                            , ovrl       , ovrl*ovrl
+                           , ovrl_max   , ovrl_max*ovrl_max # new 8/8/19
                            , iou        , iou*iou
+                           , r_ovrl     , r_ovrl*r_ovrl     # new 8/8/19
                            , space      , space*space
+                           , r_ovrl / max(l,1)              # new 8/8/19
+                           , pA         , pA*pA             # new 9/8/19
+                           , pB         , pB*pB             # new 9/8/19
                            )
                     
             return a  

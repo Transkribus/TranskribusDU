@@ -11,18 +11,7 @@
     
     Copyright Naver Labs Europe(C) 2018 JL Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -112,7 +101,7 @@ class AdHocFactorialGraphCut(Graph_MultiPageXml, FactorialGraph):
         cls._dFactorialType[ntClassic] = ntFactored
         cls._lfactoredType.append(ntFactored)
         
-    def parseXmlFile(self, sFilename, iVerbose=0):
+    def parseDocFile(self, sFilename, iVerbose=0):
         """
         Load that document as a CRF Graph.
         Also set the self.doc variable!
@@ -154,7 +143,7 @@ class AdHocFactorialGraphCut(Graph_MultiPageXml, FactorialGraph):
         assert len(lClassicType) == 1
         assert len(lSpecialType) == 1
         
-        for (pnum, page, domNdPage) in self._iter_Page_DomNode(self.doc):
+        for (pnum, page, domNdPage) in self._iter_Page_DocNode(self.doc):
             #now that we have the page, let's create the node for each type!
             lClassicPageNode = [nd for nodeType in lClassicType for nd in nodeType._iter_GraphNode(self.doc, domNdPage, page) ]
             lSpecialPageNode = [nd for nodeType in lSpecialType for nd in nodeType._iter_GraphNode(self.doc, domNdPage, page) ]
@@ -202,7 +191,7 @@ class AdHocFactorialGraphCut(Graph_MultiPageXml, FactorialGraph):
 
     # ------------------------------------
  
-    def parseDomLabels(self):
+    def parseDocLabels(self):
         """
         Parse the label of the graph from the dataset, and set the node label
         return the set of observed class (set of integers in N+)
@@ -213,13 +202,13 @@ class AdHocFactorialGraphCut(Graph_MultiPageXml, FactorialGraph):
         == ad-hoc graph ==
         We also load the class of the factored classical nodes
         """
-        setSeensLabels = Graph_MultiPageXml.parseDomLabels(self)
+        setSeensLabels = Graph_MultiPageXml.parseDocLabels(self)
         
         # and we go thru the classical node types to also load the factored label
         for nd in self.lNodeBlock:
             factoredType = self._dFactorialType[nd.type] 
             try:
-                sFactoredLabel = factoredType.parseDomNodeLabel(nd.node)
+                sFactoredLabel = factoredType.parseDocNodeLabel(nd)
             except KeyError:
                 raise ValueError("Page %d, unknown label in %s (Known labels are %s)"%(nd.pnum, str(nd.node), self._dClsByLabel))
             factoredLabel = self._dClsByLabel[sFactoredLabel]
@@ -228,7 +217,7 @@ class AdHocFactorialGraphCut(Graph_MultiPageXml, FactorialGraph):
             setSeensLabels.add(factoredLabel)
         return setSeensLabels    
 
-    def setDomLabels(self, Y):
+    def setDocLabels(self, Y):
         """
         Set the labels of the graph nodes from the Y matrix
         return the DOM
@@ -245,18 +234,18 @@ class AdHocFactorialGraphCut(Graph_MultiPageXml, FactorialGraph):
         # Blocks
         for i, nd in enumerate(self.lNodeBlock):
             sLabel = self._dLabelByCls[ Y[i] ]
-            ntBlock.setDomNodeLabel(nd.node, sLabel)  
+            ntBlock.setDocNodeLabel(nd, sLabel)  
         
         # factored Blocks    
         for i, nd in enumerate(self.lNodeBlock):
             sLabel = self._dLabelByCls[ Y[i+NB] ]
-            ntFactored.setDomNodeLabel(nd.node, sLabel)  
+            ntFactored.setDocNodeLabel(nd, sLabel)  
             
         # cut nodes
         Z = NB + NB
         for i, nd in enumerate(self.lNodeCutLine):
             sLabel = self._dLabelByCls[ Y[i+Z] ]
-            ntCut.setDomNodeLabel(nd.node, sLabel)  
+            ntCut.setDocNodeLabel(nd, sLabel)  
 
         return self.doc
     
@@ -738,12 +727,13 @@ class NodeType_BIESO_to_SIO_and_CHDO(NodeType_PageXml_type_woText):
     Convert BIESO labeling to SIO
     """
     
-    def parseDomNodeLabel(self, domnode, defaultCls=None):
+    def parseDocNodeLabel(self, graph_node, defaultCls=None):
         """
         Parse and set the graph node label and return its class index
         raise a ValueError if the label is missing while bOther was not True, or if the label is neither a valid one nor an ignored one
         """
         sLabel = self.sDefaultLabel
+        domnode = graph_node.node
         
         sXmlLabel = domnode.get(self.sLabelAttr)
         
@@ -911,7 +901,7 @@ class DU_ABPTableRCut(DU_CRF_Task):
         lSpecialType = [nt for nt in self.getNodeTypeList() if nt not in self._lClassicNodeType]
 
         #load the block nodes per page        
-        for (pnum, page, domNdPage) in self._iter_Page_DomNode(self.doc):
+        for (pnum, page, domNdPage) in self._iter_Page_DocNode(self.doc):
             #now that we have the page, let's create the node for each type!
             lClassicPageNode = [nd for nodeType in lClassicType for nd in nodeType._iter_GraphNode(self.doc, domNdPage, page) ]
             lSpecialType = [nt for nt in self.getNodeTypeList() if nt not in self._lClassicNodeType]

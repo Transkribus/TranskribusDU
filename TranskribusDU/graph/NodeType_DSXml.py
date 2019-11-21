@@ -5,18 +5,7 @@
 
     Copyright Xerox(C) 2016 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -52,13 +41,13 @@ class NodeType_DS(NodeType):
         """
         return self.sxpNode
     
-    def parseDomNodeLabel(self, domnode, defaultCls=None):
+    def parseDocNodeLabel(self, graph_node, defaultCls=None):
         """
         Parse and set the graph node label and return its class index
         raise a ValueError if the label is missing while bOther was not True, or if the label is neither a valid one nor an ignored one
         """
         sLabel = self.sDefaultLabel
-        
+        domnode = graph_node.node
         sXmlLabel = None
         if domnode.get("title_oracle_best"):
             sXmlLabel = "title"
@@ -80,12 +69,12 @@ class NodeType_DS(NodeType):
         return sLabel
 
 
-    def setDomNodeLabel(self, domnode, sLabel):
+    def setDocNodeLabel(self, graph_node, sLabel):
         """
         Set the DOM node label in the format-dependent way
         """
         if sLabel != self.sDefaultLabel:
-            domnode.set(sLabel, "yes")
+            graph_node.node.set(sLabel, "yes")
         return sLabel
 
 
@@ -124,7 +113,7 @@ class NodeType_DS(NodeType):
             
             yield blk
             
-        raise StopIteration()        
+        return      
         
     def getAttributeInDepth(self, nd, attr):
         """

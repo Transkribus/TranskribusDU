@@ -7,18 +7,7 @@
     
     v2 March 2017 JLM
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -97,31 +86,6 @@ class NodeTransformerXYWH(Transformer):
     def transform(self, lNode):
 #         a = np.empty( ( len(lNode), 5 ) , dtype=np.float64)
 #         for i, blk in enumerate(lNode): a[i, :] = [blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1, blk.fontsize]        #--- 2 3 4 5 6 
-        a = np.empty( ( len(lNode), 2+4+2+4 ) , dtype=np.float64)
-        for i, blk in enumerate(lNode): 
-            page = blk.page
-            x1,y1,x2,y2 = blk.x1, blk.y1, blk.x2, blk.y2
-            w,h = float(page.w), float(page.h)
-            #Normalize by page with and height
-            xn1, yn1, xn2, yn2 = x1/w, y1/h, x2/w, y2/h
-            #generate X-from-binding
-            if page.bEven:
-                xb1, xb2    = w - x2    , w - x1
-                xnb1, xnb2  = 1.0 - xn2 , 1.0 - xn1
-            else:
-                xb1, xb2    = x1    , x2
-                xnb1, xnb2  = xn1   , xn2
-            a[i, :] = [xb1, xb2     , x1, y2, x2-x1, y2-y1   , xnb1, xnb2   , xn1, yn2, xn2-xn1, yn2-yn1] 
-        return a
-
-class NodeTransformerXYWH_v2(Transformer):
-    """
-    we will get a list of block and need to send back what StandardScaler needs for in-place scaling, a numpy array!.
-    So we return a numpy array  
-    """
-    def transform(self, lNode):
-#         a = np.empty( ( len(lNode), 5 ) , dtype=np.float64)
-#         for i, blk in enumerate(lNode): a[i, :] = [blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1, blk.fontsize]        #--- 2 3 4 5 6 
         a = np.empty( ( len(lNode), 2+4+4 ) , dtype=np.float64)
         for i, blk in enumerate(lNode): 
             page = blk.page
@@ -135,6 +99,45 @@ class NodeTransformerXYWH_v2(Transformer):
             else:
                 xnb1, xnb2  =  xn1 , xn2
             a[i, :] = [xnb1, xnb2    , xn1, yn1, xn2-xn1, yn2-yn1    , xn1*xn1, yn1*yn1, xn2*xn2, yn2*yn2] 
+        return a
+
+#------------------------------------------------------------------------------------------------------
+
+class NodeTransformerXYWH_NoPage(Transformer):
+    """
+    In this version:
+    - we do not use the page width and height to normalise, but max(x2) and max(y2)
+    - width and heights also normalised by mean(w) and mean(h)
+    - we do not consider odd/even pages
+    
+    Added by Nitin
+    Updated by JL
+    we will get a list of block and need to send back what StandardScaler needs for in-place scaling, a numpy array!.
+    So we return a numpy array
+    """
+    def transform(self, lNode):
+#         a = np.empty( ( len(lNode), 5 ) , dtype=np.float64)
+#         for i, blk in enumerate(lNode): a[i, :] = [blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1, blk.fontsize]        #--- 2 3 4 5 6
+        a = np.empty( ( len(lNode), 4+4+4 ) , dtype=np.float64)
+
+        try:
+            max_x  = max(o.x2 for o in lNode)
+            max_y  = max(o.y2 for o in lNode)
+            mean_w = sum(abs(o.x1 - o.x2) for o in lNode) / len(lNode)
+            mean_h = sum(abs(o.y1 - o.y2) for o in lNode) / len(lNode)
+        except (ValueError, ZeroDivisionError):
+            max_x, max_y, mean_w, mean_h = None, None, None, None
+
+        for i, blk in enumerate(lNode):
+            x1,y1,x2,y2 = blk.x1, blk.y1, blk.x2, blk.y2
+            w = abs(x1-x2) / mean_w
+            h = abs(y1-y2) / mean_h
+            x1,x2 = x1/max_x, x2/max_x
+            y1,y2 = y1/max_y, y2/max_y
+            a[i, :] = [  x1, x2, x1*x1, x2*x2
+                       , y1, y2, y1*y1, y2*y2
+                       , w , h , w *w , h *h
+                       ]
         return a
 
 #------------------------------------------------------------------------------------------------------
@@ -176,26 +179,10 @@ class NodeTransformerNeighborsAllText(Transformer):
                 txt_block.append(blk_neighbor.text)
             for blk_neighbor in blk.lVNeighbor:
                 txt_block.append(blk_neighbor.text)
-            for blk_neighbor in blk.lVNeighbor:
+            for blk_neighbor in blk.lCPNeighbor:
                 txt_block.append(blk_neighbor.text)
 
-            #txt_block +=" ".join([nd2.text for nd2 in blk.lHNeighbor])
-            #txt_block +=" ".join([nd2.text for nd2 in blk.lVNeighbor])
-            #txt_block +=" ".join([nd2.text for nd2 in blk.lCPNeighbor])
-
-            #print(txt_block)
-            '''
-            for b in blk.lHNeighbor:
-                #why doing a if if _b.x1 > ax1)
-                txt_list.append(b.text)
-            for b in blk.lVNeighbor:
-                txt_list.append(b.text)
-            for b in blk.lCPNeighbor:
-                txt_list.append(b.text)
-            '''
             txt_list.append(' '.join(txt_block))
-        #print('TEXT List',txt_list)
-        print('LEN TEXT LIST',len(txt_list))
 
         return txt_list
 
@@ -459,61 +446,10 @@ class Edge1HotFeatures(EdgeTransformerClassShifter):
                                 )
 
         return a
-class Edge1HotFeatures_noText(EdgeTransformerClassShifter):
-    """
-    we will get a list of edges and return a boolean array, directly
-
-    above/below, left/right, neither but on same page
-    same or consecutive pages    
-    vertical-, horizontal- centered  (at epsilon precision, epsilon typically being 5pt ?)
-    left-, top-, right-, bottom- justified  (at epsilon precision)
-    TODO sequentiality of content
-    TODO crossing ruling-line
-
-    noText = no textual feature
-    """
     
-    nbFEAT = 2
-    
-    def __init__(self, pageNumSequenciality, bMirrorPage=True):
-        EdgeTransformerClassShifter.__init__(self, bMirrorPage)
-        self.sqnc = pageNumSequenciality
-            
-    def transform(self, lEdge):
-        #a = np.zeros( ( len(lEdge), 3 + 17*3 ) , dtype=np.float64)
-        a = np.zeros( ( len(lEdge), self.nbFEAT), dtype=np.float64)
-        for i, edge in enumerate(lEdge):
-            #-- vertical / horizontal / virtual / cross-page / not-neighbor
-            a[i, :] = (1, self._dEdgeClassIndexShift[edge.__class__])
 
-        return a
 #------------------------------------------------------------------------------------------------------
 class EdgeBooleanFeatures(EdgeTransformerClassShifter):
-    """
-    we will get a list of edges and return a boolean array, directly
-
-    vertical-, horizontal- centered  (at epsilon precision, epsilon typically being 5pt ?)
-    left-, top-, right-, bottom- justified  (at epsilon precision)
-    """
-    nbFEAT = 6
-    
-    def transform(self, lEdge):
-        #DISC a = np.zeros( ( len(lEdge), 16 ) , dtype=np.float64)
-        a = - np.ones( ( len(lEdge), self._nbEdgeFeat ) , dtype=np.float64)
-        for i, edge in enumerate(lEdge):
-            z = self._dEdgeClassIndexShift[edge.__class__]
-            
-            A,B = edge.A, edge.B        
-            a[i,z:z+self.nbFEAT] = ( A.x1 + A.x2 - (B.x1 + B.x2) <= 2 * fEPSILON, # centering
-                                     A.y1 + A.y2 - (B.y1 + B.y2) <= 2 * fEPSILON, 
-                                     abs(A.x1-B.x1) <= fEPSILON,                  #justified
-                                     abs(A.y1-B.y1) <= fEPSILON,
-                                     abs(A.x2-B.x2) <= fEPSILON,
-                                     abs(A.y2-B.y2) <= fEPSILON
-                                     )
-        return a
-
-class EdgeBooleanFeatures_v2(EdgeTransformerClassShifter):
     """
     we will get a list of edges and return a boolean array, directly
 
@@ -541,17 +477,14 @@ class EdgeBooleanFeatures_v2(EdgeTransformerClassShifter):
                                      )
         return a
 
+
 #------------------------------------------------------------------------------------------------------
 class EdgeNumericalSelector(EdgeTransformerClassShifter):
     """
-    we will get a list of block and need to send back what StandardScaler needs for in-place scaling, a numpy array!.
-
-    overlap size (ratio of intersection to union of surfaces)
-    max(overlap size, 5000)
-    identical content in [0, 1] as ratio of lcs to "union"
-    max( lcs, 25)
+    getting rid of the hand-crafted thresholds
+    JLM Nov 2019: simpler and better (normalization must not change with direction for the 2 removed any direction features)
     """
-    nbFEAT = 11
+    nbFEAT = 6
     
     def transform(self, lEdge):
         #no font size a = np.zeros( ( len(lEdge), 5 ) , dtype=np.float64)
@@ -567,99 +500,6 @@ class EdgeNumericalSelector(EdgeTransformerClassShifter):
                 a[i, z+0] = ovr / (A.area() + B.area() - ovr)
             except ZeroDivisionError:
                 pass
-            a[i, z+1] = min(ovr, 5000.0)
-            
-            #
-            na, nb = len(A.text), len(B.text)
-            lcs = lcs_length(A.text,na, B.text,nb)
-            try:
-                a[i, z+2] =  float( lcs / (na+nb-lcs) )
-            except ZeroDivisionError:
-                pass
-            a[i, z+3:z+5] = min(lcs, 50.0), min(lcs, 100.0)
-            #a[i, z+4] = min(lcs, 100.0)
-            
-            #new in READ: the length of a same-page edge
-            if isinstance(edge, SamePageEdge):
-                if isinstance(edge, VerticalEdge):
-                    norm_length = edge.length / float(edge.A.page.h)
-                    norm_length2 = norm_length * norm_length
-                    #                Horiz.       Vert.           Any direction    Horiz.       Vert.           Any direction
-                    a[i,z+5:z+11] = (0.0        , norm_length   , norm_length   , 0.0          , norm_length2  , norm_length2)
-                else:
-                    norm_length = edge.length / float(edge.A.page.w)
-                    norm_length2 = norm_length * norm_length
-                    a[i,z+5:z+11] = (norm_length, 0.0           , norm_length   , norm_length2 , 0.0           , norm_length2)
-                    
-#             #fontsize
-#             a[i, z+5] = B.fontsize - A.fontsize
-#             a[i, z+6] = (B.fontsize+1) / (A.fontsize+1)
-            
-        return a  
-
-class EdgeNumericalSelector_noText(EdgeTransformerClassShifter):
-    """
-    we will get a list of block and need to send back what StandardScaler needs for in-place scaling, a numpy array!.
-
-    overlap size (ratio of intersection to union of surfaces)
-    max(overlap size, 5000)
-    identical content in [0, 1] as ratio of lcs to "union"
-    max( lcs, 25)
-    noText = no textual features
-    """
-    nbFEAT = 8
-    
-    def transform(self, lEdge):
-        #no font size a = np.zeros( ( len(lEdge), 5 ) , dtype=np.float64)
-#         a = np.zeros( ( len(lEdge), 7 ) , dtype=np.float64)
-        a = np.zeros( ( len(lEdge), self._nbEdgeFeat ) , dtype=np.float64)
-        for i, edge in enumerate(lEdge):
-            z = self._dEdgeClassIndexShift[edge.__class__]
-            A,B = edge.A, edge.B        
-            
-            #overlap
-            ovr = A.significantOverlap(B, 0)
-            try:
-                a[i, z+0] = ovr / (A.area() + B.area() - ovr)
-            except ZeroDivisionError:
-                pass
-            a[i, z+1] = min(ovr, 5000.0)
-            
-            #new in READ: the length of a same-page edge
-            if isinstance(edge, SamePageEdge):
-                if isinstance(edge, VerticalEdge):
-                    norm_length = edge.length / float(edge.A.page.h)
-                    norm_length2 = norm_length * norm_length
-                    #                Horiz.       Vert.           Any direction    Horiz.       Vert.           Any direction
-                    a[i,z+2:z+8] = (0.0        , norm_length   , norm_length   , 0.0          , norm_length2  , norm_length2)
-                else:
-                    norm_length = edge.length / float(edge.A.page.w)
-                    norm_length2 = norm_length * norm_length
-                    a[i,z+2:z+8] = (norm_length, 0.0           , norm_length   , norm_length2 , 0.0           , norm_length2)
-                    
-        return a  
-		
-class EdgeNumericalSelector_v2(EdgeTransformerClassShifter):
-    """
-    getting rid of the hand-crafted thresholds  
-    """
-    nbFEAT =8
-    
-    def transform(self, lEdge):
-        #no font size a = np.zeros( ( len(lEdge), 5 ) , dtype=np.float64)
-#         a = np.zeros( ( len(lEdge), 7 ) , dtype=np.float64)
-        a = np.zeros( ( len(lEdge), self._nbEdgeFeat ) , dtype=np.float64)
-        for i, edge in enumerate(lEdge):
-            z = self._dEdgeClassIndexShift[edge.__class__]
-            A,B = edge.A, edge.B        
-            
-            #overlap
-            ovr = A.significantOverlap(B, 0)
-            try:
-                a[i, z+0] = ovr / (A.area() + B.area() - ovr)
-            except ZeroDivisionError:
-                pass
-            #a[i, z+1] = min(ovr, 5000.0)
             
             #
             na, nb = len(A.text), len(B.text)
@@ -668,28 +508,24 @@ class EdgeNumericalSelector_v2(EdgeTransformerClassShifter):
                 a[i, z+1] =  float( lcs / (na+nb-lcs) )
             except ZeroDivisionError:
                 pass
-            # a[i, z+3:z+5] = min(lcs, 50.0), min(lcs, 100.0)
             
             #new in READ: the length of a same-page edge
             if isinstance(edge, SamePageEdge):
                 if isinstance(edge, VerticalEdge):
                     norm_length = edge.length / float(edge.A.page.h)
                     norm_length2 = norm_length * norm_length
-                    #                Horiz.       Vert.           Any direction    Horiz.       Vert.           Any direction
-                    a[i,z+2:z+8] = (0.0        , norm_length   , norm_length   , 0.0          , norm_length2  , norm_length2)
+                    #                Horiz.       Vert.         Horiz.       Vert.  
+                    a[i,z+2:z+6] = (0.0        , norm_length   , 0.0          , norm_length2 )
                 else:
                     norm_length = edge.length / float(edge.A.page.w)
                     norm_length2 = norm_length * norm_length
-                    a[i,z+2:z+8] = (norm_length, 0.0           , norm_length   , norm_length2 , 0.0           , norm_length2)
+                    a[i,z+2:z+6] = (norm_length, 0.0           , norm_length2 , 0.0         )
                     
-#             #fontsize
-#             a[i, z+5] = B.fontsize - A.fontsize
-#             a[i, z+6] = (B.fontsize+1) / (A.fontsize+1)
-            
         return a  
- 
-class EdgeNumericalSelector_v2_noText(EdgeTransformerClassShifter):
-    nbFEAT = 7
+
+
+class EdgeNumericalSelector_noText(EdgeTransformerClassShifter):
+    nbFEAT = 5
     
     def transform(self, lEdge):
         a = np.zeros( ( len(lEdge), self._nbEdgeFeat ) , dtype=np.float64)
@@ -709,14 +545,15 @@ class EdgeNumericalSelector_v2_noText(EdgeTransformerClassShifter):
                 if isinstance(edge, VerticalEdge):
                     norm_length = edge.length / float(edge.A.page.h)
                     norm_length2 = norm_length * norm_length
-                    #                Horiz.       Vert.           Any direction    Horiz.       Vert.           Any direction
-                    a[i,z+1:z+7] = (0.0        , norm_length   , norm_length   , 0.0          , norm_length2  , norm_length2)
+                    #                Horiz.       Vert.         Horiz.          Vert.
+                    a[i,z+1:z+5] = (0.0        , norm_length   , 0.0          , norm_length2)
                 else:
                     norm_length = edge.length / float(edge.A.page.w)
                     norm_length2 = norm_length * norm_length
-                    a[i,z+1:z+7] = (norm_length, 0.0           , norm_length   , norm_length2 , 0.0           , norm_length2)
+                    a[i,z+1:z+5] = (norm_length, 0.0           , norm_length2 , 0.0)
                     
         return a  
+
 
 #------------------------------------------------------------------------------------------------------
 
@@ -735,6 +572,7 @@ class EdgeTypeFeature_HV(Transformer):
                 a[i,1] = 1.0
         return a
     
+
 
 # -----------------------------------------------------------------------------------------------------------------------------    
 def _debug(lO, a):

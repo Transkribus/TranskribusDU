@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 """
-    Logit-based PageXml features
+    Logit-based PageXml features, but using a QuantileTransformer for numerical features instead of a StandardScaler
+    
     
     After discussion with Stéphane Clinchant and Hervé Déjean, we will use the score of several logit multiclass classifiers 
     instead of selecting ngrams.
@@ -16,18 +17,7 @@
     
     Copyright Xerox(C) 2017 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -41,17 +31,16 @@
 
 from sklearn.pipeline import Pipeline, FeatureUnion
 
-#not robust to empty arrays, so use our robust intermediary class instead
-#from sklearn.preprocessing import StandardScaler
-from .Transformer import RobustStandardScaler as StandardScaler
-from .Transformer_PageXml import NodeTransformerTextLen, NodeTransformerXYWH, NodeTransformerNeighbors, Node1HotFeatures
-from .Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures, EdgeNumericalSelector
+from .Transformer import EmptySafe_QuantileTransformer as QuantileTransformer
+from .Transformer_PageXml import NodeTransformerTextLen, NodeTransformerXYWH_v2, NodeTransformerNeighbors, Node1HotFeatures
+from .Transformer_PageXml import Edge1HotFeatures, EdgeBooleanFeatures_v2, EdgeNumericalSelector
 from .PageNumberSimpleSequenciality import PageNumberSimpleSequenciality
 from .FeatureDefinition import FeatureDefinition
 from .Transformer_Logit import NodeTransformerLogit, EdgeTransformerLogit
 
 
-class FeatureDefinition_PageXml_LogitExtractor(FeatureDefinition):
+class FeatureDefinition_PageXml_LogitExtractor_v3(FeatureDefinition):
+    n_QUANTILES = 16
 
     """
     We will fit a logistic classifier
@@ -60,8 +49,8 @@ class FeatureDefinition_PageXml_LogitExtractor(FeatureDefinition):
                      , n_feat_node=None, t_ngrams_node=None, b_node_lc=None
                      , n_feat_edge=None, t_ngrams_edge=None, b_edge_lc=None
                      , n_jobs=1): 
-        FeatureDefinition.__init__(self, nbClass)
-        assert nbClass, "Error: indicate the numbe of classes"
+        FeatureDefinition.__init__(self)
+        assert nbClass, "Error: indicate the number of classes"
         self.nbClass = nbClass
         self.n_feat_node, self.t_ngrams_node, self.b_node_lc = n_feat_node, t_ngrams_node, b_node_lc
         self.n_feat_edge, self.t_ngrams_edge, self.b_edge_lc = n_feat_edge, t_ngrams_edge, b_edge_lc
@@ -70,27 +59,34 @@ class FeatureDefinition_PageXml_LogitExtractor(FeatureDefinition):
 #                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
 #                                                                                   , dtype=np.float64)
         """
-        I tried to parallelize this code but I'm getting an error on Windows:
-        
-  File "c:\Local\meunier\git\TranskribusDU\src\crf\FeatureDefinition_PageXml_logit.py", line 144, in fitTranformers
+        - loading pre-computed data from: CV_5/model_A_fold_1_transf.pkl
+                 no such file : CV_5/model_A_fold_1_transf.pkl
+Traceback (most recent call last):
+  File "/opt/project/read/jl_git/TranskribusDU/src/tasks/DU_GTBooks_5labels.py", line 216, in <module>
+    oReport = doer._nfold_RunFoldFromDisk(options.iFoldRunNum, options.warm)
+  File "/opt/project/read/jl_git/TranskribusDU/src/tasks/DU_CRF_Task.py", line 481, in _nfold_RunFoldFromDisk
+    oReport = self._nfold_RunFold(iFold, ts_trn, lFilename_trn, train_index, test_index, bWarm=bWarm)
+  File "/opt/project/read/jl_git/TranskribusDU/src/tasks/DU_CRF_Task.py", line 565, in _nfold_RunFold
+    fe.fitTranformers(lGraph_trn)
+  File "/opt/project/read/jl_git/TranskribusDU/src/crf/FeatureDefinition_PageXml_logit_v2.py", line 141, in fitTranformers
     self._node_transformer.fit(lAllNode)
-  File "C:\Anaconda2\lib\site-packages\sklearn\pipeline.py", line 709, in fit
+  File "/opt/project/read/VIRTUALENV_PYTHON_FULL_type/lib/python2.7/site-packages/sklearn/pipeline.py", line 712, in fit
     for _, trans, _ in self._iter())
-  File "C:\Anaconda2\lib\site-packages\sklearn\externals\joblib\parallel.py", line 768, in __call__
+  File "/opt/project/read/VIRTUALENV_PYTHON_FULL_type/lib/python2.7/site-packages/sklearn/externals/joblib/parallel.py", line 768, in __call__
     self.retrieve()
-  File "C:\Anaconda2\lib\site-packages\sklearn\externals\joblib\parallel.py", line 719, in retrieve
+  File "/opt/project/read/VIRTUALENV_PYTHON_FULL_type/lib/python2.7/site-packages/sklearn/externals/joblib/parallel.py", line 719, in retrieve
     raise exception
-TypeError: can't pickle PyCapsule objects        
-
-(virtual_python_pystruct) (C:\Anaconda2) c:\tmp_READ\tuto>python -c "import sklearn; print sklearn.__version__"
-0.18.1
-        => I force n_jobs to 1
-        
+RuntimeError: maximum recursion depth exceeded
+"""
         """
-        n_jobs = 1
+        I guess this is due to the cyclic links to node's neighbours.
+        But joblib.Parallel uses cPickle, so we cannot specialize the serialization of the Block objects.
         
-        
-        n_jobs_NodeTransformerLogit = max(1, n_jobs/2)  #half of the jobs for the NodeTransformerLogit, the rets for the others
+        JLM April 2017
+        """
+        n_jobs_from_graph = 1   #we cannot pickl the list of graph, so n_jobs = 1 for this part!
+#         n_jobs_NodeTransformerLogit = max(1, n_jobs/2)  #half of the jobs for the NodeTransformerLogit, the rets for the others
+        n_jobs_NodeTransformerLogit = max(1, n_jobs - 1)
         
         #we keep a ref onto it because its fitting needs not only all the nodes, but also additional info, available on the graph objects
         self._node_transf_logit = NodeTransformerLogit(nbClass, self.n_feat_node, self.t_ngrams_node, self.b_node_lc, n_jobs=n_jobs_NodeTransformerLogit)
@@ -100,17 +96,20 @@ TypeError: can't pickle PyCapsule objects
                                     , 
                                     ("textlen", Pipeline([
                                                          ('selector', NodeTransformerTextLen()),
-                                                         ('textlen', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         #v2 ('textlen', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ('textlen', QuantileTransformer(n_quantiles=self.n_QUANTILES, copy=False))  #use in-place scaling
                                                          ])
                                        )
                                     , ("xywh", Pipeline([
-                                                         ('selector', NodeTransformerXYWH()),
-                                                         ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ('selector', NodeTransformerXYWH_v2()),
+                                                         #v2 ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ('xywh', QuantileTransformer(n_quantiles=self.n_QUANTILES, copy=False))  #use in-place scaling
                                                          ])
                                        )
                                     , ("neighbors", Pipeline([
                                                          ('selector', NodeTransformerNeighbors()),
-                                                         ('neighbors', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         #v2 ('neighbors', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ('neighbors', QuantileTransformer(n_quantiles=self.n_QUANTILES, copy=False))  #use in-place scaling
                                                          ])
                                        )
                                     , ("1hot", Pipeline([
@@ -130,7 +129,7 @@ TypeError: can't pickle PyCapsule objects
 #                                                          #THIS ONE MUST BE LAST, because it include a placeholder column for the doculent-level tfidf
 #                                                          ])
 #                                        )                                          
-                                      ], n_jobs=max(1, n_jobs - n_jobs_NodeTransformerLogit))
+                                      ], n_jobs=n_jobs_from_graph)
 
         lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                       ("1hot", Pipeline([
@@ -138,26 +137,24 @@ TypeError: can't pickle PyCapsule objects
                                                          ])
                                         )
                                     , ("boolean", Pipeline([
-                                                         ('boolean', EdgeBooleanFeatures())
+                                                         ('boolean', EdgeBooleanFeatures_v2())
                                                          ])
                                         )
                                     , ("numerical", Pipeline([
                                                          ('selector', EdgeNumericalSelector()),
-                                                         ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         #v2 ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                                                         ('numerical', QuantileTransformer(n_quantiles=self.n_QUANTILES, copy=False))  #use in-place scaling
                                                          ])
                                         )
                                     , ("nodetext", EdgeTransformerLogit(nbClass, self._node_transf_logit))
                         ]
                         
-        edge_transformer = FeatureUnion( lEdgeFeature, n_jobs=n_jobs )
+        edge_transformer = FeatureUnion( lEdgeFeature, n_jobs=n_jobs_from_graph )
           
         #return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
         self._node_transformer = node_transformer
         self._edge_transformer = edge_transformer
 
-#         #dirty trick to enable testing the logit models
-#         self._node_transformer._testable_extractor_ = self._node_transf_logit
-        
     def fitTranformers(self, lGraph):
         """
         Fit the transformers using the graphs
@@ -194,3 +191,4 @@ TypeError: can't pickle PyCapsule objects
 #             self._edge_transformer.transformer_list[i][1].steps[1][1].stop_words_ = None   #are 3rd and 4th in the union....
         return self._node_transformer, self._edge_transformer        
 
+    
