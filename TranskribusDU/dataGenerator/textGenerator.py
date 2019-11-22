@@ -43,6 +43,7 @@ import locale
 import random
 
 from dataGenerator.generator import Generator 
+import token
 
 class textGenerator(Generator):
     
@@ -71,55 +72,6 @@ class textGenerator(Generator):
         """
         return " "
     
-    def loadResourcesFromList(self,lLists):
-        """
-            Open and read resource files
-            take just (Value,freq)
-        """
-        self._lresources =[]
-        for mylist in lLists:
-            self._lresources.extend(mylist)
-        if self.totalW is None:
-            self.totalW = 1.0 * sum(list(map(lambda xy:xy[1], self._lresources)))
-        if self.totalW != len(self._lresources):
-            self.isWeighted = True
-        if self._prob is None:
-            self._prob = list(map(lambda  xy:xy[1] / self.totalW,self._lresources))           
-        if self._flatlr is None:
-            self._flatlr = list(map(lambda  xy:xy[0],self._lresources))
-        # generate many (100000) at one ! otherwise too slow
-        self._lweightedIndex  = list(np.random.choice(self._flatlr,100000,p=self._prob))
-
-        return self._lresources        
-
-    def loadResources(self,lfilenames):
-        """
-            Open and read resource files
-            
-            take just (Value,freq)
-        """
-        self._lresources =[]
-        for filename in lfilenames:
-            res = pickle.load(gzip.open(filename,'r'))
-            self._lresources.extend(res)
-        if self.totalW is None:
-            self.totalW = 1.0 * sum(list(map(lambda  xy:xy[1], self._lresources)))
-        if self.totalW != len(self._lresources):
-            self.isWeighted = True
-        if self._prob is None:
-            self._prob = list(map(lambda  xy:xy[1] / self.totalW,self._lresources))           
-        if self._flatlr is None:
-            self._flatlr = list(map(lambda  xy:xy[0],self._lresources))
-        # generate many (100000) at one ! otherwise too slow
-        self._lweightedIndex  = list(np.random.choice(self._flatlr,100000,p=self._prob))
-
-        return self._lresources
-              
-    def getValue(self):
-        """
-            return value 
-        """
-        return self._value
     
     
        
@@ -166,31 +118,43 @@ class textGenerator(Generator):
             else: ns+=s[i]
         return ns
        
-    def noiseSplit(self,lGTTokens):
+    def noiseSplit(self,token,label):
         """
-            S -> BM,E
-            B -> BM,I
-            I -> IM, I
-            E -> IM,E
-            
-            Simply split in to 2 elements. Is there a need for N elements 
-            
-            noiseSplit as NoiseGenerator: a NoiseGenerator which generates the noise (n elements) 
+            Simply split in to 2 elements. Is there a need for N elements? 
+    
+            How to indicate the split?
         """
         
-        #randomly split words 
+        #randomly split word 
         # th value in the profile
-        probaTH = 100
+        probaTH = 80
+        lTokens=[]
+        lLabels=[]
         # how many splits
-        # when to split 
-        for token, labels in lGTTokens:
+        #select a position where to cut
+        if len(token)>5:
+            poscut= random.randint(1,len(token)-1)
             generateProb = 1.0 * random.uniform(1,100)
-            print(generateProb)
             if generateProb < probaTH:
-                uLabels  = '\t'.join(labels)        
-                print( token, uLabels)
-        
-        return lGTTokens
+                tok2=token[:-poscut]
+                if random.randint(1,100) >= 66:
+                    tok2 += '¬'
+                elif random.randint(1,100) >= 33:
+                    tok2 += '-'
+                else:pass
+                lTokens.append(tok2)
+                lTokens.append(token[-poscut:])
+                #        add a third column for label about tokenisation?
+                lLabels = [label[:],label]
+                lLabels[0][-1] = "merge"
+
+            else:
+                lTokens = [token]
+                lLabels = [label]
+        else:
+            lTokens = [token]
+            lLabels = [label]                
+        return lTokens,lLabels
 
 
     def TypedBIES(self,lList):
@@ -304,23 +268,6 @@ class textGenerator(Generator):
         return lList
          
     
-    def tokenizerString(self,s):
-        """
-            Use a generator?
-            How to represent an hyphentated token? attribute SpaceAfter=No ; or hyphen=Yes
-            
-            need for than one level of annotation 
-                BIES: entity level; 
-                BIES token level:   
-                otter17, p 92: FronzXlavsberingr
-                FronzXlavsberingr      ????            One solution is also to learn how to normalize the sequence (seq2seq)
-                oter17, p 75: Eva Schwingen LF schlögl
-                Eva        S_firstname
-                Schwingen  Bh_lastname  h=hyphenated
-                schlögl    E_lastname
-                
-                  
-        """
         
     def formatFairSeqWord(self,gtdata):
         """
@@ -392,11 +339,15 @@ class textGenerator(Generator):
         for token, labels in lnewGT:
             assert type(token) != int
             if len(str(token)) > 0:
-                uLabels  = '\t'.join(labels)
+                lTokens = [token]
                 if self.getNoiseType() in [1]:
                     token = self.delCharacter(token,self.getNoiseLevel())
-                uString = "%s\t%s" % (token,uLabels)
-                sReturn +=uString+'\n'
+                # if split: add a last label: splitted!
+#                 elif self.getNoiseType() in [2]:
+                lTokens,luLabels= self.noiseSplit(token,labels)
+                for token,label in zip(lTokens,luLabels):    
+                    uString = "%s\t%s" % (token,'\t'.join(label))
+                    sReturn +=uString+'\n'
         sReturn+="EOS\n"
         return sReturn
             
@@ -422,6 +373,76 @@ class textGenerator(Generator):
                     self._GT.extend(obj.exportAnnotatedData(lLabels[:]))
         
         return self._GT 
+            
+    def GTForTokenization(self):
+        """
+            GT to learn how to correct a surface string into a properly tokenized string
+            
+            split tolken  (hyphenation)
+            merge token  (noise)
+            abbrevaition : mm -> m̄   A Mar.  Anna Maria   Joan̄ B. Johann Baptist Sailer   
+            
+            
+            not better to have xcqdqsd xwxcc wcxc   -> keep  merge keep   -> merge= merge with next token
+        """
+        gt= self.serialize()
+        gttok=self.GTtokenize()
+#         print gttok, gt
+        # merge some token
+        ltokens = gt.split(' ')
+        i=10
+        while i < 3 and len(ltokens)>3:
+            lenLto=len(ltokens)
+            pos= random.randint(1,lenLto-2)
+            mtoken =ltokens.pop(pos+1)
+            ltokens[pos]=ltokens[pos]+mtoken
+            i+=1
+        
+        
+        # split some tokens
+        i=0
+        lpos=[]
+        while i < 2 and len(ltokens) >  1:
+            lenLto=len(ltokens)
+            pos= random.randint(1,lenLto-1)
+            if pos not in lpos:
+                lpos.append(pos)
+                poscut= random.randint(2,6)
+                stoken =ltokens[pos]
+                if len(stoken) > 7:
+                    ltokens[pos]=stoken[:-poscut]
+                    ##  ¬   -   add hyph signs randomyl
+                    if random.randint(1,100) >= 80:
+                        if random.randint(1,100) >= 50:
+                            ltokens[pos] += '¬'
+                        else:
+                            ltokens[pos] += '-'
+                    ltokens.insert(pos+1,stoken[-poscut:])
+
+            i+=1
+        
+        print (" ".join(ltokens).encode('utf-8'),'\t',gttok.encode('utf-8'))
+         
+    def GTtokenize(self):
+        self._tokens  = ""
+        
+        #terminal
+        if isinstance(self._generation, str) :
+            self._tokens =  self._generation
+        elif type(self._generation) == int:
+            self._tokens = "%d" % (self._generation)            
+        else:
+            for i,obj  in enumerate(self._generation):
+                if isinstance(obj,str):
+                    self._tokens +=  " "+obj
+                elif type(obj) == int:
+                    self._tokens +=  " %d" % (self._generation)    
+                elif type(obj) == float:
+                    self._tokens +=  " %f" % (self._generation)                             
+                else:
+                    self._tokens += " " + obj.GTtokenize()                        
+
+        return self._tokens.strip()            
             
     def serialize(self):
         self._serialization  = ""

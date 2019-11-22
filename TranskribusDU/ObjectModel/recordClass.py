@@ -160,7 +160,15 @@ class recordClass(object):
             
         return score
                 
-                
+    def applyTaggers(self,o):
+        lres=[]
+        res= self.tagger.runMe(o)
+        ## assume one sample!  (.proedict assume  a  list of content)
+        if res != []:
+            try:lres.extend(res[0])
+            except IndexError: print(res)
+        return lres
+                    
     def rankCandidates(self):
         """
             score each candidate and scor them

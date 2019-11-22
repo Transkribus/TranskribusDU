@@ -42,8 +42,9 @@ class listGenerator(Generator):
     """
            a generator  for list
     """
-    def __init__(self,config,objGen,nbMaxGen):
-        Generator.__init__(self,config)
+    def __init__(self,config,configKey,objGen,nbMaxGen):
+        Generator.__init__(self,config,configKey)
+        self.configObj=configKey
         self.myObjectGen = objGen
         self.nbMax = nbMaxGen
         
@@ -55,10 +56,10 @@ class listGenerator(Generator):
         self.nbMax.generate()
         for i in range(self.nbMax._generation):
             try: 
-                o = self.myObjectGen(self.getConfig())
+                o = self.myObjectGen(self.getConfig(),self.configObj)
                 o.instantiate()
             except TypeError:  
-                o = self.myObjectGen(*self.getConfig())
+                o = self.myObjectGen(*self.getConfig(),self.configObj)
                 o.instantiate()
             
             o.setNumber(i)

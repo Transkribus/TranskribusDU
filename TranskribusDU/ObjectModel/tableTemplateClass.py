@@ -119,8 +119,8 @@ class tableTemplateClass(templateClass):
             for field in lFields:
                 if field is not None:
                     try:
-                       for cell in np.nditer(table.getNPArray()[sslice],['refs_ok'],op_dtypes=np.dtype(object)):
-                           cell[()].addField(field.cloneMe())
+                        for cell in np.nditer(table.getNPArray()[sslice],['refs_ok'],op_dtypes=np.dtype(object)):
+                            cell[()].addField(field.cloneMe())
                     except: pass
         
     def registration(self,o):

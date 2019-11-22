@@ -134,7 +134,7 @@ class IETest(Component.Component):
         
 
 
-    def findNameColumn(self,table):
+    def findNameColumn(self,table,myrecord):
         """    
                 find the column which corresponds to the people names c 
         """
@@ -146,7 +146,7 @@ class IETest(Component.Component):
             try:lColPos[cell.getIndex()[1]]
             except:  lColPos[cell.getIndex()[1]]=[]
             if cell.getIndex()[1] < 5:
-                res = field.applyTaggers(cell)
+                res = myrecord.applyTaggers(cell)
                 for field in cell.getFields():
                     if field is not None:
                         # res [ (token,label,score) ...]
@@ -331,7 +331,7 @@ class IETest(Component.Component):
         template.buildFromPattern(lTemplateIECAL)
         template.labelTable(table) 
         
-        iRef = self.findNameColumn(table)
+        iRef = self.findNameColumn(table,dr)
         print ("=============",iRef)
         lTemplateIE = [  
              ((slice(1,None),slice(iRef,iRef+1))  ,[ 'abp_names', 'names_aux','numbering','religion'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')])

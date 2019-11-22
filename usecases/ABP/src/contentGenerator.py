@@ -246,23 +246,58 @@ class firstNameGenerator(textGenerator):
         self._lenRes= len(self._lresources)
     
 
+class particuleGenerator(textGenerator):
+    def __init__(self,lang):
+        textGenerator.__init__(self,lang)
+        self._value = ['v.', 'von']   
+    
 class lastNameGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
-        self._name  = 'firstName'
+        self._name  = 'lastName'
         self._lpath=[os.path.abspath('../resources/old/lastname.pkl')]
         self._value = list(map(lambda x:x[0],self.loadResources(self._lpath)))
         
         self._lenRes= len(self._lresources)
     
+    
+class lastNameGenerator2(textGenerator):
+    def __init__(self):
+        textGenerator.__init__(self,lang=None)
+        self._structure = [
+                 ( (particuleGenerator(lang=None),1,100), (lastNameGenerator(),1,100),100 )
+             ]
+    def generate(self):
+        return Generator.generate(self)         
+  
 
 class CUMSACRGenerator(textGenerator):
     def __init__(self,lang):
         textGenerator.__init__(self,lang)
         self._value = ['cum sacramentum', 'cum sacr']      
-          
+
+class GEBGenerator(textGenerator):
+    def __init__(self,lang):
+        textGenerator.__init__(self,lang)
+        self._value = ['geb.', 'geb','geboren']                
       
-      
+
+class BrautName(textGenerator):    
+    """
+        pattern: Firstname  [geb] lastname
+    """
+    def __init__(self,lang):
+        textGenerator.__init__(self,lang=None)
+        
+        self._structure = [
+                 ( (firstNameGenerator(),1,100), (lastNameGenerator2(),1,100),(GEBGenerator(lang),1,50), (religionGenerator(),1,20),(legitimGenerator(),1,10),100)
+                , ( (lastNameGenerator2(),1,100), (firstNameGenerator(),1,100), (GEBGenerator(lang),1,50),(religionGenerator(),1,20),(legitimGenerator(),1,10),100)
+                #noisy ones ?
+#                 ,(    (firstNameGenerator(),1,100), (CUMSACRGenerator(lang),1,25),100)
+#                 ,(    (lastNameGenerator(),1,100), (CUMSACRGenerator(lang),1,25),100)
+
+             ]
+        
         
 class PersonName2(textGenerator):
     """
@@ -271,8 +306,8 @@ class PersonName2(textGenerator):
         textGenerator.__init__(self,lang=None)
         
         self._structure = [
-                 ( (firstNameGenerator(),1,100), (lastNameGenerator(),1,100),(CUMSACRGenerator(lang),1,10), (religionGenerator(),1,20),(legitimGenerator(),1,10),100)
-                , ( (lastNameGenerator(),1,100), (firstNameGenerator(),1,100), (CUMSACRGenerator(lang),1,10),(religionGenerator(),1,20),(legitimGenerator(),1,10),100)
+                 ( (firstNameGenerator(),1,100), (lastNameGenerator2(),1,100),(CUMSACRGenerator(lang),1,10), (religionGenerator(),1,20),(legitimGenerator(),1,10),100)
+                , ( (lastNameGenerator2(),1,100), (firstNameGenerator(),1,100), (CUMSACRGenerator(lang),1,10),(religionGenerator(),1,20),(legitimGenerator(),1,10),100)
                 #noisy ones ?
 #                 ,(    (firstNameGenerator(),1,100), (CUMSACRGenerator(lang),1,25),100)
 #                 ,(    (lastNameGenerator(),1,100), (CUMSACRGenerator(lang),1,25),100)
@@ -312,7 +347,7 @@ class doktorTitleGenerator(textGenerator):
     """
     def __init__(self,lang):
         textGenerator.__init__(self,lang=None)
-        self._value = ['Arzt','Dr', 'Landarzt','doktor', 'hebamme','Frau','Sch.', 'Schwester']    
+        self._value = ['Arzt','Dr', 'Chirurg' ,'Landarzt','doktor', 'hebamme','Hebam̄e','Frau','Sch.', 'Schwester']    
         
 class doktorGenerator(textGenerator):
     def __init__(self,lang):
@@ -340,6 +375,7 @@ class MonthDateGenerator(textGenerator):
         # P3 or P2
         try:self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization))
         except UnicodeDecodeError: self._generation = u""+self._fulldate.strftime('%'+ '%s'%self.getRandomElt(self.realization)).decode('latin-1')
+
 
         return self
 

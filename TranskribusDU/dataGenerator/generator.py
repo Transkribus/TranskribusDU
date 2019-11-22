@@ -36,14 +36,17 @@ from __future__ import unicode_literals
 import random
 import numpy as np
 import json
+import pickle
+import gzip
 
 class Generator(object):
     ID=0
     
     lClassesToBeLearnt=[]
-    def __init__(self,config=None):
+    def __init__(self,config=None,configKey=None):
 
         self.config=config    
+        self._configKey = configKey
         # structure of the object: list of Generators with alterniatives (all possible structures)
         self._structure = None
 
@@ -53,8 +56,9 @@ class Generator(object):
         self._generation = None
         # 
         self._serialization = None
+
 #         # for text only?
-#         self._value = None        
+        self._value = None        
 #         self._lresources = None
 #         self.isWeighted = False
 
@@ -89,8 +93,11 @@ class Generator(object):
     def setConfig(self,c): self.config = c
     def getConfig(self): return self.config
     
-    def getMyConfig(self,label): 
-        try: return self.getConfig()[label]
+    def setConfigKey(self,k): self._configKey = k
+    def getConfigKey(self): return self._configKey
+    
+    def getMyConfig(self):
+        try: return self.getConfig()[self._configKey]
         except KeyError: return None    
     
     def getLabel(self): return self._label
@@ -116,6 +123,67 @@ class Generator(object):
     def setNumber(self,n): self._number = n
     def getNumber(self): return self._number
     
+    def getInstances(self,iclass):
+        lRet = []
+        if type(self._generation) != list:
+            return []
+        for obj in self._generation:
+            if isinstance(obj,iclass):
+                lRet.append(obj)
+            lRet.extend(obj.getInstances(iclass))
+        return lRet   
+        
+    
+    def loadResourcesFromList(self,lLists,iMax=100000):
+        """
+            Open and read resource files
+            take just (Value,freq)
+        """
+        self._lresources =[]
+        for mylist in lLists:
+            self._lresources.extend(mylist)
+        if self.totalW is None:
+            self.totalW = 1.0 * sum(list(map(lambda xy:xy[1], self._lresources)))
+        if self.totalW != len(self._lresources):
+            self.isWeighted = True
+        if self._prob is None:
+            self._prob = list(map(lambda  xy:xy[1] / self.totalW,self._lresources))           
+        if self._flatlr is None:
+            self._flatlr = list(map(lambda  xy:xy[0],self._lresources))
+        # generate many (100000) at one ! otherwise too slow
+        self._lweightedIndex  = list(np.random.choice(self._flatlr,iMax,p=self._prob))
+#         print(self.isWeighted,self.totalW,self._lweightedIndex )
+        return self._lresources        
+
+    def loadResources(self,lfilenames):
+        """
+            Open and read resource files
+            
+            take just (Value,freq)
+        """
+        self._lresources =[]
+        for filename in lfilenames:
+            res = pickle.load(gzip.open(filename,'r'))
+            self._lresources.extend(res)
+        if self.totalW is None:
+            self.totalW = 1.0 * sum(list(map(lambda  xy:xy[1], self._lresources)))
+        if self.totalW != len(self._lresources):
+            self.isWeighted = True
+        if self._prob is None:
+            self._prob = list(map(lambda  xy:xy[1] / self.totalW,self._lresources))           
+        if self._flatlr is None:
+            self._flatlr = list(map(lambda  xy:xy[0],self._lresources))
+        # generate many (100000) at one ! otherwise too slow
+        self._lweightedIndex  = list(np.random.choice(self._flatlr,100000,p=self._prob))
+
+        return self._lresources
+              
+    def getValue(self):
+        """
+            return value 
+        """
+        return self._value    
+    
     #   getGeneratedValue()
     def getRandomElt(self,mylist):
         if self.isWeighted:
@@ -130,7 +198,7 @@ class Generator(object):
             weight the drawing with element weight (frequency)
             
             too slows to draw each time a value:
-                - > generate man values and pop when needed!
+                - > generate many values and pop when needed!
         """
         # need to generate again if pop empty
         try:
@@ -139,11 +207,11 @@ class Generator(object):
             self._lweightedIndex  = list(np.random.choice(self._flatlr,100000,p=self._prob))
             ind= self._lweightedIndex.pop()
         return ind
-    
-        ret = np.random.choice(self._flatlr,1,p=self._prob)[0]  
-        if type(ret) ==  np.unicode_:
-            ret = ret
-        return ret     
+        
+#         ret = np.random.choice(self._flatlr,1,p=self._prob)[0]  
+#         if type(ret) ==  np.unicode_:
+#             ret = ret
+#         return ret     
 
     def reportMe(self):
         """
@@ -191,6 +259,7 @@ class Generator(object):
         else:
             self._instance  = []
             structproba = self.getRandomElt(self._structure)
+            print (structproba)
             struct, proba = structproba[:-1], structproba[-1]
             # terminal textual stuff is not tuple but unicode: the generateProb need to be more efficient
             if type(struct) in [ tuple,list] :
@@ -205,7 +274,7 @@ class Generator(object):
     
     def generate(self):
         """
-            return object : value, annotation
+            return object
         """
         self._generation  = []
         for obj in self._instance:

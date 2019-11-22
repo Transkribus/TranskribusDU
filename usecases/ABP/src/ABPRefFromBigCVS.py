@@ -2,9 +2,10 @@
 """
 
 
-    ABPCSV2XML.py
+    ABPRefFromBigCSV.py
     
     convert CVS data to xml (ref format)
+    26,000 csv format
     need a list of ABP image keys to extract the correct line (S_Passau_Hals_008_0084)
      H. Déjean
 
@@ -129,12 +130,15 @@ class CSV2REF(object):
                     continue
                 savedKey=key[:]
                 bandteil = key[1].split('-')
+                # test for ['Zimmern', '005-03', '0015-01']  0015-01 not int 
+                try: int(key[2])
+                except ValueError:
+                   continue
                 if len(bandteil) == 1:
                     bandteil.append('0')
-#                 print(key, bandteil, field)
                 if field[2] =='': field[2]='0'
                 if field[3] =='': field[3]='0'
-#                 try:                
+#                 print (field,bandteil,key)
                 if field[0] == key[0] and int(field[1]) == int(bandteil[0]) and int(field[2]) == int(bandteil[1]) and int(field[3]) == int(key[2]):
                     if field[4][-1] == ' ' or field[5][-1] == ' ':continue
                     keyfound=savedKey
@@ -222,6 +226,7 @@ class CSV2REF(object):
         #                           -5 
         lKeys= list(map(lambda x:x[:-6].strip(),keyfile.readlines()))
         lKeys = self.processKey(lKeys)
+        print (lKeys)
         db = self.loadDB(self.inputFileName,lKeys)
         
         refxml = self.convertIntoRef(db,lKeys)

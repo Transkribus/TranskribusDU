@@ -109,7 +109,7 @@ class deathRecord(recordClass):
         
         myTagger = ABPTagger()
         myTagger.loadResources(sModelName ,sModelDir )  
-        
+        self.tagger=myTagger
         fnField = firstNameField()
         fnField.setLabelMapping( ['firstNameGenerator'])
         fnField.addTagger(myTagger)

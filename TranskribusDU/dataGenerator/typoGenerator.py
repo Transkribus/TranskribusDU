@@ -46,35 +46,32 @@ class typoGenerator(Generator):
             config: provides a weight for each typo positions
         """
         assert len(lw) == 3
+        self.lw=lw
         Generator.__init__(self,{})
         mylist=[]
         for i,w in enumerate(lw):
-            mylist.append((self.lnames[i],w))
-        self.loadResourcesFromList([mylist])
+            mylist.append((i,w))
+
+        self.loadResourcesFromList([mylist],iMax=10)
     
     def generate(self):
         """
             need to take into account element frequency! done in getRandomElt
             this generate is for terminal elements (otherwise use Generator.generate() )
         """
-        # 11/14/2017: 
-        
-        self._generation = self.getRandomElt(self._value)
-        while len(self._generation.strip()) == 0:
-            self._generation = self.getRandomElt(self._value)
-        
+        self._generation = self.getRandomElt(None)
         return self    
     
-class horizontalTypoGenerator(typoGenerator):
+class verticalTypoGenerator(typoGenerator):
     TYPO_LEFT       = 0
-    TYPO_RIGHT      = 1
-    TYPO_HCENTER    = 2
+    TYPO_VCENTER    = 1
+    TYPO_RIGHT      = 2
     lnames = ['TYPO_LEFT','TYPO_RIGHT','TYPO_HCENTER']
   
-class verticalTypoGenerator(typoGenerator):
+class horizontalTypoGenerator(typoGenerator):
     TYPO_TOP       = 0
-    TYPO_BOTTOM      = 1
-    TYPO_VCENTER    = 2
+    TYPO_BOTTOM      = 2
+    TYPO_HCENTER    = 1
     lnames = ['TYPO_TOP','TYPO_BOTTOM','TYPO_VCENTER']
         
 if __name__ == '__main__':
@@ -82,7 +79,7 @@ if __name__ == '__main__':
     typo.instantiate()
     typo.generate()
     print (typo._generation)
-    typo=verticalTypoGenerator([0.5,0.25,0.25])
+    typo=verticalTypoGenerator([0,1.,0])
     typo.instantiate()
     typo.generate()
     print (typo._generation)    

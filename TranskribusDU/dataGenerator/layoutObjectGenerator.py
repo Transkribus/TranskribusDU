@@ -66,7 +66,7 @@ class doublePageGenerator(layoutZoneGenerator):
             
         for page break: need to work with content generator?
     """
-    def __init__(self,config):
+    def __init__(self,config,configKey):
         """
           "page":{
             "scanning": None,
@@ -79,11 +79,11 @@ class doublePageGenerator(layoutZoneGenerator):
             "pnumZone": 0,
             "grid"  :   tGrid
         """
-        layoutZoneGenerator.__init__(self,config)
-        self.leftPage  = pageGenerator(config)
+        layoutZoneGenerator.__init__(self,config,"page")
+        self.leftPage  = pageGenerator(config,"page")
         self.leftPage.setLeftOrRight(1)
         self.leftPage.setParent(self)
-        self.rightPage = pageGenerator(config)
+        self.rightPage = pageGenerator(config,'page')
         self.rightPage.setLeftOrRight(2)
         self.rightPage.setParent(self)
         
@@ -94,15 +94,28 @@ class doublePageGenerator(layoutZoneGenerator):
     
 class pageGenerator(layoutZoneGenerator):
     """
-     need to add background zone 
+     
+     need to add background zone
+     
+     
+     a page will be /is composed of
+                     top margin
+         left margin content  right-margin
+                     bottom pargin
+         
+         
+    See css box  included boxes:  margin/Border/Padding/Content
+         
+         
     """
     ID=1
-    def __init__(self,config):
-        layoutZoneGenerator.__init__(self,config)
+    def __init__(self,config,key):
+        layoutZoneGenerator.__init__(self,config,key)
         self._label='PAGE'
-        h=config['page']['pageH']
-        w=config['page']['pageW']
-        r= config['page']["grid"]
+        # x, y, x2, y2
+        h = self.getMyConfig()['pageH']
+        w = self.getMyConfig()['pageW']
+        r = self.getMyConfig()["grid"]
         
         hm,hsd=  h
         self.pageHeight = integerGenerator(hm,hsd)
@@ -123,7 +136,7 @@ class pageGenerator(layoutZoneGenerator):
         self.nbcolumns = integerGenerator(cm, cs)
         self.nbcolumns.setLabel('nbCol')
         self.gutter = integerGenerator(gm,gs)
-        self.ColumnsListGen  = listGenerator(config,columnGenerator, self.nbcolumns)
+        self.ColumnsListGen  = listGenerator(config,'struct',columnGenerator, self.nbcolumns)
         self.ColumnsListGen.setLabel("GRIDCOL")
         
         # required at line level!
@@ -133,7 +146,7 @@ class pageGenerator(layoutZoneGenerator):
         self.leftOrRight = None
         # WHITE SPACES
         self.pageNumber = None  # should come from documentGen.listGen(page)?
-        if self.getConfig()['page']['pnum']:
+        if self.getMyConfig()['pnum']:
             self.pageNumber = pageNumberGenerator(config)
         
         self._margin = marginGenerator(config)
@@ -152,7 +165,7 @@ class pageGenerator(layoutZoneGenerator):
         self._lColumns = []
 
         # define 
-        self._marginRegions = []
+#         self._marginRegions = []  #->replace by layoutZone?
         self._typeArea  = [ self._typeArea_x1 , self._typeArea_y1 , self._typeArea_x2 , self._typeArea_x2 , self._typeArea_h , self._typeArea_w ]
         
 
@@ -171,9 +184,9 @@ class pageGenerator(layoutZoneGenerator):
 
 
     def setLeftOrRight(self,n): self.leftOrRight = n
-    def getLeftMargin(self): return self._marginRegions[2]
+    def getLeftMargin(self): return self._margin.getMarginZones()[2]
     
-    def getRightMargin(self):return self._marginRegions[3]
+    def getRightMargin(self):return self._margin.getMarginZones()[3]
         
     def getColumns(self):
         """
@@ -193,12 +206,35 @@ class pageGenerator(layoutZoneGenerator):
         self._typeArea_h  = H - t - b
         self._typeArea_w  = W - l - r
         
-        self._marginRegions = [(self._x0,self._y0,self._typeArea_y1,self.pageWidth._generation), #top
-                               (self._x0,H - b,b,self.pageWidth._generation), #bottom
-                               (self._x0,self._y0,self.pageHeight._generation,l), #left 
-                               (W - r,self._y0,self.pageHeight._generation,r)  #right
-                               
-                               ]
+        # textlayout
+        
+        #top
+        self._margin.getMarginZones()[0].setPositionalGenerators((self._x0,0),(self._y0,0),
+                                                                 (self._x0 + self.pageWidth._generation, 0),(self._y0 + t, 0),
+                                                                 (self._typeArea_y1,0),(self.pageWidth._generation,0))
+        #bottom
+        self._margin.getMarginZones()[1].setPositionalGenerators((self._x0,0),(H - b,0),(b,0),
+                                                                 (self._x0+self.pageWidth._generation,0),(self._y0 + self.pageHeight._generation,0),
+                                                                 (self.pageWidth._generation,0))
+        #left
+        self._margin.getMarginZones()[2].setPositionalGenerators((self._x0,0),(self._y0,0),
+                                                                 (self._x0+l,0),(self._y0 + self.pageHeight._generation,0),
+                                                                 (self.pageHeight._generation,0),(l,0))
+        #right
+        self._margin.getMarginZones()[3].setPositionalGenerators((W - r,0),(self._y0,0),
+                                                                 (self._x0+self.pageWidth._generation,0),(self._y0 + self.pageHeight._generation,0),
+                                                                 (self.pageHeight._generation,0),(r,0))
+        
+        for m in  self._margin.getMarginZones(): m._lastYposition = m.getY()._generation
+        [m.instantiate() for m in self._margin.getMarginZones()]
+        [m.generate() for m in self._margin.getMarginZones()]
+#         self._marginRegions = [(self._x0,self._y0,self._typeArea_y1,self.pageWidth._generation), #top
+#                                (self._x0,H - b,b,self.pageWidth._generation), #bottom
+#                                (self._x0,self._y0,self.pageHeight._generation,l), #left 
+#                                (W - r,self._y0,self.pageHeight._generation,r)  #right
+#                                 
+#                                ]
+        #layout
         self._typeArea = [ self._typeArea_x1 , self._typeArea_y1 , self._typeArea_x2 , self._typeArea_x2 , self._typeArea_h , self._typeArea_w]
 
         #define the 4 margins as layoutZone
@@ -206,17 +242,19 @@ class pageGenerator(layoutZoneGenerator):
     def addPageNumber(self,p):
         """
         """
-        zoneIndx = self.getConfig()["page"]['pnumZone']
-        region = self._marginRegions[zoneIndx]
+        zoneIndx = self.getMyConfig()['pnumZone']
+        region = self._margin.getMarginZones()[zoneIndx]
         
         # in the middle of the zone
-        p.setPositionalGenerators((region[0]+region[3]*0.5,5),(region[1]+region[2]*0,5),(10,0),(10,1))
+        p.setPositionalGenerators((region.getX()._generation+region.getWidth()._generation*0.5,5),(region.getY()._generation+region.getHeight()._generation*0,5),
+                                  (100,0),(100,1),  #fake
+                                  (10,0),(10,1))
         
     def generate(self):
         """
             bypass layoutZoneGen: specific to page
         """
-        self.setConfig(self.getParent().getConfig())
+#         self.setConfig(self.getParent().getConfig())
 
         self.setNumber(1)
         self._generation = []
@@ -229,15 +267,16 @@ class pageGenerator(layoutZoneGenerator):
             self._margin.setPage(self)
             self._margin.generate()
             self._generation.append(self._margin)
-        t,b,l,r = map(lambda x:x._generation,self._margin._generation)
+        t,b,l,r = map(lambda x:x._generation,self._margin._generation[:4])
 #         
 #         self.pageHeight.generate()
         pH = self.pageHeight._generation
 #         self.pageWidth.generate()
         pW = self.pageWidth._generation
-#         
+        
+        self.gutter.generate()
         self.computeAllValues(pH,pW,t, b, l, r)
-
+#         print ([x._generation for x in self._margin.leftMarginGen.getPositionalGenerators()])
         ## margin elements: page numbers
         if self.pageNumber is  not None:
             self.addPageNumber(self.pageNumber)
@@ -247,32 +286,41 @@ class pageGenerator(layoutZoneGenerator):
             
         obj = self._instance[-1]    
         nbCols =  self.ColumnsListGen.getValuedNb()
-        self._columnWidth  = self._typeArea[5] / nbCols   #replace by a generator integerGenerator(self.TAW / nbCol,sd)??
+        self._columnWidth  = (self._typeArea[5] - (nbCols - 1) * self.gutter._generation) / nbCols
+#         print (self._typeArea[5], nbCols, self._columnWidth)   
         self._columnHeight = self._typeArea[4]
         
         x1,y1,x2,y2,h,w = self._typeArea
 
         self._generation.append(self.nbcolumns)
+        lastX=x1
         for i,colGen in enumerate(self.ColumnsListGen._instance):
-#             print i, colGen
-            colx = x1 + ( ( i * self._columnWidth) + 0)
+            print (i, colGen)
+            colx = lastX +self.gutter._generation #x1 + ( ( i * self._columnWidth) + self.gutter._generation)
             coly = y1
             colH = h
             colW = self._columnWidth
-            colGen.setPositionalGenerators((colx,5),(coly,5),(colH,5),(colW,5))
+            colGen.setPositionalGenerators( (colx,0),(coly,5),(colx+colW,0),(coly+colH,0),(colH,5),(colW,0))
             colGen.setGrid(self)       
             colGen.setPage(self)
-            if self.getConfig()['colStruct'][0] == listGenerator:
-                content=listGenerator(self.getConfig(), self.getConfig()['colStruct'][1],integerGenerator(*self.getConfig()['colStruct'][2]))
-            else:    
-                content=self.getConfig()['colStruct'][0](self.getConfig())
-#             try:content=self.getConfig()['colStruct'][0](self.getConfig())
-#             except KeyError as e: content=None
-            if content is not None:
-                colGen.updateStructure((content,1,100))
-                colGen.instantiate()
-                colGen.generate()
-                self._generation.append(colGen)            
+            ## for for the elements
+            for layobj, configkey,prob in  self.getMyConfig()['struct']:
+                print (layobj, configkey,prob)
+                if type(layobj) == tuple:
+                    #  layobj:  gen, 
+                    content=listGenerator(self.getConfig(), configkey,layobj[1],integerGenerator(*layobj[2]))
+                else:    
+                    content=layobj(self.getConfig(),configkey)
+    #             try:content=self.getConfig()['colStruct'][0](self.getConfig())
+    #             except KeyError as e: content=None
+                if content is not None:
+                    colGen.updateStructure((content,1,prob))
+            colGen.instantiate()
+#             print (colGen._instance)
+            colGen.generate()
+#             print (colGen._generation)
+            self._generation.append(colGen)          
+            lastX = colGen.getX()._generation + colGen.getWidth()._generation  
             
             
         #how generate page content
@@ -294,23 +342,6 @@ class pageGenerator(layoutZoneGenerator):
         
         return self.domNode
         
-    def XMLDSFormatAnnotatedData(self, linfo, obj):
-        """
-            how to store GT info: need to respect DS format!
-            PAGE + margin info
-        """
-        self.domNode = etree.Element(obj.getLabel())
-        if obj.getNumber() is not None:
-            self.domNode.set('number',str(obj.getNumber()))    
-        for info,tag in linfo:
-            if isinstance(tag,Generator):
-                node=tag.XMLDSFormatAnnotatedData(info,tag)
-                self.domNode.append(node)
-            else:
-                self.domNode.set(tag,str(info))
-        
-        return self.domNode
-
 
 class columnGenerator(layoutZoneGenerator):
     """
@@ -320,15 +351,14 @@ class columnGenerator(layoutZoneGenerator):
         see  CSS Box Model: margin,border, padding
         
     """
-    def __init__(self,config,x=None,y=None,h=None,w=None):
-        layoutZoneGenerator.__init__(self,config,x=x,y=y,h=h,w=w)
+    def __init__(self,config,configKey,x=None,y=None,x2=None,y2=None,h=None,w=None):
+        layoutZoneGenerator.__init__(self,config,configKey,x=x,y=y,x2=x2,y2=y2,h=h,w=w)
+        print('??',configKey)
         self.setLabel("COLUMN")
-        # other elements? image+ caption
         self._structure = [
-#                             [(self.getX(),1,100),(self.getY(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),(self.LineListGen,1,100),100]
-                            [(self.getX(),1,100),(self.getY(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),100]
-
+                            [(self.getX(),1,100),(self.getY(),1,100),(self.getX2(),1,100),(self.getY2(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),100]
                           ]
+    
     
     def setGrid(self,g):self._mygrid = g
     def getGrid(self): return self._mygrid
@@ -343,39 +373,82 @@ class columnGenerator(layoutZoneGenerator):
         """
         # x,h, w,h
         self._generation = []
-        for obj in self._instance[:-1]:
+        for obj in self._instance[:6]:
             obj.generate()
             self._generation.append(obj)
         
-        colContent =  self._instance[-1]
-        if isinstance(colContent,tableGenerator):
-            x1,y1,h,w = self.getX()._generation,self.getY()._generation,self.getHeight()._generation,self.getWidth()._generation
-            colContent.setPositionalGenerators((x1,0),(y1,0),(h,0),(w,0))
-            colContent.setPage(self.getPage())
-            colContent.generate()
-            self._generation.append(colContent)            
+#         colobj =  self._instance[-1]
+        self._lastYposition = self.getY()._generation
+        for colobj in self._instance[6:]:
+            if isinstance(colobj,tableGenerator):
+                #table dimensions
+                if 'height' in self.getConfig()['table'].keys():
+                    m,s =  self.getHeight()._generation * 0.01 * self.getConfig()['table']['height'][0],self.getConfig()['table']['height'][1]
+                    colobj.setHeight((m,s))
+                    m,s =  self.getWidth()._generation * 0.01 * self.getConfig()['table']['width'][0],self.getConfig()['table']['width'][1]
+                    colobj.setWidth((m,s))
+                    colobj.getHeight().generate()
+                    colobj.getWidth().generate()
+                else:
+                    # from column
+                    colobj.setHeight((self.getHeight().getUple()[0],self.getHeight().getUple()[1]))          
+                    colobj.setWidth((self.getWidth().getUple()[0],self.getWidth().getUple()[1]))
+                    colobj.getHeight().generate()
+                    colobj.getWidth().generate()
+                x1,y1,h,w = self.getX()._generation,self._lastYposition,colobj.getHeight()._generation,colobj.getWidth()._generation
+                colobj.setPositionalGenerators((x1,0),(y1,0),(x1+w,0),(y1+h,0),(h,0),(w,0))
+                colobj.setPage(self.getPage())
+                colobj.generate()
+                self._generation.append(colobj)            
+                
+                self._lastYposition = self._lastYposition + colobj.getHeight()._generation
+                
+            elif isinstance(colobj,listGenerator):
+#                 self.leading = integerGenerator(*self.getConfig()['line']['leading'])
+                print(self.getConfigKey(),self.getMyConfig())
+                self.leading = integerGenerator(*self.getMyConfig()['leading'])
+
+                self.leading.generate()
+                self.leading.setLabel('leading')
+                
+#                 print ('col',self.getY()._generation,self.getHeight()._generation,len(colobj._instance))
+#                 print('start line',self.getY()._generation ,self.leading._generation, self.getHeight()._generation)
+                for i,lineGen in enumerate(colobj._instance):
+                    # too many lines
+                    if self._lastYposition > (self.getY()._generation +  self.getHeight()._generation):
+#                         print('stop!',  self._lastYposition ,self.getHeight()._generation )
+                        continue
+                    linex =self.getX()._generation
+#                     liney = (i * self.leading._generation) self.getY()._generation
+                    liney = self._lastYposition #self.getY()._generation
+                    #lineH = 10
+                    lineH=integerGenerator(*self.getConfig()['line']['lineHeight'])
+                    lineH.generate()                    
+                    lineW = self.getWidth()._generation
+                    lineGen.setParent(self)
+                    lineGen.setPage(self.getPage()) 
+                    lineGen.setPositionalGenerators((linex,2),(liney,2),(linex+lineW,2),(liney+lineH._generation,2),(lineH._generation,2),(lineW,2))
+#                     print (linex,liney,lineH._generation,lineW)
+                    lineGen.generate()
+#                     print (lineGen.getX()._generation,lineGen.getY()._generation,lineGen.getHeight()._generation,lineGen.getWidth()._generation,'\n')
+                    self._generation.append(lineGen)
+                    self._lastYposition = lineGen.getY()._generation + lineGen.getHeight()._generation+ self.leading._generation
+#                     print (i, self._lastYposition)
+            else:
+                ## 
+                colx  = self.getX()._generation
+                coly = self._lastYposition
+                # height: must be computed/updated afterwards
+                colH = 10 #self.getConfig()['line']['marginalia']['height']
+                colW =  self.getWidth()._generation
+                colobj.setParent(self)
+                colobj.setPage(self.getPage())
+                colobj.setPositionalGenerators((colx,1),(coly,1),(colx+colW,1),(coly+colH,1),(colH,1),(colW,1) ) 
+                colobj.generate()
+                # update colH 
+                self._generation.append(colobj)
+                
             
-        elif isinstance(colContent,listGenerator):
-            self.leading = integerGenerator(*self.getConfig()['line']['leading'])
-            self.leading.generate()
-            self.leading.setLabel('leading')
-            for i,lineGen in enumerate(colContent._instance):
-                # too many lines
-                if (i * self.leading._generation) + self.getY()._generation > (self.getY()._generation + self.getHeight()._generation):
-                    continue
-                linex =self.getX()._generation
-                liney = (i * self.leading._generation) + self.getY()._generation
-                lineH = 10
-                lineW = self.getWidth()._generation   
-                lineGen.setParent(self)
-                lineGen.setPage(self.getPage()) 
-                lineGen.setPositionalGenerators((linex,2),(liney,2),(lineH,2),(lineW,2))
-    #             lineGen.setParent(self)        
-                lineGen.generate()
-                self._generation.append(lineGen)
-    
-        
-    
 class pageNumberGenerator(layoutZoneGenerator):
     """
         a pagenumgen
@@ -438,7 +511,13 @@ class marginGenerator(Generator):
         self.bottomMarginGen.setLabel('bottomMargin')
         
         
-        self._structure = [ ((self._top,1,100),(self._bottom,1,100),(self._left,1,100),(self._right,1,100),100) ]
+        self._structure = [ ((self._top,1,100),(self._bottom,1,100),(self._left,1,100),(self._right,1,100)
+                            ,(self.topMarginGen,1,100)
+                            ,(self.bottomMarginGen,1,100)
+                            ,(self.leftMarginGen,1,100)
+                            ,(self.rightMarginGen,1,100)
+                             ,100)
+                              ]
     
     def setPage(self,p):self._page=p 
     def getPage(self):return self._page
@@ -449,7 +528,38 @@ class marginGenerator(Generator):
         """
             return the 4 margins as layoutZone
         """
+        return [ self.topMarginGen, self.bottomMarginGen,self.leftMarginGen, self.rightMarginGen,]
         
+        
+    def generate(self):
+        self._generation = []
+        for obj in self._instance[:4]:
+            obj.generate()
+            self._generation.append(obj)
+        
+        t,b,l,r = map(lambda x:x._generation,self._generation)
+        #top
+        self.getMarginZones()[0].setPositionalGenerators((self.getPage()._x0,0),(self.getPage()._y0,0),
+                                                         (self.getPage()._x0+self.getPage().pageWidth._generation,0),(self.getPage()._y0+self._top._generation,0),
+                                                         (self._top._generation,0),(self.getPage().pageWidth._generation,0))
+        # bottom
+        self.getMarginZones()[1].setPositionalGenerators((self.getPage()._x0,0),(self.getPage().pageHeight._generation - b,0),
+                                                         (self.getPage()._x0+self.getPage().pageWidth._generation,0),(self.getPage()._y0+self.getPage().pageHeight._generation,0),
+                                                         (b,0),(self.getPage().pageWidth._generation,0))
+        # left
+        self.getMarginZones()[2].setPositionalGenerators((self.getPage()._x0,0),(self.getPage()._y0,0),
+                                                         (self.getPage()._x0 + l,0),(self.getPage()._y0 + self.getPage().pageHeight._generation,0),
+                                                         (self.getPage().pageHeight._generation,0),(l,0))
+        # right
+        self.getMarginZones()[3].setPositionalGenerators((self.getPage().pageWidth._generation - r,0),(self.getPage()._y0,0),
+                                                         (self.getPage()._x0+self.getPage().pageWidth._generation,0),(self.getPage()._y0+self.getPage().pageHeight._generation,0),
+                                                         (self.getPage().pageHeight._generation,0),(r,0))
+                    
+        for m in self.getMarginZones():
+#             print ([(x._mean,x._std) for x in m._instance],m._generation)
+            m.generate()
+            self._generation.append(m) 
+            m._lastYposition = m.getY()._generation 
         
     def exportAnnotatedData(self,foo=None):
          
@@ -495,7 +605,7 @@ class catchword(layoutZoneGenerator):
         self.setLabel("CATCHWORD")
         
         self._structure = [
-                            ((self.getX(),1,100),(self.getY(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),100)
+                            [(self.getX(),1,100),(self.getY(),1,100),(self.getX2(),0),(self.getY2(),0),(self.getHeight(),1,100),(self.getWidth(),1,100),100]
                             ]        
                 
 
@@ -503,16 +613,70 @@ class marginaliaGenerator(layoutZoneGenerator):
     """
         marginalia Gen: assume relation with 'body' part
     """
-    def __init__(self,config,x=None,y=None,h=None,w=None):
-        layoutZoneGenerator.__init__(self,config,x=x,y=y,h=h,w=w)
+    def __init__(self,config,configKey,x=None,y=None,h=None,w=None):
+        layoutZoneGenerator.__init__(self,config,configKey,x=x,y=y,h=h,w=w)
         self.setLabel("MARGINALIA")
-        
         #pointer to the parent structures!! line? page,?
         #lineGen!!
-        
+          
         self._structure = [
-                            ((self.getX(),1,100),(self.getY(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),100)
+                            [ (self.getX(),1,100),(self.getY(),1,100),(self.getX2(),1,100),(self.getY2(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),100 ]
                             ]        
+        for layobj, configkey,prob in  self.getMyConfig()['struct']:
+
+            if type(layobj) == tuple:
+                content=listGenerator(self.getConfig(), configkey,layobj[1],integerGenerator(*layobj[2]))
+            else:    
+                content=layobj(self.getConfig(),configkey)
+            if content is not None:
+                self.updateStructure((content,1,prob))
+  
+  
+    def generate(self):
+        """
+            prepare data for line
+            nbLines: at instanciate() level?
+              
+        """
+        # x,h, w,h
+        self._generation = []
+        for obj in self._instance[:6]:
+            obj.generate()
+            self._generation.append(obj)
+          
+          
+          
+#         colobj =  self._instance[-1]
+#         print ('M', self.getX()._generation,self.getY()._generation,self.getHeight()._generation)
+        self._lastYposition = self.getY()._generation
+        for colobj in self._instance[6:]:
+            if isinstance(colobj,listGenerator):
+                self.leading = integerGenerator(*self.getMyConfig()['leading'])
+                self.leading.generate()
+                self.leading.setLabel('leading')
+#                 print (self._lastYposition , self.getHeight()._generation)
+                for i,lineGen in enumerate(colobj._instance):
+                    # too many lines
+                    if self._lastYposition > ( self.getY()._generation + self.getHeight()._generation):
+                        continue
+                    linex =self.getX()._generation
+#                     liney = (i * self.leading._generation) self.getY()._generation
+                    liney = self.leading._generation + self._lastYposition #self.getY()._generation
+                    self._lastYposition = liney
+                    #lineH = 10
+                    lineH=integerGenerator(*self.getMyConfig()['lineHeight'])
+                    lineH.generate()                    
+                    lineW = self.getWidth()._generation   
+                    lineGen.setParent(self)
+                    lineGen.setPage(self.getPage()) 
+                    lineGen.setPositionalGenerators((linex,2),(liney,2),(lineH._generation,2),(lineW,2))
+        #             lineGen.setParent(self)        
+                    lineGen.generate()
+                    self._generation.append(lineGen)
+                    self._lastYposition += self.leading._generation              
+            else:
+                colobj.generate()
+                self._generation.append(colobj)
             
 class LineGenerator(layoutZoneGenerator):
     """
@@ -526,43 +690,29 @@ class LineGenerator(layoutZoneGenerator):
             if parent =...
             
     """ 
-    def __init__(self,config,x=None,y=None,h=None,w=None):
-        layoutZoneGenerator.__init__(self,config,x=x,y=y,h=h,w=w)
+    def __init__(self,config,configKey,x=None,y=None,h=None,w=None):
+        layoutZoneGenerator.__init__(self,config,configKey,x=x,y=y,h=h,w=w)
         self.setLabel("LINE")
-        
         self._noteGen = None
         self._noteGenProb = None
-        
-        self.BIES = 'O'
-        if "marginalia" in self.getConfig()["line"]:
-            self._noteGen = self.getConfig()["line"]["marginalia"][0](self.getConfig())
-            self._noteGenProba= self.getConfig()["line"]["marginalia"][1]
-            
-        self._justifixationGen = None #justificationGenerator() # center, left, right, just, random
-        
-        self.bSkew = None  # (angle,std)
+        print (self.getMyConfig(),configKey)
+        if "marginalia" in self.getMyConfig():
+            print( self.getMyConfig()["marginalia"]['generator'],self.getMyConfig()["marginalia"]['config'])
+            self._noteGen = self.getMyConfig()["marginalia"]['generator'](self.getConfig(), self.getMyConfig()["marginalia"]['config'])
+            self._noteGenProba= self.getMyConfig()["marginalia"]['proba']
+#         self._justifixationGen = None #justificationGenerator() # center, left, right, just, random
         
         self._structure = [
-                            ((self.getX(),1,100),(self.getY(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),100)
+                            ((self.getX(),1,100),(self.getY(),1,100),(self.getX2(),1,100),(self.getY2(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),100)
                             ]
         if self._noteGen is not None:
             self._structure = [
-                           ((self.getX(),1,100),(self.getY(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),(self._noteGen,1,self._noteGenProba),100)
+                           ((self.getX(),1,100),(self.getY(),1,100),(self.getX2(),1,100),(self.getY2(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),(self._noteGen,1,self._noteGenProba),100)
                             ]
         
-    def setPage(self,p):self._page=p
-    def getPage(self): return self._page
+#     def setPage(self,p):self._page=p
+#     def getPage(self): return self._page
     
-    def computeBIES(self,pos,nbLines):
-        """
-            new annotation DU_row
-        """
-        
-        
-        if   nbLines == 1        : self.BIES='S'
-        elif pos     == 0        : self.BIES='B'
-        elif pos     == nbLines-1: self.BIES='E'
-        else                     : self.BIES='I'
         
     def generate(self):
         """
@@ -573,49 +723,47 @@ class LineGenerator(layoutZoneGenerator):
         
         """
         self._generation = []
-        for obj in self._instance[:4]:
+        for obj in self._instance[:6]:
             obj.generate()
             self._generation.append(obj)
-
-        #if marginalia
-        if len(self._instance) == 5:
-            # left or right margin
-            # need to go up to the grid to know where the column is
-            if self.getPage().leftOrRight == 1: 
-                # get left margin
-                myregion= self.getPage().getLeftMargin()
-#                 print myregion
-                #left page: put on the left margin, right otherwise? 
-                marginaliax = myregion[0]+10
-            else:
-                #marginaliax = 600 
-                myregion= self.getPage().getRightMargin()
-                marginaliax = myregion[0]+10
+        
+        self._lastYposition = self.getY()._generation
+        for obj in  self._instance[6:]:
+            if isinstance(obj,marginaliaGenerator):
                 
-            marginaliay = self.getY()._generation
-            marginaliaH = 50
-            marginaliaW = 50   
-            # compute position according to the justifiaction : need parent, 
-            self._noteGen.setPositionalGenerators((marginaliax,5),(marginaliay,5),(marginaliaH,5),(marginaliaW,5))
-            self._noteGen.generate()
-            self._generation.append(self._noteGen)
+                ### parent =   margin!!
+                # left or right margin
+                # need to go up to the grid to know where the column is
+                if self.getPage().leftOrRight == 1: 
+                    # get left margin
+                    myregion= self.getPage().getLeftMargin()
+                    #left page: put on the left margin, right otherwise? 
+                    marginaliax = myregion.getX()._generation + 10
+                else:
+                    #marginaliax = 600 
+                    myregion= self.getPage().getRightMargin()
+                    marginaliax = myregion.getX()._generation + 20 #myregion[0]+10
+                    
+                marginaliay = self.getY()._generation
+#                 self._noteGen.getHeight().generate()
+                print(obj.getMyConfig())
+                marginaliaH = obj.getMyConfig()['height']
+#                 self._noteGen.getWidth()().generate()
+                marginaliaW = myregion.getWidth()._generation
+                
+#                 marginaliaH, probH = self.getConfig()['line']['marginalia']['height']
+#                 marginaliaW = myregion.getWidth()._generation * 0.66
+                # compute position according to the justifiaction : need parent, 
+#                 self._noteGen.setPositionalGenerators((marginaliax,5),(marginaliay,5),(marginaliax+marginaliaW,5),(marginaliay+marginaliaH,5),(marginaliaH,0),(marginaliaW,5))
+                self._noteGen.setPositionalGenerators((marginaliax,5),(marginaliay,5),None,None,(marginaliaH,0),(marginaliaW,5))
+
+                self._noteGen.setPage(self.getPage())
+                self._noteGen.setParent(myregion)
+                self._noteGen.generate()
+#                 print ("qq",myregion._lastYposition,  self._noteGen.getY()._generation +  self._noteGen.getHeight()._generation)
+                self._generation.append(self._noteGen)
                     
         return self
-    
-    def XMLDSFormatAnnotatedData(self,linfo,obj):
-        self.domNode = etree.Element(obj.getLabel())
-        # for listed elements
-#         self.domNode.set('type',str(self.BIES))        
-        self.domNode.set('DU_row',str(self.BIES))        
-        # need DU_col, DU_header 
-
-        for info,tag in linfo:
-            if isinstance(tag,Generator):
-                self.domNode.append(tag.XMLDSFormatAnnotatedData(info,tag))
-            else:
-                self.domNode.set(tag,str(info))
-        
-        return self.domNode
     
 class cellGenerator(layoutZoneGenerator):
     """
@@ -629,43 +777,46 @@ class cellGenerator(layoutZoneGenerator):
         
         
     """ 
-    def __init__(self,config,x=None,y=None,h=None,w=None):
-        layoutZoneGenerator.__init__(self,config,x=x,y=y,h=h,w=w)
+    def __init__(self,config,configKey,x=None,y=None,h=None,w=None):
+        layoutZoneGenerator.__init__(self,config,configKey,x=x,y=y,h=h,w=w)
         self.setLabel("CELL")
         
         self._index = None
-#         self.VJustification = booleanGenerator(0.1)
-#         self.VJustification.setLabel('VJustification')
-#         self.HJustification = integerGenerator(3, 1)
-        self.leading = integerGenerator(*self.getConfig()['line']['leading'])
+        self._rowSpan = positiveIntegerGenerator(1,0)
+        self._rowSpan.setLabel('rowSpan')
+        self._colSpan = positiveIntegerGenerator(1,0)
+        self._colSpan.setLabel('colSpan')
+        self.lineConfig = self.getConfig()[self.getMyConfig()['lineGen']]
+        self.leading = positiveIntegerGenerator(*self.lineConfig['leading'])
         self.leading.setLabel('leading')
-        self.nbLinesG = integerGenerator(5, 3)
-        self._LineListGen = listGenerator(config,LineGenerator, self.nbLinesG)
+        # default value needed for  LineListGen
+        self.nbLinesG = positiveIntegerGenerator(1, 0)
+        self._LineListGen = listGenerator(config,self.getMyConfig()['lineGen'],LineGenerator, self.nbLinesG)
         self._LineListGen.setLabel("cellline")
-        self._structure =[((self.getX(),1,100),(self.getY(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),
-                           (self.leading,1,100),
+        self._structure =[((self.getX(),1,100),(self.getY(),1,100),(self.getX2(),1,100),(self.getY2(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),
+                           (self.leading,1,100),(self._rowSpan,1,100),(self._colSpan,1,100),
 #                            (self.VJustification,1,100),
                            (self._LineListGen,1,100),100)]
-    
+        
     
     def getIndex(self): return self._index
     def setIndex(self,i,j): self._index=(i,j)
     def setNbLinesGenerator(self,g):
         self.nbLinesG = g
-        self._LineListGen = listGenerator(self.getConfig(),LineGenerator, self.nbLinesG)
+        self._LineListGen = listGenerator(self.getConfig(),self.getMyConfig()['lineGen'],LineGenerator, self.nbLinesG)
     def getNbLinesGenerator(self): return self.nbLinesG
     
-    def computeYStart(self,HJustification,blockH):
+    def computeYStart(self,HJustification,nbLines, lineH,leading):
         """
             compute where to start 'writing' according to justification and number of lines (height of the block)
         """
+        blockH=  (nbLines * (lineH+leading)) - leading
         if HJustification == horizontalTypoGenerator.TYPO_TOP:
             return 0
         if HJustification == horizontalTypoGenerator.TYPO_HCENTER: 
             return  (0.5 * self.getHeight()._generation)  -  (0.5 * blockH)
         if HJustification == horizontalTypoGenerator.TYPO_BOTTOM:
-            # not implemented: need the number of lines for this!
-            return 0
+            return  (self.getHeight()._generation)  -  (blockH)
         
     def generate(self):
         self._generation=[]
@@ -675,27 +826,31 @@ class cellGenerator(layoutZoneGenerator):
 #         print self.getLabel(),self._generation
         self._LineListGen.instantiate()
 
-        self.vjustification = self.getConfig()['vjustification'].generate()._generation
-        self.hjustification = self.getConfig()['hjustification'].generate()._generation
+        self.vjustification = self.getMyConfig()['vjustification'].generate()._generation
+        self.hjustification = self.getMyConfig()['hjustification'].generate()._generation
         # vertical justification : find the y start
 #         ystart=self.computeYStart(self.VJustification._generation, self._LineListGen.getValuedNb()*self.leading._generation)
-        ystart=self.computeYStart( self.hjustification, self._LineListGen.getValuedNb()*self.leading._generation)
-        xstart = self.getWidth()._generation * 0.1
+        lineH=integerGenerator(*self.lineConfig['lineHeight'])
+        lineH.generate()
+        ystart=self.computeYStart( self.hjustification, self._LineListGen.getValuedNb(),lineH._generation,self.leading._generation)
+        ystart = max(ystart,-2)
+#         print(self.getY()._generation, ystart ,self._LineListGen.getValuedNb(), self.hjustification,self.getIndex())
+        
+        xstart = self.getWidth()._generation * 0.05   # Generator !!
         rowPaddingGen = numericalGenerator(1,0)
         rowPaddingGen.generate()
-        
-        lineH=integerGenerator(*self.getConfig()['line']['lineHeight'])
-        lineH.generate()
         nexty= ystart +  self.getY()._generation + rowPaddingGen._generation
         lLines=[]
         for i,lineGen in enumerate(self._LineListGen._instance):
             # too many lines
 #             if (i * self.leading._generation) + (self.getY()._generation + lineH) > (self.getY()._generation + self.getHeight()._generation):
-            if nexty +lineH._generation >  (self.getY()._generation + self.getHeight()._generation):
+            if nexty + lineH._generation >  5+ (self.getY()._generation + self.getHeight()._generation):
+#                 print ('\t',nexty +lineH._generation ,  (self.getY()._generation + self.getHeight()._generation))
                 continue
 
             liney = nexty
-            lineW=integerGenerator(self.getWidth()._generation*0.75,self.getWidth()._generation*0.1)
+            #                                                    0.75                           0.1 
+            lineW=integerGenerator(self.getWidth()._generation*0.5,self.getWidth()._generation*0.3)
             lineW.generate()
             
             if self.vjustification == verticalTypoGenerator.TYPO_LEFT:
@@ -704,20 +859,17 @@ class cellGenerator(layoutZoneGenerator):
                 linex = self.getX()._generation + self.getWidth()._generation - lineW._generation     
             elif self.vjustification == verticalTypoGenerator.TYPO_VCENTER:
                 linex =  self.getX()._generation + self.getWidth()._generation * 0.5 - lineW._generation *0.5  
-            lineGen.setPositionalGenerators((linex,1),(liney,1),(lineH._generation,0.5),(lineW._generation,0))
+            lineGen.setPositionalGenerators((linex,1),(liney,1),(linex+lineW._generation,0),(liney+lineH._generation,0),(lineH._generation,0.5),(lineW._generation,0))
 #             lineGen.setPositionalGenerators((linex,0),(liney,0),(lineH,0),(lineW * 0.5,lineW * 0.1))
             lineGen.setPage(self.getPage())  
             lineGen.setParent(self)
             lLines.append(lineGen)
             lineGen.generate()
             rowPaddingGen.generate()
-            nexty= lineGen.getY()._generation +self.leading._generation +  lineGen.getHeight()._generation+ rowPaddingGen._generation
+            nexty= lineGen.getY()._generation +self.leading._generation +  lineGen.getHeight()._generation #+  rowPaddingGen._generation
             lineGen.setLabel('LINE')
             self._generation.append(lineGen)
         
-        nbLines=len(lLines)
-        for i,lineGen in enumerate(lLines):
-            lineGen.computeBIES(i,nbLines)
         return self    
 
     def XMLDSFormatAnnotatedData(self,linfo,obj):
@@ -747,36 +899,62 @@ class tableGenerator(layoutZoneGenerator):
                 or rows/column height/width  (or constraint = allthesamevalue)
         
     """   
-    def __init__(self,config):
-        layoutZoneGenerator.__init__(self,config)
+    def __init__(self,config,configKey):
+        layoutZoneGenerator.__init__(self,config,configKey)
 
         self.setLabel('TABLE')
                  
-        nbRows=config['table']['nbRows']
-        self.rowHeightVariation = config['table']['rowHeightVariation']
+        nbRows=self.getMyConfig()['nbRows']
+        self.rowHeightVariation = self.getMyConfig()['rowHeightVariation']
         self.rowHStd=self.rowHeightVariation[1]
-        self.columnWidthVariation = config['table']['columnWidthVariation']
+        self.columnWidthVariation = self.getMyConfig()['columnWidthVariation']
         
-        if 'widths' in self.getConfig()['table']['column']:
-            self.nbCols = integerGenerator(len(self.getConfig()['table']['column']['widths']),0)
+        self._rowPadding = positiveIntegerGenerator(*self.getMyConfig()['rowPadding'])
+        self._rowPadding.setLabel('rowpadding')
+        if 'widths' in self.getMyConfig()['column']:
+            self.nbCols = positiveIntegerGenerator(len(self.getMyConfig()['column']['widths']),0)
         else:
-            nbCols=config['table']['nbCols']
-            self.nbCols = integerGenerator(nbCols[0],nbCols[1])
+            nbCols=self.getMyConfig()['nbCols']
+            self.nbCols = positiveIntegerGenerator(nbCols[0],nbCols[1])
         self.nbCols.setLabel('nbCols')
-        self.nbRows = integerGenerator(nbRows[0],nbRows[1])
+        self.nbRows = positiveIntegerGenerator(nbRows[0],nbRows[1])
         self.nbRows.setLabel('nbRows')
         
-        self._bSameRowHeight=config['table']['row']['sameRowHeight']
-        self._lRowsGen = listGenerator(config,layoutZoneGenerator, self.nbRows)
+        self._bSameRowHeight=self.getMyConfig()['row']['sameRowHeight']
+        self._lRowsGen = listGenerator(config,'',layoutZoneGenerator, self.nbRows)
         self._lRowsGen.setLabel("row")
-        self._lColumnsGen = listGenerator(config['table']['column'],layoutZoneGenerator, self.nbCols )
+        self._lColumnsGen = listGenerator(self.getMyConfig()['column'],'',layoutZoneGenerator, self.nbCols )
         self._lColumnsGen.setLabel("col")
         
         self._structure = [
-            ((self.getX(),1,100),(self.getY(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),
-             (self.nbCols,1,100),(self.nbRows,1,100),
+            ((self.getX(),1,100),(self.getY(),1,100),(self.getX2(),1,100),(self.getY2(),1,100),(self.getHeight(),1,100),(self.getWidth(),1,100),
+             (self.nbCols,1,100),(self.nbRows,1,100), (self._rowPadding,1,100),
              (self._lColumnsGen,1,100),(self._lRowsGen,1,100),100)
             ]
+        
+    def generateRowHeight(self):
+        """
+            either 'nbRows"  or "nbLines" 
+        """
+        if 'nbLines' in self.getMyConfig()['column']:
+                nbMaxLines = max(x[0] for x in self.getMyConfig()['column']['nbLines'])
+#                 lineH=self.getConfig()['line']['lineHeight']
+                cellconfig = self.getConfig()[self.getMyConfig()['cell']]
+                lineConfig =  cellconfig['lineGen']
+                lineH =  self.getConfig()[lineConfig]['lineHeight']
+                lineHG=positiveIntegerGenerator(*lineH)
+                lineHG.generate()
+                
+                nblineG=positiveIntegerGenerator(nbMaxLines,0)
+                nblineG.generate()
+#                 self._rowHeightG = positiveIntegerGenerator(nblineG._generation*lineHG._generation,self.rowHStd)
+                self._rowHeightG = positiveIntegerGenerator(nblineG._generation*(self._rowPadding._generation+lineHG._generation),0)        
+    
+    
+    def generateCellsForRow(self,row):
+        """
+            
+        """
         
     def generate(self):
         """
@@ -812,13 +990,14 @@ class tableGenerator(layoutZoneGenerator):
             colx = nextx #self.getX()._generation + ( i * self._columnWidth)
             coly = self.getY()._generation
             colH = self.getHeight()._generation
-            if 'widths' in self.getConfig()['table']['column']:
-                colW = self.getConfig()['table']['column']['widths'][i] * self.getWidth()._generation
+            if 'widths' in self.getMyConfig()['column']:
+                colW = self.getMyConfig()['column']['widths'][i] * self.getWidth()._generation
+#                 print (colW,self.getConfig()['table']['column']['widths'][i],self.getWidth()._generation)
             else:
                 self._columnWidthG.generate()
                 colW = self._columnWidthG._generation
             colGen.setNumber(i)
-            colGen.setPositionalGenerators((colx,0),(coly,0),(colH,0),(colW,0))
+            colGen.setPositionalGenerators((colx,0),(coly,0),(colx+colW,0),(coly+colH,0),(colH,0),(colW,0))
 #             colGen.setGrid(self)       
             colGen.setLabel("COL")
             colGen.setPage(self.getPage())
@@ -828,19 +1007,16 @@ class tableGenerator(layoutZoneGenerator):
             self.lCols.append(colGen)
             
         ## ROW
+        ## height = either from nbRows / rowHeightVariation
+        ##          or max(nblines)  for this row
+        
+        
         # max nblines 
-        if 'nbLines' in self.getConfig()['table']['column']:
-                nbMaxLines = max(x[0] for x in self.getConfig()['table']['column']['nbLines'])
-                lineH=self.getConfig()['line']['lineHeight']
-                lineHG=positiveIntegerGenerator(*lineH)
-                lineHG.generate()
-                nblineG=positiveIntegerGenerator(nbMaxLines,0)
-                nblineG.generate()
-                self._rowHeightG = positiveIntegerGenerator(nblineG._generation*lineHG._generation,self.rowHStd)
-        else: nbMaxLines=None
+        
         rowH = None
         nexty = self.getY()._generation
         for i,rowGen in enumerate(self._lRowsGen._instance):
+            self.generateRowHeight()
             if nexty > self.getHeight()._generation + self.getY()._generation:
                 continue
             rowx = self.getX()._generation 
@@ -852,7 +1028,7 @@ class tableGenerator(layoutZoneGenerator):
             else:
                 self._rowHeightG.generate() 
                 rowH = self._rowHeightG._generation
-#                 print (rowH)
+#             print (i,rowH,self._rowPadding._generation)
             rowy = nexty 
             # here test that that there is enough space for the row!!
 #             print self._rowHeightM, self._rowHeightG._generation
@@ -860,12 +1036,12 @@ class tableGenerator(layoutZoneGenerator):
             rowGen.setLabel("ROW")
             rowGen.setNumber(i)
             rowGen.setPage(self.getPage())
-            rowGen.setPositionalGenerators((rowx,0),(rowy,0),(rowH,0),(rowW,0))
+            rowGen.setPositionalGenerators((rowx,0),(rowy,0),(rowx+rowW,0),(rowy+rowH,0),(rowH,0),(rowW,0))
             rowGen.generate()
             nexty = rowGen.getY()._generation + rowGen.getHeight()._generation 
 #             print i, rowy, self.getHeight()._generation
             self.lRows.append(rowGen)
-            self._generation.append(rowGen)       
+            self._generation.append(rowGen)  
 #             print("%d %s %f"%(i,self._bSameRowHeight,rowGen.getHeight()._generation))     
             
         ## table specific stuff
@@ -880,21 +1056,32 @@ class tableGenerator(layoutZoneGenerator):
         ## creation of the cells; then content in the cells
         self.lCellGen=[]
         for icol,col in enumerate(self.lCols):
-            if 'nbLines' in self.getConfig()['table']['column']:
-                nblines=self.getConfig()['table']['column']['nbLines'][icol]
+            if 'nbLines' in self.getMyConfig()['column']:
+#                 print (icol, self.getConfig()['table']['column']['nbLines'])
+                nblines=self.getMyConfig()['column']['nbLines'][icol]
                 nbLineG = positiveIntegerGenerator(*nblines)
-            else: nbLineG=None
+            else: 
+                nblines=self.getMyConfig()["nbLines"]
+                nbLineG = positiveIntegerGenerator(*nblines)
             for irow, row in enumerate(self.lRows):
-                cell=cellGenerator(self.getConfig())
+                cell=cellGenerator(self.getConfig(),'cellTable')
                 cell.setLabel("CELL")
-                cell.setPositionalGenerators((col.getX()._generation,0),(row.getY()._generation,0),(row.getHeight()._generation,0),(col.getWidth()._generation,0))
+                cell.setPositionalGenerators((col.getX()._generation,0),(row.getY()._generation,0),
+                                             (col.getX()._generation+col.getWidth()._generation,0),(row.getY()._generation+row.getHeight()._generation,0),
+                                             (row.getHeight()._generation,0),(col.getWidth()._generation,0))
                 # colunm header? {'column':{'header':{'colnumber':1,'justification':'centered'}}
                 
-                if irow < self.getConfig()['table']['column']['header']['colnumber'] :
-                    cell.getConfig()['vjustification']= self.getConfig()['table']['column']['header']['vjustification']
-#                     print(icol,cell.getConfig()['justification'])
-                else:cell.getConfig()['vjustification'] = self.getConfig()['line']['vjustification']
-                cell.getConfig()['hjustification'] = self.getConfig()['line']['hjustification']
+                if irow < self.getMyConfig()['column']['header']['colnumber'] :
+#                     print (self.getMyConfig()['column']['header'])
+                    cell.setConfigKey(self.getMyConfig()['column']['header']['cell'])
+                
+                if 'hjustification' in self.getMyConfig()['column']:
+                    cell.getMyConfig()['hjustification']  = self.getMyConfig()['column']['hjustification'][icol]
+#                 else:
+#                     cell.getMyConfig()['vjustification'] = storedInitialVJustification
+#                     print ('qq',cell.getMyConfig()['vjustification'].x,self.getConfig()['cellTable']['vjustification'].x)
+#                 cell.getMyConfig()['hjustification'] = self.getConfig()['cellTable']['hjustification']
+#                 print ('c',irow,self.getMyConfig()['column']['header']['colnumber'] ,cell.getMyConfig()['vjustification'].x)
                 # row header?
                 self.lCellGen.append(cell)
                 cell.setNbLinesGenerator(nbLineG)
@@ -980,7 +1167,7 @@ class documentGenerator(Generator):
 #         self._ruling = tRuling      
         
         
-        self.pageListGen = listGenerator(dConfig,pageGenerator,self._nbpages)
+        self.pageListGen = listGenerator(dConfig,'page',pageGenerator,self._nbpages)
         self.pageListGen.setLabel('pages')
         self._structure = [
                             #firstSofcover (first and second)
@@ -1069,14 +1256,18 @@ class DocMirroredPages(documentGenerator):
 
 #         self._lmargin, self._rmargin = tMargin
 #         self._ruling= tRuling
-        self.pageListGen = listGenerator(dConfig,doublePageGenerator,self._nbpages)
+        self.pageListGen = listGenerator(dConfig,'page',doublePageGenerator,self._nbpages)
         self.pageListGen.setLabel('pages')
         self._structure = [
                             #firstSofcover (first and second)
                             ((self.pageListGen,1,100),100) 
                             #lastofcover (if fistofcover??)
                             ]
-        
+    
+    
+    def getPages_instances(self):
+        return self.pageListGen._instance
+    
     def generate(self):
         self._generation = []
         
@@ -1127,281 +1318,430 @@ class content(Generator):
         self._lenElt = integerGenerator(mlenElt, slenElt)        
         self.contentObjectListGen = listGenerator(paragraphGenerator,self._nbElts,self._lenElt)
 
-def docm():
-    
-    # scanningZone: relative to the page 
-    # % of zoom in 
-    pageScanning = ((5, 2),(10, 2),(5, 3),(5, 2))
-    
-    tlMarginGen = ((100, 10),(100, 10),(150, 10),(50, 10))
-    trMarginGen = ((100, 10),(100, 10),(50, 10),(150, 10))
-
-    tGrid = ( 'regular',(2,0),(0,0) )
-    
-    Config = {
-        "scanning": pageScanning,
-        "pageH":    (700, 10),
-        "pageW":    (500, 10),
-        "nbPages":  (2,0),
-        "lmargin":  tlMarginGen,
-        "rmargin":  trMarginGen,
-        "grid"  :   tGrid,
-        "leading":  (12,1), 
-        "lineHeight":(10,1)
-        }
-#     mydoc = DocMirroredPages((1200, 10),(700, 10),(1, 0),tMargin=(tlMarginGen,trMarginGen),tRuling=tGrid)
-    mydoc = DocMirroredPages(Config)
-
-    mydoc.instantiate()
-    mydoc.generate()
-    gt =  mydoc.exportAnnotatedData(())
-#     print gt
-    docDom = mydoc.XMLDSFormatAnnotatedData(gt)
-#     print etree.tostring(docDom,encoding="utf-8", pretty_print=True)
-    docDom.write("tmp.ds_xml",encoding='utf-8',pretty_print=True)    
-
-def StAZHDataset(nbpages):
-    """
-        page header (centered)
-        page number (mirrored: yes and no)
-        catch word (bottom right)
-        marginalia (left margin; mirrored also?)
-         
-    """
-    tlMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
-    trMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
-
-    tGrid = ( 'regular',(1,0),(0,0) )
-        
-    Config = {
-        "page":{
-            "scanning": None
-            ,"pageH":    (780, 50)
-            ,"pageW":    (500, 50)
-            ,"nbPages":  (nbpages,0)
-            ,"margin": [tlMarginGen, trMarginGen]
-            ,'pnum'  :{'position':"left"}
-            ,"pnumZone": 0
-            ,"grid"  :   tGrid
-        }
-        #column?
-        ,"line":{
-             "leading":     (15+5,1) 
-            ,"lineHeight":  (15,1)
-            ,"justification":'left'
-            ,'marginalia':[marginaliaGenerator,10]
-            ,'marginalialineHeight':10
-            }
-        
-        ,"colStruct": (listGenerator,LineGenerator,(20,0))
+# def docm():
+#     
+#     # scanningZone: relative to the page 
+#     # % of zoom in 
+#     pageScanning = ((5, 2),(10, 2),(5, 3),(5, 2))
+#     
+#     tlMarginGen = ((100, 10),(100, 10),(150, 10),(50, 10))
+#     trMarginGen = ((100, 10),(100, 10),(50, 10),(150, 10))
+# 
+#     tGrid = ( 'regular',(2,0),(0,0) )
+#     
+#     Config = {
+#         "scanning": pageScanning,
+#         "pageH":    (700, 10),
+#         "pageW":    (500, 10),
+#         "nbPages":  (2,0),
+#         "lmargin":  tlMarginGen,
+#         "rmargin":  trMarginGen,
+#         "grid"  :   tGrid,
+#         "leading":  (12,1), 
+#         "lineHeight":(10,1)
+#         }
+# #     mydoc = DocMirroredPages((1200, 10),(700, 10),(1, 0),tMargin=(tlMarginGen,trMarginGen),tRuling=tGrid)
+#     mydoc = DocMirroredPages(Config)
+# 
+#     mydoc.instantiate()
+#     mydoc.generate()
+#     gt =  mydoc.exportAnnotatedData(())
+# #     print gt
+#     docDom = mydoc.XMLDSFormatAnnotatedData(gt)
+# #     print etree.tostring(docDom,encoding="utf-8", pretty_print=True)
+#     docDom.write("tmp.ds_xml",encoding='utf-8',pretty_print=True)    
+# 
+# def StAZHDataset(nbpages):
+#     """
+#         page header (centered)
+#         page number (mirrored: yes and no)
+#         catch word (bottom right)
+#         marginalia (left margin; mirrored also?)
+#          
+#     """
+#     tlMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
+#     trMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
+# 
+#     tGrid = ( 'regular',(1,0),(0,0) )
+#         
+#     Config = {
+#         "page":{
+#             "scanning": None
+#             ,"pageH":    (780, 50)
+#             ,"pageW":    (500, 50)
+#             ,"nbPages":  (nbpages,0)
+#             ,"margin": [tlMarginGen, trMarginGen]
+#             ,'pnum'  :{'position':"left"}
+#             ,"pnumZone": 0
+#             ,"grid"  :   tGrid
+#         }
+#         #column?
+#         ,"line":{
+#              "leading":     (15+5,1) 
+#             ,"lineHeight":  (15,1)
+#             ,"justification":'left'
+#             ,'marginalia':[marginaliaGenerator,10]
+#             ,'marginalialineHeight':10
+#             }
+#         
+#         ,"colStruct": (listGenerator,LineGenerator,(20,0))
+# #         ,'table':{
+# #             "nbRows":  (40,0)
+# #             ,"nbCols":  (5,0)
+# #             ,"rowHeightVariation":(0,0)
+# #             ,"columnWidthVariation":(0,0)
+# #             ,'column':{'header':{'colnumber':1,'justification':'centered'}}
+# #             ,'row':{"sameRowHeight": True }
+# #             ,'cell':{'justification':'right','line':{"leading":(14,0)}}
+# #             }
+#         }    
+#     mydoc = DocMirroredPages(Config)
+#     mydoc.instantiate()
+#     mydoc.generate()
+#     gt =  mydoc.exportAnnotatedData(())
+# #     print gt
+#     docDom = mydoc.XMLDSFormatAnnotatedData(gt)
+#     return docDom 
+#         
+#         
+# def ABPRegisterDataset(nbpages):
+#     """
+#         ABP register
+#         
+#     """
+#     tlMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
+#     trMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
+# 
+#     tGrid = ( 'regular',(1,0),(0,0) )
+#     
+#     # should be replaced by an object?
+#     ABPREGConfig = {
+#         "page":{
+#             "scanning": None
+#             ,"pageH":    (780, 50)
+#             ,"pageW":    (500, 50)
+#             ,"nbPages":  (nbpages,0)
+#             ,"margin": [tlMarginGen, trMarginGen]
+#             ,'pnum'  :{'position':"left"}  # also ramdom?
+#             ,"pnumZone": 0
+#             ,"grid"  :   tGrid
+#         }
+#         #column?
+#         ,"line":{
+#              "leading":     (5,4) 
+#             ,"lineHeight":  (18,2)
+#             ,"justification":'left'
+#             }
+#         
+#         ,"colStruct": (tableGenerator,1,nbpages)
 #         ,'table':{
-#             "nbRows":  (40,0)
-#             ,"nbCols":  (5,0)
+#             "nbRows":  (30,2)
+#             ,"nbCols":  (5,1)
 #             ,"rowHeightVariation":(0,0)
 #             ,"columnWidthVariation":(0,0)
 #             ,'column':{'header':{'colnumber':1,'justification':'centered'}}
 #             ,'row':{"sameRowHeight": True }
 #             ,'cell':{'justification':'right','line':{"leading":(14,0)}}
 #             }
-        }    
-    mydoc = DocMirroredPages(Config)
-    mydoc.instantiate()
-    mydoc.generate()
-    gt =  mydoc.exportAnnotatedData(())
-#     print gt
-    docDom = mydoc.XMLDSFormatAnnotatedData(gt)
-    return docDom 
-        
-        
-def ABPRegisterDataset(nbpages):
+#         }    
+#     
+#     Config=ABPREGConfig
+#     mydoc = DocMirroredPages(Config)
+#     mydoc.instantiate()
+#     mydoc.generate()
+#     gt =  mydoc.exportAnnotatedData(())
+# #     print gt
+#     docDom = mydoc.XMLDSFormatAnnotatedData(gt)
+#     return docDom    
+# 
+# def NAFDataset(nbpages):
+#     tlMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
+#     trMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
+# 
+#     tGrid = ( 'regular',(1,0),(0,0) )
+#     #for NAF!: how to get the column width??? 
+#     NAFConfig = {
+#         "page":{
+#             "scanning": None,
+#             "pageH":    (780, 50),
+#             "pageW":    (500, 50),
+#             "nbPages":  (nbpages,0),
+#             "margin": [tlMarginGen, trMarginGen],
+#             'pnum'  :True,
+#             "pnumZone": 0,
+#             "grid"  :   tGrid
+#         }
+#         #column?
+#         ,"line":{
+#              "leading":     (5,4) 
+#             ,"lineHeight":  (10,1)
+#             ,"justification":'left'
+#             }
+#         
+#         ,"colStruct": (tableGenerator,1,nbpages)
+#         ,'table':{
+#              "nbRows":  (35,10)
+#             ,"nbCols":  (5,0)
+#             ,"rowHeightVariation":(20,5)
+#             ,"columnWidthVariation":(0,0)
+#             #                                                                      proportion of col width known          
+#             ,'column':{'header':{'colnumber':1,'justification':'centered'}
+#                        ,'widths':(0.01,0.05,0.05,0.5,0.2,0.05,0.05,0.05,0.05,0.05,0.05)
+#                        #nb textlines 
+#                         ,'nbLines':((1,0.1),(1,0.1),(1,0.1),(4,1),(3,1),(1,1),(1,0.5),(1,1),(1,0.5),(1,0.5),(1,0.5))
+# 
+#                        }
+#             ,'row':{"sameRowHeight": False }
+#             ,'cell':{'justification':'right','line':{"leading":(14,0)}}
+#             }
+#         }  
+#     Config=NAFConfig
+#     mydoc = DocMirroredPages(Config)
+#     mydoc.instantiate()
+#     mydoc.generate()
+#     gt =  mydoc.exportAnnotatedData(())
+# #     print gt
+#     docDom = mydoc.XMLDSFormatAnnotatedData(gt)
+#     return docDom    
+# 
+# 
+# def NAHDataset(nbpages):
+#     """
+#     @todo: need to put H centered lines
+#     """
+#     
+#     tlMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
+#     trMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
+# 
+#     tGrid = ( 'regular',(1,0),(0,0) )
+#     #for NAF!: how to get the column width??? 
+#     NAFConfig = {
+#         "page":{
+#             "scanning": None,
+#             "pageH":    (780, 50),
+#             "pageW":    (500, 50),
+#             "nbPages":  (nbpages,0),
+#             "margin": [tlMarginGen, trMarginGen],
+#             'pnum'  :True,
+#             "pnumZone": 0,
+#             "grid"  :   tGrid
+#         }
+#         #column?
+#         ,"line":{
+#              "leading":     (5,4) 
+#             ,"lineHeight":  (10,1)
+#             ,"vjustification":verticalTypoGenerator([0.5,0.25,0.25])
+#             #                  0: top
+#             ,'hjustification':horizontalTypoGenerator([0.33,0.33,0.33])
+#             }
+#         
+#         ,"colStruct": (tableGenerator,1,nbpages)
+#         ,'table':{
+#              "nbRows":  (35,10)
+#             ,"nbCols":  (5,0)
+#             ,"rowHeightVariation":(20,5)
+#             ,"columnWidthVariation":(0,0)
+#             #                                                                      proportion of col width known          
+#             ,'column':{'header':{'colnumber':1,'vjustification':verticalTypoGenerator([0,1,0])}
+#                        ,'widths':(0.01,0.05,0.05,0.5,0.2,0.05,0.05,0.05,0.05,0.05,0.05)
+#                        #nb textlines 
+#                         ,'nbLines':((1,0.1),(1,0.1),(1,0.1),(4,1),(3,1),(1,1),(1,0.5),(1,1),(1,0.5),(1,0.5),(1,0.5))
+# 
+#                        }
+#             ,'row':{"sameRowHeight": False }
+#             ,'cell':{'hjustification':horizontalTypoGenerator([0.75,0.25,0.0]),'vjustification':verticalTypoGenerator([0,0,1]),'line':{"leading":(14,0)}}
+#             }
+#         }  
+#     Config=NAFConfig
+#     mydoc = DocMirroredPages(Config)
+#     mydoc.instantiate()
+#     mydoc.generate()
+#     gt =  mydoc.exportAnnotatedData(())
+# #     print gt
+#     docDom = mydoc.XMLDSFormatAnnotatedData(gt)
+#     return docDom    
+# 
+# def NAH2Dataset(nbpages):
+#     """
+#     @todo: need to put H centered lines
+#     """
+#     
+#     tlMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
+#     trMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
+# 
+#     tGrid = ( 'regular',(1,0),(0,0) )
+#     #for NAF!: how to get the column width??? 
+#     NAFConfig = {
+#         "page":{
+#             "scanning": None,
+#             "pageH":    (1200, 50),
+#             "pageW":    (1600, 50),
+#             "nbPages":  (nbpages,0),
+#             "margin": [tlMarginGen, trMarginGen],
+#             'pnum'  :True,
+#             "pnumZone": 0,
+#             "grid"  :   tGrid
+#         }
+#         #column?
+#         ,"line":{
+#              "leading":     (6,0) 
+#             ,"lineHeight":  (14,1)
+#             ,"vjustification":verticalTypoGenerator([0.5,0.25,0.25])
+#             #                  0: top
+#             ,'hjustification':horizontalTypoGenerator([0.33,0.33,0.33])
+#             }
+#         
+#         ,"colStruct": ( (tableGenerator,100),  )
+# #         ,"colStruct": (tableGenerator,None,None)
+#         ,'table':{
+#              "nbRows":  (50,5)
+#             ,"nbCols":  (5,0)
+#             ,"rowHeightVariation":(20,10)
+#             ,"columnWidthVariation":(0,0)
+#             # if none: use container dim
+#             ,'height': None 
+#             ,'width':None
+#             #                                                                      proportion of col width known          
+#             ,'column':{'header':{'colnumber':1,'vjustification':verticalTypoGenerator([0,1,0])}
+#                        ,'widths':(0.01,0.05,0.05,0.05,0.05,0.3,0.01,0.05,0.2,0.05,0.05,0.05,0.05,0.05,0.05)
+#                        #nb textlines 
+#                        # nha with for 93  : more lines on the right  : nahv2_3
+#                         ,'nbLines':((1,0.1),(1,0.1),(1,0.1),(1,0.1),(2,0.1),(6,2),(1,0),(0,0.5),(2,1),(1,1),(1,0.5),(3,1),(3,0.5),(1,0.5),(1,0.5))
+#                         #basic[sic] Nha
+# #                         ,'nbLines':((1,0.1),(1,0.1),(1,0.1),(1,0.1),(2,0.1),(6,2),(1,0),(0,0.5),(2,1),(1,1),(1,0.5),(1,1),(1,0.5),(1,0.5),(1,0.5))
+#                         # nha with one line per cell: still need REG
+# #                         ,  'nbLines':((1,0.1),(1,0.1),(1,0),(1,0.1),(1,0.1),(1,0),(0,0),(0,0.5),(1,1),(1,1),(1,0.5),(1,1),(1,0.5),(1,0.5),(1,0.5))
+# 
+#                        }
+#             ,'row':{"sameRowHeight": False }
+#             ,'cell':{'hjustification':horizontalTypoGenerator([0.66,0.20,0.13]),'vjustification':verticalTypoGenerator([0.75,0.25,0]),'line':{"leading":(14,1)}}
+#             }
+#         }  
+#     Config=NAFConfig
+#     mydoc = DocMirroredPages(Config)
+#     mydoc.instantiate()
+#     mydoc.generate()
+#     gt =  mydoc.exportAnnotatedData(())
+# #     print gt
+#     docDom = mydoc.XMLDSFormatAnnotatedData(gt)
+#     return docDom    
+# 
+# def TUEDataset(nbpages):
+#     """
+#     description: page with text and table
+#     """
+#     
+#     tlMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
+#     trMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
+# 
+#     tGrid = ( 'regular',(1,0),(0,0) )
+#     #for NAF!: how to get the column width??? 
+#     NAFConfig = {
+#         "page":{
+#             "scanning": None,
+#             "pageH":    (600, 50),
+#             "pageW":    (400, 50),
+#             "nbPages":  (nbpages,0),
+#             "margin": [tlMarginGen, trMarginGen],
+#             'pnum'  :True,
+#             "pnumZone": 0,
+#             "grid"  :   tGrid
+#         }
+#         #column?
+#         ,"line":{
+#              "leading":     (15,4) 
+#             ,"lineHeight":  (10,1)
+#             ,"vjustification":verticalTypoGenerator([0.5,0.25,0.25])
+#             #                  0: top
+#             ,'hjustification':horizontalTypoGenerator([0.33,0.33,0.33])
+#             }
+#         
+#         #                ( struct,                  (m,s) ) 
+#         ,"colStruct": ( ((listGenerator,LineGenerator,(10,0)),100),(tableGenerator,100), ((listGenerator,LineGenerator,(10,0)),100))
+# #         ,"colStruct":  (((listGenerator,LineGenerator,(20,0)),100),)
+# 
+#         ,'table':{
+#              "nbRows":  (10,0)
+#             ,"nbCols":  (5,2)
+#             ,"rowHeightVariation":(20,2)
+#             ,"columnWidthVariation":(0,0)
+#             ## % od the container?
+#             ,'height': (20,5)
+#             ,'width':(100,20)
+#             ,'nbLines':(1,0) ## common values for all columns  ('column/nblines does not exist)
+#             #                                                                      proportion of col width known          
+#             ,'column':{'header':{'colnumber':1,'vjustification':verticalTypoGenerator([0,1,0])}
+# #                        ,'widths':(0.01,0.05,0.05,0.3,0.05,0.05,0.2,0.05,0.05,0.05,0.05,0.05,0.05)
+#                        #nb textlines 
+# #                         ,'nbLines':((1,0),)
+# #                         ,'nbLines':((1,0.1),(1,0.1),(1,0.1),(6,2),(0,0),(0,0.5),(3,1),(1,1),(1,0.5),(1,1),(1,0.5),(1,0.5),(1,0.5))
+# #                         ,  'nbLines':((1,0.1),(1,0.1),(1,0.1),(2,0),(0,0),(0,0.5),(1,1),(1,1),(1,0.5),(1,1),(1,0.5),(1,0.5),(1,0.5))
+# 
+#                        }
+#             ,'row':{"sameRowHeight": False }
+#             ,'cell':{'hjustification':horizontalTypoGenerator([100,0.0,0.0]),'vjustification':verticalTypoGenerator([0.75,0.25,0]),'line':{"leading":(14,1)}}
+#             }
+#         }  
+#     Config=NAFConfig
+#     mydoc = DocMirroredPages(Config)
+#     mydoc.instantiate()
+#     mydoc.generate()
+#     gt =  mydoc.exportAnnotatedData(())
+# #     print gt
+#     docDom = mydoc.XMLDSFormatAnnotatedData(gt)
+#     return docDom    
+# 
+# 
+def testDataset(nbpages):
     """
-        ABP register
-        
+        BAR 
+         
+        marginalia:  summ (0.5)  + num (100)  
+        body : lines
+         
     """
     tlMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
     trMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
-
+ 
     tGrid = ( 'regular',(1,0),(0,0) )
-    
-    # should be replaced by an object?
-    ABPREGConfig = {
-        "page":{
-            "scanning": None
-            ,"pageH":    (780, 50)
-            ,"pageW":    (500, 50)
-            ,"nbPages":  (nbpages,0)
-            ,"margin": [tlMarginGen, trMarginGen]
-            ,'pnum'  :{'position':"left"}  # also ramdom?
-            ,"pnumZone": 0
-            ,"grid"  :   tGrid
-        }
-        #column?
-        ,"line":{
-             "leading":     (5,4) 
-            ,"lineHeight":  (18,2)
-            ,"justification":'left'
-            }
-        
-        ,"colStruct": (tableGenerator,1,nbpages)
-        ,'table':{
-            "nbRows":  (30,2)
-            ,"nbCols":  (5,1)
-            ,"rowHeightVariation":(0,0)
-            ,"columnWidthVariation":(0,0)
-            ,'column':{'header':{'colnumber':1,'justification':'centered'}}
-            ,'row':{"sameRowHeight": True }
-            ,'cell':{'justification':'right','line':{"leading":(14,0)}}
-            }
-        }    
-    
-    Config=ABPREGConfig
-    mydoc = DocMirroredPages(Config)
-    mydoc.instantiate()
-    mydoc.generate()
-    gt =  mydoc.exportAnnotatedData(())
-#     print gt
-    docDom = mydoc.XMLDSFormatAnnotatedData(gt)
-    return docDom    
-
-def NAFDataset(nbpages):
-    tlMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
-    trMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
-
-    tGrid = ( 'regular',(1,0),(0,0) )
-    #for NAF!: how to get the column width??? 
-    NAFConfig = {
-        "page":{
-            "scanning": None,
-            "pageH":    (780, 50),
-            "pageW":    (500, 50),
-            "nbPages":  (nbpages,0),
-            "margin": [tlMarginGen, trMarginGen],
-            'pnum'  :True,
-            "pnumZone": 0,
-            "grid"  :   tGrid
-        }
-        #column?
-        ,"line":{
-             "leading":     (5,4) 
-            ,"lineHeight":  (10,1)
-            ,"justification":'left'
-            }
-        
-        ,"colStruct": (tableGenerator,1,nbpages)
-        ,'table':{
-             "nbRows":  (35,10)
-            ,"nbCols":  (5,0)
-            ,"rowHeightVariation":(20,5)
-            ,"columnWidthVariation":(0,0)
-            #                                                                      proportion of col width known          
-            ,'column':{'header':{'colnumber':1,'justification':'centered'}
-                       ,'widths':(0.01,0.05,0.05,0.5,0.2,0.05,0.05,0.05,0.05,0.05,0.05)
-                       #nb textlines 
-                        ,'nbLines':((1,0.1),(1,0.1),(1,0.1),(4,1),(3,1),(1,1),(1,0.5),(1,1),(1,0.5),(1,0.5),(1,0.5))
-
-                       }
-            ,'row':{"sameRowHeight": False }
-            ,'cell':{'justification':'right','line':{"leading":(14,0)}}
-            }
-        }  
-    Config=NAFConfig
-    mydoc = DocMirroredPages(Config)
-    mydoc.instantiate()
-    mydoc.generate()
-    gt =  mydoc.exportAnnotatedData(())
-#     print gt
-    docDom = mydoc.XMLDSFormatAnnotatedData(gt)
-    return docDom    
-
-
-def NAHDataset(nbpages):
-    """
-    @todo: need to put H centered lines
-    """
-    
-    tlMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
-    trMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
-
-    tGrid = ( 'regular',(1,0),(0,0) )
-    #for NAF!: how to get the column width??? 
-    NAFConfig = {
-        "page":{
-            "scanning": None,
-            "pageH":    (780, 50),
-            "pageW":    (500, 50),
-            "nbPages":  (nbpages,0),
-            "margin": [tlMarginGen, trMarginGen],
-            'pnum'  :True,
-            "pnumZone": 0,
-            "grid"  :   tGrid
-        }
-        #column?
-        ,"line":{
-             "leading":     (5,4) 
-            ,"lineHeight":  (10,1)
-            ,"vjustification":verticalTypoGenerator([0.5,0.25,0.25])
-            #                  0: top
-            ,'hjustification':horizontalTypoGenerator([0.33,0.33,0.33])
-            }
-        
-        ,"colStruct": (tableGenerator,1,nbpages)
-        ,'table':{
-             "nbRows":  (35,10)
-            ,"nbCols":  (5,0)
-            ,"rowHeightVariation":(20,5)
-            ,"columnWidthVariation":(0,0)
-            #                                                                      proportion of col width known          
-            ,'column':{'header':{'colnumber':1,'vjustification':verticalTypoGenerator([0,1,0])}
-                       ,'widths':(0.01,0.05,0.05,0.5,0.2,0.05,0.05,0.05,0.05,0.05,0.05)
-                       #nb textlines 
-                        ,'nbLines':((1,0.1),(1,0.1),(1,0.1),(4,1),(3,1),(1,1),(1,0.5),(1,1),(1,0.5),(1,0.5),(1,0.5))
-
-                       }
-            ,'row':{"sameRowHeight": False }
-            ,'cell':{'hjustification':horizontalTypoGenerator([0.75,0.25,0.0]),'vjustification':verticalTypoGenerator([0,0,1]),'line':{"leading":(14,0)}}
-            }
-        }  
-    Config=NAFConfig
-    mydoc = DocMirroredPages(Config)
-    mydoc.instantiate()
-    mydoc.generate()
-    gt =  mydoc.exportAnnotatedData(())
-#     print gt
-    docDom = mydoc.XMLDSFormatAnnotatedData(gt)
-    return docDom    
-
-def BARDataset(nbpages):
-    """
-        ABP register
-        
-    """
-    tlMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
-    trMarginGen = ((50, 5),(50, 5),(50, 5),(50, 5))
-
-    tGrid = ( 'regular',(1,0),(0,0) )
-    
+     
     # should be replaced by an object?
     BARConfig = {
         "page":{
             "scanning": None,
-            "pageH":    (780, 50),
-            "pageW":    (500, 50),
+            "pageH":    (768, 10),
+            "pageW":    (499, 10),
             "nbPages":  (nbpages,0),
             "margin": [tlMarginGen, trMarginGen],
             'pnum'  :True,
             "pnumZone": 0,
             "grid"  :   tGrid
+            ,"struct": ( ((listGenerator,LineGenerator,(50,0)),'line',100),) 
         }
-        #column?
         ,"line":{
-             "leading":     (15,1) 
-            ,"lineHeight":  (15,1)
-            ,"justification":'left'
+             "leading":     (6,0) 
+            ,"lineHeight":  (20,1)
+            ,"vjustification":verticalTypoGenerator([0.5,0.25,0.25])
+            #                  0: top
+            ,'hjustification':horizontalTypoGenerator([0.33,0.33,0.33])
+            ,'marginalia':{"generator":marginaliaGenerator
+                           ,"proba":30
+                           ,'config':'note'
+                           }
+            }
+        ,'note':{
+                'height':(30,5)
+                ,'lineHeight':(10,1)
+                , "leading":  (5,0) 
+               ,"vjustification":verticalTypoGenerator([0.5,0.25,0.25])
+               ,'hjustification':horizontalTypoGenerator([0.33,0.33,0.33])     
+               ,"struct": ( ((listGenerator,LineGenerator,(2,1)),'line',100),)                       
+            
             }
         
-        ,"colStruct": (listGenerator,LineGenerator,(2,0))
-        }    
-    
+        }     
+     
+     
     Config=BARConfig
     mydoc = DocMirroredPages(Config)
     mydoc.instantiate()
@@ -1423,10 +1763,11 @@ if __name__ == "__main__":
     
 #     dom1 = ABPRegisterDataset(nbpages)
 #     dom1 = NAFDataset(nbpages)
-    dom1 = NAHDataset(nbpages)
+#     dom1 = NAH2Dataset(nbpages)
 
 #     dom1 = StAZHDataset(nbpages)
-#     dom1 = BARDataset(nbpages)
+    dom1 = testDataset(nbpages)
+#     dom1 = TUEDataset(nbpages)
 
     dom1.write(outfile,xml_declaration=True,encoding='utf-8',pretty_print=True)
 
