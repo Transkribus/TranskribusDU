@@ -11,18 +11,7 @@
 
     READ project 
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -134,6 +123,7 @@ class IETest(Component.Component):
         
 
 
+
     def findNameColumn(self,table,myrecord):
         """    
                 find the column which corresponds to the people names c 
@@ -164,6 +154,7 @@ class IETest(Component.Component):
             cell.resetField()       
         return max(lColInvName['firstname'],key=lColInvName['firstname'].count)       
 
+
     def extractData(self,table,myRecord, lTemplate):
         """
             layout 
@@ -178,28 +169,26 @@ class IETest(Component.Component):
             find layout level for record completion
             extract data/record
               -inference if IEOnto
+              
+              
             
         """
-#         self.bDebug = False
-#         table.buildNDARRAY()
+        self.bDebug = False
+        table.buildNDARRAY()
         if lTemplate is not None:
             # convert string to tableTemplateObject
             template = tableTemplateClass()
             template.buildFromPattern(lTemplate)
             template.labelTable(table)
         else: return None
-#         firstNameColIndex =self.findNameColumn(table)
-        
-        # create a batch for the full page
         
         #tag fields with template
         for cell in table.getCells():
             if cell.getFields() != []:
                 if self.bDebug:print(table.getPage(),cell.getIndex(), cell.getFields(), cell.getContent())
-            res = myRecord.applyTaggers(cell)
             for field in cell.getFields():
                 if field is not None:
-                    #res = field.applyTaggers(cell)
+                    res = field.applyTaggers(cell)
                     # res [ (token,label,score) ...]
                     extractedValues = field.extractLabel(res)
                     if extractedValues != []:
@@ -207,8 +196,8 @@ class IETest(Component.Component):
                         extractedValues = list(map(lambda x:(x[1],x[3]),extractedValues))
                         field.setOffset(res[0])
                         field.setValue(extractedValues)
-#                         field.addValue(extractedValues)
                         if self.bDebug: print ('found:',field, field.getValue())
+        
 
         ### now at record level ?
         ### scope = propagation using only docObject (hardcoded ?)
@@ -277,6 +266,19 @@ class IETest(Component.Component):
 
 
 
+    def htrWithTemplate(self,table,template,htrModelId):
+        """
+            perform an HTR with dictionaries specific to each column
+            
+            need: docid, pageid
+        """
+        
+        # for the current column: need to get tablecells ids
+        # more efficient(?why more efficient?) to have it at column level: not cell ; so just after table template tool
+        for col in table.getColumns():
+            lCellsID = map(lambda x:x.getID(),col.getCells())
+            for id in lCellsID: print(id)
+            
         
     
     def mineTable(self,tabel,dr):
@@ -349,15 +351,32 @@ class IETest(Component.Component):
 #            , ((slice(1,None),slice(9,10)) ,[ dr.getFieldByName('priester')])
 #            , ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
            ]        
-        # recalibrate template
         
-# #         lTemplate = lTemplateIE
-#         if table.getNbColumns() >= 12:
-#             lTemplate = lTemplateIE2
-#         else:
-#             lTemplate = lTemplateIE
+        lTemplateIE = [  
+             ((slice(1,None),slice(0,1))  ,[ 'abp_names', 'names_aux','numbering','religion'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')])
+            , ((slice(1,None),slice(1,2)) ,[ 'abp_profession','religion' ]        ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
+            , ((slice(1,None),slice(2,3))  ,[ 'abp_location' ]                    ,[ dr.getFieldByName('location') ]) 
+            , ((slice(1,None),slice(3,4)) ,[ 'abp_family' ]                       ,[ dr.getFieldByName('situation') ])
+            #[] binding
+            , ((slice(1,None),slice(4,6)) ,[ 'deathreason','artz']                ,[ dr.getFieldByName('deathreason'),dr.getFieldByName('doktor')])
+            , ((slice(1,None),slice(6,7)) ,[ 'abp_dates' ]                        ,[ dr.getFieldByName('deathDate') ])
+            , ((slice(1,None),slice(7,8)) ,[ 'abp_dates','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('burialLocation') ])
+            , ((slice(1,None),slice(8,9)) ,[ 'abp_age']                           ,[ dr.getFieldByName('age')])
+#            , ((slice(1,None),slice(9,10)) ,[ dr.getFieldByName('priester')])
+#            , ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
+           ]
         
-        self.extractData(table,dr,lTemplateIE)
+        
+        
+#         lTemplate = lTemplateIE
+        if table.getNbColumns() == 12:
+            lTemplate = lTemplateIE2
+        else:
+            lTemplate = lTemplateIE
+        
+#         if self.htrModelID is not None: self.htrWithTemplate(table, lTemplate, self.htrModelID)
+        
+        self.extractData(table,dr,lTemplate)
         
         # select best solutions
         # store inthe proper final format
@@ -390,7 +409,7 @@ class IETest(Component.Component):
         ### 
         
         for page in self.lPages:
-            print("page: ", page.getNumber())
+#             print("page: ", page.getNumber())
 #             self.testGTText(page)
 #             continue
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
@@ -401,11 +420,9 @@ class IETest(Component.Component):
                     continue
                 if self.BuseStoredTemplate:
                     self.processWithTemplate(table, dr)
-                    #try:self.processWithTemplate(table, dr)
-                    #except: print('issue with page %s'%page)
                 else:
                     self.mineTable(table,dr)
-            
+        
         self.evalData = dr.generateOutput(self.evalData)
 #         print self.evalData.serialize('utf-8',True)
 
@@ -536,7 +553,7 @@ class IETest(Component.Component):
             lCovered=[]
             for a,i in enumerate(r2):
 #                 print (key,a,r1[a],i,rows[r1[a]][2],cols[i][2], 1/cost_matrix[r1[a],i])
-                if 1 / cost_matrix[r1[a],i] > lcsTH:
+                if 1 / cost_matrix[r1[a,],i] > lcsTH:
                     cntOk += 1
                     if bT:
                         ltisRefsRunbErrbMiss.append( (runElt[1],int(runElt[0]), cols[i], rows[r1[a]],False, False) )
@@ -622,8 +639,8 @@ class IETest(Component.Component):
             key=page.get('pagenum')
             xpath = "./%s" % ("RECORD")
             lrecord = page.xpath(xpath)
-            if len(lrecord)==0:
-                lRef.append([])
+            if len(lrecord) == 0:
+                pass
             else:
                 for record in lrecord:
                     lf =[]
@@ -835,8 +852,6 @@ class IETest(Component.Component):
         dicTestByTask['location']= self.testRecordField(['location'],[None],srefData, srunData,bVisual)
         dicTestByTask['deathreason']= self.testRecordField(['deathreason'],[None],srefData, srunData,bVisual)
         dicTestByTask['names']= self.testRecordField(['firstname','lastname'],[None,None],srefData, srunData,bVisual)
-        dicTestByTask['doktor']= self.testRecordField(['doktor'],['helfer_name'],srefData, srunData,bVisual)
-
 #         dicTestByTask['namedeathlocationoccupation']= self.testRecordField(['firstname','lastname','deathreason','location','occupation'],[None,None,None,None,None],srefData, srunData,bVisual)
         dicTestByTask['situation']= self.testRecordField(['situation'],['family'],srefData, srunData,bVisual)
 #         dicTestByTask['Year']= self.testYear(srefData, srunData,bVisual)

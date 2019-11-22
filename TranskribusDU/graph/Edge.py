@@ -39,7 +39,27 @@ class Edge:
         revert the direction of the edge
         """
         self.A, self.B = self.B, self.A
-        
+    
+
+    def computeOverlap(self):
+        """
+        compute the overlap between the two nodes
+        return 0 or a positive number in case of overlap
+        """
+        return 0
+
+    def computeOverlapPosition(self):
+        """
+        compute the overlap between the two nodes and its position 
+            relative to each node.
+        The overlap is a length
+        The position is a number in [-1, +1] relative to the center of a node.
+            -1 denote left or top, +1 denotes right or bottom.
+            The position is the position of the center of overlap.
+        return a tuple: (overlap, pos_on_A, pos_on_B)
+        """
+        return 0, 0, 0
+    
     # ------------------------------------------------------------------------------------------------------------------------------------        
     #specific code for the CRF graph
     def computeEdges(cls, lPrevPageEdgeBlk, lPageBlk, iGraphMode, bShortOnly=False):
@@ -117,6 +137,35 @@ class HorizontalEdge(SamePageEdge):
         except ZeroDivisionError:
             self.iou = 0    
 
+    def computeOverlap(self):
+        """
+        compute the vertical overlap between the two nodes
+        return 0 or a positive number in case of overlap
+        """
+        return max(0, min(self.A.y2, self.B.y2) - max(self.A.y1, self.B.y1))
+
+    def computeOverlapPosition(self):
+        """
+        compute the vertical overlap between the two nodes and its position 
+            relative to each node.
+        The overlap is a length
+        The position is a number in [-1, +1] relative to the center of a node.
+            -1 denote left or top, +1 denotes right or bottom.
+            The position is the position of the center of overlap.
+        return a tuple: (overlap, pos_on_A, pos_on_B)
+        """
+        y1 = max(self.A.y1, self.B.y1)
+        y2 = min(self.A.y2, self.B.y2)
+        ovrl = max(0, y2 - y1)
+        if ovrl > 0:
+            m  = (y1 + y2) / 2.0
+            pA = (m + m - self.A.y1 - self.A.y2) / abs(self.A.y2 - self.A.y1)
+            pB = (m + m - self.B.y1 - self.B.y2) / abs(self.B.y2 - self.B.y1)
+            return (m, pA, pB)
+        else:
+            return 0, 0, 0
+
+
 class VerticalEdge(SamePageEdge):
     def __init__(self, A, B, length, overlap):
         SamePageEdge.__init__(self, A, B, length, overlap)
@@ -124,5 +173,33 @@ class VerticalEdge(SamePageEdge):
             self.iou = max(0, self.overlap) / (abs(A.x2-A.x1) + abs(B.x2-B.x1) - abs(self.overlap))
         except ZeroDivisionError:
             self.iou = 0    
+
+    def computeOverlap(self):
+        """
+        compute the horizontal overlap between the two nodes
+        return 0 or a positive number in case of overlap
+        """
+        return max(0, min(self.A.x2, self.B.x2) - max(self.A.x1, self.B.x1))
+
+    def computeOverlapPosition(self):
+        """
+        compute the horizontal overlap between the two nodes and its position 
+            relative to each node.
+        The overlap is a length
+        The position is a number in [-1, +1] relative to the center of a node.
+            -1 denote left or top, +1 denotes right or bottom.
+            The position is the position of the center of overlap.
+        return a tuple: (overlap, pos_on_A, pos_on_B)
+        """
+        x1 = max(self.A.x1, self.B.x1)
+        x2 = min(self.A.x2, self.B.x2)
+        ovrl = max(0, x2 - x1)
+        if ovrl > 0:
+            m  = (x1 + x2) / 2.0
+            pA = (m + m - self.A.x1 - self.A.x2) / abs(self.A.x2 - self.A.x1)
+            pB = (m + m - self.B.x1 - self.B.x2) / abs(self.B.x2 - self.B.x1)
+            return (m, pA, pB)
+        else:
+            return 0, 0, 0
 
  

@@ -11,6 +11,8 @@ from __future__ import absolute_import
 from __future__ import  print_function
 from __future__ import unicode_literals
 
+from .frechet import frechetDist
+
 class  featureObject(object):
     
     """
@@ -228,6 +230,7 @@ class  featureObject(object):
     
     
     def getDistance(self,other):
+        if self.getName() != other.getName(): return 9e9
         if self.getType()==featureObject.NUMERICAL:
             return abs(self.getValue() - other.getValue())
         elif self.getType() == featureObject.EDITDISTANCE:
@@ -244,6 +247,8 @@ class TwoDFeature(featureObject):
     """
         self.value is define as a tuple: (x,y) 
     """
+    def __hash__(self):
+        return hash((self.getName(),self.getStringValue()))    
     
     def __eq__(self,other):
         try: other.getClassName()
@@ -272,7 +277,76 @@ class TwoDFeature(featureObject):
         else:
             return 9e9
             
-             
+class affineFeature(featureObject):
+    """
+        f = (a,b)    y = ax  +b 
+        
+        distance = b
+    """
+    def __init__(self):
+        featureObject.__init__(self)
+        self._a = None
+        self._b = None
+        self._value = [self._a,self._b]
+        
+    def setValue(self,v):
+        assert len(v) == 2
+        self._value = v
+        self._a = v[0]
+        self._b = v[1]
+        return v
+    
+    def getDistance(self,other):
+        if self.getClassName() == other.getClassName() and self.getName() == other.getName(): 
+            return abs(self._b - other._b)
+                    
+class setOfPointsFeatureObject(featureObject):
+    """
+        list of 2uple [(x,y)..)
+    """
+
+    def __init__(self):
+        
+        featureObject.__init__(self)
+        self._value = []
+        self._TH= 1.0
+        self._coords =[]
+        
+    def setValue(self,v):
+        self._value  = v
+            
+        [ self._coords.append(  ( (0,x[0]),(0,x[1]) ) ) for x in v  ]
+        return v
+            
+    def __hash__(self):
+        return hash((self.getName(),self.getStringValue()))      
+    
+    def __eq__(self,other):
+        try: other.getClassName()
+        except AttributeError:return False
+        if self.getClassName() == other.getClassName():
+            return self.getDistance(other) < self.getTH()
+        return False
+    
+    
+    def getDistance(self,other):
+        """
+            fréchet distance
+        """
+#         from shapely.geometry import MultiLineString
+        if self.getClassName() == other.getClassName() and self.getName() == other.getName(): 
+#             ref= MultiLineString(self._coords)
+#             run = MultiLineString(other._coords)
+#             inter = ref.difference(run)
+#             if inter.length == 0: return 1
+# #             print (ref,run,inter)
+# #             print (inter.length, ref.length,inter.length / ref.length)
+# #             print (ref,ref.length,run,run.length,inter,inter.length,2*inter.length / (ref.length + run.length))
+#             return max(ref.length , run.length) - inter.length 
+#             print ('\t\t\t',frechetDist(self.getValue(),other.getValue()),self.getValue(),other.getValue())
+            return frechetDist(self.getValue(),other.getValue())
+            
+          
 class multiValueFeatureObject(featureObject):
     """
     
@@ -284,7 +358,11 @@ class multiValueFeatureObject(featureObject):
         featureObject.__init__(self)
         self._value = []
         self._TH= 1.0
-            
+
+    def __hash__(self):
+        return hash((self.getName(),self.getStringValue()))
+             
+    def getValue(self): return list(self._value)   
     def getStringValue(self):
         if self.getName() == 'EMPTY':
             return 'EMPTY'
@@ -305,8 +383,9 @@ class multiValueFeatureObject(featureObject):
                 for x in self.getValue():
                     if x in xlist: nbCommon +=1
 #                 print (self, other, self.getTH() , nbCommon,self.getTH() * len(self.getValue()),nbCommon >= ( self.getTH() * len(self.getValue())))
-                return nbCommon >= ( self.getTH() * len(self.getValue())) #and self.getTH() * len(other.getValue()))
+                return nbCommon >= ( self.getTH() * len(list(self.getValue()))) #and self.getTH() * len(other.getValue()))
         return False
+    
 class emptyFeatureObject(featureObject):
     
     def __init__(self):

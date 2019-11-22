@@ -33,7 +33,10 @@ We have 2 ways for computing edges: simplified and g2
 """
 
 class Block:
-        
+    
+    # when creating edges, blocks are aligned on a grid. This is the grid size
+    iGRID = 2
+    
     def __init__(self, page, tXYWH, text, orientation, cls, nodeType, domnode=None, domid=None):
         """
         pnum is an int
@@ -75,6 +78,19 @@ class Block:
     def setFontSize(self, fFontSize):
         self.fontsize = fFontSize
     
+    @classmethod
+    def setGrid(cls, iGrid):
+        """
+        Blocks are aligned on a grid when computing the edges
+        """
+        assert iGrid > 0
+        cls.iGRID = iGrid
+        
+    def setShape(self,s):
+        self.shape =  s
+    
+    def getShape(self): return self.shape
+    
     def detachFromDOM(self): 
         """
         Erase any pointer to the DOM so that we can free it.
@@ -106,7 +122,12 @@ class Block:
     def area(self):
         return(self.x2-self.x1) * (self.y2-self.y1)
 
-
+    def scale(self, scale_h, scale_v):
+        dx = (self.x2-self.x1) * (1-scale_h) / 2
+        self.x1, self.x2 = self.x1 + dx, self.x2 - dx
+        dy = (self.y2-self.y1) * (1-scale_v) / 2
+        self.y1, self.y2 = self.y1 + dy, self.y2 - dy
+        
     def setThickBox(self, f):
         """make the box border thicker """
         self.x1 = self.x1 - f
@@ -380,8 +401,8 @@ class Block:
 #         
 #         dBlk_by_alpha = collections.defaultdict(list)   # x1-y1 --> [ list of block having that x1-y1 ]
 #         for blk in lPageBlk:
-#             rx1 =  cls.epsilonRound(blk.x1, epsilon)
-#             ry1 =  cls.epsilonRound(blk.y1, epsilon)
+#             rx1 =  cls.gridRound(blk.x1, epsilon)
+#             ry1 =  cls.gridRound(blk.y1, epsilon)
 #             #rx1, ry1 = blk.x1, blk.y1
 #             #OK assert abs(ry1-b.y1) < epsilon
 #             dBlk_by_alpha[rx1 - ry1].append(blk)
@@ -417,9 +438,9 @@ class Block:
     def rotatePlus90deg(self):
         self.x1, self.y1,  self.x2, self.y2 = self.y1, -self.x2,  self.y2, -self.x1
 
-    def epsilonRound(cls, f, epsilon): 
-        return int(round(f / epsilon, 0)*epsilon)
-    epsilonRound = classmethod(epsilonRound)
+    def gridRound(cls, f, iGrid): 
+        return int(round(f / iGrid, 0)*iGrid)
+    gridRound = classmethod(gridRound)
     
     def XXOverlap(cls, tAx1_Ax2, tBx1_Bx2): #overlap if the max is smaller than the min
         Ax1, Ax2 = tAx1_Ax2
@@ -430,16 +451,16 @@ class Block:
 
 
     @classmethod
-    def _findVerticalNeighborEdges_init(cls, lBlk, epsilon):
-        assert type(epsilon) is int, repr(epsilon)
+    def _findVerticalNeighborEdges_init(cls, lBlk, iGrid):
+        assert type(iGrid) is int, repr(iGrid)
         
         #index along the y axis based on y1 and y2
         dBlk_Y1 = collections.defaultdict(list)     # y1 --> [ list of block having that y1 ]
         setY2 = set()                               # set of (unique) y2
         for blk in lBlk:
-            ry1 =  cls.epsilonRound(blk.y1, epsilon)
-            ry2 =  cls.epsilonRound(blk.y2, epsilon)
-            #OK assert abs(ry1-b.y1) < epsilon
+            ry1 =  cls.gridRound(blk.y1, iGrid)
+            ry2 =  cls.gridRound(blk.y2, iGrid)
+            #OK assert abs(ry1-b.y1) < iGrid
             dBlk_Y1[ry1].append(blk)
             setY2.add(ry2)
         
@@ -458,7 +479,7 @@ class Block:
         return n1, lY1, dBlk_Y1, di1_by_y2
 
     @classmethod
-    def _findVerticalNeighborEdges_g1(cls, lBlk, EdgeClass, bShortOnly=False, epsilon = 2):
+    def _findVerticalNeighborEdges_g1(cls, lBlk, EdgeClass, bShortOnly=False, iGrid = None):
         """
         any dimension smaller than 5 is zero, we assume that no block are narrower than this value
         
@@ -468,20 +489,21 @@ class Block:
         
         """
         if not lBlk: return []
+        if iGrid is None: iGrid = Block.iGRID
         
         #look for vertical neighbors
         lVEdge = list()
         
-        n1, lY1, dBlk_Y1, di1_by_y2 = cls._findVerticalNeighborEdges_init(lBlk, epsilon)
+        n1, lY1, dBlk_Y1, di1_by_y2 = cls._findVerticalNeighborEdges_init(lBlk, iGrid)
 
-        epsilon2 = 2*epsilon
-        epsilon2 = 0  # back to old version for being able to compare results
+        epsilon = 2*iGrid
+        epsilon = 0  # back to old version for being able to compare results
         
         for i1,y1 in enumerate(lY1):
             #start with the block(s) with lowest y1
             #  (they should not overlap horizontally and cannot be vertical neighbors to each other)
             for A in dBlk_Y1[y1]:
-                Ax1,Ay1, Ax2,Ay2 = map(cls.epsilonRound, A.getBB(), [epsilon, epsilon, epsilon, epsilon])
+                Ax1,Ay1, Ax2,Ay2 = map(cls.gridRound, A.getBB(), [iGrid, iGrid, iGrid, iGrid])
                 A_height = A.y2 - A.y1   #why were we accessing the DOM?? float(A.node.prop("height"))
                 assert Ay2 >= Ay1
                 lOx1x2 = list() #list of observed overlaps for current block A
@@ -492,10 +514,10 @@ class Block:
                 for j1 in range(jstart, n1):            #take in turn all Y1 below A
                     By1 = lY1[j1]
                     for B in dBlk_Y1[By1]:          #all block starting at that y1
-                        Bx1,By1, Bx2,_ = map(cls.epsilonRound, B.getBB(), [epsilon, epsilon, epsilon, epsilon])
+                        Bx1,By1, Bx2,_ = map(cls.gridRound, B.getBB(), [iGrid, iGrid, iGrid, iGrid])
                         #ovABx1, ovABx2 = cls.XXOverlap( (Ax1,Ax2), (Bx1, Bx2) )
                         ovABx1, ovABx2 = max(Ax1,Bx1), min(Ax2, Bx2)
-                        if ovABx2 - ovABx1 > epsilon2: # significantoverlap
+                        if ovABx2 - ovABx1 > epsilon: # significantoverlap
                             #we now check if that B block is not partially hidden by a previous overlapping block
                             bVisible = True
                             for ovOx1, ovOx2 in lOx1x2:
@@ -525,7 +547,7 @@ class Block:
         return lVEdge
 
     @classmethod
-    def _findVerticalNeighborEdges_g2(cls, lBlk, EdgeClass, bShortOnly=False, epsilon = 2):
+    def _findVerticalNeighborEdges_g2(cls, lBlk, EdgeClass, bShortOnly=False, iGrid = None):
         """
         the masking is done properly.
         
@@ -534,26 +556,27 @@ class Block:
         return a list of pair of block
         """
         if not lBlk: return []
+        if iGrid is None: iGrid = Block.iGRID
+        
         #look for vertical neighbors
         lVEdge = list()
 
-        n1, lY1, dBlk_Y1, di1_by_y2 = cls._findVerticalNeighborEdges_init(lBlk, epsilon)
+        n1, lY1, dBlk_Y1, _di1_by_y2 = cls._findVerticalNeighborEdges_init(lBlk, iGrid)
+        # we do not use _di1_by_y2 because we want to include vertically overlapping block in our search
         
         for i1,y1 in enumerate(lY1):
             #start with the block(s) with lowest y1
             #  (they should not overlap horizontally and cannot be vertical neighbors to each other)
             for A in dBlk_Y1[y1]:
-                Ax1,Ay1, Ax2,Ay2 = map(cls.epsilonRound, A.getBB(), [epsilon, epsilon, epsilon, epsilon])
+                Ax1,Ay1, Ax2,Ay2 = map(cls.gridRound, A.getBB(), [iGrid, iGrid, iGrid, iGrid])
                 A_height = A.y2 - A.y1   #why were we accessing the DOM?? float(A.node.prop("height"))
                 lViewA = [(Ax1, Ax2)]   # what A can view (or what it covers horizontally)
                 assert Ay2 >= Ay1
-                jstart = di1_by_y2[Ay2]                 #index of y1 in lY1 of next block below A (because its y1 is larger than A.y2)
-                jstart = jstart - 1                     #because some block overlap each other, we try the previous index (if it is not the current index)
-                jstart = max(jstart, i1+1)              # but for sure we want the next group of y1          
+                jstart = i1 + 1   # consider all block slightly below the current one
                 for j1 in range(jstart, n1):            #take in turn all Y1 below A
                     By1 = lY1[j1]
                     for B in dBlk_Y1[By1]:          #all block starting at that y1
-                        Bx1,By1, Bx2,_ = map(cls.epsilonRound, B.getBB(), [epsilon, epsilon, epsilon, epsilon])
+                        Bx1,By1, Bx2,_ = map(cls.gridRound, B.getBB(), [iGrid, iGrid, iGrid, iGrid])
                         
                         lNewViewA, ovrl = applyMask2(lViewA, [(Bx1, Bx2)]) # what remains of A views...
                         if lNewViewA == lViewA:
@@ -605,4 +628,18 @@ class BlockShallowCopy(Block):
         self._blk        = blk
         
     def getOrigBlock(self): return self._blk
+    
+
+
+
+def test_scale():
+    class Page:
+        pnum = 0
+    b = Block(Page(), (1, 10, 100, 1000), "", 0, None, None)
+    ref = b.getBB()
+    b.scale(0.1, 0.1)
+    assert b.getBB() == (46, 460, 56, 560)
+    b.scale(10, 10)
+    assert b.getBB() == ref
+    
     

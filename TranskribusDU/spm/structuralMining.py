@@ -3,7 +3,7 @@
 
      H. Déjean
 
-    copyright Xerox 2016
+    copyright Xerox 2016, copyright Naver Labs Europe 2018
     READ project 
 
     toolkit for mining structural (sequential) elements a document
@@ -116,7 +116,7 @@ class sequenceMiner(Component.Component):
                     for fea in item.getCanonicalFeatures():
                         ## to avoid TH= 30 and 315 + 285 select! introduce issues with spm!
                         oldth=fea.getTH()
-                        fea.setTH(1)
+                        fea.setTH(0)  
                         if fea in lfeatures and not fea in L1Support:
                             tmpitem.append(fea)
                         fea.setTH(oldth)
@@ -155,6 +155,7 @@ class sequenceMiner(Component.Component):
         """
             generate sequential rules from  a list pa (pattern,support)
         """
+        self.bDebug = False
         dP={}
         lRules= []
         for p,s in lPatterns:
@@ -172,7 +173,7 @@ class sequenceMiner(Component.Component):
 #                             newPattern[i].sort()
                             if  str(newPattern) in dP:
                                 fConfidence = 1.0 *support / dP[str(newPattern)]
-#                                 if self.bDebug:print 'RULE: %s => %s[%d] (%s/%s = %s)'%(newPattern, item,i,dP[str(newPattern)],support, fConfidence)
+#                                 if self.bDebug:print ('CAND RULE: %s => %s[%d] (%s/%s = %s)'%(newPattern, item,i,dP[str(newPattern)],support, fConfidence))
                                 if fConfidence >  self.THRULES: 
                                     if self.bDebug:print( 'RULE: %s => %s[%d] (%s/%s = %s)'%(newPattern, item,i,dP[str(newPattern)],support, fConfidence))
                                     lRules.append( (newPattern,item,i,pattern, fConfidence) )
@@ -231,23 +232,15 @@ class sequenceMiner(Component.Component):
         
         lmv= []
         for itemset in pattern:
-#             print ":",pattern,'\t\t', itemset
-            # if no list in itemset: terminal 
-#             print map(lambda x:type(x).__name__ ,itemset)
             if  'list' not in list(map(lambda x:type(x).__name__ ,itemset)):
-                # if one item which is boolean: gramplus element
-                # no longer used???
-                if False and len(itemset)==1 and itemset[0].getType()==1:
-                    lmv.append(itemset[0])
-                else:
-                    mv = multiValueFeatureObject()
-                    name= "multi" #'|'.join(i.getName() for i in itemset)
-                    mv.setName(name)
-                    mv.setTH(TH)
-                    mv.setValue(list(itemset))
+                mv = multiValueFeatureObject()
+                name= "multi" #'|'.join(i.getName() for i in itemset)
+                mv.setName(name)
+                mv.setTH(TH)
+                mv.setValue(list(itemset))
 
-                    lmv.append( mv )
-                    dMtoSingleFeature[str(mv)]=itemset
+                lmv.append( mv )
+                dMtoSingleFeature[str(mv)]=itemset
             else:
                 lmv.append(self.treePatternToMV(itemset, dMtoSingleFeature,TH))
         return lmv
@@ -341,20 +334,24 @@ class sequenceMiner(Component.Component):
         for elt in lList:
             elt._canonicalFeatures=None
             if self.bDebug: print ("\t",elt, str(elt.getSetofFeatures()))
-            for feature in elt.getSetofFeatures():
-                try:lFeatures[feature].append(feature)
-                except KeyError: lFeatures[feature] = [feature]
+            if elt.getSetofFeatures() is not None:
+                for feature in elt.getSetofFeatures():
+                    try:lFeatures[feature].append(feature)
+                    except KeyError: lFeatures[feature] = [feature]
             
-                
-        sortedItems = [(x, len(lFeatures[x])) for x in lFeatures]
+
+        # use weight?                
+#         sortedItems = [(x, len(lFeatures[x])) for x in lFeatures]
+        sortedItems = [(x, sum(map(lambda x:x.getWeight(),lFeatures[x]))) for x in lFeatures]
+
         sortedItems.sort(key=itemgetter(1), reverse=True)    
         
         
         lCovered = []
         lMergedFeatures = {}
         for i, (f, _) in enumerate(sortedItems):
-            try:print(lMergedFeatures[f])
-            except KeyError:pass
+#             try:print(lMergedFeatures[f])
+#             except KeyError:pass
             if f.getID() not in map(lambda x: x.getID(), lCovered):                
                 lMergedFeatures[f] = lFeatures[f]
                 lCovered.append(f)
@@ -393,12 +390,15 @@ class sequenceMiner(Component.Component):
                     lweights =   [1.0*x/len(lMergedFeatures[f]) for x in lvalues]
                 try:
                     myValue =  round(np.average(lvalues,weights=lweights),0)
+#                     variance = np.average((lvalues-myValue)**2, weights=lweights)
+#                     print (f,myValue, np.sqrt(variance), len(lvalues),lvalues,set([n.getPage() for x in lMergedFeatures[f] for n in x.getNodes()]))
 #                     print cf, lvalues, lweights, myValue
                 except ZeroDivisionError:
                     # Weights sum to zero, can't be normalized
                     myValue=f.getValue()
             else:
                 myValue=f.getValue()
+            
             cf.setValue(myValue)
             cf.setCanonical(cf)
             if cf not in lCanonicalFeatures:
@@ -411,32 +411,33 @@ class sequenceMiner(Component.Component):
                     ff.setCanonical(None)
         for elt in lList:
             ltbd=[]
-            for f in elt.getSetofFeatures():
-                if f.getCanonical() is None:
-                    try:
-                        indxf=lCanonicalFeatures.index(f)
-                        f.setCanonical(lCanonicalFeatures[indxf])
-                    except:
-                        pass 
-                if f.getCanonical() is not None:
-                    elt.addCanonicalFeatures(f.getCanonical())
-                    assert f.getCanonical() is not None
-                    for n in f.getNodes():
-                        f.getCanonical().addNode(n)
-            elt._lBasicFeatures = list(filter(lambda x:x not in ltbd,  elt.getSetofFeatures()))
-            if self.bDebug: print( elt, elt.getSetofFeatures(), elt.getCanonicalFeatures())
+            if elt.getSetofFeatures() is not None:
+                for f in elt.getSetofFeatures():
+                    if f.getCanonical() is None:
+                        try:
+                            indxf=lCanonicalFeatures.index(f)
+                            f.setCanonical(lCanonicalFeatures[indxf])
+                        except:
+                            pass 
+                    if f.getCanonical() is not None:
+                        elt.addCanonicalFeatures(f.getCanonical())
+                        assert f.getCanonical() is not None
+                        for n in f.getNodes():
+                            f.getCanonical().addNode(n)
+                elt._lBasicFeatures = list(filter(lambda x:x not in ltbd,  elt.getSetofFeatures()))
+                if self.bDebug: print( elt, elt.getSetofFeatures(), elt.getCanonicalFeatures())
         lCanonicalFeatures = list(filter(lambda x:len(x.getNodes()) >= TH, lCanonicalFeatures))
 
         
         # create weights: # elt per cf / total
-        ftotalElts=0.0
+#         ftotalElts=0.0
+#         for cf in lCanonicalFeatures:
+#             l = len(cf.getCanonical().getNodes())
+#             cf.setWeight(l)
+#             ftotalElts+=l
         for cf in lCanonicalFeatures:
-            l = len(cf.getCanonical().getNodes())
-            cf.setWeight(l)
-            ftotalElts+=l
-        for cf in lCanonicalFeatures:
-            cf.setWeight(cf.getWeight()/ftotalElts)
-        
+#             cf.setWeight(cf.getWeight()/ftotalElts)
+            cf.setWeight(sum(x.getHeight() for x in cf.getNodes()) )
         
         lCanonicalFeatures.sort(key=lambda x:x.getWeight(),reverse=True)
         lCanonicalFeatures = list(filter(lambda x:len(x.getNodes()) >= TH,lCanonicalFeatures))
@@ -513,6 +514,7 @@ class sequenceMiner(Component.Component):
                         iFound+= 1  
                         dScoreFullTemplate[mytemplate]=len(parseRes[1])                        
                         if self.bDebug:print (iCpt,'add kleenedPlus template', mytemplate,len(parseRes[1]))
+#                         print(mytemplate.print_())
                         ## traverse the tree template to list the termnimal pattern
                         lterm= mytemplate.getTerminalTemplates()
                         for template in lterm:
@@ -533,16 +535,16 @@ class sequenceMiner(Component.Component):
 #             print i, template
             dTemplateIndex[template]=i
         
-            
+    
         for i,elt in enumerate(lElts):
             # only takes the best ?
-#             print elt, elt.getTemplates()
             ltmpTemplates = elt.getTemplates()
             if ltmpTemplates is None: ltmpTemplates=[]
             for template in ltmpTemplates:
                 try:
                     nextElt=lElts[i+1]
                     lnextTemplates = nextElt.getTemplates()
+#                     print (elt, nextElt,template,lnextTemplates)
                     if lnextTemplates is None: lnextTemplates=[]
                     for nextT in lnextTemplates:
                         ## not one: but the frequency of the template
@@ -557,25 +559,25 @@ class sequenceMiner(Component.Component):
                             if nextT is template:
                                 w +=  dScoredTemplates[template]
                             ##
-                            if  (nextT == template) or (nextT.getParent() == template.getParent()):
-                                                                                            # w+
-                                transProb[dTemplateIndex[template],dTemplateIndex[nextT]] =   1 #+ transProb[dTemplateIndex[template],dTemplateIndex[nextT]]
+                            if (nextT == template) or (nextT.getParent() == template.getParent()):
+                                # 1  or the score of the matching !!!!! 03/09/2018
+                                _,_,score = template.registration(elt)
+                                transProb[dTemplateIndex[template],dTemplateIndex[nextT]] +=   score
+#                                 transProb[dTemplateIndex[template],dTemplateIndex[nextT]] = 1
+
+#                                 print (elt,template,score) 
                             if np.isinf(transProb[dTemplateIndex[template],dTemplateIndex[nextT]]):
                                 transProb[dTemplateIndex[template],dTemplateIndex[nextT]] = 64000
                 except IndexError:pass
         
-        #all states point to None
-#         transProb = np.zeros((N,N), dtype = np.float16)
-#         for i in range(0,N):
-#             transProb[i,i]=10
         transProb[:,-1] = 0.10 #/totalSum
         #last: None: to all
         transProb[-1,:] = 0.10 #/totalSum
         mmax =  np.amax(transProb)
         if np.isinf(mmax):
             mmax=64000
-#         print transProb/mmax
-    
+        transProb = transProb / len(lElts) * 2
+#         print (transProb)
         return lFullTemplates,lTemplates,transProb / mmax   
     
     def replaceEltsByParsing(self,lElts, lParsedElts,toprule,pattern):
@@ -604,14 +606,15 @@ class sequenceMiner(Component.Component):
         mvPattern = self.treePatternToMV(mytemplate.getPattern(),dMtoSingleFeature, PARTIALMATCH_TH)
         #need to optimize this double call        
         for elt in lElts:
-                elt.setSequenceOfFeatures(elt.lFeatureForParsing)
-                try:
-                    lf= elt.getCanonicalFeatures()[:]
-                except: lf=[]
+            try: elt.setSequenceOfFeatures(elt.lFeatureForParsing[:])
+            except TypeError: pass
+            try:
+                lf= elt.getCanonicalFeatures()[:]
+            except: lf=[]
 #                 print elt, lf 
-                elt.resetFeatures()
-                elt.setFeatureFunction(elt.getSetOfMutliValuedFeatures,TH = PARTIALMATCH_TH, lFeatureList = lf )
-                elt.computeSetofFeatures()
+            elt.resetFeatures()
+            elt.setFeatureFunction(elt.getSetOfMutliValuedFeatures,TH = PARTIALMATCH_TH, lFeatureList = lf )
+            elt.computeSetofFeatures()
 
         # what is missing is the correspondence between rule name (sX) and template element
         ## provide a template to seqGen ? instead if recursive list (mvpatern)
@@ -619,7 +622,9 @@ class sequenceMiner(Component.Component):
 #         for e in lElts:
 #             print "wwww",e, e.getSetofFeatures()
         lNewSequence = lElts[:]
-        parsingRes = self.parseSequence(mvPattern,multiValueFeatureObject,lElts)
+#         parsingRes = self.parseSequence(mvPattern,multiValueFeatureObject,lElts)
+        parsingRes = self.parseSequence(mvPattern,None,lElts)
+
         isKleenePlus = False
         nbSeq = 0.0
         nbKleeneInSeq= 0.0 
@@ -633,12 +638,11 @@ class sequenceMiner(Component.Component):
                 nbKleeneInSeq +=  rootNode.searchForRule("s0")
                 nbSeq+=1
                 if bReplace:
-                    lNewSequence = self.replaceEltsByParsing(lNewSequence,lElts,xx,mytemplate.getPattern())            
+                    lNewSequence = self.replaceEltsByParsing(lNewSequence,lElts,xx,mytemplate.getPattern())       
             isKleenePlus = nbSeq > 0 and nbKleeneInSeq / nbSeq >= self.getKleenePlusTH()
             if isKleenePlus: print( mytemplate, nbSeq, nbKleeneInSeq, nbKleeneInSeq / nbSeq)
-
             ### retrun nbKleeneInSeq / nbSeq and let decide at smpcomponent level (if pattern is mirrored: keep it if nbKleeneInSeq / nbSeq near 1.66 )
-            if self.bDebug:print( mytemplate, nbSeq, nbKleeneInSeq, nbKleeneInSeq / nbSeq)
+#             if self.bDebug:print( mytemplate, nbSeq, nbKleeneInSeq, nbKleeneInSeq / nbSeq)
         return isKleenePlus,parsingRes, lNewSequence
 
     def populateElementWithTreeParsing(self,mytemplate,parsings,dMtoSingleFeature):

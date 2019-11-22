@@ -85,6 +85,8 @@ class tableTemplateSep(Component.Component):
         
         self.glength = 100
          
+        self.rowfile =None
+        
         self.bDomTag=True
         
         self.fKleenPlusTH =1.5
@@ -128,7 +130,9 @@ class tableTemplateSep(Component.Component):
             self.do2DS = dParams['dsconv']
             
         if 'glength' in dParams:
-            self.glength = dParams['glength']            
+            self.glength = dParams['glength']        
+        if 'rowfile' in dParams:
+            self.rowfile = dParams['rowfile']
             
             
     def minePageDimensions(self,lPages):
@@ -278,8 +282,10 @@ class tableTemplateSep(Component.Component):
         return Fone
         # extrapolate 0 and last        
 
-    def processIntersection(self,pageH,pageW,lFeatures):
+    def processIntersection(self,pageH,pageW,lFeatures,bStrict=False):
         """
+            @params: bStrict: keep only separators which do not cut others
+        
             if a segment intersects more than one segment: ignore it
                 # compute intersections: sort by freq
                 # del most segment with most frequent intersections (>=1)
@@ -320,74 +326,77 @@ class tableTemplateSep(Component.Component):
             except: lNoIntersection.append(lH[i])
         
 #         print(lH)
-        #sort by len
-        dSInter =sorted(dInter.items(), key=lambda item: len(item[1]),reverse=True)
-        i=0
-        bGO=True
-        
-        # if several cuts: take the nearest one ?
-        lToKeep=   {}
-        ltoignore=[]
-        if dSInter != []:
-            while bGO:     
-#                 print("_____",dSInter[i] )      
-                if len(dSInter[i][1]) > 1:
-#                     print ('del',dSInter[i],lH[dSInter[i][0]])
-                    xx= lHLineStrings[dSInter[i][0]]
-#                     xs= lHLineSegments[dSInter[i][0]]
-                    for yy in dSInter[i][1]:
-                        ip =xx.intersection(lHLineStrings[yy])
-                        dist=ip.distance(lHLineSegments[yy])
-#                         print (xs,lHLineSegments[yy],ip,dist)
-                    
-                    ldist  = [(x,xx.intersection(lHLineStrings[x]).distance(lHLineSegments[x])) for x in dSInter[i][1] ]
-                    ldist.sort(key=lambda x:x[1])
-#                     print (ldist)  
-                    dInter[dSInter[i][0]] = [ldist[0][0]]     
-                    lToKeep[dSInter[i][0]] = [ldist[0][0]]
-                    ltoignore.append(ldist[0][0])
-#                     print ('keep',dSInter[i][0],lToKeep[dSInter[i][0]],lH[dSInter[i][0]],lH[ lToKeep[dSInter[i][0]][0] ]) 
-                    for j in dSInter[i][1]: 
-                        try:dInter[j].remove(dSInter[i][0])
-                        except:pass
-                    del(dInter[dSInter[i][0]])
-#                     print (lToKeep[dSInter[i][0]])
-                elif len(dSInter[i][1])==1 and dSInter[i][0] not in ltoignore : pass #print('ok',dSInter[i][0],dSInter[i][1])
-                else :
-                    del(dInter[dSInter[i][0]])
-#                     print ('ignored:',dSInter[i])
-#                 elif len(dSInter[i][1])==0 : 
-#                     print("now single",dSInter[i])
-#                     lNoIntersection.append(lH[dSInter[i][0]])    
-
-                i+=1
-                try:bGO = len(dSInter[i][1])>1 or i < len(dSInter)-1
-                except: bGo=False
+        if bStrict:
+            lFinalFeature= lNoIntersection
+        else:
+            dSInter =sorted(dInter.items(), key=lambda item: len(item[1]),reverse=True)
+            i=0
+            bGO=True
             
-            lKeepThem=[]
-            lSeen=[]
-            for key, value in dInter.items():
-                if value != [] and value[0] not in lSeen:
-#                     print(key,lH[key],value,lH[value[0]])
-                    lKeepThem.append((key,value[0]))
-                    lSeen.append(value[0])
-                    lSeen.append(key)
-            for key, value in lToKeep.items():
-#                 print("2",key,lH[key],value,lH[value[0] ])
-                if value != [] and value[0] not in lSeen and key not in lSeen:
-                    lKeepThem.append((key,value[0]))
-                    lSeen.append(value[0])
-                    lSeen.append(key)
-
-            for one,two in lKeepThem:
-#                 lFinalFeature.append(lH[one])
-#                 lFinalFeature.append(lH[two])
-                xx =self.mergeFeatureH(lH[one],lH[two])
-#                 print ("**",one,two,lH[one],lH[two])
-                lFinalFeature.append(xx)
-#         print (lFinalFeature)
-#         print (lNoIntersection)
-        lFinalFeature.extend(lNoIntersection)
+            # if several cuts: take the nearest one ?
+            lToKeep=   {}
+            ltoignore=[]
+            if dSInter != []:
+                while bGO:     
+    #                 print("_____",dSInter[i] )      
+                    if len(dSInter[i][1]) > 1:
+    #                     print ('del',dSInter[i],lH[dSInter[i][0]])
+                        xx= lHLineStrings[dSInter[i][0]]
+    #                     xs= lHLineSegments[dSInter[i][0]]
+                        for yy in dSInter[i][1]:
+                            ip =xx.intersection(lHLineStrings[yy])
+                            dist=ip.distance(lHLineSegments[yy])
+    #                         print (xs,lHLineSegments[yy],ip,dist)
+                        
+                        ldist  = [(x,xx.intersection(lHLineStrings[x]).distance(lHLineSegments[x])) for x in dSInter[i][1] ]
+                        ldist.sort(key=lambda x:x[1])
+    #                     print (ldist)  
+                        dInter[dSInter[i][0]] = [ldist[0][0]]     
+                        lToKeep[dSInter[i][0]] = [ldist[0][0]]
+                        ltoignore.append(ldist[0][0])
+    #                     print ('keep',dSInter[i][0],lToKeep[dSInter[i][0]],lH[dSInter[i][0]],lH[ lToKeep[dSInter[i][0]][0] ]) 
+                        for j in dSInter[i][1]: 
+                            try:dInter[j].remove(dSInter[i][0])
+                            except:pass
+                        del(dInter[dSInter[i][0]])
+    #                     print (lToKeep[dSInter[i][0]])
+                    elif len(dSInter[i][1])==1 and dSInter[i][0] not in ltoignore : pass #print('ok',dSInter[i][0],dSInter[i][1])
+                    else :
+                        del(dInter[dSInter[i][0]])
+    #                     print ('ignored:',dSInter[i])
+    #                 elif len(dSInter[i][1])==0 : 
+    #                     print("now single",dSInter[i])
+    #                     lNoIntersection.append(lH[dSInter[i][0]])    
+    
+                    i+=1
+                    try:bGO = len(dSInter[i][1])>1 or i < len(dSInter)-1
+                    except: bGo=False
+                
+                lKeepThem=[]
+                lSeen=[]
+                for key, value in dInter.items():
+                    if value != [] and value[0] not in lSeen:
+    #                     print(key,lH[key],value,lH[value[0]])
+                        lKeepThem.append((key,value[0]))
+                        lSeen.append(value[0])
+                        lSeen.append(key)
+                for key, value in lToKeep.items():
+    #                 print("2",key,lH[key],value,lH[value[0] ])
+                    if value != [] and value[0] not in lSeen and key not in lSeen:
+                        lKeepThem.append((key,value[0]))
+                        lSeen.append(value[0])
+                        lSeen.append(key)
+    
+                for one,two in lKeepThem:
+    #                 lFinalFeature.append(lH[one])
+    #                 lFinalFeature.append(lH[two])
+                    xx =self.mergeFeatureH(lH[one],lH[two])
+    #                 print ("**",one,two,lH[one],lH[two])
+                    lFinalFeature.append(xx)
+    #         print (lFinalFeature)
+    #         print (lNoIntersection)
+        
+            lFinalFeature.extend(lNoIntersection)
         
 #         print ("??",lFinalFeature)
 
@@ -404,35 +413,40 @@ class tableTemplateSep(Component.Component):
             except: lNoIntersection.append(lV [i])
         
         
-        #sort by len
-        dSInter =sorted(dInter.items(), key=lambda item: len(item[1]),reverse=True)
-        i=0
-        bGO=True
-        if dSInter != []:
-            while bGO:            
-                if len(dSInter[i][1]) > 1:
-#                     print ('del',dSInter[i])
-                    for j in dSInter[i][1]: dInter[j].remove(dSInter[i][0])
-                    del(dInter[dSInter[i][0]])
-    #                 try:[dSInter[j][1].remove(i) for j in dSInter[i]]
-    #                 except: pass
-                i+=1
-                bGO = len(dSInter[i][1])>1 or i < len(dSInter)-1    
-            
-            lKeepThem=[]
-            lSeen=[]
-            for key, value in dInter.items():
-#                 print (key,value[0])
-                if value!= [] and  value[0] not in lSeen:
-                    lKeepThem.append((key,value[0]))
-                    lSeen.append(value[0])
-                    lSeen.append(key)
-    
-            for one,two in lKeepThem:
-#                 lFinalFeature.append(lV[one])
-#                 lFinalFeature.append(lV[two])         
-                lFinalFeature.append(self.mergeFeatureV(lV[one],lV[two]))
-        lFinalFeature.extend(lNoIntersection)
+        if bStrict:
+            lFinalFeature.extend(lNoIntersection)
+        else:        
+            dSInter =sorted(dInter.items(), key=lambda item: len(item[1]),reverse=True)
+            i=0
+            bGO=True
+            if dSInter != []:
+                while bGO:            
+                    if len(dSInter[i][1]) > 1:
+    #                     print ('del',dSInter[i])
+                        for j in dSInter[i][1]: dInter[j].remove(dSInter[i][0])
+                        del(dInter[dSInter[i][0]])
+        #                 try:[dSInter[j][1].remove(i) for j in dSInter[i]]
+        #                 except: pass
+                    i+=1
+                    try:bGO = len(dSInter[i][1])>1 or i < len(dSInter)-1
+                    except:bGO=False    
+                
+                lKeepThem=[]
+                lSeen=[]
+                for key, value in dInter.items():
+    #                 print (key,value[0])
+                    if value!= [] and  value[0] not in lSeen:
+                        lKeepThem.append((key,value[0]))
+                        lSeen.append(value[0])
+                        lSeen.append(key)
+        
+                for one,two in lKeepThem:
+    #                 lFinalFeature.append(lV[one])
+    #                 lFinalFeature.append(lV[two])         
+                    lFinalFeature.append(self.mergeFeatureV(lV[one],lV[two]))
+            lFinalFeature.extend(lNoIntersection)
+        
+        
         return lFinalFeature
         
         
@@ -461,7 +475,7 @@ class tableTemplateSep(Component.Component):
                 graphline._canonicalFeatures = None
                 # vertical 
 #                 if graphline.getHeight() > graphline.getWidth() and graphline.getHeight() > 30:
-                if  graphline.getHeight() > glength and  graphline.getHeight()  > graphline.getWidth() and graphline.getX() > 10 and  graphline.getX2() < page.getWidth() - 10  : 
+                if  graphline.getHeight() > glength and  graphline.getHeight()  > graphline.getWidth() :#    and graphline.getX() > 10 and  graphline.getX2() < page.getWidth() - 10  : 
 
                     gl.append(graphline)
                     # create a feature
@@ -487,7 +501,7 @@ class tableTemplateSep(Component.Component):
                     page.setVGLFeatures(f)
                 
 # #                 horizontal
-                elif graphline.getWidth() >  glength and graphline.getWidth()  > graphline.getHeight() and graphline.getY() > 10 and  graphline.getY2() < page.getHeight() - 10  :  
+                elif False and graphline.getWidth() >  glength and graphline.getWidth()  > graphline.getHeight() and graphline.getY() > 10 and  graphline.getY2() < page.getHeight() - 10  :  
                     gl.append(graphline)
                     # create a feature
                     f = TwoDFeature()
@@ -637,13 +651,14 @@ class tableTemplateSep(Component.Component):
         for lPages in lLPages:
 #             print (lPages)
             self.THNUMERICAL = 10#ABP 
-#             self.THNUMERICAL = 5 #NAF
+            self.THNUMERICAL = 5 #NAF
+            ## TODO merge lines which are too close and "parallel" (take the longest) 
             self.minePageVerticalFeature(lPages,None,level=self.sTag)
             self.cleanupPages(lPages)
             for page in lPages:
-                lSelectedFeatures = self.processIntersection(page.getHeight(), page.getWidth(),page.lf_XCut)
-                page.resetVerticalTemplate()  
-                page.lf_XCut = lSelectedFeatures
+#                 lSelectedFeatures = self.processIntersection(page.getHeight(), page.getWidth(),page.lf_XCut,bStrict=False)
+#                 page.resetVerticalTemplate()  
+#                 page.lf_XCut = lSelectedFeatures
                 page._lBasicFeatures=page.lf_XCut[:]          
 #             for p  in lPages:
 #                 p.resetVerticalTemplate()
@@ -662,6 +677,7 @@ class tableTemplateSep(Component.Component):
         for p in lPages:
             p.addVerticalTemplate(tableTemplate)
             p.addVSeparator(tableTemplate,p.lf_XCut)
+#             print (p,p.lf_XCut)
         
         self.tableRecognition(lPages)    
         
@@ -822,7 +838,7 @@ class tableTemplateSep(Component.Component):
                     HSep.append(curTable.lastH)
                     VSep.insert(0,curTable.firstV)
                     VSep.append(curTable.lastV)
-                    for cut in HSep + VSep : #page.getdVSeparator(template):
+                    for cut in VSep : #page.getdVSeparator(template):
                         if cut.getName() == 'v':
                             newReg= XMLDSTABLECOLUMNClass(icol)
                             icol+=1
@@ -863,7 +879,7 @@ class tableTemplateSep(Component.Component):
                                 hull = lastcutpointsV+" "+sPoints
                                 newReg.addAttribute('points', hull)
                                 newReg.setDimensions(prevcut,YMinus, curTable.getHeight(),x22 - prevcut)
-                                if newReg.toPolygon().is_valid and newReg.getWidth() > 15:
+                                if newReg.toPolygon().is_valid and newReg.getWidth() > 5:
                                     domNode.set('points',hull)
                                     curTable.addColumn(newReg)
                                     newReg.setParent(curTable)
@@ -1516,6 +1532,7 @@ if __name__ == "__main__":
     docM.add_option("--evalC", dest="evalCluster", action="store_true", default=False, help="evaluation using clusters (of textlines)")
     docM.add_option("--dsconv", dest="dsconv", action="store_true", default=False, help="convert page format to DS")
     docM.add_option("--glength", dest="glength", action="store",type='int', default=100, help="minimal length of a graphical element")
+    docM.add_option("--row", dest="rowfile", action="store",type='string', help="row file (row edges)")
         
     #parse the command line
     dParams, args = docM.parseCommandLine()

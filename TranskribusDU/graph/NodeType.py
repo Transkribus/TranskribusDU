@@ -10,18 +10,7 @@
 
     Copyright Xerox(C) 2016 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -102,13 +91,13 @@ class NodeType:
         """
         set any Xpath related information to extract the nodes from an XML file
         """
-        raise Exception("Method must be overridden")
+        raise Exception("Method must be overridden for XML input")
     
     def getXpathExpr(self):
         """
         get any Xpath related information to extract the nodes from an XML file
         """
-        raise Exception("Method must be overridden")
+        raise Exception("Method must be overridden  for XML input")
     
     def getLabelNameList(self):
         """
@@ -117,7 +106,7 @@ class NodeType:
         return self.lsLabel
 
     @classmethod
-    def parseDomNodeLabel(cls, domnode):
+    def parseDocNodeLabel(cls, graph_node):
         """
         return the internal label of the DOM node
         raise a ValueError if the label is missing while bOther was not True, or if the label is neither a valid one nor an ignored one
@@ -125,7 +114,7 @@ class NodeType:
         raise Exception("Method must be overridden")
 
     @classmethod
-    def setDomNodeLabel(cls, node, sLabel):
+    def setDocNodeLabel(cls, graph_node, sLabel):
         """
         Set the DOM node label in the format-dependent way
         """

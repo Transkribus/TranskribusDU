@@ -7,18 +7,7 @@
     
     Copyright Naver Labs Europe(C) 2018 JL Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -85,7 +74,7 @@ class GraphGrid(Graph_MultiPageXml):
         """
         cls._lClassicNodeType = lNodeType
     
-    def parseXmlFile(self, sFilename, iVerbose=0):
+    def parseDocFile(self, sFilename, iVerbose=0):
         """
         Load that document as a CRF Graph.
         Also set the self.doc variable!
@@ -110,7 +99,7 @@ class GraphGrid(Graph_MultiPageXml):
 
         lClassicType = [nt for nt in self.getNodeTypeList() if nt in self._lClassicNodeType]
         lSpecialType = [nt for nt in self.getNodeTypeList() if nt not in self._lClassicNodeType]
-        for pnum, page, domNdPage in self._iter_Page_DomNode(self.doc):
+        for pnum, page, domNdPage in self._iter_Page_DocNode(self.doc):
             #now that we have the page, let's create the node for each type!
             lClassicPageNode = [nd for nodeType in lClassicType for nd in nodeType._iter_GraphNode(self.doc, domNdPage, page) ]
             lSpecialPageNode = [nd for nodeType in lSpecialType for nd in nodeType._iter_GraphNode(self.doc, domNdPage, page) ]

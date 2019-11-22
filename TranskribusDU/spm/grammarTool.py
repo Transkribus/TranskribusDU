@@ -267,7 +267,7 @@ class sequenceGrammar():
         return lChildOut
             
         
-    def parseSequence(self,featureType, grammar, lSeqElement):
+    def parseSequence(self,foo, grammar, lSeqElement):
         """
             apply grammar to lSEqelement
             return 3-ple (list of covered elements, dict , parsing tree) 

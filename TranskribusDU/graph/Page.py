@@ -32,7 +32,7 @@ class Page:
         
         self.bEven = (pnum%2 == 0)
 
-    def detachFromDOM(self): 
+    def detachFromDoc(self): 
         """
         Erase any pointer to the DOM so that we can free it.
         """

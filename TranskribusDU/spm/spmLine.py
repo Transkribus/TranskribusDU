@@ -53,9 +53,9 @@ class lineMiner(Component.Component):
         
         
         # TH for comparing numerical features for X
-        self.THNUMERICAL= 20
-        # use for evaluation
+        self.THNUMERICAL= 10
         self.THCOMP = 10
+        # use for evaluation
         self.evalData= None
         
         self.bManual = False
@@ -72,6 +72,15 @@ class lineMiner(Component.Component):
 
 
 
+
+    def columnMinng(self,lPages):
+        """
+            mining textlines elements within their columns
+            params: lPages: list of pages
+            mandatory: columns (REGION tag) element
+        """
+        
+        
     def mainLineMining(self,lPages):
         """
             mine with incremental length
@@ -88,8 +97,8 @@ class lineMiner(Component.Component):
                 e.lnext=[]
             ## filter elements!!!
 #             lElts = filter(lambda x:min(x.getHeight(),x.getWidth()) > 10,lElts)
-#             lElts = filter(lambda x:x.getHeight() > 10,lElts)
-#             lElts = list(filter(lambda x:x.getX() > 60,lElts))
+#             lElts = filter(lambda x:x.getWidth() > 50,lElts)
+#             lElts = list(filter(lambda x:x.getX() < 320,lElts))
             lElts.sort(key=lambda x:x.getY())
             lLElts[i]=lElts
             lVEdge = TwoDRel.findVerticalNeighborEdges(lElts)
@@ -100,7 +109,10 @@ class lineMiner(Component.Component):
             lElts= lLElts[i]
             for elt in lElts:
                 ### need of more abstract features: justified, center, left, right  + numerical 
-                elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['x','2','xc','text'],myLevel=XMLDSTEXTClass)
+#                 elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['x','2','xc','text'],myLevel=XMLDSTEXTClass)
+                elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['x','xc2','xcc'],myLevel=XMLDSTEXTClass)
+#                 elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['x','2','xc'],myLevel='PARAGRAPH')
+
                 elt.computeSetofFeatures()
             seqGen = sequenceMiner()
             seqGen.setMaxSequenceLength(1)
@@ -113,13 +125,14 @@ class lineMiner(Component.Component):
 
             for elt in lElts:
                 elt.lFeatureForParsing=elt.getSetofFeatures()
-#                 print (elt, elt.lFeatureForParsing)
+                print (elt, elt.lFeatureForParsing)
             
             lTerminalTemplates=[]
             lCurList=lElts[:]
-            for iLen in range(1,3):
+            for iLen in range(1,5):
                 lCurList,lTerminalTemplates = self.mineLineFeature(seqGen,lCurList,lTerminalTemplates,iLen)                  
-            
+            print( "final hierarchy")
+            self.printTreeView(lCurList)
             del seqGen
 
     def mineLineFeature(self,seqGen,lCurList,lTerminalTemplates,iLen):
@@ -150,20 +163,6 @@ class lineMiner(Component.Component):
         
         lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures + lTerminalTemplates,mis = 0.01)
         lPatterns = seqGen.miningSequencePrefixScan(lSeq)
-#         model = PrefixSpan.train(lSeq, minSupport = 0.1, maxPatternLength = 10)
-#         result = model.freqSequences().collect()
-#         result.sort(key=lambda x:x.freq)
-#         lPatterns=[]
-#         for fs in result:
-#             if fs.freq > 1:
-# #                 for i in fs.sequence:
-# #                     for x in i:
-# #                         print(x,x.getValue())
-# #                     i.sort(key=lambda x:x.getValue())
-#                 lPatterns.append((fs.sequence,fs.freq))
-#         lPatterns = list(filter(lambda p_s:len(p_s[0]) >= seqGen.getMinSequenceLength() and len(p_s[0]) <= seqGen.getMaxSequenceLength(),lPatterns))
-            
-#         lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
         if lPatterns is None:
             return lCurList, lTerminalTemplates
                     
@@ -173,13 +172,14 @@ class lineMiner(Component.Component):
         for p,support  in lPatterns:
             if support >= 1: 
                 print (p, support)
-        seqGen.THRULES = 0.95
+        seqGen.THRULES = 0.9
         lSeqRules = seqGen.generateSequentialRules(lPatterns)
         
         " here store features which are redundant and consider only the core feature"
         _,dCP = self.getPatternGraph(lSeqRules)
         
         dTemplatesCnd = self.analyzeListOfPatterns(lPatterns,dCP)
+        seqGen.setKleenePlusTH(2.0)
         lFullTemplates,lTerminalTemplates,tranprob = seqGen.testTreeKleeneageTemplates(dTemplatesCnd, lCurList)
         
         ## here we have a graph; second : is it useful here to correct noise??
@@ -206,8 +206,10 @@ class lineMiner(Component.Component):
                             
 #                 print 'curList:',lCurList
 #                 print len(lCurList)
-        print( "final hierarchy")
-        self.printTreeView(lCurList)
+
+#         print( "final hierarchy")
+#         self.printTreeView(lCurList)
+
 #             lRegions= self.getRegionsFromStructure(page,lCurList)
                 # store all interation
 #             lPageRegions.append((page,lRegions,lCurList))
@@ -407,7 +409,7 @@ class lineMiner(Component.Component):
                     registeredPoints = None
                 if registeredPoints:
 #                     print registeredPoints, lMissing , score
-                    if lMissing != []:
+                    if lMissing is not None:
                         registeredPoints.extend(zip(lMissing,lMissing))
                     registeredPoints.sort(key=lambda xy:xy[1].getValue())
                     lcuts = map(lambda refcut:refcut[1],registeredPoints)

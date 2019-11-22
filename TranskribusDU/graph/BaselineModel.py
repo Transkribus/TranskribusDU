@@ -5,18 +5,7 @@
     
     Copyright NAVER(C) 2018, 2019  Hervé Déjean, Jean-Luc Meunier, Animesh Prasad
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -98,7 +87,7 @@ class BaselineModel(GraphModel):
 
         for sFilename in lsFilename:
             [g] = loadFun(sFilename) #returns a singleton list
-            if self.bConjugate: g.computeEdgeLabels()
+            if g.bConjugate: g.computeEdgeLabels()
             X, Y = self.transformGraphs([g], True)
 
             if lLabelName == None:
@@ -115,7 +104,7 @@ class BaselineModel(GraphModel):
             lY_pred.append(Y_pred[0]) #Choose with Y_pred is a list of predictions of feach model
 
 
-            g.detachFromDOM()
+            g.detachFromDoc()
             del g   #this can be very large
             del X,X_node
 

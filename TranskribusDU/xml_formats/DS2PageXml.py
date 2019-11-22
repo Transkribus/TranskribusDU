@@ -107,7 +107,8 @@ class DS2PageXMLConvertor(Component):
             451,246 451,1094 781,1094 781,246
             
         """
-        lPoints = [x for xx in sPoints.split(' ') for x in xx.split(',')]
+        #print (sPoints)
+        lPoints = sPoints.split(" ").split(',')
         lx= list(map(lambda x:1.0*float(x)*self.dpi/72.0, lPoints))
         # order left right 
         xx =  list(zip(lx[0::2], lx[1::2]))
@@ -163,7 +164,7 @@ class DS2PageXMLConvertor(Component):
         if DSObject.hasAttribute('points'):
             coordsNode.set('points',self.DSPoint2PagePoints(DSObject.getAttribute('points')))    
         else:     
-            coordsNode.set('points', self.BB2Polylines(DSObject.getX(),DSObject.getY(), DSObject.getHeight(),DSObject.getWidth()))     
+            coordsNode.set('points', self.BB2Polylines(DSObject.getX(),DSObject.getY(), DSObject.getHeight(),DSObject.getWidth()))        
         domNode.append(coordsNode)            
         
         for attr in ['custom', 'structure','col','type','DU_row','DU_header','DU_col']:
@@ -288,7 +289,7 @@ class DS2PageXMLConvertor(Component):
             conversion
         """
         ODoc =XMLDSDocument()
-#         ODoc.lastPage=1
+        # ODoc.lastPage=1
         ODoc.loadFromDom(domDoc)
         lPageXmlDoc=[]
         lPages= ODoc.getPages()

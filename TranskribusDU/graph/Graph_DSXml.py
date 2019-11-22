@@ -5,18 +5,7 @@
 
     Copyright Xerox(C) 2016 JL. Meunier
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -28,31 +17,37 @@
 
 
 
-from .Graph import Graph
+from .Graph_DOM import Graph_DOM
 from .Page import Page
 
 
-class Graph_DSXml(Graph):
+class Graph_DSXml(Graph_DOM):
     '''
     Computing the graph for a MultiPageXml document
-
-        USAGE:
-        - call parseFile to load the DOM and create the nodes and edges
-        - call detachFromDOM before freeing the DOM
     '''
+    # --- NODE TYPES and LABELS
+    _lNodeType       = []       #the list of node types for this class of graph
+    _bMultitype      = False    # equivalent to len(_lNodeType) > 1
+    _dLabelByCls     = None     #dictionary across node types
+    _dClsByLabel     = None     #dictionary across node types
+    _nbLabelTot      = 0        #total number of labels
+
     #Namespace, of PageXml, at least
     dNS = {}
     
     #How to list the pages of a (Multi)PageXml doc
     sxpPage     = "//PAGE"
+
+    sIN_FORMAT  = "DS_XML"   # tell here which input format is expected
+    sOUTPUT_EXT = ".ds.xml"
     
     sXmlFilenamePattern = "*_ds.xml"    #how to find the DS XML files
 
     def __init__(self, lNode = [], lEdge = []):
-        Graph.__init__(self, lNode, lEdge)
+        Graph_DOM.__init__(self, lNode, lEdge)
 
     # ---------------------------------------------------------------------------------------------------------        
-    def _iter_Page_DomNode(self, doc):
+    def _iter_Page_DocNode(self, doc):
         """
         Parse a Multi-pageXml DOM, by page
 
@@ -73,5 +68,5 @@ class Graph_DSXml(Graph):
             page = Page(pnum, pagecnt, iPageWidth, iPageHeight, cls=None, domnode=ndPage, domid=ndPage.fet("id"))
             yield (pnum, page, ndPage)
             
-        raise StopIteration()        
+        return      
         

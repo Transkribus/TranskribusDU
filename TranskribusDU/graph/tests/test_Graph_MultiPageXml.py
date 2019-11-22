@@ -48,7 +48,7 @@ def test_RectangleFitting():
     #load the block of each page, keeping the list of blocks of previous page
     lPrevPageNode = None
 
-    for pnum, page, domNdPage in obj._iter_Page_DomNode(doc):
+    for pnum, page, domNdPage in obj._iter_Page_DocNode(doc):
         #now that we have the page, let's create the node for each type!
         lPageNode = list()
         setPageNdDomId = set() #the set of DOM id

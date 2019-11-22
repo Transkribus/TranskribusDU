@@ -7,18 +7,7 @@
 
     READ project 
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -206,7 +195,7 @@ class fieldClass(object):
     def __init__(self,name=None):
         self._name = name
         # allow for muti-value, range,...
-        self._value = []
+        self._value = None
         
         # backref to record
         self._record = None
@@ -239,7 +228,7 @@ class fieldClass(object):
 
     def getValue(self): return self._value
     def setValue(self,v): self._value = v   
-    def addValue(self,v): self._value.extend(v)
+    
     def setRecord(self,r): self._record = r
     def getRecord(self):return self._record
     
@@ -273,7 +262,7 @@ class fieldClass(object):
     def getBestValue(self):
         # old (u'List', (2, 0, 0), u'Ritt', 987)
         # now [(u'Theresia',  0.9978103), (u'Sebald',0.71877468)]
-        if self.getValue() != []:
+        if self.getValue() is not None:
             # score = list! take max
             self.getValue().sort(key = lambda x:max(x[1]),reverse=True)
             return self.getValue()[0][0]
@@ -401,44 +390,6 @@ class KerasTagger(taggerClass):
             res = self.myTagger.predict([documentObject.getContent()])
 
         return res
-    
-class KerasTagger2(taggerClass):
-    """
-        see taggerTrainKeras
-            -> use directly DeepTagger?
-    """ 
-    def __init__(self,name):
-        taggerClass.__init__(self, name)
-        self.myTagger = DeepTagger()
-        self.myTagger.bPredict = True
-#         self.myTagger.sModelName = None
-#         self.myTagger.dirName = 'IE
-#         self.myTagger.loadModels()
-    
-    def loadResources(self,sModelName,dirName):
-        # location from sModeName, dirName
-        self.myTagger.sModelName = sModelName
-        self.myTagger.bAttentionLayer = sModelName[-3:] == 'att'
-        self.myTagger.dirName = dirName        
-        self.myTagger.loadModels()
-    
-    def runMe(self,documentObject):
-        '''
-            delete '.' because of location in GT
-        '''
-#         res = self.myTagger.predict([documentObject.getContent()])
-#         return res
-    
-        if documentObject.getContent() is None:
-            return []
-        if self.myTagger.bMultiType:
-            res = self.myTagger.predict_multiptype([documentObject.getContent()])
-        else:
-#             res = self.myTagger.predict([documentObject.getContent().replace('.','')])
-            res = self.myTagger.predict([documentObject.getContent()])
-
-        return res    
-    
     
 class CRFTagger(taggerClass):
     """

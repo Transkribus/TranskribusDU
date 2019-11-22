@@ -11,18 +11,7 @@
 
     Copyright Xerox(C) 2017 H . Déjean
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
@@ -47,11 +36,15 @@ from .Page import Page
 class Graph_MultiSinglePageXml(Graph_MultiPageXml):
     '''
     Computing the graph for a MultiPageXml document
-
-        USAGE:
-        - call parseFile to load the DOM and create the nodes and edges
-        - call detachFromDOM before freeing the DOM
     '''
+    # --- NODE TYPES and LABELS
+    _lNodeType       = []       #the list of node types for this class of graph
+    _bMultitype      = False    # equivalent to len(_lNodeType) > 1
+    _dLabelByCls     = None     #dictionary across node types
+    _dClsByLabel     = None     #dictionary across node types
+    _nbLabelTot      = 0        #total number of labels
+    sIN_FORMAT  = "MultiSinglePageXML"   # tell here which input format is expected
+
     #Namespace, of PageXml, at least
     dNS = {"pc":PageXml.NS_PAGE_XML}
     
@@ -77,9 +70,7 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
         for sFilename in lsFilename:
             if iVerbose: traceln("\t%s"%sFilename)
             lG= Graph_MultiSinglePageXml.getSinglePages(cGraphClass, sFilename, bNeighbourhood,bDetach,bLabelled, iVerbose)
-#             if bNeighbourhood: g.collectNeighbors()            
-#             if bLabelled: g.parseDomLabels()
-#             if bDetach: g.detachFromDOM()
+            for g in lG: g._index()
             lGraph.extend(lG)
         return lGraph
     
@@ -99,7 +90,7 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
         lGraph=[]
         doc = etree.parse(sFilename)
 
-        for pnum, page, domNdPage in cls._iter_Page_DomNode(doc):
+        for pnum, page, domNdPage in cls._iter_Page_DocNode(doc):
             g = cGraphClass()
             g.doc= doc
             
@@ -133,8 +124,8 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
             
             if not g.isEmpty() and len(g.lEdge) > 0:    
                 if bNeighbourhood: g.collectNeighbors()            
-                if bLabelled: g.parseDomLabels()
-    #             if bDetach: g.detachFromDOM()
+                if bLabelled: g.parseDocLabels()
+                if bDetach: g.detachFromDoc()
     
                 lGraph.append(g)
             if iVerbose: traceln("\t\t (%d nodes,  %d edges)"%(len(g.lNode), len(g.lEdge)) )
@@ -143,7 +134,7 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
        
     # ---------------------------------------------------------------------------------------------------------
     @classmethod
-    def _iter_Page_DomNode(cls, doc):
+    def _iter_Page_DocNode(cls, doc):
         """
         Parse a Multi-pageXml DOM, by page
 
@@ -162,6 +153,6 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
             page = Page(pnum, pagecnt, iPageWidth, iPageHeight, cls=None, domnode=ndPage, domid=ndPage.get("id"))
             yield (pnum, page, ndPage)
             
-        return       
+        return        
                
         

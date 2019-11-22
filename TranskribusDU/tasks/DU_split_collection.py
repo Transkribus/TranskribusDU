@@ -3,20 +3,9 @@
 """
     DU task: split a collection in N equal parts, at random
     
-    Copyright NAVER(C)  2019  Jean-Luc Meunier
+    Copyright Xerox(C)  2019  Jean-Luc Meunier
     
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     Developed  for the EU project READ. The READ project has received funding 
     from the European Union's Horizon 2020 research and innovation programme 
@@ -26,6 +15,8 @@
  
 import sys, os, random
 from shutil import copyfile
+from optparse import OptionParser
+import math
 
 try: #to ease the use without proper Python installation
     import TranskribusDU_version
@@ -41,15 +32,27 @@ from util.CollectionSplitter import getSplitIndexList
 if __name__ == "__main__":
     #     import better_exceptions
     #     better_exceptions.MAX_LENGTH = None
+    sUsage = """
+USAGE: %s  DIR  ( N | p1,p2(,p)+ )
+Split in N folders
+  or
+Split in folders following the proportions p1, ... pN
+
+The folders are named after the DIR folder by adding suffix_part_<1 to N>
+
+(Expecting to find a 'col' subfolder in DIR)""" % sys.argv[0]
+  
+    parser = OptionParser(usage=sUsage)
+    (options, args) = parser.parse_args()
 
     try:
-        sDir = sys.argv[1]
-        n = int(sys.argv[2])
+        sDir, sN = args
     except:
-        print("USAGE: %s DIR N"%sys.argv[0])
+        print(sUsage)
         exit(1)
     
     sColDir= os.path.join(sDir, "col")
+    assert os.path.isdir(sColDir), "%s is not a folder"%sColDir
     
     print("- looking at ", sColDir)
     lsFile = []
@@ -60,16 +63,36 @@ if __name__ == "__main__":
         if not(_fnl.endswith(".mpxml") or _fnl.endswith(".pxml")):
             continue
         lsFile.append(_fn)
-    traceln(" %d files to split in %d parts" % (len(lsFile), n))    
-    
-    
-    N = len(lsFile)
-    ld = getSplitIndexList(N, n, traceln)
-    assert len(ld) == N
 
-    # *** SHUFFLING!! ***
-    random.shuffle(ld)
+    nbFile = len(lsFile)
     
+    try:
+        lP = [int(_s) for _s in sN.split(',')]
+        if len(lP) < 2: raise ValueError("want to run the except code")
+        lP = [p / sum(lP) for p in lP]
+        traceln(" %d files to split in %d parts with proportions %s" % (
+            nbFile
+            , len(lP)
+            , ",".join("%.2f"%_p for _p in lP)))
+        lP.sort()
+        ld = []
+        for i, p in enumerate(lP):
+            ld += [i] * math.ceil(p * nbFile)
+        ld = ld[:nbFile]
+        while len(ld) < nbFile: ld.append(len(lP)-1)
+        random.shuffle(ld)
+    except ValueError:
+        # Split in N parts
+        traceln(" %d files to split in %d parts" % (nbFile, int(sN)))    
+        n = int(sN)
+    
+        ld = getSplitIndexList(nbFile, n, traceln)
+        assert len(ld) == nbFile
+
+        # *** SHUFFLING!! ***
+        random.shuffle(ld)
+    
+    # ld [I]  gives the folder index where to put the Ith file
 
     def get_sToColDir(sDir, d, bExistIsOk=False):
         """
@@ -92,10 +115,11 @@ if __name__ == "__main__":
                 raise Exception("First remove the destination folders: ", (sToDir, sToColDir))
         return sToColDir
     
+    assert len(ld) == len(lsFile)
     
     # make sure the folder are not already containing some stuff (from previous runs...)
-    for _d in range(1, n+1): 
-        get_sToColDir(sDir, _d, bExistIsOk=False)
+    for _d in set(ld): 
+        get_sToColDir(sDir, _d+1, bExistIsOk=False)
     
     ld = [1+d for d in ld]  # convenience
     for d, sFilename in zip(ld, lsFile):

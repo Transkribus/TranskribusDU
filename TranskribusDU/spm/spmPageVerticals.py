@@ -33,6 +33,8 @@ from ObjectModel.XMLDSTEXTClass  import XMLDSTEXTClass
 from ObjectModel.XMLDSTOKENClass import XMLDSTOKENClass
 from ObjectModel.XMLDSPageClass import XMLDSPageClass
 from ObjectModel.treeTemplateClass import treeTemplateClass
+from ObjectModel.XMLDSCELLClass import XMLDSTABLECELLClass
+
 # from spm.spm2 import PrefixSpan
 
 class pageVerticalMiner(Component.Component):
@@ -60,8 +62,8 @@ class pageVerticalMiner(Component.Component):
         self.sTag= XMLDSTEXTClass
         # TH for comparing numerical features for X
         self.THNUMERICAL = 30
-        self.testTH = 30  # use dfor --test  BUT ALSO IN RUN !!
         # use for evaluation
+        self.testTH = 30  # use dfor --test  BUT ALSO IN RUN !!
         self.THCOMP = 10
         self.evalData= None
         
@@ -140,7 +142,6 @@ class pageVerticalMiner(Component.Component):
 
         for _,p in enumerate(lPages):
             p.lFeatureForParsing=p.getSetofFeatures()
-            print (p, p.lFeatureForParsing)
         icpt=0
         lCurList=lPages[:]
         lTerminalTemplates=[]
@@ -194,7 +195,6 @@ class pageVerticalMiner(Component.Component):
             ## store parsed sequences in mytemplate 
             for templateType in dTemplatesCnd.keys():
                 for _,_, mytemplate in dTemplatesCnd[templateType]:
-                    mytemplate.print_()
 #                     _,lCurList = self.parseWithTemplate(mytemplate,lCurList,bReplace=True)
                     _,_,lCurList = seqGen.parseWithTreeTemplate(mytemplate, lCurList, bReplace=True)    
                     for elt in lCurList:
@@ -205,8 +205,7 @@ class pageVerticalMiner(Component.Component):
                             elt.lFeatureForParsing=elt.getSetofFeatures()
             
             icpt +=1
-            if self.bDebug:self.printTreeView(lCurList)
-        
+#             if self.bDebug:self.printTreeView(lCurList)
         lList = self.getFlatStructure(lCurList)
 #         print lList
         del seqGen        
@@ -319,7 +318,9 @@ class pageVerticalMiner(Component.Component):
             bSkip = bSkip or (len(pattern) == 2 and pattern[0] == pattern[1])
             if not bSkip: 
                 iNbClosed+=1
-                if ( len(pattern) == 1 and len(pattern[0])>=2  and pattern[0][0].getValue() !=pattern[0][1].getValue()) or (len(pattern)==2 and len( pattern[0] ) == len( pattern[1] ) >= 2  ):
+#                 if ( len(pattern) == 1 and len(pattern[0])>=2  and pattern[0][0].getValue() !=pattern[0][1].getValue()) or (len(pattern)==2 and len( pattern[0] ) == len( pattern[1] ) >= 2  ):
+                if (len(pattern[0]) == 3  ):
+
                     if  self.isCorrectPattern(pattern):
                         ## alos width must be similar :['x=115.0', 'x=433.0'], ['x=403.0', 'x=433.0']] not possible !! 
                         template  = treeTemplateClass()
@@ -359,7 +360,135 @@ class pageVerticalMiner(Component.Component):
         return lPageProfiles
     
     
+    def minePageVerticalFeature2D(self,lPages,lFeatureList,level=XMLDSTEXTClass):
+        """
+            Input:
+                lPages: list of pages
+                lFeatureList: list of features to be used 
+                level: level ot be used
+            Output: pages decorted with features
+            
+        """ 
+        
+        chronoOn()
+        ## COMMUN PROCESSING
+        ### DEPENDS ON OBJECT LEVEL !! TEXT/TOKEN!!
+        lLElts=[ [] for i in range(0,len(lPages))]
+        for i,page in enumerate(lPages):
+            lElts= page.getAllNamedObjects(level)
+            lElts.sort(key=lambda x:x.getY())
+            lLElts[i]=lElts
+        ### VerticalZones START
+        for i,page, in enumerate(lPages):
+            page._VX1X2Info=[]
+            lElts=[]
+            if not self.bGLOnly:
+                lElts= lLElts[i]
+                for elt in lElts:
+                    elt.resetFeatures()
+                    elt._canonicalFeatures = None
+                    elt.setFeatureFunction(elt.getSetOfX1X2Attributes,50,lFeatureList=lFeatureList,myLevel=level)
+                    elt.computeSetofFeatures()
+            
+            # GRAPHICAL LINES 
+            gl = []
+            if not self.bNOGline:
+                for graphline in page.getAllNamedObjects(XMLDSGRAPHLINEClass):
+                    graphline.resetFeatures()
+                    graphline._canonicalFeatures = None
+                    if graphline.getHeight() > graphline.getWidth() and graphline.getHeight() > 30:  #30 twice the height of a line
+                        gl.append(graphline)
+                        # create a feature
+                        f = featureObject()
+                        f.setType(featureObject.NUMERICAL)
+                        f.setTH(self.THNUMERICAL)
+                        f.setWeight(graphline.getHeight()/64000)
+                        f.setName("x")
+                        f.setObjectName(graphline)
+                        f.addNode(graphline)
+                        f.setValue(round(graphline.getX()))
+                        graphline.addFeature(f)
+                        page.setVGLFeatures(f)
+
+            ## select regular x                                 
+            seqGen = sequenceMiner()
+#             seqGen.bDebug  =self.bDebug
+            _fullFeatures =   seqGen.featureGeneration(lElts+gl,1)
+            for fx in _fullFeatures:
+                fx.setWeight(sum(x.getHeight() for x in fx.getNodes())/64000)
+                fx.setWeight(len(fx.getNodes()))
+#                 print(fx,fx.getWeight())
+            page.setX1X2(_fullFeatures)
+            del seqGen
+        self.buildPartitions(lPages)
+        
+        print ('chronoFeature',chronoOff())
+        
+        return lPages    
+        
     
+    def minePageVerticalFeature2(self,lPages,lFeatureList,level=XMLDSTEXTClass):
+        """
+            get page features for  vertical zones: find vertical regular vertical Blocks/text structure
+            
+        """ 
+        
+        import util.TwoDNeighbourhood as TwoDRel
+        
+        chronoOn()
+        ## COMMUN PROCESSING
+        ### DEPENDS ON OBJECT LEVEL !! TEXT/TOKEN!!
+        lVEdge = []
+        lLElts=[ [] for i in range(0,len(lPages))]
+        for i,page in enumerate(lPages):
+            page.resetFeatures()
+            page._canonicalFeatures=None
+            lElts= page.getAllNamedObjects(level)
+
+            for e in lElts:
+                e.next=[]
+
+            lElts.sort(key = lambda x:x.getY())
+            lLElts[i]=lElts
+            lVEdge = TwoDRel.findVerticalNeighborEdges(lElts)
+            for  a,b in lVEdge:
+                a.next.append( b )
+
+        ### VerticalZones START
+        for i,page, in enumerate(lPages):
+            page._VX1Info=[]
+            lElts=[]
+            if not self.bGLOnly:
+                lElts= lLElts[i]
+                for elt in lElts:
+                    elt.resetFeatures()
+                    elt._canonicalFeatures = None
+                    elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=lFeatureList,myLevel=level)
+#                     elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=lFeatureList,myLevel=level)
+
+    #                 elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=lFeatureList,myLevel=XMLDSTOKENClass)
+     
+                    elt.computeSetofFeatures()
+                    ## rename all as 'x'
+                    [x.setName('x') for x in elt.getSetofFeatures()]
+        
+            ## select regular x                                 
+            seqGen = sequenceMiner()
+#             seqGen.bDebug  =self.bDebug
+            _fullFeatures =   seqGen.featureGeneration(lElts,1)
+            for fx in _fullFeatures:
+                fx.setWeight(sum(x.getHeight() for x in fx.getNodes())/64000)
+                # for article
+                fx.setWeight(len(fx.getNodes()))
+                
+#             lKleendPlus = self.getKleenePlusFeatures(lElts)
+            page.setVX1Info(_fullFeatures)
+#             page.setVX1Info(_fullFeatures)
+            del seqGen
+        self.buildVZones(lPages)
+        print ('chronoFeature',chronoOff())
+        
+        return lPages    
     
         
     def minePageVerticalFeature(self,lPages,lFeatureList,level=XMLDSTEXTClass):
@@ -401,7 +530,7 @@ class pageVerticalMiner(Component.Component):
                     elt._canonicalFeatures = None
                     elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=lFeatureList,myLevel=level)
     #                 elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=lFeatureList,myLevel=XMLDSTOKENClass)
-     
+                    
                     elt.computeSetofFeatures()
                     ## rename all as 'x'
                     [x.setName('x') for x in elt.getSetofFeatures()]
@@ -410,59 +539,42 @@ class pageVerticalMiner(Component.Component):
             gl = []
             if not self.bNOGline:
                 for graphline in page.getAllNamedObjects(XMLDSGRAPHLINEClass):
+                    
+                    # Y 
+#                     graphline.resetFeatures()
+#                     graphline._canonicalFeatures = None
+#                     if graphline.getHeight() > graphline.getWidth(): # and graphline.getHeight() > 30:  #30 twice the height of a line
+# 
+#                         gl.append(graphline)
+#                         # create a feature
+#                         f = featureObject()
+#                         f.setType(featureObject.NUMERICAL)
+#                         f.setTH(self.THNUMERICAL)
+#                         f.setWeight(graphline.getHeight()/64000)
+#                         f.setName("x")
+#                         f.setObjectName(graphline)
+#                         f.addNode(graphline)
+#                         f.setValue(round(graphline.getX()))
+#                         graphline.addFeature(f)
+#                         page.setVGLFeatures(f)
+                    #X 
                     graphline.resetFeatures()
                     graphline._canonicalFeatures = None
-                    if graphline.getHeight() > graphline.getWidth() and graphline.getHeight() > 30:  #30 twice the height of a line
+                    if graphline.getWidth() > graphline.getHeight(): # and graphline.getHeight() > 30:  #30 twice the height of a line
+
                         gl.append(graphline)
                         # create a feature
                         f = featureObject()
                         f.setType(featureObject.NUMERICAL)
                         f.setTH(self.THNUMERICAL)
-                        f.setWeight(graphline.getHeight()/64000)
+                        f.setWeight(graphline.getWidth())
                         f.setName("x")
                         f.setObjectName(graphline)
                         f.addNode(graphline)
-                        f.setValue(round(graphline.getX()))
+                        f.setValue(round(graphline.getY()))
                         graphline.addFeature(f)
-                        page.setVGLFeatures(f)
-
-#             if lElts +gl != []:
-#                 # artificial first line (0 line)
-#                 graphline = XMLDSGRAPHLINEClass()
-#                 graphline.addAttribute('x',0)
-#                 graphline.addAttribute('width',1)
-#                 graphline.addAttribute('height',page.getHeight())
-#                 gl.append(graphline)
-#                 # create a feature
-#                 f = featureObject()
-#                 f.setType(featureObject.NUMERICAL)
-#                 f.setTH(self.THNUMERICAL)
-#                 f.setWeight(graphline.getHeight()/64000)
-#                 f.setName("x")
-#                 f.setObjectName(graphline)
-#                 f.addNode(graphline)
-#                 f.setValue(round(graphline.getX()))
-#                 graphline.addFeature(f)
-#                 page.setVGLFeatures(f)                    
-# 
-#                 graphline = XMLDSGRAPHLINEClass()
-#                 graphline = XMLDSGRAPHLINEClass()
-#                 graphline.addAttribute('x',page.getWidth())
-#                 graphline.addAttribute('width',1)
-#                 graphline.addAttribute('height',page.getHeight())                
-#                 gl.append(graphline)
-#                 # create a feature
-#                 f = featureObject()
-#                 f.setType(featureObject.NUMERICAL)
-#                 f.setTH(self.THNUMERICAL)
-#                 f.setWeight(graphline.getHeight()/64000)
-#                 f.setName("x")
-#                 f.setObjectName(graphline)
-#                 f.addNode(graphline)
-#                 f.setValue(round(graphline.getX()))
-#                 graphline.addFeature(f)
-#                 page.setVGLFeatures(f)     
-
+                        page.setVGLFeatures(f)                    
+                    
             
             ## select regular x                                 
             seqGen = sequenceMiner()
@@ -517,6 +629,53 @@ class pageVerticalMiner(Component.Component):
         return  lKleenePlus
     
     
+    def recPathGeneration(self,curSeq,lSeq):
+        """
+            input: list of (x1,x2)  features
+            output: comb genration of all possible layout
+        """
+        cur,lRest = lSeq[0],lSeq[1:]
+        curSeq.append(cur)
+        lRecList=[curSeq]
+        curmax=cur.getValue()[-1]
+#         print ("x",cur,lRest,curmax)
+        for i,xx2 in enumerate(lRest):
+#             print (xx2, xx2.getValue()[0] , curmax)
+            if xx2.getValue()[0] > curmax:
+                curmax= xx2.getValue()[-1]
+                ln = self.recPathGeneration(curSeq[:],lRest[i:])
+#                 print ('\t',ln)
+                lRecList.extend(ln)
+#                 print (lRecList[-1])
+        return lRecList
+            
+            
+        
+    def buildPartitions(self,lp):
+        """
+            input: list of pages with horizontal 2Dfeatures
+            output: list of possible horizontal compatible partitions (sequences of horizontal stuff)
+        """
+        from spm.feature import setOfPointsFeatureObject
+        for page in lp:
+            page._Vpartitions=[]
+#             page.getX1X2().sort(key=lambda x:x.getWeight(),reverse=True)
+            page.getX1X2().sort(key=lambda x:x.getValue()[0])
+            lLSeq=[]
+            for i,x in enumerate(page.getX1X2()):
+                lLSeq.extend(self.recPathGeneration([], page.getX1X2()[i:]))
+            lLSeq.sort (key=lambda lx: sum(map(lambda x:x.getWeight(),lx)),reverse=True)
+            for ln in lLSeq:
+                feature = setOfPointsFeatureObject()
+                feature.setName('seqV')
+                feature.setTH(5)
+                feature.addNode(page)
+                feature.setObjectName(page)
+                feature.setValue(list(map(lambda x:x.getValue(),ln)))
+                feature.setType(featureObject.COMPLEX)
+                page.addFeature(feature)    
+                
+        
     
     def buildVZones(self,lp):
         """
@@ -783,161 +942,33 @@ class pageVerticalMiner(Component.Component):
         flattened_sequences = [ list(set(itertools.chain(*sequence))) for sequence in sequences ]
         support_counts = dict(Counter(item for flattened_sequence in flattened_sequences for item in flattened_sequence))
         actual_supports = {item:support_counts.get(item)/float(sequence_count) for item in support_counts.keys()}
-#         print(actual_supports.items())        
-        lOneSupport= [k for k,v in actual_supports.items() if v >= 0.8 ]
+        print(actual_supports.items())        
+        lOneSupport= [k for k,v in actual_supports.items() if v >= 0.5 ]
         return lOneSupport
-
-#         lOneSupport=[]
-#         dFeatures={}
-#         for item in lElts:
-#             if item.getCanonicalFeatures() is not None:
-#                 for fea in item.getCanonicalFeatures():
-#                     try:dFeatures[fea] += 1
-#                     except KeyError:dFeatures[fea] = 1
-#         
-#         for key in dFeatures:
-#             print key, dFeatures[key], 1.0* dFeatures[key]/len(lElts)
-#             if 1.0* dFeatures[key]/len(lElts)> 0.80:
-#                 lOneSupport.append(key)
-#         return lOneSupport
-        
-        
-        
-#     def baselineSegmentation(self,lLPages):
-#         """
-#             select the n 'best' cuts per pages
-#         """
-#         
-#         NBEST = self.baselineMode
-#         
-#         for lPages in lLPages:
-#             
-#             #Width 
-#             self.minePageVerticalFeature(lPages, ['width'])
-#             lT, lScore,score = self.processVSegmentation(lPages,[],bTAMode=True,iMinLen=1,iMaxLen=1)
-#             print score#, lScore
-#             # here segmentation of lPages if needed (put outside of this loop)
-#             
-#             lsubList = [lPages]
-# 
-#             
-#             for p  in lPages:
-#                 p.resetVerticalTemplate()
-# 
-#             # V positions
-#             NBATCH = 100
-#             for nbPage in range(0,len(lPages),NBATCH):
-#                 
-#                 print nbPage, nbPage + NBATCH
-#                 sys.stdout.flush()
-#                 print "LENGTH = 1"
-#                 # global or local??
-#                 self.minePageVerticalFeature(lPages[nbPage:nbPage+NBATCH], ['x','x2'])
-#                 ## V ZONES
-#                 # length 1
-# 
-#                 for _,p in enumerate(lPages[nbPage:nbPage+NBATCH]):
-#                     p._lBasicFeatures=p.lf_XCut[:]
-#         #             print p, map(lambda x:(x,x.getWeight()),p.lf_XCut)
-#                 
-#                 seqGen = sequenceMiner()
-#                 seqGen.bDebug = False
-#                 seqGen.setMinSequenceLength(1)
-#                 seqGen.setMaxSequenceLength(1)
-#                 seqGen.setObjectLevel(XMLDSPageClass)
-#         
-#                 ## sdc: support difference constraint 
-#                 seqGen.setSDC(0.7) # before 0.6
-#         
-#                 chronoOn()
-#                 lSortedFeatures = seqGen.featureGeneration(lPages[nbPage:nbPage+NBATCH],2)
-#                 print 'featuring...',chronoOff()
-#                 #  done in featureGeneration
-#                 for cf in lSortedFeatures:
-#                     cf.setWeight(sum(x.getHeight() for x in cf.getNodes()))
-# #                     print cf, cf.getWeight()
-#                 print lSortedFeatures                      
-#                 for _,p in enumerate(lPages[nbPage:nbPage+NBATCH]):
-# #                     p.lFeatureForParsing = p.getCanonicalFeatures()[:NBEST]
-#                     p.lFeatureForParsing = p.lf_XCut[:NBEST]
-# 
-# #                     print p, map(lambda x: (x,x.getWeight()),p.lFeatureForParsing)
-#                     template=treeTemplateClass()
-#                     template.buildTreeFromPattern(p.lFeatureForParsing)
-#                     p.addVerticalTemplate(template)
-#                     p.addVSeparator(template,template.getPattern())
-#             
-#             self.tagAsRegion(lPages) 
-        
-        
       
-    def contrastive_loss(self,y_true, y_pred):
-        '''Contrastive loss from Hadsell-et-al.'06
-        http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
+
+
+    def createTableTemplate(self,lTemplate):
+        """
+            create a pxml for each template
+        """
+        from xml_formats.PageXml import PageXml
+        from util.unitConversion import convertDot2Pixel
+
         
-        see https://github.com/fchollet/keras/issues/1866
-        '''
-        margin = 1
-        return np.mean(y_true * np.square(y_pred) +
-                      (1 - y_true) * np.square(np.maximum(margin - y_pred, 0)))
+        page= self.lPages
+        for temp in lTemplate:
+            pageXmlDoc,pageNode = PageXml.createPageXmlDocument(creatorName='NLE', filename = "%s_%s"% (self.getInputFileName(),'tt.pxml'), imgW = convertDot2Pixel(self.dpi,page.getWidth()), imgH = convertDot2Pixel(self.dpi,page.getHeight()))
 
-    def euclidean_distance(self,x,y):
-        return np.sqrt(np.sum(np.square(x - y)))       
-     
-    def arrayApproach(self,lLPages):
-        """
-            formalize 
-        """
-#         from keras.layers.embeddings import Embedding
-
-        self.THNUMERICAL = 30
-        for lPages in lLPages:
-            self.minePageVerticalFeature(lPages, ['x','x2'])
-            
-            lAllF=[]
-            for _,p in enumerate(lPages):
-                p._lBasicFeatures=p.lf_XCut[:]
-                for f in p._lBasicFeatures:
-                    f.setTH(0)
-                    if f not in lAllF:
-                        lAllF.append(f)
-            seqGen = sequenceMiner()
-            seqGen.bDebug = False
-            seqGen.setObjectLevel(XMLDSPageClass)
-    
-            chronoOn()
-    
-#             print 'featuring...',chronoOff()
-#             lSortedFeatures = seqGen.featureGeneration(lPages,2)
-#             lSortedFeatures.sort(key=lambda x:x.getValue())
-#             print lSortedFeatures
-            #mapping
-            lMapping={}
-            mmax=1.0
-            lAllF.sort(key=lambda x:x.getValue())
-            for i,f in enumerate(lAllF):
-                lMapping[f]=i
-                mmax = max(mmax, sum(x.getHeight() for x in f.getNodes()) )
-            for p in lPages:
-                for f in p.getSetofFeatures():
-                    f.setWeight(sum(x.getHeight() for x in f.getNodes())/mmax )
-            
-            for _, page in enumerate(lPages):
-#                 page.lFeatureForParsing = page.getCanonicalFeatures() 
-                page.lFeatureForParsing = page.getSetofFeatures() 
-
-                page.nparray = np.zeros((len(lAllF),1),dtype='float64')
-                for f in page.getSetofFeatures():
-                    page.nparray[lMapping[f]] = np.array((f.getWeight())) #, len(f.getNodes()),f.getKleenePlus()))
-#                 print Embedding(page.nparray)
-
-            # then ?
-            for i,p, in enumerate(lPages):
-                if i >0:
-                    print( p,p.getSetofFeatures(), lPages[i+1].getSetofFeatures())
-                    print( self.contrastive_loss(p.nparray, lPages[i+1].nparray))
-                    print( p,p.getSetofFeatures(), lPages[i+2].getSetofFeatures())                        
-                    print( self.contrastive_loss(p.nparray, lPages[i+2].nparray))
+            tablenode= PageXml.createPageXmlNode('TableRegion')
+            pageNode.append(tablenode)
+            # creata a table and one cell per column
+            for child in temp.getChildren():
+                cellnode = PageXml.createPageXmlNode('TableCell')
+                tablenode.append(cellnode)
+                print (child.getPattern().getValue())
+                
+        
             
     def iterativeProcessVSegmentation(self, lLPages):
         """
@@ -955,7 +986,6 @@ class pageVerticalMiner(Component.Component):
                 
             collect information for cut !!  a la specbook!!!
         """
-        
         setFullListTemplates= set() 
         for lPages in lLPages:
             
@@ -967,29 +997,34 @@ class pageVerticalMiner(Component.Component):
 
 #             self.bDebug=True
             # V positions
-            NBATCH = 100
+            NBATCH = 3
             for nbPage in range(0,len(lPages),NBATCH):
 #                 print nbPage, nbPage + NBATCH
 #                 print lPages[nbPage:nbPage+NBATCH]
                 sys.stdout.flush()
-                print ("LENGTH = 1")
-                self.minePageVerticalFeature(lPages[nbPage:nbPage+NBATCH], ['x','x2'],level=self.sTag)
+                print ("LENGTH = 1", self.sTag)
+#                 self.minePageVerticalFeature(lPages[nbPage:nbPage+NBATCH], ['x','x2'],level=self.sTag)
+                self.minePageVerticalFeature2(lPages[nbPage:nbPage+NBATCH], ['x','xxxx2'],level=self.sTag)
                 
                 ## V ZONES
                 # length 1
-                lT1, lScore1,score1 = self.processVSegmentation(lPages[nbPage:nbPage+NBATCH],[],bTAMode=False,iMinLen=1,iMaxLen=1)
-                print( nbPage, nbPage+NBATCH, lT1, score1)
+                lT1, lScore1, score1 = self.processVSegmentation(lPages[nbPage:nbPage+NBATCH],[],bTAMode=False,iMinLen=1,iMaxLen=1)
+                print( nbPage, nbPage + NBATCH, lT1, score1)
                 print( '\t',lScore1)
                 sys.stdout.flush()
 
-                bTable = lT1 is not None and lT1 !=[] and len(lT1[0].getPattern()) > 6
+                bTable = True #lT1 is not None and lT1 !=[] and len(lT1[0].getPattern()) > 6
                 
+                
+#                 if lT1 is not None:
+#                     self.createTableTemplate(lT1)
+#                     ss
                 ##"  If parsing structure K+ has good coverage: skip length2?
                 # if high enough score: skip len=2?
     #             sys.stdout.flush()
                 lOneSupport=[]
                 print( "LENGTH = 2")
-                if len( lPages) > 1 and bTable or len(lOneSupport) > 8:
+                if len( lPages) > 1 and bTable or len(lOneSupport) > 18:
                     score2=0
                     lT2=None
                     lScore2=[]
@@ -1012,6 +1047,8 @@ class pageVerticalMiner(Component.Component):
                 bTwo=False
                 lT=None
                 # update  
+                if score1 is None: score1 = -1
+                if score2 is None:score2 = -1
                 if score2 > score1:
                     bTwo=True
                     ldeltemplateset=lT1
@@ -1036,6 +1073,7 @@ class pageVerticalMiner(Component.Component):
 #             self.correctionStep(lPages)
 
             # for visu
+#             if self.bDomTag:self.tagDomAsTable(lPages)
             if self.bDomTag:self.tagAsRegion(lPages)
 
             ## build full list of templates
@@ -1061,7 +1099,7 @@ class pageVerticalMiner(Component.Component):
             Should correspond to column-like zones    
             
         """
-        self.bDebug = False
+#         self.bDebug = False
         for _,p in enumerate(lPages):
             p._lBasicFeatures=p.lf_XCut[:]
 #             print (p, list(map(lambda x:(x,x.getTH()),p.getSetofFeatures())))
@@ -1080,7 +1118,7 @@ class pageVerticalMiner(Component.Component):
         for cf in lSortedFeatures:
             # weights must not be too large ecause theyv are used in np.obs  (max=64000)
 #             cf.setWeight(sum(x.getHeight() * x.getWidth() for x in cf.getNodes())/64000)
-            cf.setWeight(sum(x.getHeight() for x in cf.getNodes())/64000)
+            cf.setWeight(sum(x.getHeight() for x in cf.getNodes()) / 64000)
 #             cf.setWeight(1)
 #             cf.setWeight(len(cf.getNodes()))
 #             print (cf, cf.getWeight(),len(cf.getNodes())) # map(lambda x:x.getX(),cf.getNodes())
@@ -1098,41 +1136,24 @@ class pageVerticalMiner(Component.Component):
         lmaxSequence = seqGen.generateItemsets(lPages)
         lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.2)
         # if one page: what to do ??
-        if len(lPages)>1:
-            lOneSupport  = self.testHighSupport(lSeq)
+        if len(lPages) > 1:
+            lOneSupport = self.testHighSupport(lSeq)
         else : lOneSupport=[]
         print ('L1OneSupport: ', lOneSupport)
         ## reference solution
-        if len(lOneSupport) < 8:
+        if len(lOneSupport) < 0:
             # MIS also for patterns, not only item!!
             ## can be used to assess the noise level or here
             chronoOn()
             print( "generation...")
             sys.stdout.flush()
-            lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.1,L1Support=[])
+            lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.1,L1Support = [])
             sys.stdout.flush()
             ## if many MIS=1.0 -> table with many columns!
             ##actual supports: {'x=40.0': 0.5, 'x=473.0': 1.0, 'x=73.0': 0.75, 'x=558.0': 1.0, 'x=327.0': 1.0, 'x=145.0': 1.0, 'x=243.0': 1.0, 'x=1180.0': 0.25, 'x=726.0': 1.0, 'x=408.0': 1.0, 'x=886.0': 1.0, 'x=1027.0': 0.75, 'x=803.0': 1.0, 'x=952.0': 1.0, 'x=636.0': 1.0, 'x=1136.0': 1.0, 'x=839.0': 0.25}
     #         lFSortedFeatures = self.factorizeHighlyFrequentItems()
             
-            if True:
-                lPatterns = seqGen.miningSequencePrefixScan(lSeq)
-#                 model = PrefixSpan.train(lSeq, minSupport = 0.1, maxPatternLength = 10)
-#                 result = model.freqSequences().collect()
-#                 result.sort(key=lambda x:x.freq)
-#                 lPatterns=[]
-#                 for fs in result:
-#                     if fs.freq > 1:
-# #                         print('{}, {}'.format(fs.sequence,fs.freq))
-#                         for i in fs.sequence:
-#                             i.sort(key=lambda x:x.getValue())
-#                         lPatterns.append((fs.sequence,fs.freq))
-#                 lPatterns = list(filter(lambda p_s:len(p_s[0]) >= seqGen.getMinSequenceLength() and len(p_s[0]) <= seqGen.getMaxSequenceLength(),lPatterns))
-            
-#             else:
-#                 ## sdc: support difference constraint 
-#                 seqGen.setSDC(0.8) # before 0.6
-#                 lPatterns = seqGen.beginMiningSequences(lSeq,lSortedFeatures,lMIS)
+            lPatterns = seqGen.miningSequencePrefixScan(lSeq)
             
             if lPatterns is None:
                 return None, None, -1
@@ -1154,7 +1175,7 @@ class pageVerticalMiner(Component.Component):
             sys.stdout.flush()
             
             ### GENERATE SEQUENTIAL RULES
-            seqGen.bDebug = False
+            seqGen.bDebug = True
             seqGen.THRULES = 0.80
             lSeqRules = seqGen.generateSequentialRules(lPatterns)
             _,dCP = self.getPatternGraph(lSeqRules)
@@ -1165,7 +1186,9 @@ class pageVerticalMiner(Component.Component):
             
     #         print 'patterns:', dTemplatesCnd
             chronoOn()
-            seqGen.setKleenePlusTH(self.fKleenPlusTH)
+#             seqGen.setKleenePlusTH(self.fKleenPlusTH)
+            seqGen.setKleenePlusTH(1.6)
+
             _, lVTemplates,tranprob = seqGen.testTreeKleeneageTemplates(dTemplatesCnd, lPages,iterMax=10)
             print("chronoParsing", chronoOff())
     
@@ -1193,7 +1216,7 @@ class pageVerticalMiner(Component.Component):
 #             print 
            
         lT, lScores, score= self.selectFinalTemplate(lVTemplates,tranprob,lPages)
-        print ("chronoFinalViterbi: score=", chronoOff(), score)
+        print ("chronoFinalViterbi: %s score= %s" % ( chronoOff(), score))
          
 #         del seqGen
         
@@ -1221,11 +1244,12 @@ class pageVerticalMiner(Component.Component):
             for i,temp in enumerate(lTemplates):
                 for j,page in enumerate(lPages):
                     x, y, score= temp.registration(page)
+#                     print (page, i, page.lf_XCut,temp, score,x,y)
                     if score < 0:
-#                         print (page, i, temp, score,x,y)
                         score= 0
-                        # no template
-                        obs[-1,j]=1.0
+#                         # no template
+#                         print ('\t xxx',score)
+#                         obs[-1,j]=1.0
                     obs[i,j]= score
                     if np.isinf(obs[i,j]):
                         obs[i,j] = 64000
@@ -1244,9 +1268,10 @@ class pageVerticalMiner(Component.Component):
         obs = buildObs(lTemplates,lPages)
         d = viterbi.Decoder(initialProb, transProb, obs)
         states,fscore =  d.Decode(np.arange(len(lPages)))
-#         print fscore
         np.set_printoptions(precision= 3, linewidth =1000)
-
+        print ("viterbi scores:",fscore)
+#         print (transProb)
+#         print (obs)
         lTemplate=[]
         lScores=[]
         #assigned to each page the template assigned by viterbi
@@ -1261,10 +1286,11 @@ class pageVerticalMiner(Component.Component):
 #                 page.resetVerticalTemplate()
                 page.addVerticalTemplate(mytemplate)
                 registeredPoints, _, score = mytemplate.registration(page)
-#                 print page, states[i], mytemplate, registeredPoints, score, page.lFeatureForParsing
+#                 print ("??",page, states[i], mytemplate, registeredPoints, score, page.lFeatureForParsing)
                 if registeredPoints:
                     registeredPoints.sort(key=lambda x_y:x_y[1].getValue())
                     lcuts = list(map(lambda ref_cut:ref_cut[1],registeredPoints))
+                    print (page, score, lcuts)
 #                     print page, score, lcuts, map(lambda x:x.getWeight(), lcuts),registeredPoints
 #                     print '\t', page.lFeatureForParsing,map(lambda x:x.getWeight(), page.lFeatureForParsing)
 
@@ -1512,6 +1538,7 @@ class pageVerticalMiner(Component.Component):
         for line in page.getAllNamedObjects(XMLDSTEXTClass):
 #             print line, lRegions
             myReg= line.bestRegionsAssignment(lRegions)
+#             print (line,myReg)
             if myReg:
                 myReg.addObject(line)
 #                 line.getNode().unlinkNode()
@@ -1572,10 +1599,10 @@ class pageVerticalMiner(Component.Component):
                         lRegions.append(newReg)
                         prevcut  = cut.getValue()
                 
-                if lRegions != []:
-                    if self.bIgnoreRegions:
-                        self.deleteRegions(page)
-                    self.storeLineInRegions(page,lRegions)
+#                 if lRegions != []:
+#                     if self.bIgnoreRegions:
+#                         self.deleteRegions(page)
+#                     self.storeLineInRegions(page,lRegions)
     
     def tagDomAsTable(self,lPages):
         """
@@ -1597,20 +1624,30 @@ class pageVerticalMiner(Component.Component):
                     page.getNode().append(tableNode) 
                     page.getdVSeparator(template).sort(key=lambda x:x.getValue())
 #                     print page.getdVSeparator(template)
-                    prevcut=0
+                    prevcut=1
+                    lCells = []
                     for i,cut in enumerate(page.getdVSeparator(template)):
+                        newCell= XMLDSTABLECELLClass()
                         cellNode  = etree.Element('CELL')
                         cellNode.set("x",str(prevcut))
-                        cellNode.set("y",'0')
-                        cellNode.set("irow","0")
-                        cellNode.set("icol",str(i))
+                        cellNode.set("y",'1')
+                        cellNode.set("row","0")
+                        cellNode.set("col",str(i))
                         cellNode.set("height",str(page.getHeight()))
                         cellNode.set("width", str(cut.getValue() - prevcut))                            
-#                         cellNode.set('points', '%f,%f,%f,%f,%f,%f,%f,%f'%(cut,0, cut.getValue(),0 ,cut.getValue(),page.getHeight(),cut,page.getHeight()))
+                        cellNode.set('points', '%f,%f,%f,%f,%f,%f,%f,%f'%(prevcut,1, cut.getValue(),1 ,cut.getValue(),page.getHeight(),prevcut,page.getHeight()))
+                        newCell.setNode(cellNode)
+                        newCell.fromDom(cellNode)
                         tableNode.append(cellNode)
-                        prevcut  = cut.getValue()      
-            
-            
+                        lCells.append(newCell)
+#                         print (newCell.getX(),newCell.getWidth(),newCell.getY(),newCell.getHeight()),
+#                         newCell.setDimensions(prevcut,1, page.getHeight()-2 * 1,cut.getValue() - prevcut)
+
+                        prevcut  = cut.getValue()   
+      
+                    if lCells != []:
+                        self.storeLineInRegions(page,lCells)
+                    
     def testCliping(self,lPages):
         """
             all in the name
@@ -1717,7 +1754,8 @@ class pageVerticalMiner(Component.Component):
             chronoOn()
             # first mine page size!!
             ## if width is not the 'same' , then  initial values are not comparable (x-end-ofpage)
-            lSubPagesList = self.highLevelSegmentation(self.lPages)
+#             lSubPagesList = self.highLevelSegmentation(self.lPages)
+            lSubPagesList = [self.lPages]
             ## need to regroup similar 
              
 #             self.arrayApproach(lSubPagesList)
@@ -1903,6 +1941,8 @@ class pageVerticalMiner(Component.Component):
             for page in lpages:
                 if page.get('reftemplate'):
                     lRun.append(eval(page.get('reftemplate')))
+                else:
+                    lRun.append([])
 
         lRef = []
         lPages = RefData.xpath('//%s' % ('PAGE'))
@@ -1910,7 +1950,7 @@ class pageVerticalMiner(Component.Component):
             if page.get('reftemplate'):
                 lRef.append(eval(page.get('reftemplate')))
             else: lRef.append([])
- 
+
         ltisRefsRunbErrbMiss= list()
         for i in range(0,len(lRef)):
             lRefCovered = []

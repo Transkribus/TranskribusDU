@@ -11,31 +11,20 @@
     copyright Xerox 2017
     READ project 
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
     
     Developed  for the EU project READ. The READ project has received funding 
     from the European Union's Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
 """
-from __future__ import absolute_import
-from __future__ import  print_function
-from __future__ import unicode_literals
+
+
+
 
 import random
 
-from dataGenerator.generator import Generator
+from .generator import Generator
 
 """
      see http://www.southampton.ac.uk/~fangohr/blog/physical-quantities-numerical-value-with-units-in-python.html
@@ -49,9 +38,9 @@ from dataGenerator.generator import Generator
 class numericalGenerator(Generator):
     """
         generic numerical Generator
-    """   
+    """
     def __init__(self,mean,sd):
-        Generator.__init__(self,None)
+        Generator.__init__(self)
         self._name='num'
         self._mean = mean
         self._std= sd
@@ -70,11 +59,7 @@ class numericalGenerator(Generator):
         self._std = s
 
     def exportAnnotatedData(self,lLabels):
-        
-#         lLabels.append(self.getLabel())
-        for i,ltype  in enumerate(self.lClassesToBeLearnt):
-            if self.getName() in ltype:
-                lLabels[i]= self.getName()     
+        lLabels.append(self.getLabel())
         self._GT = [(self._generation,lLabels[:])]    
         return self._GT     
     

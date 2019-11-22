@@ -107,14 +107,11 @@ class tableRowMiner(Component.Component):
         feature.setType(featureObject.NUMERICAL)
         return feature
     
-    def columnMining(self,table,thnum, th,predefinedCuts=[]):
+    def columnMining(self,table,thnum, lth,predefinedCuts=[]):
         """
             for a table: take itemset=colmun, item=cell(Y) + separator
             - test: is a same rowgrid for all pages: row of fixed positions, size
 
-        separator
-        
-        
         PREPRO: get the Y of overlaping separators for each col
             
         """
@@ -127,7 +124,6 @@ class tableRowMiner(Component.Component):
 #             for c in elt.getCells():c.setHeight()
             elt.resetFeatures()
             elt.setFeatureFunction(elt.getSetOfListedAttributes,self.THNUMERICAL,lFeatureList=['y'],myLevel=XMLDSTABLECELLClass)
-
             ## add predefinedCuts here
             elt.computeSetofFeatures()
             for prevFea in predefinedCuts:
@@ -147,22 +143,20 @@ class tableRowMiner(Component.Component):
 #             
         lSortedFeatures = seqGen.featureGeneration(lElts,2)
 #         for f in lSortedFeatures:
-#             print ("%s\s%s"%(f, f.getNodes()))
+#             print ("%s s%s"%(f, [ x.getY() for x in sorted(f.getNodes(),key=lambda x:x.getX())]))
 
 
         lmaxSequence = seqGen.generateItemsets(lElts)
 #         for elt in lElts:
 #             print elt, elt.getCanonicalFeatures()
         lSeq, _ = seqGen.generateMSPSData(lmaxSequence,lSortedFeatures,mis = 0.5)
-        lOneSupport =self.testHighSupport(lSeq,th)
-        lOneSupport.sort(key = lambda x:x.getValue())
-        return lOneSupport
-        
-#         lTerminalTemplates=[]
-#         lCurList=lElts[:]
-#         lCurList,lTerminalTemplates = self.mineLineFeature(seqGen,lCurList,lTerminalTemplates)                  
-#         print lTerminalTemplates
-#         return
+        llSupport=[]
+        for th in lth:
+            lOneSupport =self.testHighSupport(lSeq,th)
+            lOneSupport.sort(key = lambda x:x.getValue())
+            llSupport.append(lOneSupport)
+#         return lOneSupport
+        return llSupport
 
 
     def mainMining(self,lPages):

@@ -4,6 +4,8 @@
 # JL Meunier - May 2004
 # Copyright XRCE, 2004
 #
+
+
 import sys
 
 global traceFD
