@@ -129,7 +129,7 @@ class TableRegion:
                     #add corner 
                     cornerNode = PageXml.createPageXmlNode("CornerPts")
                     cornerNode.text = "0 1 2 3"                    
-                    ndCell.append(ndCell)
+                    ndCell.append(cornerNode)
                     
                     for nd in lNdText: ndCell.append(nd)
                     
