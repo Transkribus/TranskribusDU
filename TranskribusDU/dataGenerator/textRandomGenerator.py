@@ -57,7 +57,7 @@ class textRandomGenerator(textGenerator):
     def noiseSplit(self):
         textGenerator.noiseSplit(self)
         
-class textletterstRandomGenerator(textRandomGenerator):
+class textletterRandomGenerator(textRandomGenerator):
     def generate(self):
         self._generation=""
         for i in range(int(round(random.gauss(self._length,self._std)))):
