@@ -103,6 +103,7 @@ class primaAnalysis(Component.Component):
 #         lList = sList.getContent().split(' ')
         lList = sList.split(' ')
 
+        
         for x,y in [x.split(',') for x in lList]:
             minx = min(minx,int(x))
             maxx = max(maxx,int(x))
@@ -149,8 +150,8 @@ class primaAnalysis(Component.Component):
 #             sp = lPoints[0].text.replace(' ',',')
             sp = lPoints[0].replace(' ',',')
             if sp != "":
-                scaledP=  map(lambda x: 72.0* float(x) / self.dpi,sp.split(','))
-                scaledP = str(list(scaledP))[1:-1].replace(' ','')
+                scaledP=  list(map(lambda x: 72.0* float(x) / self.dpi,sp.split(',')))
+                scaledP = " ".join(["%s,%s"%(x,y) for x,y in  zip(scaledP[0::2],scaledP[1::2])])
                 return scaledP
         else:
             return ""
@@ -202,13 +203,12 @@ class primaAnalysis(Component.Component):
 #             scaledP=None
 #             xpath  = "./a:Baseline/@%s" % ("points")
             lPoints = line.xpath("./x:Baseline/@%s"%'points',namespaces={'x':self.xmlns})
+            
             if lPoints!= []:
-#                 sp = lPoints[0].text.replace(' ',',')
                 sp = lPoints[0].replace(' ',',')
-
                 try:
                     scaledP =  list(map(lambda x: 72.0* float(x) / self.dpi,sp.split(',')))
-                    scaledP = str(scaledP)[1:-1].replace(' ','')
+                    scaledP = " ".join(["%s,%s"%(x,y) for x,y in  zip(scaledP[0::2],scaledP[1::2])])
                     node.set('blpoints',scaledP)
                     dsNode.append(node)
                 except IndexError: 
@@ -381,10 +381,10 @@ class primaAnalysis(Component.Component):
                     childname =etree.QName(child.tag).localname
 #                     lPoints = child.xpath("./{%s}Coords/@%s" % (self.xmlns,"points"))
                     lPoints = child.xpath("./x:Coords/@points", namespaces={"x":self.xmlns})
-                    if childname =="Edge":
+                    if childname =="Edgex":
                         node = self.copyEdge(child)       
-                        dspage.append(node)             
-                    if lPoints !=[]:
+                        dspage.append(node)  
+                    if lPoints !=[''] and lPoints !=[]:
                         [x,y,h,w] = self.regionBoundingBox(lPoints[0])
                         xp,yp,hp,wp  = map(lambda x: 72.0* x / self.dpi,(x,y,h,w))
                         if childname == "TextRegion":
