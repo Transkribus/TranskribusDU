@@ -28,6 +28,7 @@ from .XMLDSTableRowClass import XMLDSTABLEROWClass
 from config import ds_xml_def as ds_xml
 
 import numpy as np
+from ObjectModel import XMLDSCELLClass
 
 class  XMLDSTABLEClass(XMLDSObjectClass):
     """
@@ -384,6 +385,16 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         if self.getRows() == []:
             self.buildRowFromCells()
         lce=[]
+        
+        lindex = [(irow,icol) for irow in range(self.getNbRows())  for icol in range(self.getNbColumns()) ]
+        lindexCells = [cell.getIndex() for cell in self.getCells()]
+        for index  in lindex:
+            if index not in lindexCells:
+                #create empt cell
+                cell= XMLDSTABLECELLClass()
+                cell.setIndex(index[0],index[1])
+                self.addCell(cell)
+        self.buildRowFromCells()
         [lce.append(cell) for row in self.getRows() for cell in row.getCells()]
         self._npcells = np.array(lce,dtype=object)
         self._npcells = self._npcells.reshape(self.getNbRows(),self.getNbColumns())
