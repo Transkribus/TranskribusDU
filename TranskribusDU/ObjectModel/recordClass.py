@@ -384,7 +384,9 @@ class KerasTagger(taggerClass):
         if documentObject.getContent() is None:
             return []
         if self.myTagger.bMultiType:
-            res = self.myTagger.predict_multiptype([documentObject.getContent()])
+            # uglu: chutt:
+            content =documentObject.getContent().replace('Jäner','Januar')
+            res = self.myTagger.predict_multiptype([content])
         else:
 #             res = self.myTagger.predict([documentObject.getContent().replace('.','')])
             res = self.myTagger.predict([documentObject.getContent()])
