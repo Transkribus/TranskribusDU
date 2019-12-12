@@ -151,7 +151,7 @@ class IETest(Component.Component):
                             try:lColInvName[field.getName()].append(cell.getIndex()[1])
                             except: lColInvName[field.getName()] = [cell.getIndex()[1]]
                             if self.bDebug: print ('foundXX:',field.getName(), field.getValue())
-            cell.resetField()       
+            cell.resetFields()       
         return max(lColInvName['firstname'],key=lColInvName['firstname'].count)       
 
 
