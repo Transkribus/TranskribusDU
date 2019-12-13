@@ -405,7 +405,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
                 cell.setIndex(index[0],index[1])
                 self.addCell(cell)
         self.buildRowFromCells()
-        self.displayPerRow()
+#         self.displayPerRow()
         # sort them !!
         for row in self.getRows():
             row.getCells().sort(key=(lambda x:x.getIndex()[1]))
@@ -503,6 +503,6 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         self.buildRowFromCells()
 #         print  (self.getNbRows(), self.getNbColumns())
         self.getCellsbyRow()
-        print  (self.getNbRows(), self.getNbColumns(), len(self.getCells()))
+#         print  (self.getNbRows(), self.getNbColumns(), len(self.getCells()))
 #        self.displayPerRow()
 #         print  (self.getNbRows(), self.getNbColumns())

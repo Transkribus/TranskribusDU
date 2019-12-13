@@ -148,11 +148,14 @@ class recordClass(object):
                     score -=1
             
         return score
-                
+            
+            
+    def applyTaggerOnList(self,l):
+        return self.tagger.runMeOnList(l)                
+    
     def applyTaggers(self,o):
         lres=[]
         res= self.tagger.runMe(o)
-        ## assume one sample!  (.proedict assume  a  list of content)
         if res != []:
             try:lres.extend(res[0])
             except IndexError: print(res)
@@ -275,6 +278,7 @@ class fieldClass(object):
         self._lTaggers.append(t)
     def getTaggers(self):return self._lTaggers
     
+    
     def applyTaggers(self,o):
         lres=[]
         for t in self.getTaggers():
@@ -373,6 +377,26 @@ class KerasTagger(taggerClass):
         self.myTagger.bAttentionLayer = sModelName[-3:] == 'att'
         self.myTagger.dirName = dirName        
         self.myTagger.loadModels()
+
+
+    def runMeOnList(self,ldocumentObject):
+        '''
+            delete '.' because of location in GT
+        '''
+#         res = self.myTagger.predict([documentObject.getContent()])
+#         return res
+    
+        lInput = [docO.getContent() if docO.getContent() is not None else "" for docO in ldocumentObject]
+        # ugly: chutt:
+        [o.replace('Jäner','Januar') for o in lInput]
+        [o.replace('Janer','Januar') for o in lInput]
+
+        if self.myTagger.bMultiType:
+            res = self.myTagger.predict_multiptype(lInput)
+        else:
+            res = self.myTagger.predict(lInput)
+
+        return res
     
     def runMe(self,documentObject):
         '''

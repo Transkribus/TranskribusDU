@@ -173,7 +173,7 @@ class IETest(Component.Component):
               
             
         """
-        self.bDebug = True
+        self.bDebug = False
         table.buildNDARRAY()
 
         if lTemplate is not None:
@@ -183,16 +183,14 @@ class IETest(Component.Component):
             template.labelTable(table)
         else: return None
         
-        for cell in table.getCells():
-            print (cell.getIndex(), cell.getFields())        
-        
         #tag fields with template
         for cell in table.getCells():
             if cell.getFields() != []:
                 if self.bDebug:print(table.getPage(),cell.getIndex(), cell.getFields(), cell.getContent())
+            res = myRecord.applyTaggers(cell)
             for field in cell.getFields():
                 if field is not None:
-                    res = field.applyTaggers(cell)
+#                     res = field.applyTaggers(cell)
                     # res [ (token,label,score) ...]
                     extractedValues = field.extractLabel(res)
                     if extractedValues != []:
@@ -285,7 +283,7 @@ class IETest(Component.Component):
              take a couple pages and perform IE: simply sum up the score of the tagger
              
         """
-    def     processWithTemplate(self,table,dr):
+    def processWithTemplate(self,table,dr):
         """
             according to the # of columns, apply the corresponding template 
         """
@@ -335,8 +333,8 @@ class IETest(Component.Component):
             assuming IE and htr info are stored in the template
         
         """
-        self.firstPage = 154
-        self.lastPage= 154
+        #self.firstPage = 154
+        #self.lastPage= 154
         
         if self.page2DS:
             dsconv = primaAnalysis()

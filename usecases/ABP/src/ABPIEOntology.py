@@ -181,6 +181,13 @@ class deathRecord(recordClass):
         drField.setLabelMapping(['lastNameGenerator'])  #lastNameGenerator
         self.addField(drField)  
     
+        drField = PriestField()
+        drField.addTagger(myTagger)
+        drField.setLabelMapping(['lastNameGenerator'])
+        drField.setMandatory()
+        self.addField(drField)    
+    
+    
 #     def decoratePageXml(self):
 #         """
 #             ONGOING....
@@ -335,6 +342,11 @@ class situationField(fieldClass):
 
 class doktorField(fieldClass):
     sName='doktor'
+    def __init__(self):
+        fieldClass.__init__(self, doktorField.sName) 
+
+class PriestField(fieldClass):
+    sName='priest'
     def __init__(self):
         fieldClass.__init__(self, doktorField.sName) 
 
