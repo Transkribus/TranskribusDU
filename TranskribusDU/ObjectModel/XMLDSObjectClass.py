@@ -79,7 +79,7 @@ class  XMLDSObjectClass(XMLObjectClass):
     
     
     def resizeMe(self,objectType):
-        assert len(self.getAllNamedObjects(objectType)) != 0
+        if len(self.getAllNamedObjects(objectType)) != 0: return
         
         minbx = 9e9
         minby = 9e9
@@ -91,7 +91,8 @@ class  XMLDSObjectClass(XMLObjectClass):
                 if elt.getY() < minby: minby = elt.getY()
                 if elt.getX() + elt.getWidth() > maxbx: maxbx = elt.getX() + elt.getWidth()
                 if elt.getY() + elt.getHeight()  > maxby: maxby = elt.getY() + elt.getHeight()
-        assert minby != 9e9
+        #assert minby != 9e9
+        if minby == 9e9:return
         self.addAttribute('x', minbx)
         self.addAttribute('y', minby)
         self.addAttribute('width', maxbx-minbx)

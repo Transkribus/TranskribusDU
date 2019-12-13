@@ -151,7 +151,7 @@ class IETest(Component.Component):
                             try:lColInvName[field.getName()].append(cell.getIndex()[1])
                             except: lColInvName[field.getName()] = [cell.getIndex()[1]]
                             if self.bDebug: print ('foundXX:',field.getName(), field.getValue())
-            cell.resetFields()       
+                cell.resetFields()       
         return max(lColInvName['firstname'],key=lColInvName['firstname'].count)       
 
 
@@ -173,14 +173,18 @@ class IETest(Component.Component):
               
             
         """
-        self.bDebug = False
+        self.bDebug = True
         table.buildNDARRAY()
+
         if lTemplate is not None:
             # convert string to tableTemplateObject
             template = tableTemplateClass()
             template.buildFromPattern(lTemplate)
             template.labelTable(table)
         else: return None
+        
+        for cell in table.getCells():
+            print (cell.getIndex(), cell.getFields())        
         
         #tag fields with template
         for cell in table.getCells():
@@ -266,19 +270,6 @@ class IETest(Component.Component):
 
 
 
-    def htrWithTemplate(self,table,template,htrModelId):
-        """
-            perform an HTR with dictionaries specific to each column
-            
-            need: docid, pageid
-        """
-        
-        # for the current column: need to get tablecells ids
-        # more efficient(?why more efficient?) to have it at column level: not cell ; so just after table template tool
-        for col in table.getColumns():
-            lCellsID = map(lambda x:x.getID(),col.getCells())
-            for id in lCellsID: print(id)
-            
         
     
     def mineTable(self,tabel,dr):
@@ -303,24 +294,6 @@ class IETest(Component.Component):
         
         # find calibration column: abp_names  
         table.buildNDARRAY()
-#         print (self.findNameColumn(table))
-#         lTemplateIE2 = [
-#              ((slice(1,None),slice(0,1))  ,[ 'numbering'],[ dr.getFieldByName('numbering') ])
-#             , ((slice(1,None),slice(1,2))  ,[ 'abp_names', 'names_aux','numbering','religion'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname'),dr.getFieldByName('religion')  ])
-#             , ((slice(1,None),slice(2,3)) ,[ 'abp_profession','religion' ]        ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
-#             , ((slice(1,None),slice(3,4))  ,[ 'abp_location' ]                    ,[ dr.getFieldByName('location') ]) 
-#             , ((slice(1,None),slice(4,5)) ,[ 'abp_family' ]                       ,[ dr.getFieldByName('situation') ])
-#              ,((slice(1,None),slice(5,6)) ,[ 'deathreason','artz']                ,[ dr.getFieldByName('deathreason'),dr.getFieldByName('doktor')])
-#             , ((slice(1,None),slice(6,7)) ,[]                                     , [ ])  #binding
-#             , ((slice(1,None),slice(7,8)) ,['abp_dates', 'abp_dates' ,'abp_year']                        ,[,dr.getFieldByName('deathDate'),dr.getFieldByName('deathYear') ])
-#             , ((slice(1,None),slice(8,9)) ,[ 'abp_dates','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('burialLocation') ])
-#             , ((slice(1,None),slice(9,10)) ,[ 'abp_age','abp_ageunit']                           ,[ dr.getFieldByName('age'), dr.getFieldByName('ageUnit')])
-# #            , ((slice(1,None),slice(9,10)) ,[ dr.getFieldByName('priester')])
-# #            , ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
-#            ]      
-        
-
-
  
          #fuzzy 
         lTemplateIECAL = [  
@@ -336,50 +309,21 @@ class IETest(Component.Component):
         iRef = self.findNameColumn(table,dr)
         print ("=============",iRef)
         lTemplateIE = [  
-             ((slice(1,None),slice(iRef,iRef+1))  ,[ 'abp_names', 'names_aux','numbering','religion'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')])
-            , ((slice(1,None),slice(iRef+1,iRef+2)) ,[ 'abp_profession','religion' ]        ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
-            , ((slice(1,None),slice(iRef+2,iRef+3))  ,[ 'abp_location' ]                    ,[ dr.getFieldByName('location') ]) 
-            , ((slice(1,None),slice(iRef+3,iRef+4)) ,[ 'abp_family' ]                       ,[ dr.getFieldByName('situation') ])
-            #[] binding
-            # 4 6
-            # 5 7
-            # 6 8
-            , ((slice(1,None),slice(iRef+4,iRef+6)) ,[ 'abp_deathreason','artz']                ,[ dr.getFieldByName('deathreason'),dr.getFieldByName('doktor')])
-            , ((slice(1,None),slice(iRef+5,iRef+9)) ,[ 'abp_dates','abp_year' ]                        ,[ dr.getFieldByName('MonthDayDateGenerator'), dr.getFieldByName('deathDate') ,dr.getFieldByName('deathYear')])
-            , ((slice(1,None),slice(iRef+6,iRef+9)) ,[ 'abp_dates','abp_year','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('deathYear'),dr.getFieldByName('burialLocation') ])
-            , ((slice(1,None),slice(iRef+8,iRef+10)) ,[ 'abp_age','abp_ageunit']                       ,[ dr.getFieldByName('age'), dr.getFieldByName('ageUnit')])
-#            , ((slice(1,None),slice(9,10)) ,[ dr.getFieldByName('priester')])
-#            , ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
+             ((slice(1,None),slice(iRef,iRef+1))    ,[ 'abp_names', 'names_aux','numbering','religion']  ,[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')])
+            , ((slice(1,None),slice(iRef+1,iRef+2)) ,[ 'abp_profession','religion' ]                     ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
+            , ((slice(1,None),slice(iRef+2,iRef+3)) ,[ 'abp_location' ]                                  ,[ dr.getFieldByName('location') ]) 
+            , ((slice(1,None),slice(iRef+3,iRef+4)) ,[ 'abp_family' ]                                    ,[ dr.getFieldByName('situation') ])
+            , ((slice(1,None),slice(iRef+4,iRef+6)) ,[ 'abp_deathreason','artz']                         ,[ dr.getFieldByName('deathreason'),dr.getFieldByName('doktor')])
+            , ((slice(1,None),slice(iRef+5,iRef+9)) ,[ 'abp_dates','abp_year' ]                          ,[ dr.getFieldByName('MonthDayDateGenerator'), dr.getFieldByName('deathDate') ,dr.getFieldByName('deathYear')])
+            , ((slice(1,None),slice(iRef+6,iRef+9)) ,[ 'abp_dates','abp_year','abp_location' ]           ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('deathYear'),dr.getFieldByName('burialLocation') ])
+            , ((slice(1,None),slice(iRef+8,iRef+10)),[ 'abp_age','abp_ageunit']                          ,[ dr.getFieldByName('age'), dr.getFieldByName('ageUnit')])
+            , ((slice(1,None),slice(iRef+9,iRef+10)),[ 'abp_priester']                                   ,[ dr.getFieldByName('lastname') ])
+            #, ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
            ]        
         
-        lTemplateIE = [  
-             ((slice(1,None),slice(0,1))  ,[ 'abp_names', 'names_aux','numbering','religion'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')])
-            , ((slice(1,None),slice(1,2)) ,[ 'abp_profession','religion' ]        ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
-            , ((slice(1,None),slice(2,3))  ,[ 'abp_location' ]                    ,[ dr.getFieldByName('location') ]) 
-            , ((slice(1,None),slice(3,4)) ,[ 'abp_family' ]                       ,[ dr.getFieldByName('situation') ])
-            #[] binding
-            , ((slice(1,None),slice(4,6)) ,[ 'deathreason','artz']                ,[ dr.getFieldByName('deathreason'),dr.getFieldByName('doktor')])
-            , ((slice(1,None),slice(6,7)) ,[ 'abp_dates' ]                        ,[ dr.getFieldByName('deathDate') ])
-            , ((slice(1,None),slice(7,8)) ,[ 'abp_dates','abp_location' ]         ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('burialLocation') ])
-            , ((slice(1,None),slice(8,9)) ,[ 'abp_age']                           ,[ dr.getFieldByName('age')])
-#            , ((slice(1,None),slice(9,10)) ,[ dr.getFieldByName('priester')])
-#            , ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
-           ]
         
+        self.extractData(table,dr,lTemplateIE)
         
-        
-#         lTemplate = lTemplateIE
-        if table.getNbColumns() == 12:
-            lTemplate = lTemplateIE2
-        else:
-            lTemplate = lTemplateIE
-        
-#         if self.htrModelID is not None: self.htrWithTemplate(table, lTemplate, self.htrModelID)
-        
-        self.extractData(table,dr,lTemplate)
-        
-        # select best solutions
-        # store inthe proper final format
         return dr 
     
 
@@ -391,8 +335,8 @@ class IETest(Component.Component):
             assuming IE and htr info are stored in the template
         
         """
-#         self.firstPage = 9
-#         self.lastPage= 9
+        self.firstPage = 154
+        self.lastPage= 154
         
         if self.page2DS:
             dsconv = primaAnalysis()
@@ -409,7 +353,7 @@ class IETest(Component.Component):
         ### 
         
         for page in self.lPages:
-#             print("page: ", page.getNumber())
+            print("page: ", page.getNumber())
 #             self.testGTText(page)
 #             continue
             lTables = page.getAllNamedObjects(XMLDSTABLEClass)
@@ -419,6 +363,7 @@ class IETest(Component.Component):
                     print ("page: %s : not a table? %d/%d"%(page.getNumber(),table.getNbRows(),table.getNbColumns()))
                     continue
                 if self.BuseStoredTemplate:
+                    print ("page: %s : table %d/%d"%(page.getNumber(),table.getNbRows(),table.getNbColumns()))
                     self.processWithTemplate(table, dr)
                 else:
                     self.mineTable(table,dr)

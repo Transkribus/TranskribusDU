@@ -37,7 +37,7 @@ class  XMLDSGRAPHLINEClass(XMLDSObjectClass):
             points= x,y,x,y,x,y
         """
         if self.lPoints is None:
-            self.lPoints = self.getAttribute('points')
+            self.lPoints = self.getAttribute('points').replace(' ',',')
 #             print 'after split?',self.lPoints
         if self.lPoints is not None:
             lX = list(map(lambda x:float(x),self.lPoints.split(',')))[0::2]
