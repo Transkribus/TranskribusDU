@@ -102,7 +102,12 @@ def processDS(infile):
         lDCur=[]
         lDInNext = []
         for d in  lAllPages[i]:
+            # same as previous and same as next
             # same as previous
+            #[1847, 1877] [1847, 1877] [1847, 1877] [1847]
+            # -> add more weight 
+            if d in lAllPages[i-1] and i < len(lAllPages)-1 and d in lAllPages[i+1]:
+                lDCur.append(d)
             if d in lAllPages[i-1]:
                 lDInPrev.append(d)
                 lDCur.append(d)
@@ -110,15 +115,16 @@ def processDS(infile):
             if int(d)-1 in lDInPrev:
                 lDCur.append(d)
             # same as next
-            if d in lAllPages[i+1]:
+            if int(d)-1 in lDInPrev:
                 lDInNext.append(d)
             # next year in next page
             if int(d)+1 in lDInNext:
                 lDCur.append(d)
                 lDInNext.append(int(d)+1)                
-        print (i, lDCur,lDInPrev,lDInNext)
+#         print (i,lAllPages[i], lDCur,lDInPrev,lDInNext)
         if lDCur != []:
             year = max(set(lDCur), key = lDCur.count)
+            print (i,year,curyear)
             if  int(year) >=curyear:
                 print (i,year)
                 ltr[i].set('computedyear',str(year))
@@ -128,7 +134,8 @@ def processDS(infile):
 #     print (infile,len(lAllPages),pok)
 
 
-    et.write(infile+".year")
+#     et.write(infile+".year")
+    et.write(infile)
 
 def addAllFields(record):
         """
