@@ -27,14 +27,14 @@ class  XMLDSTABLECOLUMNClass(XMLDSObjectClass):
     """
         Column class
     """
-    name = ds_xml.sCOL_Elt
+    name = 'COL'
     def __init__(self,index=None,domNode = None):
         XMLDSObjectClass.__init__(self)
         XMLDSObjectClass.id += 1
         self._domNode = domNode
         self._index= index
         self._lcells=[]
-        self.tagName= 'COL'
+        self.tagName= XMLDSTABLECOLUMNClass.name
         self.setName(XMLDSTABLECOLUMNClass.name)
     
     def __repr__(self):

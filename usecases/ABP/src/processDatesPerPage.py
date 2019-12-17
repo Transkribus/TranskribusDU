@@ -124,12 +124,14 @@ def processDS(infile):
 #         print (i,lAllPages[i], lDCur,lDInPrev,lDInNext)
         if lDCur != []:
             year = max(set(lDCur), key = lDCur.count)
-            print (i,year,curyear)
+#             print (i,year,curyear)
             if  int(year) >=curyear:
-                print (i,year)
+#                 print (i,year)
                 ltr[i].set('computedyear',str(year))
                 curyear=year
-            
+                pok+=1
+    
+    print(f"{infile}\tNB OK {pok} / {len(lAllPages)}")
                 
 #     print (infile,len(lAllPages),pok)
 

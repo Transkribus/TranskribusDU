@@ -37,12 +37,13 @@ class  XMLDSGRAPHLINEClass(XMLDSObjectClass):
             points= x,y,x,y,x,y
         """
         if self.lPoints is None:
-            self.lPoints = self.getAttribute('points').replace(' ',',')
+            self.lPoints = self.getAttribute('points')
 #             print 'after split?',self.lPoints
         if self.lPoints is not None:
-            lX = list(map(lambda x:float(x),self.lPoints.split(',')))[0::2]
-            lY = list(map(lambda x:float(x),self.lPoints.split(',')))[1::2]
-            self.lPoints = zip(lX,lY)
+            lX=[float(x) for p in self.lPoints.split(' ') for x in p.split(',')[0::2]]
+#             lX = list(map(lambda x:float(x),self.lPoints.split(',')))[0::2]
+            lY = [float(x) for p in self.lPoints.split(' ') for x in p.split(',')[1::2]]
+            self.lPoints = list(zip(lX,lY))
             try:
                 self.avgY = 1.0 * sum(lY)/len(lY)
             except ZeroDivisionError:
@@ -58,10 +59,6 @@ class  XMLDSGRAPHLINEClass(XMLDSObjectClass):
 #             self.setAngle(a)
 #             ymax = a * self.getX2() +b
 #             ymin = a*self.getX() + b
-#             import libxml2
-#             verticalSep  = libxml2.newNode('PAGEBORDER')
-#             verticalSep.setProp('points', '%f,%f,%f,%f'%(self.getX(),ymin,self.getX2(),ymax))         
-#             self.getParent().getNode().addChild(verticalSep)
             
     """
         TO simulate 'DS' objects
@@ -79,6 +76,7 @@ class  XMLDSGRAPHLINEClass(XMLDSObjectClass):
     
     
     def setPoints(self,lp): self.lPoints = lp
+    def getPoints(self): return self.lPoints 
     
     def fromDom(self,domNode):
         """

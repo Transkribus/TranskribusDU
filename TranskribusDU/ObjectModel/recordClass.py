@@ -388,9 +388,8 @@ class KerasTagger(taggerClass):
     
         lInput = [docO.getContent() if docO.getContent() is not None else "" for docO in ldocumentObject]
         # ugly: chutt:
-        [o.replace('Jäner','Januar') for o in lInput]
-        [o.replace('Janer','Januar') for o in lInput]
-
+        lInput = [o.replace('Jäner','Januar') for o in lInput]
+        lInput = [o.replace('Janer','Januar') for o in lInput]
         if self.myTagger.bMultiType:
             res = self.myTagger.predict_multiptype(lInput)
         else:
