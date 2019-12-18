@@ -28,6 +28,7 @@ from .XMLDSTableRowClass import XMLDSTABLEROWClass
 from config import ds_xml_def as ds_xml
 
 import numpy as np
+from ObjectModel import XMLDSCELLClass
 
 class  XMLDSTABLEClass(XMLDSObjectClass):
     """
@@ -94,6 +95,8 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         self._nbRows= len(self.getRows())
         return  self._nbRows
     def getNbColumns(self):
+        #return len(self.getColumns())
+        #print (len(self.getColumns()),self._nbCols,self._nbCols is not None)
         if self._nbCols is not None: return self._nbCols
         self._nbCols = len(self.getColumns())
         return self._nbCols
@@ -102,6 +105,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
     def getRows(self): return self._lrows
     
     def addRow(self,row):
+#         print(row.getIndex(),len(self.getRows()))
         if len(self.getRows()) == row.getIndex():
             self._lrows.append(row)
         else:
@@ -276,20 +280,21 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
             Rowspan: create row
         """
         self._lrows=[]
-        
+        self._lrows= [XMLDSTABLEROWClass(i) for i in range(self.getNbRows())]
         self.getCells().sort(key=(lambda x:x.getIndex()[0]))
         for cell in self.getCells():
             irow,_= cell.getIndex()
 #             rowSpan = int(cell.getAttribute('rowSpan'))
-                
-            try: row = self.getRows()[irow]
+#             print (irow)
+            try: 
+                row = self.getRows()[irow]
+                row.setPage(self.getPage())
             except IndexError:
                 row = XMLDSTABLEROWClass(irow)
                 row = self.addRow(row)
                 if row is not None:
                     row.setPage(self.getPage())
             if row is not None:row.addCell(cell)
-        
         
         for row in self.getRows():
             row.resizeMe(XMLDSTABLECELLClass)
@@ -300,10 +305,12 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
             build column objects and 2dzones  from cells
         """
         self.getCells().sort(key=(lambda x:x.getIndex()[1]))
-        self._lcolumns= []
+        self._lcolumns= [XMLDSTABLECOLUMNClass(i) for i in range(self.getNbColumns())]
         for cell in self.getCells():
             _,jcol= cell.getIndex()
-            try: col = self.getColumns()[jcol]
+            try: 
+                col = self.getColumns()[jcol]
+                col.setPage(self.getPage())
             except IndexError:
                 col = XMLDSTABLECOLUMNClass(jcol)
                 col = self.addColumn(col)
@@ -311,7 +318,6 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
 #                 print col.getPage(), self.getPage()
             if col is not None:col.addCell(cell)
             
-#         print self.getColumns()
         
         for col in self.getColumns():
             col.resizeMe(XMLDSTABLECELLClass)
@@ -330,7 +336,7 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         self.getCells().sort(key=(lambda x:x.getIndex()[0]))
         for cell in self.getCells():
             # create new non-spanned cell if needed
-#             print cell, cell.getRowSpan(), cell.getColSpan()
+#             print (cell, cell.getRowSpan(), cell.getColSpan())
             iRowSpan = 1
             while iRowSpan < cell.getRowSpan():
 #                 print 'row:', cell, cell.getRowSpan(),iRowSpan
@@ -369,6 +375,10 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
 #                 print '\tnex col cell:',newCell, iColSpan+1, cell.getColSpan()
                 iColSpan +=1
 #         print '-- nb cells:', len(self.getCells())
+
+        self._nbCols = max(c.getIndex()[1] for c in self.getCells())+1
+        self._nbRows = max(c.getIndex()[0] for c in self.getCells())+1
+
         
     def assignElementsToCells(self):
         """
@@ -384,9 +394,27 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         if self.getRows() == []:
             self.buildRowFromCells()
         lce=[]
-        [lce.append(cell) for row in self.getRows() for cell in row.getCells()]
+        
+#         self.displayPerRow()
+        lindex = [(irow,icol) for irow in range(self.getNbRows())  for icol in range(self.getNbColumns()) ]
+        lindexCells = [cell.getIndex() for cell in self.getCells()]
+        for index  in lindex:
+            if index not in lindexCells:
+#                 print (f'added: {index[0]} {index[1]}')
+                cell= XMLDSTABLECELLClass()
+                cell.setIndex(index[0],index[1])
+                self.addCell(cell)
+        self.buildRowFromCells()
+#         self.displayPerRow()
+        # sort them !!
+        for row in self.getRows():
+            row.getCells().sort(key=(lambda x:x.getIndex()[1]))
+            for cell in row.getCells():
+                lce.append(cell)
+        #[lce.append(cell) for row in self.getRows() for cell in row.getCells()]
         self._npcells = np.array(lce,dtype=object)
         self._npcells = self._npcells.reshape(self.getNbRows(),self.getNbColumns())
+    
     
     
     def getNPArray(self):
@@ -458,19 +486,23 @@ class  XMLDSTABLEClass(XMLDSObjectClass):
         
         ldomElts = domNode.findall('./%s'%(ds_xml.sCELL))
         for elt in ldomElts:
-            myObject= XMLDSTABLECELLClass(elt)
-            self.addCell(myObject)
-            myObject.setPage(self.getPage())
-            myObject.fromDom(elt)   
+            #path 
+            if int(elt.get('col')) >=0 and int(elt.get('row')) >0:
+                myObject= XMLDSTABLECELLClass(elt)
+                self.addCell(myObject)
+                myObject.setPage(self.getPage())
+                myObject.fromDom(elt)   
         
         self._lspannedCells = self._lcells[:]
         
-        self.buildColumnRowFromCells()
-        self.buildColumnFromCells()
-        self.buildRowFromCells()
-        self.getCellsbyRow()
-#         self.displayPerRow()
-#         print  self.getNbRows(), self.getNbColumns()
         
-    
-    
+        self.buildColumnRowFromCells()
+#         print  (self.getNbRows(), self.getNbColumns())
+        self.buildColumnFromCells()
+#         print  (self.getNbRows(), self.getNbColumns())
+        self.buildRowFromCells()
+#         print  (self.getNbRows(), self.getNbColumns())
+        self.getCellsbyRow()
+#         print  (self.getNbRows(), self.getNbColumns(), len(self.getCells()))
+#        self.displayPerRow()
+#         print  (self.getNbRows(), self.getNbColumns())

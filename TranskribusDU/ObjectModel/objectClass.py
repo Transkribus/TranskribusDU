@@ -164,7 +164,8 @@ class  objectClass(sequenceAPI):
             return None
         else:
             return lName[0]
-        
+    
+    def resetFields(self): self._lFields=[]
     def getFields(self): return self._lFields
     def getAllFields(self):
         lF=self._lFields
