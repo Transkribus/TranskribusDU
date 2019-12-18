@@ -146,7 +146,7 @@ class GraphBinaryConjugateSegmenter(GraphConjugateSegmenter):
         for i, edge in enumerate(lEdges):
             #type(edge) in [HorizontalEdge, VerticalEdge]:
             #cls = Y[i]
-            dEdges[ Y[i] ] [(edge.A,edge.B)]= Y_proba[i,  Y[i]]
+            dEdges[ Y[i] ] [(edge.A._index,edge.B._index)]= Y_proba[i,  Y[i]]
         return dEdges
     
     def distance(self,c1,c2,relmat):
@@ -157,6 +157,7 @@ class GraphBinaryConjugateSegmenter(GraphConjugateSegmenter):
         """
         iBad = 0
         iOK  = 0
+		
         for p in c1:
             for pp in c2:
                 try: 
@@ -184,7 +185,6 @@ class GraphBinaryConjugateSegmenter(GraphConjugateSegmenter):
             for j,c2 in enumerate(lc[i+1:]):
                 dist = self.distance(c,c2,relmat)
                 if dist != (0,0):
-    #                 print(c,c2,dist)
                     if dist[0] > dist[1]:
                         lDist[(i,i+j+1)] = dist[0] - dist[1]
         # sort 
@@ -200,11 +200,11 @@ class GraphBinaryConjugateSegmenter(GraphConjugateSegmenter):
                 else:
                     lSeen.append(lc[a])
                     lSeen.append(lc[b])
-                    lc[a].extend(lc[b][:])
+                    lc[a] = lc[a].union(lc[b])
                     ltbdel.append(lc[b])
-        [lc.remove(x) for x in ltbdel]
-        
-        
+        #for x in ltbdel 					
+        [lc.remove(x) for x in ltbdel if x in lc]
+                 
         return lc, ltbdel !=[] 
     
     
@@ -234,7 +234,7 @@ class GraphBinaryConjugateSegmenter(GraphConjugateSegmenter):
         """
             merge cluster as long as new clusters are created
         """
-        bGo=True
+        bGo=True;
         while bGo:
             lCluster,bGo = self.mergeCluster(lCluster,dEdges)
        
@@ -251,12 +251,10 @@ class GraphBinaryConjugateSegmenter(GraphConjugateSegmenter):
     
             return: set of clusters
         """
-        Y = Y_proba.argmax(axis=1)
-        ClusterList = self.connected_component(Y,fTH)
-       
+        ClusterList = self.connected_component(Y_proba[:,1],1-0.99)
+         
         dEdges = self.getEdges(self.lEdge,Y_proba)
         lCluster = self.clusterPlus(ClusterList,dEdges)
-        
         return lCluster
     
 
