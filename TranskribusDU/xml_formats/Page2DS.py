@@ -105,10 +105,10 @@ class primaAnalysis(Component.Component):
 
         
         for x,y in [x.split(',') for x in lList]:
-            minx = min(minx,int(x))
-            maxx = max(maxx,int(x))
-            miny = min(miny,int(y))
-            maxy = max(maxy,int(y))
+            minx = min(minx,float(x))
+            maxx = max(maxx,float(x))
+            miny = min(miny,float(y))
+            maxy = max(maxy,float(y))
         return [minx,miny,maxy-miny,maxx-minx]
               
     def regionBoundingBox2010(self,lList):
@@ -350,7 +350,35 @@ class primaAnalysis(Component.Component):
             
         return dstable
 
+    def copyEdge(self,child):
+        """
+            <Edge DU_type="HorizontalEdge" w="1.000000" points="230,756 61,761"/>
+        """
+        node = etree.Element('EDGE')
+        node.set('src',child.get('src'))
+        node.set('tgt',child.get('tgt'))
+        node.set('type',child.get('type'))
+        node.set('w',child.get('proba'))
+        node.set('label',child.get('label'))
+        lPoints = child.get('points')
+        lP = lPoints.split(' ')
+        if lP != []:
+            scaledP=  [ list(map(lambda x: 72.0* float(x) / self.dpi , xy.split(','))) for xy in lP]
+            scaledP = " ".join([ "%.2f,%.2f"% (x,y) for (x,y) in scaledP])
+            node.set('points',scaledP)
+        return node
+    
+    def createCluster(self,child):
+        """
+        <Cluster name="9" algo="agglo" content="r21l9"><Coords points="4617,1722 5337,1697 5339,1747 4619,1773 4617,1722"/></Cluster>
 
+        """
+        clusterNode = self.createRegion(child)
+        clusterNode.tag = 'Cluster'
+        for attr in  ['name','algo','content']:
+            clusterNode.set(attr,child.get(attr)) 
+        return clusterNode
+        
     def createRegion(self,pnode):
         """
             create REGION
@@ -381,7 +409,7 @@ class primaAnalysis(Component.Component):
                     childname =etree.QName(child.tag).localname
 #                     lPoints = child.xpath("./{%s}Coords/@%s" % (self.xmlns,"points"))
                     lPoints = child.xpath("./x:Coords/@points", namespaces={"x":self.xmlns})
-                    if childname =="Edgex":
+                    if childname =="Edge":
                         node = self.copyEdge(child)       
                         dspage.append(node)  
                     if lPoints !=[''] and lPoints !=[]:
@@ -398,14 +426,15 @@ class primaAnalysis(Component.Component):
                                     self.getTextLineSubStructure(dspage,child)
                         elif childname == "Cluster":
                             #get type
-                            node = self.createRegion(child)
-                            node.tag = 'Cluster'
-                            if not self.bRef:
-                                if not self.bSkipRegion:
-                                    self.getTextLineSubStructure(node,child)
-                                else:
-                                    # no region
-                                    self.getTextLineSubStructure(dspage,child)
+                            node= self.createCluster(child)
+#                             node = self.createRegion(child)
+#                             node.tag = 'Cluster'
+#                             if not self.bRef:
+#                                 if not self.bSkipRegion:
+#                                     self.getTextLineSubStructure(node,child)
+#                                 else:
+#                                     # no region
+#                                     self.getTextLineSubStructure(dspage,child)
                         elif childname =="ImageRegion":
                             node = etree.Element("IMAGE")
                         elif childname =="LineDrawingRegion":
@@ -481,6 +510,8 @@ class primaAnalysis(Component.Component):
             imageHeight = 72 * (float(ipage.get("imageHeight")) / self.dpi)
             page.set("width",str(imageWidth))
             page.set("height",str(imageHeight))
+            page.set("imageWidth",str(imageWidth))
+            page.set("imageHeight",str(imageHeight))            
             self.convertPage(ipage, page)
                 
         self.addTagProcessToMetadata(dsdom)                 
@@ -520,6 +551,8 @@ class primaAnalysis(Component.Component):
                     imageHeight = 72 * (float(ipage.get("imageHeight")) / self.dpi)
                     page.set("width",str(imageWidth))
                     page.set("height",str(imageHeight))
+                    page.set("imageWidth",str(imageWidth))
+                    page.set("imageHeight",str(imageHeight))                       
                     imgNode = etree.Element("IMAGE")
                     imgNode.set("href",ipage.get("imageFilename"))
                     imgNode.set("x","0")
