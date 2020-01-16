@@ -22,6 +22,7 @@ from .XMLDSBASELINEClass import XMLDSBASELINEClass
 from .XMLDSGRAHPLINEClass import XMLDSGRAPHLINEClass
 from .XMLDSTABLEClass import XMLDSTABLEClass
 from .XMLDSCOLUMN import XMLDSCOLUMNClass
+from .XMLDSRelationClass import XMLDSRelationClass
 
 class  XMLDSPageClass(XMLDSObjectClass):
     """
@@ -51,7 +52,10 @@ class  XMLDSPageClass(XMLDSObjectClass):
         self._X1X2 = []
         self.lf_XCut = []
 
-        
+
+        # horizontal and vertical chunks built with element 'key'
+        self._dHC = {}
+        self._dVC = {}        
         
         ## list of vertical page zones Templates
         # by default: one column Template
@@ -98,17 +102,21 @@ class  XMLDSPageClass(XMLDSObjectClass):
         # get properties
         for  prop in domNode.keys():
             self.addAttribute(prop,domNode.get(prop))
-            
-#         ctxt = domNode.doc.xpathNewContext()
-#         ctxt.setContextNode(domNode)
-#         ldomElts = ctxt.xpathEval('./*')
-#         ctxt.xpathFreeContext()
+            if prop =='x': self._x= float(domNode.get(prop))
+            elif prop =='y': self._y = float(domNode.get(prop))
+            elif prop =='height': self._h = float(domNode.get(prop))
+            elif prop =='width': self.setWidth(float(domNode.get(prop)))            
         ldomElts = domNode.findall('./*')
         for elt in ldomElts:
             ### GT elt
             if elt.tag =='MARGIN':
                 elt = list(elt)[0]  #elt=elt.children
+            if elt.tag == 'EDGE':
+                myRel= XMLDSRelationClass()
+                self.addRelation(myRel)
+                myRel.fromDom(elt)
             if elt.tag in lEltNames:
+                #relationObject
                 if elt.tag == ds_xml_def.sCOL_Elt:
                     myObject= XMLDSCOLUMNClass(elt)
                     self.addObject(myObject)
@@ -150,7 +158,38 @@ class  XMLDSPageClass(XMLDSObjectClass):
             else:
                 pass
 
+    def reifyRelations(self):
+        """
+            what was read: ids: now replace ids by objects
+            
+        """
+        self.relmat={}
+        self.relmatH={}
+        self.relmatV={}
+        for rel in self.getRelations():
+            try: self.relmat[rel.getAttribute('label')]
+            except KeyError:self.relmat[rel.getAttribute('label')]={}
+            try: self.relmatH[rel.getAttribute('label')]
+            except KeyError:self.relmatH[rel.getAttribute('label')]={}            
+            srcid,tgtid = rel.getSourceId(), rel.getTargetId()
+            src = [ x for i,x in enumerate(self.getAllNamedObjects(XMLDSTEXTClass)) if x.getAttribute('id') == srcid]
+            tgt = [ x for i, x in enumerate(self.getAllNamedObjects(XMLDSTEXTClass)) if x.getAttribute('id') == tgtid]
+            rel.setSource(src[0])
+            try:src[0].lrel.append(tgt[0])
+            except: src[0].lrel=[tgt[0]]
+            try:tgt[0].lrel.append(src[0])
+            except: tgt[0].lrel=[src[0]]  
+            rel.setTarget(tgt[0])
+            if True:# and rel.getAttribute('type')=='continue':
+                self.relmat[rel.getAttribute('label')][(src[0].getAttribute('id'),tgt[0].getAttribute('id'))] = float(rel.getAttribute('w')) 
+                self.relmat[rel.getAttribute('label')][(tgt[0].getAttribute('id'),src[0].getAttribute('id'))] = float(rel.getAttribute('w'))
+                if  rel.getAttribute('type')=='HorizontalEdge':
+                    self.relmatH[rel.getAttribute('label')][(src[0].getAttribute('id'),tgt[0].getAttribute('id'))] = float(rel.getAttribute('w')) 
+                    self.relmatH[rel.getAttribute('label')][(tgt[0].getAttribute('id'),src[0].getAttribute('id'))] = float(rel.getAttribute('w'))
+                    
+                    
 
+    
     #TEMPLATE
 #     def setVerticalTemplates(self,lvm):
 #         self._verticalZoneTemplates = lvm
@@ -184,6 +223,29 @@ class  XMLDSPageClass(XMLDSObjectClass):
         except KeyError: return []  
     
     
+    
+    def addVerticalChunk(self,elt, chunk):
+        """
+            add vertical hunk built with elements 'elt'
+        """
+        try: self._dVC[elt.name].append(chunk)
+        except KeyError : self._dVC[elt.name] = [ chunk ]
+        
+    def addHorizontalChunk(self,elt, chunk):
+        """
+            add Horizontal chunks built with elements 'elt'
+        """
+        try: self._dHC[elt.name].append(chunk)
+        except KeyError : self._dHC[elt.name] = [chunk]        
+    
+    
+    def getHorizontalChunk(self,elt, ):
+        """
+            get Horizontal chunks built with elements 'elt'
+        """
+        try: return self._dHC[elt.name]
+        except KeyError : return None
+    
     #OBJECTS (from registered cut regions)
     
     def addVerticalObject(self,Template,o): 
@@ -208,6 +270,8 @@ class  XMLDSPageClass(XMLDSObjectClass):
     def setVGLFeatures(self,f): self._VGLFeatures.append(f)
     def getVGLFeatures(self): return self._VGLFeatures
     
+    
+    
     def getVX1Info(self): return self._VX1Info
     def setVX1Info(self,lInfo):
         """
@@ -216,16 +280,8 @@ class  XMLDSPageClass(XMLDSObjectClass):
         """
         self._VX1Info = lInfo
 
-    def getVX2Info(self): return self._VX2Info
-    def setVX2Info(self,lInfo):
-        """
-            list of X1 features for the H structure of the page
-                corresponds to information to segment the page vertically
-        """
-        self._VX2Info = lInfo
-
     def getX1X2(self): return self._X1X2
-    def setX1X2(self,x): self._X1X2.append(x) 
+    def setX1X2(self,x): self._X1X2 = x 
 
     def getVWInfo(self): return self._VWInfo
     def setVWInfo(self,lInfo):
@@ -353,6 +409,7 @@ class  XMLDSPageClass(XMLDSObjectClass):
         
         # create regions
         prevCut=0
+        
         for xcut in self.getdVSeparator(Template):
             region=XMLDSObjectClass()
             region.setName('VRegion')
@@ -364,22 +421,23 @@ class  XMLDSPageClass(XMLDSObjectClass):
             prevCut=xcut.getValue()
             self.addVerticalObject(Template,region)
 
-        #last column
-        region=XMLDSObjectClass()
-        region.setName('VRegion')
-        region.addAttribute('x', prevCut)
-        region.addAttribute('y', 0)
-        region.addAttribute('height', self.getAttribute('height'))
-        region.addAttribute('width', str(self.getWidth() - prevCut))
-        prevCut=xcut.getValue()
-        self.addVerticalObject(Template,region)      
+        if self.getdVSeparator(Template):
+            #last column
+            region=XMLDSObjectClass()
+            region.setName('VRegion')
+            region.addAttribute('x', prevCut)
+            region.addAttribute('y', 0)
+            region.addAttribute('height', self.getAttribute('height'))
+            region.addAttribute('width', str(self.getWidth() - prevCut))
+            prevCut=xcut.getValue()
+            self.addVerticalObject(Template,region)      
 
         
-        ## populate regions
-        for subObject in self.getAllNamedObjects(tagLevel):
-            region= subObject.bestRegionsAssignment(self.getVerticalObjects(Template))
-            if region:
-                region.addObject(subObject)
+            ## populate regions
+            for subObject in self.getAllNamedObjects(tagLevel):
+                region= subObject.bestRegionsAssignment(self.getVerticalObjects(Template))
+                if region:
+                    region.addObject(subObject)
         
 
     def getSetOfMutliValuedFeatures(self,TH,lMyFeatures,myObject):
