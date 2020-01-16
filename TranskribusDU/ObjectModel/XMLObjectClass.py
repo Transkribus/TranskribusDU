@@ -72,7 +72,9 @@ class  XMLObjectClass(objectClass):
         """
              create a dom elt and add it to the doc
         """
-        newNode = etree.Element(self.tagName)
+        if sLabel is None:
+            newNode = etree.Element(self.getName())
+        else: newNode = etree.Element(sLabel)
         
         newNode.set('x',str(self.getX()))
         newNode.set('y',str(self.getY()))
