@@ -27,6 +27,9 @@ class  objectClass(sequenceAPI):
         # sub object
         self._lObjects = []
         
+        #relations 
+        self._lRelations =[]      
+          
         # characteristics
         self._lAttributes = {}
 
@@ -65,6 +68,10 @@ class  objectClass(sequenceAPI):
             self.getObjects().append(o)
             o.setParent(self)
             
+    def getRelations(self): return self._lRelations
+    def addRelation(self,r):
+        self._lRelations.append(r)    
+        
     def addContent(self,c):
         c=c.replace(u'\n',u' ')
         if self.getContent() is not None:
@@ -150,6 +157,9 @@ class  objectClass(sequenceAPI):
     ########### IE part ########### 
     ### move to objectClass?
     
+    
+    def resetField(self):self._lFields=[]
+        
     def addField(self,field,value=None):
         """
             add field (record field) to this cell: this cell is supposed to contain such a field
@@ -164,8 +174,7 @@ class  objectClass(sequenceAPI):
             return None
         else:
             return lName[0]
-    
-    def resetFields(self): self._lFields=[]
+        
     def getFields(self): return self._lFields
     def getAllFields(self):
         lF=self._lFields
