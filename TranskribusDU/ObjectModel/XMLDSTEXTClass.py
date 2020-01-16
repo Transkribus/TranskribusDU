@@ -36,10 +36,10 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
     
 #     def getX(self): return float(self.getAttribute('x'))
 #     def getY(self): return float(self.getAttribute('y'))
-    def getX2(self):
-        return float(self.getAttribute('x'))+self.getWidth()
-    def getY2(self): 
-        return float(self.getAttribute('y'))+self.getHeight()        
+#     def getX2(self):
+#         return float(self.getAttribute('x'))+self.getWidth()
+#     def getY2(self): 
+#         return float(self.getAttribute('y'))+self.getHeight()        
 #     def getHeight(self): return float(self.getAttribute('height'))
 #     def getWidth(self): return float(self.getAttribute('width'))
         
@@ -53,13 +53,21 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
 #         self.setName(domNode.atg)
         self.setNode(domNode)
         # get properties
-        for prop in domNode.keys():
-            self.addAttribute(prop,domNode.get(prop))
+#         for prop in domNode.keys():
+#             self.addAttribute(prop,domNode.get(prop))
         try: 
             self._id = self.getAttribute('id')
         except:pass
-        self.addAttribute('x2', float(self.getAttribute('x'))+self.getWidth())
-        self.addAttribute('y2',float(self.getAttribute('y'))+self.getHeight() )
+
+        for prop in domNode.keys():
+            self.addAttribute(prop,domNode.get(prop))
+            if prop =='x': self._x= float(domNode.get(prop))
+            elif prop =='y': self._y = float(domNode.get(prop))
+            elif prop =='height': self._h = float(domNode.get(prop))
+            elif prop =='width': self.setWidth(float(domNode.get(prop)))
+        
+        self.addAttribute('x2', self.getX()+self.getWidth())
+        self.addAttribute('y2',self.getY()+self.getHeight() )        
 
         if self.hasAttribute('blpoints'): 
             from ObjectModel.XMLDSBASELINEClass import XMLDSBASELINEClass
@@ -77,7 +85,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
                 pass
             else:
                 try:txt=txt.decode('utf-8')
-                except AttributeError:
+                except AttributeError as e:
                     pass
             if self.getContent() is not None:
                 self.addContent(txt)
@@ -111,7 +119,7 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
             try:
                 lX.append(token.getX())
                 lX.append(token.getX2())
-                lY.append(token.getY2())
+                lY.append(token.getY())
                 lY.append(token.getY2())
             except  TypeError:
                 pass            
@@ -297,9 +305,8 @@ class  XMLDSTEXTClass(XMLDSObjectClass):
                     feature.addNode(self)
                     feature.setObjectName(self)
                     # avg of baseline?
-                    avg1= baseline.getY()+(baseline.getY2() -baseline.getY())/2
+                    avg1= baseline.getY() +(baseline.getY2() -baseline.getY())/2
                     avg2= nbl.getY() +(nbl.getY2()-nbl.getY())/2
-
                     feature.setValue(round(abs(avg2-avg1)))
                     feature.setType(ftype)
                     self.addFeature(feature)
