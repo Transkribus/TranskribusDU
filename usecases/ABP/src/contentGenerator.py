@@ -660,7 +660,7 @@ class ABPGermanDateGenerator(DateGenerator):
         if platform.system() == 'Windows':
             self.lang= 'deu_deu.1252'
         else:
-            self.lang='de-DE'   
+            self.lang='de_DE'   
         DateGenerator.__init__(self,self.lang)
 
 
@@ -703,7 +703,7 @@ class ABPRecordGenerator(textGenerator):
     if platform.system() == 'Windows':
         lang= 'deu_deu.1252'
     else:
-        lang='de-DE'    
+        lang='de_DE.utf8'    
         
     # per type as wel!!
     lClassesToBeLearnt = [[],[]]
@@ -833,7 +833,7 @@ class ABPBRecordGenerator(textGenerator):
     if platform.system() == 'Windows':
         lang= 'deu_deu.1252'
     else:
-        lang='de-DE'    
+        lang='de_DE'    
         
     # per type as wel!!
     lClassesToBeLearnt = [[],[]]
@@ -920,7 +920,7 @@ class ABPBRecordGenerator(textGenerator):
                   ,self.status
                   ,self.misc]
 
-        myList=[self.person,self.zeugen,self.mutterStand]
+        #myList=[self.person,self.zeugen,self.mutterStand]
         for g in myList: g.setClassesToBeLearnt(self.lClassesToBeLearnt)
         self._structure = []
         
@@ -963,7 +963,7 @@ class ABPWRecordGenerator(textGenerator):
     if platform.system() == 'Windows':
         lang= 'deu_deu.1252'
     else:
-        lang='de-DE'    
+        lang='de_DE'    
         
     # per type as wel!!
     lClassesToBeLearnt = [[],[]]
@@ -1006,16 +1006,17 @@ class ABPWRecordGenerator(textGenerator):
         ]
         
     # method level otherwise loadresources for each sample!!
-    brautigam = personesName(lang)
-    braut= brautNameGenerator(lang)
+    brautigam = PersonName(lang)
+    braut= BrautNameGenerator(lang)
     date= ABPGermanDateGenerator()
     date.defineRange(1700, 2000)
     location= location2Generator()
     profession= professionGenerator2()
     status = familyStatus()
-    parent1= personesName(lang)
-    parent2= brautNameGenerator(lang)
+    parent1= PersonName(lang)
+    parent2= BrautNameGenerator(lang)
     zeugen= zeugenName2Generator(lang)
+    hebamme= hebammeGenerator(lang)
     mutterStand=MutterStand2Generator(lang)
     leg= legitimGenerator()
     religion=  religionGenerator()
@@ -1034,11 +1035,12 @@ class ABPWRecordGenerator(textGenerator):
         textGenerator.__init__(self,self.lang)
 
 
-        myList = [ self.person
+        myList = [ self.brautigam
+                  ,self.braut 
                   ,self.leg
                   ,self.numItems
                   ,self.noise2
-                  ,self.hebammeGenerator
+                  ,self.hebamme
                   ,self.date
                   ,self.zeugen
                   ,self.mutterStand
@@ -1047,7 +1049,7 @@ class ABPWRecordGenerator(textGenerator):
                   ,self.status
                   ,self.misc]
 
-        myList=[self.person,self.zeugen,self.mutterStand]
+        #myList=[self.person,self.zeugen,self.mutterStand]
         for g in myList: g.setClassesToBeLearnt(self.lClassesToBeLearnt)
         self._structure = []
         
@@ -1084,7 +1086,7 @@ class ABPRecordGeneratorTOK(textGenerator):
     if platform.system() == 'Windows':
         lang= 'deu_deu.1252'
     else:
-        lang='de-DE'    
+        lang='de_DE'    
         
     # method level otherwise loadresources for each sample!!
     person= PersonName2(lang)
@@ -1157,6 +1159,8 @@ def ABP(options,args):
                 g = ABPRecordGenerator()
             elif options.recordtype == 'B':
                 g = ABPBRecordGenerator()
+            elif options.recordtype == 'W':
+                g = ABPWRecordGenerator()
             else:
                 print ('record type not covered: ', options.recordtype)
                 sys.exit(0)
@@ -1208,7 +1212,7 @@ if __name__ == "__main__":
     if platform.system() == 'Windows':
         lang= 'deu_deu.1252'
     else:
-        lang='de-DE'        
+        lang='de_DE.UTF-8'        
 
     parser = OptionParser(usage="", version="0.1")
     parser.description = "text Generator"
