@@ -108,7 +108,7 @@ class DS2PageXMLConvertor(Component):
             
         """
         #print (sPoints)
-        lPoints = sPoints.split(" ").split(',')
+        lPoints = sPoints.replace(" ",",").split(',')
         lx= list(map(lambda x:1.0*float(x)*self.dpi/72.0, lPoints))
         # order left right 
         xx =  list(zip(lx[0::2], lx[1::2]))
@@ -164,6 +164,7 @@ class DS2PageXMLConvertor(Component):
         if DSObject.hasAttribute('points'):
             coordsNode.set('points',self.DSPoint2PagePoints(DSObject.getAttribute('points')))    
         else:     
+            print (etree.tostring(DSObject.getNode()))
             coordsNode.set('points', self.BB2Polylines(DSObject.getX(),DSObject.getY(), DSObject.getHeight(),DSObject.getWidth()))        
         domNode.append(coordsNode)            
         
@@ -278,7 +279,7 @@ class DS2PageXMLConvertor(Component):
         ## print(outputFileName)
         if outputFileName is None:
             outputFileName = os.path.dirname(self.inputFileName) + os.sep + ".."+os.sep +"col" + os.sep + os.path.basename(self.inputFileName)[:-7] + "_du.mpxml"
-        # print(outputFileName)
+        print(outputFileName)
         res= newDoc.write(outputFileName, encoding="UTF-8",pretty_print=True,xml_declaration=True)
 #         res= newDoc.saveFormatFileEnc(outputFileName, "UTF-8",True)
 #         print res

@@ -227,6 +227,9 @@ class locationGenerator(textGenerator):
     unehelicher Knabe der Maria Friedl = Schödermaier
     ehl. Kind des Uhr¬ machers Martin Grammel
     Kind der Creszenz Gigl, Bauerstochter von Haid.
+    
+    
+    also add location von ....
 """
 class professionGenerator(textGenerator):
     def __init__(self):
@@ -236,6 +239,14 @@ class professionGenerator(textGenerator):
         self._value = list(map(lambda x:x[0],self.loadResources(self._lpath)))
         self._lenRes= len(self._lresources)
     
+class professionGenerator2(textGenerator):
+    def __init__(self):
+        textGenerator.__init__(self,lang=None)
+        self._structure = [
+                 ( (professionGenerator(),1,100), (locationPrepositionGenerator(),1,25),(locationGenerator(),1,25),100 )
+             ]
+    def generate(self):
+        return Generator.generate(self)      
 
 class firstNameGenerator(textGenerator):
     def __init__(self):
@@ -247,10 +258,11 @@ class firstNameGenerator(textGenerator):
     
 
 class particuleGenerator(textGenerator):
-    def __init__(self,lang):
+    def __init__(self,lang=None):
         textGenerator.__init__(self,lang)
         self._value = ['v.', 'von']   
-    
+
+  
 class lastNameGenerator(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
@@ -265,7 +277,7 @@ class lastNameGenerator2(textGenerator):
     def __init__(self):
         textGenerator.__init__(self,lang=None)
         self._structure = [
-                 ( (particuleGenerator(lang=None),1,100), (lastNameGenerator(),1,100),100 )
+                 ( (particuleGenerator(lang=None),1,5), (lastNameGenerator(),1,100),100 )
              ]
     def generate(self):
         return Generator.generate(self)         
@@ -282,27 +294,121 @@ class GEBGenerator(textGenerator):
         self._value = ['geb.', 'geb','geboren']                
       
 
-class BrautName(textGenerator):    
+class undGenerator(textGenerator):
+        def __init__(self,lang=None):
+            textGenerator.__init__(self,lang=None)
+            self._value = ['ünd.', 'ü','und']       
+    
+class zeugenNameGenerator(textGenerator):
     """
-        pattern: Firstname  [geb] lastname
+        first last prof von location  und same
+    """
+    def __init__(self,lang):
+        textGenerator.__init__(self,lang=None)
+        self._structure = [
+                 (   (firstNameGenerator(),1,100)
+                    ,(lastNameGenerator(),1,100)
+                    ,(professionGenerator(),1,100)
+                    ,(locationPrepositionGenerator(),1,75)
+                    ,(locationGenerator(),1,75 )
+                    ,100)
+             ]
+    def generate(self):
+        return Generator.generate(self)     
+
+class zeugenName2Generator(textGenerator):
+    """
+        zeugenName  UND zeugenName
+    """
+    def __init__(self,lang):
+        textGenerator.__init__(self,lang=None)
+        self._structure = [
+                 (   (zeugenNameGenerator(lang=None),1,100)
+                    ,(undGenerator(),1,50),(zeugenNameGenerator(lang=None),1,50)  ,100)
+             ]
+    def generate(self):
+        return Generator.generate(self)       
+    
+class MutterStandGenerator(textGenerator):
+    """
+        dessen , uxor,... see flair embeddings!!
+    """
+    def __init__(self,lang=None):
+        textGenerator.__init__(self,lang=None)
+        self._value = ['ehefrau', 'uxor','dessen','ehe']         
+
+class MutterStand2Generator(textGenerator):
+    """
+        MutterStand + profession
     """
     def __init__(self,lang):
         textGenerator.__init__(self,lang=None)
         
         self._structure = [
-                 ( (firstNameGenerator(),1,100), (lastNameGenerator2(),1,100),(GEBGenerator(lang),1,50), (religionGenerator(),1,20),(legitimGenerator(),1,10),100)
-                , ( (lastNameGenerator2(),1,100), (firstNameGenerator(),1,100), (GEBGenerator(lang),1,50),(religionGenerator(),1,20),(legitimGenerator(),1,10),100)
-                #noisy ones ?
-#                 ,(    (firstNameGenerator(),1,100), (CUMSACRGenerator(lang),1,25),100)
-#                 ,(    (lastNameGenerator(),1,100), (CUMSACRGenerator(lang),1,25),100)
+                ( (MutterStandGenerator(),1,100),50)
+                ,( (professionGenerator(),1,100),50)
 
              ]
+    def generate(self):
+        return Generator.generate(self) 
+    
+class ParentName(textGenerator):
+    """
+    for wedding 
+        Josef UND Maria LASTNAME  geb lastname
+        josef Lastname und maria geb lastname
+    """
+    def __init__(self,lang):
+        textGenerator.__init__(self,lang=None)
         
+        self._structure = [
+                ( (firstNameGenerator(),1,100), (undGenerator(),1,100) ,(firstNameGenerator(),1,100),(lastNameGenerator2(),1,100),(GEBGenerator(lang),1,50), (lastNameGenerator2(),1,100),(religionGenerator(),1,20),50)
+                ,( (firstNameGenerator(),1,100), (lastNameGenerator2(),1,100), (undGenerator(),1,100) (firstNameGenerator(),1,100), (lastNameGenerator2(),1,100),50)
+
+                #, ( (lastNameGenerator2(),1,00), (firstNameGenerator(),1,100), (GEBGenerator(lang),1,50),(religionGenerator(),1,20),100)
+
+             ]
+    def generate(self):
+        return Generator.generate(self)             
+    
+
+class birthName(textGenerator):    
+    """
+        pattern: Firstname  ( lastname  ))   (death date )
+    """
+    def __init__(self,lang):
+        textGenerator.__init__(self,lang=None)
+        #deathdate = ABPGermanDateGenerator()
+        #deathdate.defineRange(1700, 2000)
+        self._structure = [
+                 ( (firstNameGenerator(),1,100) ,(legitimGenerator(),1,10),100) #(deathdate,1,10),80)
+                ,( (firstNameGenerator(),1,100), (lastNameGenerator2(),1,100),(legitimGenerator(),1,10),20)
+             ]
+    def generate(self):
+        return Generator.generate(self) 
+    
+class BrautNameGenerator(textGenerator):    
+    """
+        pattern: Firstname  [geb] lastname
+    """
+    
+    def __init__(self,lang):
+        textGenerator.__init__(self,lang=None)
         
+        self._structure = [
+                ( (firstNameGenerator(),1,100), (GEBGenerator(lang),1,50), (lastNameGenerator2(),1,100),(religionGenerator(),1,20),50)
+                ,( (firstNameGenerator(),1,100), (lastNameGenerator2(),1,100), (religionGenerator(),1,20),50)
+
+                #, ( (lastNameGenerator2(),1,00), (firstNameGenerator(),1,100), (GEBGenerator(lang),1,50),(religionGenerator(),1,20),100)
+
+             ]
+    def generate(self):
+        return Generator.generate(self)     
+
 class PersonName2(textGenerator):
     """
     """
-    def __init__(self,lang):
+    def __init__(self,lang=None):
         textGenerator.__init__(self,lang=None)
         
         self._structure = [
@@ -320,7 +426,7 @@ class PersonName2(textGenerator):
 class PersonName(textGenerator):
     """
     """
-    def __init__(self,lang):
+    def __init__(self,lang=None):
         textGenerator.__init__(self,lang=None)
         
         self._structure = [
@@ -358,6 +464,16 @@ class doktorGenerator(textGenerator):
              ]
     def generate(self):
         return Generator.generate(self)  
+    
+class hebammeGenerator(textGenerator):
+    def __init__(self,lang):
+        textGenerator.__init__(self,lang=None)
+        self._structure = [
+                ( (doktorTitleGenerator(lang),1,10),(firstNameGenerator(),1,100), (lastNameGenerator(),1,100),90),
+                ( (ohneArtzGenerator(),1,100),10)
+             ]
+    def generate(self):
+        return Generator.generate(self) 
     
 class MonthDateGenerator(textGenerator):
     def __init__(self,lang,value=None):
@@ -577,9 +693,12 @@ class ABPGermanDateGenerator(DateGenerator):
     
 class ABPRecordGenerator(textGenerator):
     """
-        Generator composed of:
-            firstname
-            date
+        Generator for death records
+        
+        missing: 
+            location:  street names for passau?
+            priester
+            bemerkung ??
     """  
     if platform.system() == 'Windows':
         lang= 'deu_deu.1252'
@@ -633,7 +752,7 @@ class ABPRecordGenerator(textGenerator):
     deathreasons = deathReasonColumnGenerator(lang)
     doktor= doktorGenerator(lang)
     location= location2Generator()
-    profession= professionGenerator()
+    profession= professionGenerator2()
     status = familyStatus()
     
     leg= legitimGenerator()
@@ -646,6 +765,9 @@ class ABPRecordGenerator(textGenerator):
     noise2 = textletterRandomGenerator(10,5)
 
 
+    """
+        Create sequence order wise??? what is the sequence easiest to learn/tag??  column is more regular
+    """
     
     def __init__(self):
         textGenerator.__init__(self,self.lang)
@@ -698,6 +820,263 @@ class ABPRecordGenerator(textGenerator):
                 print(g.exportAnnotatedData())
                 print(g.formatAnnotatedData(g.exportAnnotatedData()))
 
+
+class ABPBRecordGenerator(textGenerator):
+    """
+        Generator for birth records
+        
+        missing: 
+            location:  street names for passau?
+            priester
+            bemerkung ??
+    """  
+    if platform.system() == 'Windows':
+        lang= 'deu_deu.1252'
+    else:
+        lang='de-DE'    
+        
+    # per type as wel!!
+    lClassesToBeLearnt = [[],[]]
+    lClassesToBeLearnt[1] = [
+         'birthName'
+        ,'hebammeGenerator'
+        ,'legitemGenerator'
+#         ,'doktorTitleGenerator'
+        ,'lastNameGenerator'
+        ,'firstNameGenerator'
+        ,'professionGenerator'
+        ,'religionGenerator'
+        ,'familyStatus'
+        ,'textletterRandomGenerator'
+        ,'numberedItems'
+        ,'location2Generator'
+#         ,'ageValueGenerator' 
+#         ,'AgeUnitGenerator'
+        ,'DENGeneratornum'
+        ,'MonthDayDateGenerator'
+        ,'weekDayDateGenerator'
+        ,'MonthDateGenerator'
+        ,'UMGenerator'
+        ,'HourDateGenerator'
+        ,'UHRGenerator'
+        ,'yearGenerator'
+        ,'numericalGenerator'
+        ,'textRandomGenerator'
+        ,'integerGenerator'
+        ,'textletterRandomGenerator'
+        ,'legitimGenerator'
+        ,'zeugenName2Generator'
+        ,'MutterStand2Generator'
+        ,'particuleGenerator'
+        ,'locationPrepositionGenerator'
+        ]
+    
+    lClassesToBeLearnt[0]= [
+#         'deathreasonGenerator'
+#         ,'doktorGenerator'
+#         ,'PersonName2'
+#         ,'AgeGenerator'
+#         ,'ABPGermanDateGenerator'
+        ]
+        
+    # method level otherwise loadresources for each sample!!
+    person= birthName(lang)
+    date= ABPGermanDateGenerator()
+    date.defineRange(1700, 2000)
+    location= location2Generator()
+    profession= professionGenerator2()
+    status = familyStatus()
+    
+    hebammeGenerator=hebammeGenerator(lang)
+    zeugen= zeugenName2Generator(lang)
+    mutterStand=MutterStand2Generator(lang)
+    leg= legitimGenerator()
+    religion=  religionGenerator()
+    
+    numItems = numberedItems(15,10)     
+    misc = integerGenerator(1000, 1000)
+    noise = textRandomGenerator(10,8)
+    noise2 = textletterRandomGenerator(10,5)
+
+
+    """
+        Create sequence order wise??? what is the sequence easiest to learn/tag??  column is more regular
+    """
+    
+    def __init__(self):
+        textGenerator.__init__(self,self.lang)
+
+
+        myList = [ self.person
+                  ,self.leg
+                  ,self.numItems
+                  ,self.noise2
+                  ,self.hebammeGenerator
+                  ,self.date
+                  ,self.zeugen
+                  ,self.mutterStand
+                  ,self.location
+                  ,self.profession
+                  ,self.status
+                  ,self.misc]
+
+        myList=[self.person,self.zeugen,self.mutterStand]
+        for g in myList: g.setClassesToBeLearnt(self.lClassesToBeLearnt)
+        self._structure = []
+        
+        
+        
+#         for nbfields in range(1,len(myList)+1):
+        for nbfields in range(1,2):
+
+            # x structures per length
+            # n!/(k!(n-k)!) = 364  pour 14/3
+            nbx=0
+            while nbx < 400:
+                lseq=[]
+                sCoveredFields = set()
+                while len(sCoveredFields) < nbfields:
+                    curfield = myList[random.randint(0,len(myList)-1)]
+                    if curfield in sCoveredFields:
+                        pass
+                    else:
+                        sCoveredFields.add(curfield)
+                        lseq.append((curfield,1,100))
+                        nbx += 1
+                lseq.append(100)
+                if tuple(lseq) not in  self._structure:
+                    self._structure.append(tuple(lseq))
+        
+
+    def generate(self):
+        return Generator.generate(self)
+    
+    
+class ABPWRecordGenerator(textGenerator):
+    """
+        Generator for wedding records
+        
+        missing: 
+            priester
+            bemerkung ??
+    """  
+    if platform.system() == 'Windows':
+        lang= 'deu_deu.1252'
+    else:
+        lang='de-DE'    
+        
+    # per type as wel!!
+    lClassesToBeLearnt = [[],[]]
+    lClassesToBeLearnt[1] = [
+         'lastNameGenerator'
+        ,'firstNameGenerator'
+        ,'professionGenerator'
+        ,'religionGenerator'
+        ,'familyStatus'
+        ,'textletterRandomGenerator'
+        ,'numberedItems'
+        ,'location2Generator'
+        ,'ageValueGenerator' 
+        ,'AgeUnitGenerator'
+        ,'DENGeneratornum'
+        ,'MonthDayDateGenerator'
+        ,'weekDayDateGenerator'
+        ,'MonthDateGenerator'
+        ,'UMGenerator'
+        ,'HourDateGenerator'
+        ,'UHRGenerator'
+        ,'yearGenerator'
+        ,'numericalGenerator'
+        ,'textRandomGenerator'
+        ,'integerGenerator'
+        ,'textletterRandomGenerator'
+        ,'legitimGenerator'
+        ,'zeugenName2Generator'
+        ,'MutterStand2Generator'
+        ,'particuleGenerator'
+        ,'locationPrepositionGenerator'
+        ]
+    
+    lClassesToBeLearnt[0]= [
+#         'deathreasonGenerator'
+#         ,'doktorGenerator'
+#         ,'PersonName2'
+#         ,'AgeGenerator'
+#         ,'ABPGermanDateGenerator'
+        ]
+        
+    # method level otherwise loadresources for each sample!!
+    brautigam = personesName(lang)
+    braut= brautNameGenerator(lang)
+    date= ABPGermanDateGenerator()
+    date.defineRange(1700, 2000)
+    location= location2Generator()
+    profession= professionGenerator2()
+    status = familyStatus()
+    parent1= personesName(lang)
+    parent2= brautNameGenerator(lang)
+    zeugen= zeugenName2Generator(lang)
+    mutterStand=MutterStand2Generator(lang)
+    leg= legitimGenerator()
+    religion=  religionGenerator()
+    
+    numItems = numberedItems(15,10)     
+    misc = integerGenerator(1000, 1000)
+    noise = textRandomGenerator(10,8)
+    noise2 = textletterRandomGenerator(10,5)
+
+
+    """
+        Create sequence order wise??? what is the sequence easiest to learn/tag??  column is more regular
+    """
+    
+    def __init__(self):
+        textGenerator.__init__(self,self.lang)
+
+
+        myList = [ self.person
+                  ,self.leg
+                  ,self.numItems
+                  ,self.noise2
+                  ,self.hebammeGenerator
+                  ,self.date
+                  ,self.zeugen
+                  ,self.mutterStand
+                  ,self.location
+                  ,self.profession
+                  ,self.status
+                  ,self.misc]
+
+        myList=[self.person,self.zeugen,self.mutterStand]
+        for g in myList: g.setClassesToBeLearnt(self.lClassesToBeLearnt)
+        self._structure = []
+        
+        
+        
+#         for nbfields in range(1,len(myList)+1):
+        for nbfields in range(1,2):
+
+            # x structures per length
+            # n!/(k!(n-k)!) = 364  pour 14/3
+            nbx=0
+            while nbx < 400:
+                lseq=[]
+                sCoveredFields = set()
+                while len(sCoveredFields) < nbfields:
+                    curfield = myList[random.randint(0,len(myList)-1)]
+                    if curfield in sCoveredFields:
+                        pass
+                    else:
+                        sCoveredFields.add(curfield)
+                        lseq.append((curfield,1,100))
+                        nbx += 1
+                lseq.append(100)
+                if tuple(lseq) not in  self._structure:
+                    self._structure.append(tuple(lseq))
+        
+
+    def generate(self):
+        return Generator.generate(self)
 class ABPRecordGeneratorTOK(textGenerator):
     """
         generator for string/tok normalisation
@@ -773,8 +1152,14 @@ def ABP(options,args):
                 print('generator loaded:%s'%(os.path.join(options.dirname,options.name+".pkl")))
                 print (g.__class__.__name__)
                 print (g.getNoiseLevel())
-        else:        
-            g = ABPRecordGenerator()
+        else:     
+            if options.recordtype == 'D':
+                g = ABPRecordGenerator()
+            elif options.recordtype == 'B':
+                g = ABPBRecordGenerator()
+            else:
+                print ('record type not covered: ', options.recordtype)
+                sys.exit(0)
             g.setNoiseType(options.noiseType)
             g.setNoiseLevel(options.noiseLevel)
         
@@ -827,10 +1212,13 @@ if __name__ == "__main__":
 
     parser = OptionParser(usage="", version="0.1")
     parser.description = "text Generator"
-    parser.add_option("--model", dest="name",  action="store", type="string",default="test.pkl", help="model name")
+    parser.add_option("--model", dest="name",  action="store", type="string",default="test", help="model name")
     parser.add_option("--dir", dest="dirname",  action="store", type="string", default=".",help="directory to store model")
     parser.add_option("--noise", dest="noiseType",  action="store", type=int, default=0, help="add noise of type N")
     parser.add_option("--noiselvl", dest="noiseLevel",  action="store", type=int, default=10, help="noise level (percentage) NN")
+
+    parser.add_option("--record", dest="recordtype",  action="store", type="string", default='B', help="B W or D")
+
 
     parser.add_option("--load", dest="bLoad",  action="store_true", default=False, help="load model")
     parser.add_option("--number", dest="nbX",  action="store", type=int, default=10,help="number of samples")

@@ -271,20 +271,35 @@ class IETest(Component.Component):
 
 
 
+    def processBirthWithTemplat(self,table,wr):
+        """
+            1 name first (last)
+            2 (type of geburt) hebamme (Heb as DR.) v(on) Location
+            3 (vater) firstname lastname 
+            4 ocupation, relegion
+            5 location
+            6 (mutter) firt geb last
+            7 occupatio  (uxor) relginio
+            8 location 
+            9 birthdate
+            10 taufdate
+            11 pfarrer
+            12 patten (see zeugen?) 
+            13 stelvertreter 
+    
+        """
         
-    
-    def mineTable(self,tabel,dr):
+    def processWeddingWithTemplat(self,table,wr):
         """
-            from the current HTR: find the categories in each column (once NER applied)
             
-        """
-    
-    
-    def selectTemplat(self,lTemplates):
-        """
-         if a list of templates is available: 
-             take a couple pages and perform IE: simply sum up the score of the tagger
-             
+            tag     
+            brautigam(name+religion+occupation)     location    eltern(name, occupation von lcation und name geb occupation location situation),   birthdate location
+            braut(name+religion+occupation) location  eltern(name, occupation von lcation und name geb occupation location situation),   birthdate location
+            pfarrer
+            name, occupation, lovcation und/ü
+            kind of weddong (dispens)
+            licence (date)
+            
         """
     def processWithTemplate(self,table,dr):
         """
@@ -318,7 +333,7 @@ class IETest(Component.Component):
             , ((slice(1,None),slice(iRef+5,iRef+9)) ,[ 'abp_dates','abp_year' ]                          ,[ dr.getFieldByName('MonthDayDateGenerator'), dr.getFieldByName('deathDate') ,dr.getFieldByName('deathYear')])
             , ((slice(1,None),slice(iRef+6,iRef+9)) ,[ 'abp_dates','abp_year','abp_location' ]           ,[ dr.getFieldByName('burialDate'),dr.getFieldByName('deathYear'),dr.getFieldByName('burialLocation') ])
             , ((slice(1,None),slice(iRef+8,iRef+10)),[ 'abp_age','abp_ageunit']                          ,[ dr.getFieldByName('age'), dr.getFieldByName('ageUnit')])
-            , ((slice(1,None),slice(iRef+9,iRef+10)),[ 'abp_priester']                                   ,[ dr.getFieldByName('priest') ])
+            , ((slice(1,None),slice(iRef+9,None)),[ 'abp_priester']                                   ,[ dr.getFieldByName('priest') ])
             #, ((slice(1,None),slice(10,11)),[ dr.getFieldByName('notes')])
            ]        
         
