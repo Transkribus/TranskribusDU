@@ -29,7 +29,7 @@ TranskribusDU_version
 from common.trace import traceln
 #from xml_formats.PageXml import PageXml
 from util.Shape import ShapeLoader
-#from shapely.geometry import Polygon
+from shapely.affinity import scale
 #dNS = {"pg":"http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"}
 # ----------------------------------------------------------------------------
 
@@ -40,10 +40,8 @@ def deleteRegionsinDOM(page,lRegionsNd):
 def main(sInputDir 
          , bVerbose=False):
     
-    lSkippedFile = []
-    
     # filenames without the path
-    lsFilename = [os.path.basename(name) for name in os.listdir(sInputDir) if name.endswith("102.ds_xml")]
+    lsFilename = [os.path.basename(name) for name in os.listdir(sInputDir) if name.endswith("179.ds_xml")]
     print(" - %d .ds_xml files to process" % len(lsFilename))
     for sMPXml in lsFilename:
         print(" - .ds_xml FILE : ", sMPXml)
@@ -51,10 +49,8 @@ def main(sInputDir
         # 0 - load input file
         doc = etree.parse(os.path.join(sInputDir,sMPXml))
         clusterZone2TableCell(doc)
-#         try:clusterZone2TableCell(doc)
-#         except:print('XXXXXXXXXXX ISSUE')
 
-        # export to csv 
+        # export to csv as well? 
         doc.write(os.path.join(sInputDir,sMPXml+'.test'),
                   xml_declaration = True,
                   encoding="utf-8",
@@ -99,16 +95,16 @@ def computeProfile(dCells,dTextInCells,dCellCndPerRow,dCellCndPerCol):
             except statistics.StatisticsError:
 #                 print (lPosition)
                 modeMax=modeMax+1
-                print ("WARNING MODE",rowid,lPosition,modeMax)    
-            print (rowid,lPosition,modeMax)   
+                print ("WARNING ROW MODE",rowid,lPosition,modeMax)    
+#             print (rowid,lPosition,modeMax)   
             if not modeMax in lPosition:
                 modeMax=lPosition[0]
-                print('WARNING',modeMax,lPosition)
+                print('WARNING ROW first',modeMax,lPosition)
             for cell in rowCells:
                     dUpdateCells[cell.wkt]=[modeMax, dCells[cell.wkt][1]]
                        
     # dCellCndPerRow deprecated now 
-    print ('- columns')
+#     print ('- columns')
     modeMax=0
     for colid,colCells in dCellCndPerCol.items():
         lPosition = []
@@ -125,10 +121,10 @@ def computeProfile(dCells,dTextInCells,dCellCndPerRow,dCellCndPerCol):
             except statistics.StatisticsError:
 #                 print (lPosition)
                 modeMax=modeMax+1
-            print (colid,lPosition,modeMax)
+#             print (colid,lPosition,modeMax)
             if not modeMax in lPosition:
                 modeMax=lPosition[0]
-                print('WARNING',modeMax,lPosition)
+                print('WARNING COLUMN',modeMax,lPosition)
             for cell in colCells:dUpdateCells[cell.wkt]=[dUpdateCells[cell.wkt][0],modeMax]
     
     
@@ -253,7 +249,11 @@ def checkClusteringPerRow(pageNd,dCellCndPerRow,dTextInCells,dClusterWithTL, dEd
     """
         recompute clusters for the rows
     """
+    lNewPoly=[]
+    lNewClusterWithTL = []
+    lNewClusterWithCC = []
     lRowtodel=[]
+    lTLtoBeAdded=[]
     for rowid,rowCells in dCellCndPerRow.items():
         lNbClusterPerCol=[]
         lClusterPerCol=[]
@@ -266,35 +266,42 @@ def checkClusteringPerRow(pageNd,dCellCndPerRow,dTextInCells,dClusterWithTL, dEd
                 #print (len(rowCells),lIds,lClusterCells,lNbClusterPerCol)
             #else empty cell
         if len(lNbClusterPerCol) > 2:
-            nbRows = mode(lNbClusterPerCol)
+#             print (lNbClusterPerCol)
+            try:nbRows = mode(lNbClusterPerCol)
+            except statistics.StatisticsError:nbRows=2
             if nbRows !=1:
-                print (rowid,"mode",nbRows,lNbClusterPerCol,lClusterPerCol)
+                print ('WARNING CUT ',rowid,"mode",nbRows)
                 lRowtodel.append(rowid)
                 dClusterCells=defaultdict(list)
                 for colcluster in lClusterPerCol:
-                    if len(colcluster)==nbRows:
+                    if len(colcluster) == nbRows:
                         # get tl instead of ids
                         # take the first element only for comparing position
-                        colclustertxt=[]
+                        colclustertxt = []
                         for cc in colcluster:
                             colclustertxt.append([ tl for tl in dClusterWithTL[rowid] if tl.get('id') in cc ])
-#                         colclustertxt = [ tl for tl in dClusterWithTL[rowid] for cc in colcluster if tl.get('id') in cc ]
-#                         print (colcluster,colclustertxt)
                         sortedC = sorted(colclustertxt,key=lambda x:ShapeLoader.node_to_Polygon(x[0]).centroid.y)
                         for i,cc in enumerate(sortedC):
                             dClusterCells[i].append(cc)
+                    else:
+                        for cc in colcluster:
+                            lTLtoBeAdded.extend([ tl for tl in dClusterWithTL[rowid] if tl.get('id') in cc ])
                 for i,lcc in dClusterCells.items():
-                    print (i,lcc)
-                    lrectangle=[]
-                    for cc in lcc:
-                        lrectangle.append(ShapeLoader.minimum_rotated_rectangle([ShapeLoader.node_to_Polygon(x) for x in lcc],bShapelyObject=True))
-                        # create a rectange_minimal with cells whose number of cc == mode
-                        # extend the rectangle to pageborder/rowclusterpoly border? and create new zones and populate them
-                        # need interpolation...
-                        # add in the list 
-
+#                     print (i,lcc)
+                    rect = ShapeLoader.contourObject([x for cc in lcc for x in cc]).envelope  # minimal_rectangle?
+                    rect=scale(rect,xfact = 2)
+                    lNewPoly.append(rect)
+                    lNewClusterWithCC.append(lcc)
+                    lNewClusterWithTL.append([x for cc in lcc for x in cc])
+#                         lNewCluster.Append()
+                    # need also to create a cluster with list of ids!!
+                    rNd=etree.Element('LINE')
+                    rNd.set('points',ShapeLoader.getCoordsString(rect))
+                    pageNd.append(rNd)
+                    # final check: if overlap between rectangle: top rectangle is the cut 
     
-    #return updated list of lCLusters 
+    #return updated list of lCLusters
+    return  lRowtodel,lNewPoly, lNewClusterWithTL,lNewClusterWithCC,lTLtoBeAdded
     
 def getClusterTL(ndPage,lClusters,dIds):
     """
@@ -304,16 +311,38 @@ def getClusterTL(ndPage,lClusters,dIds):
     for i,c in enumerate(lClusters):
         dTLCluster[i]=[]
         lIds=c.get('content').split()
-        try: [dTLCluster[i].append(dIds[id]) for id in lIds]
-        except KeyError:
-            # TableCell_1575304898029_1251l1 in cluster???? file EDIN:Sanktpoeltendom_01-14_1888_1894_3374_02-Taufe_0035.ds_xml 
-            pass 
+        for id in lIds:
+            try:dTLCluster[i].append(dIds[id])
+            except KeyError:pass
+#         [dTLCluster[i].append(dIds[id]) for id in lIds]
+#         try: [dTLCluster[i].append(dIds[id]) for id in lIds]
+#         except KeyError:
+#             # TableCell_1575304898029_1251l1 in cluster???? file EDIN:Sanktpoeltendom_01-14_1888_1894_3374_02-Taufe_0035.ds_xml 
+#             pass 
     
     return dTLCluster
+
+def assignConCompToCells(lCC,lCells):
+    """
+        get textlines from ids and best-assign them to the list of dCells (shape)
+        
+        # do it at the cc level?
+    """
+    dCellCC={}
+    for i,cc in enumerate(ShapeLoader.contourObject(lCC)):
+        if not cc.is_empty:
+            cellshape = bestRegionsAssignment(cc,lCells)
+            if cellshape:
+                try:dCellCC[cellshape.wkt].append(lCC[i])
+                except KeyError: dCellCC[cellshape.wkt]= [lCC[i]]
+    
+    return dCellCC
 
 def assignTextLinesToCells(lTL,lCells):
     """
         get textlines from ids and best-assign them to the list of dCells (shape)
+        
+        # do it at the cc level?
     """
 #     print (lCells)
 #     print ([ShapeLoader.node_to_Polygon(nd) for nd in lTL])
@@ -324,15 +353,84 @@ def assignTextLinesToCells(lTL,lCells):
             if cellshape:
                 try:dCellTL[cellshape.wkt].append(lTL[i])
                 except KeyError: dCellTL[cellshape.wkt]= [lTL[i]]
-    
     return dCellTL
 
-def ajustRectangleShapes(pageNd,lClusters):
+
+def transformMinima2envelop(pageNd,dClusterWithTL):
     """
-        reduce a cluster retangle with just area which does not overlap other area
+    """
+    lClustersPoly=[]
+    for row in  dClusterWithTL:
+#         bb = ShapeLoader.contourObject(dClusterWithTL[row]).envelope
+#         if not bb.is_empty:
+#             cellNd = etree.Element('COL')
+#             pageNd.append(cellNd)
+#             cellNd.set('points',ShapeLoader.getCoordsString(bb))    
+        
+        ch = ShapeLoader.contourObject(dClusterWithTL[row]).convex_hull
+        lClustersPoly.append(ch)
+        if not ch.is_empty:
+            cellNd = etree.Element('LINE')
+            pageNd.append(cellNd)
+            cellNd.set('points',ShapeLoader.getCoordsString(ch))
+    
+    return lClustersPoly
+    
+def shakeRectangleShapes(pageNd,lClusterPoly,dCellCndPerRow,dTextInCells):
+    """
+        delete one 'col' and see if the rectangle is stable (area? comparison; rather angle)
+        
+        angle see baseline object or 
+        take the longest line in the polygon and compute its angle
+            radian = math.atan((shape.lastpoint.x - shape.firstpoint.x)/(shape.lastpoint.y - shape.firstpoint.y))  
+            degrees = radian * 180 / math.pi  
+        return degrees  
     """
     #sort by size (reverse)
-    lClusterPoly = [ShapeLoader.node_to_Polygon(nd) for nd in lClusters]
+#     lClusterPoly = [ShapeLoader.node_to_Polygon(nd) for nd in lClusters]
+    
+    ## can be restricted to ones with high angle?
+    lNewPoly=[]
+    for i in sorted(dCellCndPerRow.keys()):
+        lcellRows=dCellCndPerRow[i]
+        # skip first
+        ltl=[]
+        for c in lcellRows[1:]:
+            if c.wkt in dTextInCells:
+                for tl in dTextInCells[c.wkt]:
+                    assert ShapeLoader.node_to_Polygon(tl).is_valid
+                    ltl.append(tl)
+        rectangle = ShapeLoader.minimum_rotated_rectangle(ltl,bShapelyObject=True)
+#         print (i,lClusterPoly[i].intersection(rectangle).area / lClusterPoly[i].area)
+        if not rectangle.is_empty:
+            if abs(rectangle.bounds[1]-rectangle.bounds[3]) < abs(lClusterPoly[i].bounds[1]-lClusterPoly[i].bounds[3]):
+#                 rectangle=scale(rectangle,xfact=1.5)
+                cellNd = etree.Element('COL')
+                pageNd.append(cellNd)
+                rectangle=scale(rectangle,xfact=2)
+                lNewPoly.append(rectangle)
+                cellNd.set('points',ShapeLoader.getCoordsString(rectangle))    
+                
+            else: 
+                lClusterPoly[i]=scale(lClusterPoly[i],xfact=1.5)
+                lNewPoly.append(lClusterPoly[i])
+        else:                
+            lClusterPoly[i]=scale(lClusterPoly[i],xfact=1.5)
+            lNewPoly.append(lClusterPoly[i])
+        ## get length and compute angle !!!  take the one with more horizontal angle::
+#         cellNd = etree.Element('COL')
+#         pageNd.append(cellNd)
+#         if not rectangle.is_empty:
+#             rectangle=scale(rectangle,xfact=2)
+#             cellNd.set('points',ShapeLoader.getCoordsString(rectangle))    
+#     print (len(lClusterPoly),len(lNewPoly))    
+    return lNewPoly
+
+def ajustRectangleShapes(pageNd,lClusterPoly):
+    """
+        reduce a cluster rectangle with just area which does not overlap other area
+    """
+    #lClusterPoly = [ShapeLoader.node_to_Polygon(nd) for nd in lClusters]
 
     lNewPoly=[]
     for i,pol1 in enumerate(lClusterPoly):
@@ -342,14 +440,12 @@ def ajustRectangleShapes(pageNd,lClusters):
 #         multi=MultiPolygon([p for p in lClusterPoly if p != pol1]).buffer(0)
         for j,pol2 in enumerate(lClusterPoly[i+1:]):
             if pol1.intersection(pol2).area > pol2.area*0.01:
-                pol1=pol1.symmetric_difference(pol2).difference(pol2)
+                pol1 = pol1.symmetric_difference(pol2).difference(pol2)
 #                 pol1=pol1.difference(pol2)
                 if not pol1.is_empty and type(pol1) in [MultiPolygon,GeometryCollection]:
                     pol1=max(pol1.geoms,key=lambda p:p.area)
 
-#                 print ("\t",i,i+j+1)
-#         print (i,init != pol1.wkt, init,pol1.wkt)
-        cellNd = etree.Element('COL')
+        cellNd = etree.Element('COLX')
         pageNd.append(cellNd)
         if not pol1.is_empty:
             cellNd.set('points',ShapeLoader.getCoordsString(pol1))        
@@ -358,12 +454,23 @@ def ajustRectangleShapes(pageNd,lClusters):
 #     print(len(lNewPoly) ,len(lClusterPoly))
     return lNewPoly            
 
-       
-def createCellZoneFromIntersection(lClusters,lZones,dCellCndPerRow,dCellCndPerCol,dCells,dClusterWithTL,lClusterPoly,lZonePoly):        
+    
+def mergeContainedShapes():
+    """
+        if a shape is contained in another shape: merge both
+    """
+def createCellZoneFromIntersection(lClusterPoly,lZonePoly):        
     """
     """
+    #dictionary of 'cells ' per row
+    # key = rowid  
+    dCellCndPerRow = dict()
+
+    #dictionary of 'cells ' per column
+    # key = colid  
+    dCellCndPerCol = dict()
+    dCells=dict()
     #CREATE CELLS FROM MINIMUN_ROTATED_RECTANGLE
-    dTextInCells={} #key = cell.wkt
     dShapeCells={}  #key = cell.wkt  item: shape
     for i,r in enumerate(lClusterPoly):
         dCellCndPerRow[i]=[]
@@ -375,8 +482,8 @@ def createCellZoneFromIntersection(lClusters,lZones,dCellCndPerRow,dCellCndPerCo
                 except KeyError:dCellCndPerCol[j]=[cellpoly]
                 dCells[cellpoly.wkt]=[i,j]
                 dShapeCells[cellpoly.wkt]=cellpoly
-        dTextInCells.update( assignTextLinesToCells(dClusterWithTL[i],dCellCndPerRow[i]))
-    
+    return dCells,dShapeCells,dCellCndPerRow,dCellCndPerCol
+
 def createCellsFromZoneClusters(pageNd,dIds,lZones,lClusters,dEdges):
     """
     
@@ -407,50 +514,56 @@ def createCellsFromZoneClusters(pageNd,dIds,lZones,lClusters,dEdges):
     lClusters = sorted(lClusters,key=lambda x:ShapeLoader.node_to_Polygon(x).centroid.y)
     lZones = sorted(lZones,key=lambda x:ShapeLoader.node_to_Polygon(x).centroid.x)
 
-    #dictionary of 'cells ' per row
-    # key = rowid  
-    dCellCndPerRow = dict()
-
-    #dictionary of 'cells ' per column
-    # key = colid  
-    dCellCndPerCol = dict()
-    dCells=dict()
-    
     dClusterWithTL = getClusterTL(pageNd,lClusters,dIds)
-    lClusterPoly= ajustRectangleShapes(pageNd,lClusters)
     
-#     ## check the number of overlap wit the onther
-#     pageShape=Polygon([(0,0),(float(pageNd.get('width')),0),(float(pageNd.get('width')),float(pageNd.get('height'))),(0,float(pageNd.get('height')))])
-#     for i,cshape in enumerate(lClusterPoly):
-#         if not pageShape.contains(cshape):
-#             print ('XXXXXXXXXXXXXX RECTANGLE OUTSIDE PAGE',cshape.wkt,pageShape.wkt)
-    
-    lZonePoly = [ShapeLoader.node_to_Polygon(nd) for nd in lZones]
+    #lClusterPoly = [ShapeLoader.node_to_Polygon(nd) for nd in lClusters]
 
-    #CREATE CELLS FROM MINIMUN_ROTATED_RECTANGLE
+    lZonePoly = [ShapeLoader.node_to_Polygon(nd) for nd in lZones]
+    
+    ## if one clusterpoly is contained in another: merge
+
+    lClusterPoly = transformMinima2envelop(pageNd,dClusterWithTL)
+#     return 0,0,0
+
+    dCells,dShapeCells,dCellCndPerRow,dCellCndPerCol = createCellZoneFromIntersection(lClusterPoly, lZonePoly)
     dTextInCells={} #key = cell.wkt
-    dShapeCells={}  #key = cell.wkt  item: shape
-    for i,r in enumerate(lClusterPoly):
-        dCellCndPerRow[i]=[]
-        for j,z in enumerate(lZonePoly):
-            cellpoly = z.buffer(0).intersection(r.buffer(0))
-            if not cellpoly.is_empty:
-                dCellCndPerRow[i].append(cellpoly)
-                try:dCellCndPerCol[j].append(cellpoly)
-                except KeyError:dCellCndPerCol[j]=[cellpoly]
-                dCells[cellpoly.wkt]=[i,j]
-                dShapeCells[cellpoly.wkt]=cellpoly
-        dTextInCells.update( assignTextLinesToCells(dClusterWithTL[i],dCellCndPerRow[i]))
-        # update
+    for i  in range(len(lClusters)):dTextInCells.update( assignTextLinesToCells(dClusterWithTL[i],dCellCndPerRow[i])) 
+    lClusterPoly= shakeRectangleShapes(pageNd,lClusterPoly,dCellCndPerRow,dTextInCells)
+
+    lClusterPoly= ajustRectangleShapes(pageNd,lClusterPoly)
+
+    # again recompute cell zones    
+    dCells,dShapeCells,dCellCndPerRow,dCellCndPerCol = createCellZoneFromIntersection(lClusterPoly, lZonePoly)
+    dTextInCells={} #key = cell.wkt
+    for i  in range(len(lClusters)):dTextInCells.update( assignTextLinesToCells(dClusterWithTL[i],dCellCndPerRow[i])) 
     
+    # do it first ??
     #check if row is a merge
-    lNewRowCluster = checkClusteringPerRow(pageNd,dCellCndPerRow,dTextInCells,dClusterWithTL, dEdges)
+    lRowtobeDel,lNewRowCluster,lNewClusterTL,lNewClusterCC,lTLtoBeAdded = checkClusteringPerRow(pageNd,dCellCndPerRow,dTextInCells,dClusterWithTL, dEdges)
+    if lNewRowCluster:
+        lClusterPoly = [ShapeLoader.node_to_Polygon(nd) for i,nd in enumerate(lClusters) if i not in lRowtobeDel]
+        dClusterWithTL = getClusterTL(pageNd,[c for i,c in enumerate(lClusters) if i not in lRowtobeDel],dIds)
+        for i,ltl in enumerate(lNewClusterTL):
+            dClusterWithTL[len(lClusterPoly)+i]=ltl
+        lClusterPoly.extend(lNewRowCluster)   
+#         lClusterPoly= ajustRectangleShapes(pageNd,lClusterPoly)
+
+        dCells,dShapeCells,dCellCndPerRow,dCellCndPerCol = createCellZoneFromIntersection(lClusterPoly, lZonePoly)
+        dTextInCells={} #key = cell.wkt
+        for i  in range(len(lClusterPoly)):
+            dTextInCells.update(assignTextLinesToCells(dClusterWithTL[i],dCellCndPerRow[i]))
+                 
+        
+        ## populate elements which are not ij the grid/cells : at cc level or at tl level ?
+        for i  in range(len(lClusterPoly)):
+            dTextInCells.update(assignTextLinesToCells(lTLtoBeAdded,dCellCndPerRow[i]))
+    ## oversegmentation : test links at cell level if compatible!see 0068
     
-    # if lNewRowCluster  redo  createCellZoneFromIntersection with new cluster
-     
     #COMPUTE PROFILE
     dUpdateCells,dNewCells = computeProfile(dCells,dTextInCells,dCellCndPerRow,dCellCndPerCol)
 
+
+    
     # TABLE CREATION
     
     return    dUpdateCells,dNewCells,dShapeCells
@@ -472,8 +585,14 @@ def tableCreation(ndPage,dCellsIJ,dCellTxt,dCoordCell):
     for cellwkt in dCellsIJ.keys():
         cellNd = etree.Element('CELL')
         i,j = dCellsIJ[cellwkt]
+        x1,y1,x2,y2=dCoordCell[cellwkt].bounds
         cellNd.set('row',f'{i}')
         cellNd.set('col',f'{j}')
+        cellNd.set('x',str(x1))
+        cellNd.set('y',str(y1))
+        cellNd.set('height',str(abs(y2-y1)))
+        cellNd.set('width',str(abs(x2-x1)))
+
             # empty        
 #         cellNd.set('points',ShapeLoader.getCoordsString(dCoordCell[cellwkt]))
         try:cellNd.set('points',ShapeLoader.getCoordsString(dCoordCell[cellwkt]))
@@ -543,50 +662,6 @@ def tableCreation(ndPage,dCellsIJ,dCellTxt,dCoordCell):
 #     return dColdict,dRowdict,lF #lCells
    
    
-def createTable(dColdict,dRowdict,dRowIDPos,lIds):
-    """
-    
-    sort rows by avg(y)
-    """
-    from statistics import mean 
-    
-    #get table dimensions
-    for x in dRowIDPos.items(): print (x)
-    nbCols= len(dColdict.keys())+1
-    nbRows= len(dRowIDPos.keys())+1
-    table = [[ [] for i in range(nbCols)] for j in range(nbRows)]
-    print (nbRows,nbCols,len(table),len(table[0]))
-    for irow in sorted(dRowIDPos.keys()):
-        for jcol in sorted(dColdict.keys()):
-            if jcol > 0:
-#                 print (irow,jcol)
-                # compute intersection??
-                cellij=  list([value for row in dRowIDPos[irow]  for value in dRowdict[row] if value in dColdict[jcol] ])
-    #             print(dRowdict[dRowIDPos[irow]] )
-    #             print(dColdict[jcol])
-                #print (irow,jcol-1,[''.join(lIds[id].itertext()).strip() for id in cellij])
-    #             print (irow,jcol-1,[lIds[id] for id in cellij])
-                table[irow][jcol-1]=[lIds[id] for id in cellij]
-    
-    # ignore empty row
-#     table.sort(key=lambda row:mean([ShapeLoader.node_to_Point(x).y for cell in row for x in cell])   )
-    for row in table:
-        print ([len(x) for cell in row for x in cell])
-#         for col in row:
-#             print ([''.join(x.itertext()).strip() for x in col],end='')
-#         print() 
-    table.sort(key=lambda row:mean([ShapeLoader.node_to_Point(x).y for cell in row for x in cell])   )
-
-#     for irow,row in enumerate(table):
-#         lY=[]
-#         for cell in row:
-#             if cell != []:
-#                 #print( [ShapeLoader.node_to_Point(x) for x in cell])
-#                 mean([lY.extend(ShapeLoader.node_to_Point(x).y for x in cell)])
-#                 
-#         print (irow,mean(lY))
-                
-    
     
 def loadSeparatorZones(ndPage,algo,name):
     """
@@ -603,7 +678,6 @@ def loadRowCluster(ndPage,algo):
     """    
     xpCluster   = f".//Cluster[@algo='{algo}']"
     lClusters= ndPage.xpath(xpCluster)
-    
     return lClusters
         
     
@@ -614,9 +688,8 @@ def clusterZone2TableCell(doc):
     """
     root = doc.getroot()
     xpPages= "./PAGE"
-    for iPage, ndPage in enumerate(doc.xpath(xpPages)):
+    for _, ndPage in enumerate(doc.xpath(xpPages)):
         dIds = getTEXTs(ndPage)
-        print (f'{iPage}') 
         lColZones = loadSeparatorZones(ndPage,'sep','V')
         lRowClusters = loadRowCluster(ndPage,'agglo')
         if len(lRowClusters) ==0: 
