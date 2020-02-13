@@ -21,7 +21,13 @@
  
 import sys, os
 
-import TranskribusDU_version
+# try: #to ease the use without proper Python installation
+#     import TranskribusDU_version
+# except ImportError:
+#     sys.path.append( os.path.dirname(os.path.dirname( os.path.abspath(sys.argv[0]) ))) 
+#     import TranskribusDU_version
+# TranskribusDU_version
+
 from common.trace import traceln
 
 from graph.NodeType_PageXml     import defaultBBoxDeltaFun
@@ -38,8 +44,6 @@ from tasks.DU_Task_Features     import Features_June19_Full_Separator
 from tasks.DU_Task_Features     import Features_June19_Full_Shift
 from tasks.DU_Task_Features     import Features_June19_Full_Separator_Shift
 from tasks.DU_Task_Features     import FeatureDefinition
-from tasks.DU_Task_Features     import Features_June19_Full_SPM
-
 from tasks.DU_Task_Features     import *
 
 from graph.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
@@ -47,43 +51,43 @@ from xml_formats.PageXml import PageXml
 
 # ----------------------------------------------------------------------------
 
-# class Features_GHENT_Full(FeatureDefinition):
-#     """
-#     All features we had historically (some specific to CRF):
-#         NODE: geometry, neighbor count, text
-#         EDGE: type, constant 1, geometry, text of source and target nodes
-#         The features of the edges are shifted by class, apart the 1-hot ones.
-#     """
-#     
-#     n_QUANTILES = 16
-#     
-#     bShiftEdgeByClass = False
-#     bSeparator        = False
-#     
-#     def __init__(self): 
-#         FeatureDefinition.__init__(self)
-#         
-#         # NODES
-#         self.lNodeFeature = [                               \
-#               ("geometry"           , Node_Geometry())         # one can set nQuantile=...
+class Features_GHENT_Full(FeatureDefinition):
+    """
+    All features we had historically (some specific to CRF):
+        NODE: geometry, neighbor count, text
+        EDGE: type, constant 1, geometry, text of source and target nodes
+        The features of the edges are shifted by class, apart the 1-hot ones.
+    """
+    
+    n_QUANTILES = 16
+    
+    bShiftEdgeByClass = False
+    bSeparator        = False
+    
+    def __init__(self): 
+        FeatureDefinition.__init__(self)
+        
+        # NODES
+        self.lNodeFeature = [                               \
+              ("geometry"           , Node_Geometry())         # one can set nQuantile=...
 #             , ("neighbor_count"     , Node_Neighbour_Count())  # one can set nQuantile=...
 #             , ("text"               , Node_Text_NGram( 'char'    # character n-grams
 #                                                        , 50     # number of N-grams
 #                                                        , (1,2)    # N
 #                                                        , False    # lowercase?))
 #                                                        ))
-#                             ]
-#         node_transformer = FeatureUnion(self.lNodeFeature)
-#         
-#         # EDGES
-#         # which types of edge can we get??
-#         # It depends on the type of graph!!
-#         lEdgeClass = [HorizontalEdge, VerticalEdge]
-#         # standard set of features, including a constant 1 for CRF
-#         self.lEdgeFeature = [                                            \
-#                   ('1hot'   , Edge_Type_1Hot(lEdgeClass=lEdgeClass)) # Edge class 1 hot encoded (PUT IT FIRST)
-#                 , ('1'      , Edge_1())                              # optional constant 1 for CRF
-#                 , ('geom'   , Edge_Geometry())                       # one can set nQuantile=...
+                            ]
+        node_transformer = FeatureUnion(self.lNodeFeature)
+        
+        # EDGES
+        # which types of edge can we get??
+        # It depends on the type of graph!!
+        lEdgeClass = [HorizontalEdge, VerticalEdge]
+        # standard set of features, including a constant 1 for CRF
+        self.lEdgeFeature = [                                            \
+                  ('1hot'   , Edge_Type_1Hot(lEdgeClass=lEdgeClass)) # Edge class 1 hot encoded (PUT IT FIRST)
+                , ('1'      , Edge_1())                              # optional constant 1 for CRF
+                , ('geom'   , Edge_Geometry())                       # one can set nQuantile=...
 #                 , ('src_txt', Edge_Source_Text_NGram( 'char'    # character n-grams
 #                                                , 50     # number of N-grams
 #                                                , (1,2)    # N
@@ -94,32 +98,32 @@ from xml_formats.PageXml import PageXml
 #                                                , (1,2)    # N
 #                                                , False    # lowercase?))
 #                                                ))
-#                             ]
-#         if self.bSeparator:
-#             self.lEdgeFeature = self.lEdgeFeature + [ 
-#                   ('sprtr_bool', Separator_boolean())
-#                 , ('sprtr_num' , Separator_num())
-#                             ]
-#         fu =  FeatureUnion(self.lEdgeFeature)        
-#         
-#         # you can use directly this union of features!
-#         edge_transformer = fu
-#         
-#         # OPTIONNALLY, you can have one range of features per type of edge.
-#         # the 1-hot encoding must be the first part of the union and it will determine
-#         #   by how much the rest of the feature are shifted.
-#         #
-#         # IMPORTANT: 1hot is first of union   AND   the correct number of edge classes
-#         if self.bShiftEdgeByClass:
-#             ppl = Pipeline([
-#                       ('fu', fu)
-#                     , ('shifter', EdgeClassShifter(len(lEdgeClass)))
-#                     ])
-#             edge_transformer = ppl
-#         
-#         self.setTransformers(node_transformer, edge_transformer)
+                            ]
+        if self.bSeparator:
+            self.lEdgeFeature = self.lEdgeFeature + [ 
+                  ('sprtr_bool', Separator_boolean())
+                , ('sprtr_num' , Separator_num())
+                            ]
+        fu =  FeatureUnion(self.lEdgeFeature)        
+        
+        # you can use directly this union of features!
+        edge_transformer = fu
+        
+        # OPTIONNALLY, you can have one range of features per type of edge.
+        # the 1-hot encoding must be the first part of the union and it will determine
+        #   by how much the rest of the feature are shifted.
+        #
+        # IMPORTANT: 1hot is first of union   AND   the correct number of edge classes
+        if self.bShiftEdgeByClass:
+            ppl = Pipeline([
+                      ('fu', fu)
+                    , ('shifter', EdgeClassShifter(len(lEdgeClass)))
+                    ])
+            edge_transformer = ppl
+        
+        self.setTransformers(node_transformer, edge_transformer)
 
-class My_NodeType(NodeType_PageXml_type):
+class My_NodeTypeGHENT(NodeType_PageXml_type):
     """
     We need this to extract properly the label from the label attribute of the (parent) TableCell element.
     """
@@ -158,8 +162,9 @@ def main(sys_argv_0, sLabelAttribute, cNodeType=NodeType_PageXml_type_woText):
         DU_GRAPH = Graph_MultiSinglePageXml
     
         ntClass = cNodeType
-        #lLabels = ['heading','paragraph','paragraph_left','paragraph_right','None']
-        lLabels = ['heading','paragraph','footnote','None']
+        print (cNodeType)
+        lLabels = ['heading','paragraph','paragraph_left','paragraph_right','None']
+        #lLabels = ['heading','paragraph','footnote','None']
 
         #lLabels.append('IGNORE')
 
@@ -187,11 +192,8 @@ def main(sys_argv_0, sLabelAttribute, cNodeType=NodeType_PageXml_type_woText):
     parser.add_option("--text"       , dest='bText'     , action="store_true"
                       , default=False, help="Use textual information if any, as node and edge features.") 
     parser.add_option("--edge_vh", "--edge_hv"    , dest='bShift'    , action="store_true"
-                      , default=False, help="Shift edge feature by range depending on edge type.")
-    parser.add_option("--spm"       , dest='sSPModel'    , action="store", type="string"
-                      , help="Textual features are computed based on the given SentencePiece model. e.g. model/toto.model.")      
+                      , default=False, help="Shift edge feature by range depending on edge type.") 
     traceln("VERSION: %s" % DU_Task_Factory.getVersion())
-    
 
     # --- 
     #parse the command line
@@ -205,19 +207,7 @@ def main(sys_argv_0, sLabelAttribute, cNodeType=NodeType_PageXml_type_woText):
     if options.bText     : traceln(" - using textual data, if any")
     if options.bSeparator: traceln(" - using graphical separators, if any")
     if options.bShift    : traceln(" - shift edge features by edge type")
-    
-    #cFeatureDefinition = Features_GHENT_Full
-    if options.sSPModel  : 
-        if not(options.sSPModel.endswith(".model")): 
-            options.sSPModel = options.sSPModel + ".model"
-        traceln(" - using SentencePiece model '%s' to create textual features" % options.sSPModel)
-        # just checking things early...
-        import sentencepiece as spm
-        open(options.sSPModel).close()
-        
-        options.bText = True
-        dFeatureConfig = {"sSPModel":options.sSPModel}
-    
+    cFeatureDefinition = Features_GHENT_Full
 #     if options.bText:
 #         if options.bSeparator:
 #             if options.bShift:
@@ -278,4 +268,4 @@ if __name__ == "__main__":
     #     import better_exceptions
     #     better_exceptions.MAX_LENGTH = None
    
-    main(sys.argv[0], "type", My_NodeType)
+    main(sys.argv[0], "type", My_NodeTypeGHENT)
