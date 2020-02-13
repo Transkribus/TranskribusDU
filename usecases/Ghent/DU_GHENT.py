@@ -48,7 +48,36 @@ from tasks.DU_Task_Features     import *
 
 from graph.Graph_Multi_SinglePageXml import Graph_MultiSinglePageXml
 from xml_formats.PageXml import PageXml
-
+def getDataToPickle_for_table(doer, mdl, lGraph):
+    """
+    data that is specific to this task, which we want to pickle when --pkl is used
+    for each node of each graph, we want to store the node text + row and column numbers + rowSpan and colSpan
+    
+    ( (text, (x1, y1, x2, y2), (row, col, rowSpan, colSpan) )
+    ...
+    """
+    def attr_to_int(domnode, sAttr, default_value=None):
+        s = domnode.get(sAttr)
+        try:
+            return int(s)
+        except (ValueError, TypeError):
+            return default_value
+    
+    lDataByGraph = []
+    for g in lGraph:
+        lNodeData = []
+        for nd in g.lNode:
+            ndCell = nd.node.getparent()
+            data = (nd.text
+                      , (nd.x1, nd.y1, nd.x2, nd.y2)
+                      , (attr_to_int(ndCell, "row")
+                         , attr_to_int(ndCell, "col")
+                         , attr_to_int(ndCell, "rowSpan")
+                         , attr_to_int(ndCell, "colSpan"))
+                      )
+            lNodeData.append(data)
+        lDataByGraph.append(lNodeData)
+    return lDataByGraph
 # ----------------------------------------------------------------------------
 
 class Features_GHENT_Full(FeatureDefinition):
@@ -162,7 +191,6 @@ def main(sys_argv_0, sLabelAttribute, cNodeType=NodeType_PageXml_type_woText):
         DU_GRAPH = Graph_MultiSinglePageXml
     
         ntClass = cNodeType
-        print (cNodeType)
         lLabels = ['heading','paragraph','paragraph_left','paragraph_right','None']
         #lLabels = ['heading','paragraph','footnote','None']
 
@@ -252,6 +280,7 @@ def main(sys_argv_0, sLabelAttribute, cNodeType=NodeType_PageXml_type_woText):
     
     # of course, you can put yours here instead.
     doer.setLearnerConfiguration(dLearnerConfig)
+    doer.setAdditionalDataProvider(getDataToPickle_for_table)
 
     # === CONJUGATE MODE ===
     #doer.setConjugateMode()
