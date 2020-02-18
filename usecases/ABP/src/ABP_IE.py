@@ -189,11 +189,10 @@ class IETest(Component.Component):
         for i,cell in enumerate(table.getCells()):
             if cell.getFields() != []:
                 if self.bDebug:print(table.getPage(),cell.getIndex(), cell.getFields(), cell.getContent())
-#             res = myRecord.applyTaggers(cell)
+             res = myRecord.applyTaggers(cell)
             res= lres[i]
             for field in cell.getFields():
                 if field is not None:
-#                     res = field.applyTaggers(cell)
                     # res [ (token,label,score) ...]
                     extractedValues = field.extractLabel(res)
                     if extractedValues != []:
@@ -301,6 +300,45 @@ class IETest(Component.Component):
             licence (date)
             
         """
+        table.buildNDARRAY()
+ 
+         #fuzzy 
+        lTemplateIECAL = [  
+             ((slice(1,None),slice(0,4))  ,[ 'abp_names', 'names_aux','numbering','religion'],[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')])
+            , ((slice(1,None),slice(1,4)) ,[ 'abp_profession','religion' ]        ,[ dr.getFieldByName('occupation'), dr.getFieldByName('religion') ])
+           ]
+ 
+        #detect empty left columns ?
+        template = tableTemplateClass()
+        template.buildFromPattern(lTemplateIECAL)
+        template.labelTable(table) 
+        
+        iRef = self.findNameColumn(table,dr)
+        if self.bDebug:print ("=============",iRef)
+        lTemplateIE = [  
+             ((slice(1,None),slice(iRef,iRef+1))    ,[]  ,[ dr.getFieldByName('weddingDate')])
+            , ((slice(1,None),slice(iRef+1,iRef+2)) ,[  ]                     ,[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')] 
+            , ((slice(1,None),slice(iRef+2,iRef+3)) ,[  ]                                  ,[ dr.getFieldByName('occupation') ,dr.getFieldByName('religion') ]) 
+            , ((slice(1,None),slice(iRef+3,iRef+4)) ,[  ]                                    ,[ dr.getFieldByName('location') ])
+            , ((slice(1,None),slice(iRef+4,iRef+5)) ,[ ]                         ,[ dr.getFieldByName('lastname'),dr.getFieldByName('firstname'),dr.getFieldByName('lastname'),dr.getFieldByName('firstname')])
+            , ((slice(1,None),slice(iRef+5,iRef+6)) ,[  ]                          ,[ dr.getFieldByName('situation') ])
+            , ((slice(1,None),slice(iRef+6,iRef+7)) ,[  ]           ,[ dr.getFieldByName('Date') ])
+            , ((slice(1,None),slice(iRef+7,iRef+8)) ,[  ]                     ,[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')] 
+            , ((slice(1,None),slice(iRef+8,iRef+9)) ,[  ]                                  ,[ dr.getFieldByName('occupation') ,dr.getFieldByName('religion') ]) 
+            , ((slice(1,None),slice(iRef+9,iRef+10)) ,[  ]                                    ,[ dr.getFieldByName('location') ])
+            , ((slice(1,None),slice(iRef+10,iRef+11)) ,[ ]                         ,[ dr.getFieldByName('lastname'),dr.getFieldByName('firstname'),dr.getFieldByName('lastname'),dr.getFieldByName('firstname')])
+            , ((slice(1,None),slice(iRef+11,iRef+12)) ,[  ]                          ,[ dr.getFieldByName('situation') ])
+            , ((slice(1,None),slice(iRef+12,iRef+13)) ,[  ]           ,[ dr.getFieldByName('Date') ])
+            , ((slice(1,None),slice(iRef+13,iRef+14)),[ ]                                   ,[ dr.getFieldByName('priest') ])
+            , ((slice(1,None),slice(iRef+14,iRef+15)),[ ]                                   ,[ dr.getFieldByName('lastname'),dr.getFieldByName('firstname'),dr.getFieldByName('lastname'),dr.getFieldByName('firstname'),dr.getFieldByName('location') ])
+            , ((slice(1,None),slice(15,16)),[ dr.getFieldByName('notes')])
+           ]        
+        
+        
+        self.extractData(table,dr,lTemplateIE)
+        
+        return dr 
+
     def processWithTemplate(self,table,dr):
         """
             according to the # of columns, apply the corresponding template 
