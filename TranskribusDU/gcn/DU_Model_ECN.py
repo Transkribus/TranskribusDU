@@ -16,6 +16,11 @@
 """
 import sys, os
 import tensorflow as tf
+try:
+    tf.train.AdamOptimizer
+except AttributeError:
+    import tensorflow.compat.v1 as tf
+    tf.disable_v2_behavior()
 import pickle
 import random
 import gc

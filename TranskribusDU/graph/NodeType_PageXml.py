@@ -50,6 +50,8 @@ class NodeType_PageXml(NodeType):
     #Namespace, of PageXml, at least
     dNS = {"pc":PageXml.NS_PAGE_XML}
 
+    nbNoTextWarning = 0
+
     def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun):
         NodeType.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther)
         
@@ -122,7 +124,11 @@ class NodeType_PageXml(NodeType):
             sText = self._get_GraphNodeText(doc, domNdPage, ndBlock)
             if sText == None:
                 sText = ""
-                traceln("Warning: no text in node %s"%domid) 
+                NodeType_PageXml.nbNoTextWarning += 1
+                if NodeType_PageXml.nbNoTextWarning < 33:
+                    traceln("Warning: no text in node %s"%domid) 
+                elif NodeType_PageXml.nbNoTextWarning == 33:
+                    traceln("Warning: no text in node %s  - *** %d repetition : I STOP WARNING ***" % (domid, NodeType_PageXml.nbNoTextWarning))
                 #raise ValueError, "No text in node: %s"%ndBlock 
             
             #now we need to infer the bounding box of that object
