@@ -62,6 +62,48 @@ class weddingRecord(recordClass):
         gnfield.setLabelMapping(['lastNameGenerator'])
         gnfield.setMandatory()
         self.addField(gnfield)
+        
+	# need a specific class for bride and groom and witnesses...
+        blfield= locationField()
+        blfield.addTagger(myTagger)
+        blfield.setLabelMapping(['locationGenerator'])
+        self.addField(blfield)
+
+        wDate= weddingDate()
+        wDate.addTagger(myTagger)
+        wDate.setLabelMapping(['yearGenerator'])         
+        self.addField(wDate)
+        
+        wmDate= weddingDateMonth()
+        wmDate.addTagger(myTagger)
+        wmDate.setLabelMapping(['MonthDateGenerator'])         
+        self.addField(wmDate)
+        
+        wdDate= weddingDateDay()
+        wdDate.addTagger(myTagger)
+        wdDate.setLabelMapping(['MonthDayDateGenerator'])         
+        self.addField(wdDate)
+        
+
+        bDate= brideDate()
+        bDate.addTagger(myTagger)
+        bDate.setLabelMapping(['yearGenerator'])         
+        self.addField(bDate)
+        
+        bmDate= brideDateMonth()
+        bmDate.addTagger(myTagger)
+        bmDate.setLabelMapping(['MonthDateGenerator'])         
+        self.addField(bmDate)
+        
+        bdDate= brideDateDay()
+        bdDate.addTagger(myTagger)
+        bdDate.setLabelMapping(['MonthDayDateGenerator'])         
+        self.addField(bdDate)
+
+        bfield= occupationField()
+        bfield.addTagger(myTagger)
+        bfield.setLabelMapping(['professionGenerator'])
+        self.addField(bfield)
 
         #groom
         gfnField = firstNameField()
@@ -81,15 +123,135 @@ class weddingRecord(recordClass):
         lfield.setLabelMapping(['locationGenerator'])
         self.addField(lfield)
         
-        wDate= weddingDate()
-        wDate.addTagger(myTagger)
-#         dDate.setLabelMapping(['weekDayDateGenerator','MonthDayDateGenerator','MonthDateGenerator'])         
-        xDate.setLabelMapping(['MonthDateGenerator'])         
-        self.addField(dDate)
+        gDate= groomDate()
+        gDate.addTagger(myTagger)
+        gDate.setLabelMapping(['yearGenerator'])         
+        self.addField(gDate)
         
+        gmDate= groomDateMonth()
+        gmDate.addTagger(myTagger)
+        gmDate.setLabelMapping(['MonthDateGenerator'])         
+        self.addField(gmDate)
+        
+        gdDate= groomDateDay()
+        gdDate.addTagger(myTagger)
+        gdDate.setLabelMapping(['MonthDayDateGenerator'])         
+        self.addField(gdDate)
 
+        
+        gfield= occupationField()
+        gfield.addTagger(myTagger)
+        gfield.setLabelMapping(['professionGenerator'])
+        self.addField(gfield)
 
+	#parent bride
+        bpfnField = firstNameField()
+        bpfnField.setLabelMapping( ['firstNameGenerator'])
+        bpfnField.addTagger(myTagger)
+        self.addField(bpfnField)
     
+        bpnfield = lastNameField()
+        bpnfield.addTagger(myTagger)
+        bpnfield.setLabelMapping(['lastNameGenerator'])
+        self.addField(bpnfield)
+        
+        bpofield= occupationField()
+        bpofield.addTagger(myTagger)
+        bpofield.setLabelMapping(['professionGenerator'])
+        self.addField(bpofield)
+    
+        bmfnField = firstNameField()
+        bmfnField.setLabelMapping( ['firstNameGenerator'])
+        bmfnField.addTagger(myTagger)
+        self.addField(bmfnField)
+    
+        bmnfield = lastNameField()
+        bmnfield.addTagger(myTagger)
+        bmnfield.setLabelMapping(['lastNameGenerator'])
+        self.addField(bmnfield)
+        
+        bmofield= occupationField()
+        bmofield.addTagger(myTagger)
+        bmofield.setLabelMapping(['professionGenerator'])
+        self.addField(bmofield)
+
+	# parent groom
+        gpfnField = firstNameField()
+        gpfnField.setLabelMapping( ['firstNameGenerator'])
+        gpfnField.addTagger(myTagger)
+        self.addField(gpfnField)
+    
+        gpnfield = lastNameField()
+        gpnfield.addTagger(myTagger)
+        gpnfield.setLabelMapping(['lastNameGenerator'])
+        self.addField(gpnfield)
+        
+    
+        gpofield= occupationField()
+        gpofield.addTagger(myTagger)
+        gpofield.setLabelMapping(['professionGenerator'])
+        self.addField(gpofield)
+
+        gmfnField = firstNameField()
+        gmfnField.setLabelMapping( ['firstNameGenerator'])
+        gmfnField.addTagger(myTagger)
+        self.addField(gmfnField)
+    
+        gmnfield = lastNameField()
+        gmnfield.addTagger(myTagger)
+        gmnfield.setLabelMapping(['lastNameGenerator'])
+        self.addField(gmnfield)
+
+
+        gmofield= occupationField()
+        gmofield.addTagger(myTagger)
+        gmofield.setLabelMapping(['professionGenerator'])
+        self.addField(gmofield)
+
+	# witnesses
+
+        wpfnField = firstNameField()
+        wpfnField.setLabelMapping( ['firstNameGenerator'])
+        wpfnField.addTagger(myTagger)
+        self.addField(wpfnField)
+    
+        wpnfield = lastNameField()
+        wpnfield.addTagger(myTagger)
+        wpnfield.setLabelMapping(['lastNameGenerator'])
+        self.addField(wpnfield)
+        
+    
+        wpofield= occupationField()
+        wpofield.addTagger(myTagger)
+        wpofield.setLabelMapping(['professionGenerator'])
+        self.addField(wpofield)
+
+        wfield= locationField()
+        wfield.addTagger(myTagger)
+        wfield.setLabelMapping(['locationGenerator'])
+        self.addField(wfield)
+
+        wmfnField = firstNameField()
+        wmfnField.setLabelMapping( ['firstNameGenerator'])
+        wmfnField.addTagger(myTagger)
+        self.addField(wmfnField)
+    
+        wmnfield = lastNameField()
+        wmnfield.addTagger(myTagger)
+        wmnfield.setLabelMapping(['lastNameGenerator'])
+        self.addField(wmnfield)
+
+        wfield= locationField()
+        wfield.addTagger(myTagger)
+        wfield.setLabelMapping(['locationGenerator'])
+        self.addField(wfield)
+
+        wmofield= occupationField()
+        wmofield.addTagger(myTagger)
+        wmofield.setLabelMapping(['professionGenerator'])
+        self.addField(wmofield)
+
+
 class deathRecord(recordClass):
     sName = 'deathrecord' 
     def __init__(self,sModelName,sModelDir):
@@ -289,6 +451,46 @@ class weddingDate(fieldClass):
     def __init__(self):
         fieldClass.__init__(self, weddingDate.sName)
     
+class weddingDateMonth(fieldClass):
+    sName='weddingDateMonth'
+    def __init__(self):
+        fieldClass.__init__(self, weddingDateMonth.sName)
+
+class weddingDateDay(fieldClass):
+    sName='weddingDateDay'
+    def __init__(self):
+        fieldClass.__init__(self, weddingDateDay.sName)
+
+class brideDate(fieldClass):
+    sName='brideDate'
+    def __init__(self):
+        fieldClass.__init__(self, brideDate.sName)
+    
+class brideDateMonth(fieldClass):
+    sName='brideDateMonth'
+    def __init__(self):
+        fieldClass.__init__(self, brideDateMonth.sName)
+
+class brideDateDay(fieldClass):
+    sName='brideDateDay'
+    def __init__(self):
+        fieldClass.__init__(self, brideDateDay.sName)
+
+class groomDate(fieldClass):
+    sName='groomDate'
+    def __init__(self):
+        fieldClass.__init__(self, groomDate.sName)
+    
+class groomDateMonth(fieldClass):
+    sName='groomDateMonth'
+    def __init__(self):
+        fieldClass.__init__(self, groomDateMonth.sName)
+
+class groomDateDay(fieldClass):
+    sName='groomDateDay'
+    def __init__(self):
+        fieldClass.__init__(self, groomDateDay.sName)
+
 class deathYear(fieldClass):
     sName='deathYear'
     def __init__(self):
