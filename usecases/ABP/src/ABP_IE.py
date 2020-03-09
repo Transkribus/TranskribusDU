@@ -74,6 +74,7 @@ class IETest(Component.Component):
         # HTR model id
         self.htrModelID = None
         
+        self.recordType=None
         # IE model
         self.sModelDir = None
         self.sModelName = None
@@ -114,6 +115,9 @@ class IETest(Component.Component):
         if "LCSTH" in dParams:
             self.lcsTH = dParams['LCSTH']                
         
+        if "recordType" in dParams:
+            self.recordType = dParams['recordType']                  
+        
     def labelTable(self,table):
         """
             toy example
@@ -151,7 +155,7 @@ class IETest(Component.Component):
                             try:lColInvName[field.getName()].append(cell.getIndex()[1])
                             except: lColInvName[field.getName()] = [cell.getIndex()[1]]
                             if self.bDebug: print ('foundXX:',field.getName(), field.getValue())
-                cell.resetFields()       
+                cell.resetField()       
         return max(lColInvName['firstname'],key=lColInvName['firstname'].count)       
 
 
@@ -189,7 +193,7 @@ class IETest(Component.Component):
         for i,cell in enumerate(table.getCells()):
             if cell.getFields() != []:
                 if self.bDebug:print(table.getPage(),cell.getIndex(), cell.getFields(), cell.getContent())
-             res = myRecord.applyTaggers(cell)
+            res = myRecord.applyTaggers(cell)
             res= lres[i]
             for field in cell.getFields():
                 if field is not None:
@@ -270,7 +274,7 @@ class IETest(Component.Component):
 
 
 
-    def processBirthWithTemplat(self,table,wr):
+    def processBirthWithTemplate(self,table,wr):
         """
             1 name first (last)
             2 (type of geburt) hebamme (Heb as DR.) v(on) Location
@@ -288,7 +292,7 @@ class IETest(Component.Component):
     
         """
         
-    def processWeddingWithTemplat(self,table,wr):
+    def processWeddingWithTemplate(self,table,wr):
         """
             
             tag     
@@ -317,13 +321,13 @@ class IETest(Component.Component):
         if self.bDebug:print ("=============",iRef)
         lTemplateIE = [  
              ((slice(1,None),slice(iRef,iRef+1))    ,[]  ,[ dr.getFieldByName('weddingDate')])
-            , ((slice(1,None),slice(iRef+1,iRef+2)) ,[  ]                     ,[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')] 
+            , ((slice(1,None),slice(iRef+1,iRef+2)) ,[  ]                     ,[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')] )
             , ((slice(1,None),slice(iRef+2,iRef+3)) ,[  ]                                  ,[ dr.getFieldByName('occupation') ,dr.getFieldByName('religion') ]) 
             , ((slice(1,None),slice(iRef+3,iRef+4)) ,[  ]                                    ,[ dr.getFieldByName('location') ])
             , ((slice(1,None),slice(iRef+4,iRef+5)) ,[ ]                         ,[ dr.getFieldByName('lastname'),dr.getFieldByName('firstname'),dr.getFieldByName('lastname'),dr.getFieldByName('firstname')])
             , ((slice(1,None),slice(iRef+5,iRef+6)) ,[  ]                          ,[ dr.getFieldByName('situation') ])
             , ((slice(1,None),slice(iRef+6,iRef+7)) ,[  ]           ,[ dr.getFieldByName('Date') ])
-            , ((slice(1,None),slice(iRef+7,iRef+8)) ,[  ]                     ,[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')] 
+            , ((slice(1,None),slice(iRef+7,iRef+8)) ,[  ]                     ,[ dr.getFieldByName('lastname'), dr.getFieldByName('firstname') ,dr.getFieldByName('religion')] )
             , ((slice(1,None),slice(iRef+8,iRef+9)) ,[  ]                                  ,[ dr.getFieldByName('occupation') ,dr.getFieldByName('religion') ]) 
             , ((slice(1,None),slice(iRef+9,iRef+10)) ,[  ]                                    ,[ dr.getFieldByName('location') ])
             , ((slice(1,None),slice(iRef+10,iRef+11)) ,[ ]                         ,[ dr.getFieldByName('lastname'),dr.getFieldByName('firstname'),dr.getFieldByName('lastname'),dr.getFieldByName('firstname')])
@@ -331,7 +335,8 @@ class IETest(Component.Component):
             , ((slice(1,None),slice(iRef+12,iRef+13)) ,[  ]           ,[ dr.getFieldByName('Date') ])
             , ((slice(1,None),slice(iRef+13,iRef+14)),[ ]                                   ,[ dr.getFieldByName('priest') ])
             , ((slice(1,None),slice(iRef+14,iRef+15)),[ ]                                   ,[ dr.getFieldByName('lastname'),dr.getFieldByName('firstname'),dr.getFieldByName('lastname'),dr.getFieldByName('firstname'),dr.getFieldByName('location') ])
-            , ((slice(1,None),slice(15,16)),[ dr.getFieldByName('notes')])
+            , ((slice(1,None),slice(15,16)),[],[ dr.getFieldByName('notes')])
+            
            ]        
         
         
@@ -339,7 +344,7 @@ class IETest(Component.Component):
         
         return dr 
 
-    def processWithTemplate(self,table,dr):
+    def processDeathWithTemplate(self,table,dr):
         """
             according to the # of columns, apply the corresponding template 
         """
@@ -400,11 +405,17 @@ class IETest(Component.Component):
         self.ODoc.loadFromDom(self.doc,listPages = range(self.firstPage,self.lastPage+1))        
         
         self.lPages = self.ODoc.getPages()   
-        dr = deathRecord(self.sModelName,self.sModelDir)     
-        
-        ## selection of the templates first with X tables
-        
-        ### 
+        if self.recordType == 'D':
+            record = deathRecord(self.sModelName,self.sModelDir)     
+            foo=self.processDeathWithTemplate
+        elif self.recordType == 'W':
+            record = weddingRecord(self.sModelName,self.sModelDir) 
+            foo=self.processWeddingWithTemplate
+        elif self.recordType == 'B':
+            record = birthRecord(self.sModelName,self.sModelDir)
+            foo=self.processBirthWithTemplate
+        else:
+            print (f'record type not supported: {self.recordType}')
         
         for page in self.lPages:
             print("page: ", page.getNumber())
@@ -418,11 +429,11 @@ class IETest(Component.Component):
                     continue
                 if self.BuseStoredTemplate:
                     if self.bDebug:print ("page: %s : table %d/%d"%(page.getNumber(),table.getNbRows(),table.getNbColumns()))
-                    self.processWithTemplate(table, dr)
+                    foo(table, record)
                 else:
-                    self.mineTable(table,dr)
+                    self.mineTable(table,record)
         
-        self.evalData = dr.generateOutput(self.evalData)
+        self.evalData = record.generateOutput(self.evalData)
 #         print self.evalData.serialize('utf-8',True)
 
     def generateTestOutput(self):
@@ -976,6 +987,8 @@ if __name__ == "__main__":
     iec.add_option('-l',"--last", dest="last", action="store", type="int", help="last page to be processed")
     iec.add_option("--modelName", dest="modelName", action="store", type="string", help="model to be used")
     iec.add_option("--modelDir", dest="modelDir", action="store", type="string", help="model folder")
+    iec.add_option("--record", dest="recordType", action="store", type="string", help="D(eath) W(edding) B(irth)")
+
     iec.add_option("--2DS", dest="2DS", action="store_true", default=False, help="convert to DS format")
     iec.add_option("--LCSTH", dest="LCSTH", action="store", type = int , default=75, help="longest commun substring (lcs) threshold")
 
