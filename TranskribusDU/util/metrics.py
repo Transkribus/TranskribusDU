@@ -226,18 +226,49 @@ def confusion_accuracy_score(aConfuMat):
     eps= 1e-8
     return np.sum(np.diag(aConfuMat)) / (eps+np.sum(aConfuMat)) 
 
-def confusion_PRFAS(confumat):
+def confusion_PRFAS(cm):
     """
-    return the P, R, F1, Accuracy, Support of the confusion matrix
+    return the avgP, avgR, avgF1, Accuracy, Support of the confusion matrix
     """
     eps=1e-8
-#     confumat = np.asarray(confumat)
-    p   = np.diag(confumat)/(eps+confumat.sum(axis=0))
-    r   = np.diag(confumat)/(eps+confumat.sum(axis=1))
+    cm = np.asarray(cm)
+    diag = np.diag(cm)
+    s   = cm.sum()
+    w   = cm.sum(axis=1) / s
+    p   = diag/(eps+cm.sum(axis=0))
+    r   = diag/(eps+cm.sum(axis=1))
     f1  = 2*p*r/(eps+p+r)
-    s   = confumat.sum(axis=1)
-    a = confusion_accuracy_score(confumat)
+    p,r,f1 = [np.average(_x, weights=w) for _x in (p,r,f1)]
+    a   = diag.sum() / (eps+s)
     return p, r, f1, a, s
+
+def test_confusion_PRFAS():
+    """
+    Line=True class, column=Prediction
+TR_B  [[1585  109    4]
+TR_I   [ 126 1233   17]
+TR_O   [  20   12   82]]
+
+(unweighted) Accuracy score = 90.97 %    trace=2900  sum=3188
+
+             precision    recall  f1-score   support
+
+       TR_B      0.916     0.933     0.924      1698
+       TR_I      0.911     0.896     0.903      1376
+       TR_O      0.796     0.719     0.756       114
+
+avg / total      0.909     0.910     0.909      3188
+    """
+    cm = np.array([  [1585,  109,    4]
+                      , [ 126, 1233,   17]
+                      , [  20,   12,   82]])
+    p, r, f1, a, s = confusion_PRFAS(cm)
+    def ok(a,b): return abs(a-b) < 0.001
+    assert ok(p,0.909), ("p",p)
+    assert ok(r,0.910), ("r",r)
+    assert ok(f1,0.909), ("f",f1)
+    assert ok(a,0.9097), ("a",a)
+    assert ok(s,3188), ("s",s)
     
 def average(lA):
     return reduce(np.add, lA)/len(lA)
