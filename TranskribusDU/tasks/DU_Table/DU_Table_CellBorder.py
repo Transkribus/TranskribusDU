@@ -30,7 +30,7 @@ import collections
 from lxml import etree
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.optimize._hungarian import linear_sum_assignment
+from scipy.optimize import linear_sum_assignment
 
 try: #to ease the use without proper Python installation
     import TranskribusDU_version
