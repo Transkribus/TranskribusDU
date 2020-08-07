@@ -108,7 +108,7 @@ class Graph:
         return cls.iGraphMode
     @classmethod
     def setGraphMode(cls, iGraphMode):
-        assert iGraphMode in (1,2)
+        assert iGraphMode in (1,2,4)
         cls.iGraphMode = iGraphMode
         return cls.iGraphMode
     
