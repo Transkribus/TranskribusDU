@@ -44,7 +44,7 @@ class DU_Task_Factory:
         usage = """"%s <model-folder> <model-name> [--rm] [--trn <col-dir> [--warm] [--vld <col-dir>]+]+ [--tst <col-dir>]+ [--run <col-dir> [--graph]]+
 or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish] [--fold <col-dir>]+
 [--pkl]
-[--g1|--g2]
+[--g1|--g1o|--g2]
 [--server <PORT>]
 
         For the named MODEL using the given FOLDER for storage:
@@ -68,9 +68,18 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
         --graph       : store the graph in the output XML
         --g1          : default mode (historical): edges created only to closest overlapping block (downward and rightward)
         --g2          : implements the line-of-sight edges (when in line of sight, then link by an edge)
+        --g1o         : same as g1 but tolerating box overlap
         --server port : run in server mode, offering a predict method
         --server-debug: run the server in debug
         --outxml port : output PageXML files, whatever th einput format is.
+        --mlflow      : record results using MLflow at default URI
+        --mlflow_uri  : record results using MLflow at that URI
+        --mlflow_expe : record results using MLflow under that specific experience name
+        --mlflow_run  : record results using MLflow under that specific run name
+        --edge_oracle : binary segmentation done based on edge label computed from groundtruth
+        --eval_row, --eval_col, --eval_cell : compute clustering metrics in run mode only
+        --eval_cluster <DOM_attribute>      : compute clustering metrics in run mode only
+        --eval_cluster_level                : compute clustering metrics in run mode only
         """%sys_argv0
 
         #prepare for the parsing of the command line
@@ -107,9 +116,11 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
         parser.add_option("--seed"          , dest='seed'       ,  action="store", type="int"        # "append" would allow doing a gridsearch on max_iter...
                           , help="Randomizer seed")  
         parser.add_option("--g1", dest='bG1',  action="store_true"
-                          , help="default mode (historical): edges created only to closest overlapping block (downward and rightward)")   
+                          , help="default mode (historical): edges created only to closest downward or rightward block (Overlaps prevent edge creation)")   
+        parser.add_option("--g1o", dest='bG1o',  action="store_true"
+                          , help="Like g1, but tolerating overlapping blocks")   
         parser.add_option("--g2", dest='bG2',  action="store_true"
-                          , help="implements the line-of-sight edges (when in line of sight, then link the nodes by an edge)")   
+                          , help="implements the line-of-sight edges (when in line of sight, then link the nodes by an edge) (Overlaps prevent edge creation)")   
         parser.add_option("--ext", dest='sExt',  action="store", type="string"
                           , help="Expected extension of the data files, e.g. '.pxml'")    
         parser.add_option("--server", dest='iServer',  action="store", type="int"
@@ -118,6 +129,28 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
                           , help="run the server in debug mode (incompatible with TensorFLow)")    
         parser.add_option("--outxml", dest='bOutXML',  action="store_true"
                           , help="output XML files, whatever the input format is.")   
+        parser.add_option("--mlflow", dest='bMLFlow',  action="store_true"
+                          , help="Record the output of the experiment in MLFlow")
+        parser.add_option("--mlflow_uri", dest='sMLFlowURI',  action="store", type="string"
+                          , help="Record the output of the experiment in MLFlow at the given URI")
+        parser.add_option("--mlflow_exp", "--mlflow_expe", dest='sMLFlowExp',  action="store", type="string"
+                          , help="Record the output of the experiment in MLFlow under the given experience")
+        parser.add_option("--mlflow_run", dest='sMLFlowRun',  action="store", type="string"
+                          , help="Record the output of the experiment in MLFlow under the given run")
+        parser.add_option("--eval_row", dest='bEvalRow', action="store_true"
+                      , default=False, help="Evaluate row cluster quality.")
+        parser.add_option("--eval_col", dest='bEvalCol', action="store_true"
+                      , default=False, help="Evaluate column cluster quality.")
+        parser.add_option("--eval_cell", dest='bEvalCell', action="store_true"
+                      , default=False, help="Evaluate cell cluster quality.")
+        parser.add_option("--eval_region", dest='bEvalRegion', action="store_true"
+                      , default=False, help="Evaluate region cluster quality.")        
+        parser.add_option("--eval_cluster", dest='sEvalCluster', action="store", type="string"
+                      , help="Evaluate cluster quality. Give the attribute that contains the GT cluster id.")
+        parser.add_option("--eval_cluster_level", dest='bEvalClusterLevel', action="store_true"
+                      , help="Evaluate cluster level quality.")
+        parser.add_option("--edge_oracle", dest='bEdgeOracle', action="store_true"
+                      , help="An oracle predict the edge label (continue or break).")
 
             
         # consolidate...
@@ -145,6 +178,7 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
                 , sComment                      = None
                 , cFeatureDefinition            = None
                 , dFeatureConfig                = {}       
+                , cTask                         = None # to specify a specific Task class
                 ):
         """
         Create the requested doer object 
@@ -155,8 +189,13 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
         # Graph mode for computing edges
         assert not(options.bG1 and options.bG2), "Specify graph mode either 1 or 2 not both"
         iGraphMode = 1
+        assert [options.bG1
+                , options.bG2
+                , options.bG1o
+                ].count(True) <= 1, "Specify at most one graph mode (default is mode %d)"%iGraphMode
         if options.bG1: iGraphMode = 1
         if options.bG2: iGraphMode = 2
+        if options.bG1o: iGraphMode = 4
         Graph.setGraphMode(iGraphMode)
 
 #         bCRF = bCRF or (not(options is None) and options.bCRF)
@@ -166,17 +205,23 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
 
         assert (options.bCRF 
                 or options.bECN or options.bECNEnsemble 
-                or options.bGAT)       , "You must specify one learning method."
-        assert [options.bCRF, options.bECN, options.bECNEnsemble, options.bGAT].count(True) == 1  , "You must specify only one learning method."
+                or options.bGAT
+                or bool(cTask))       , "You must specify one learning method."
+        assert bool(cTask) or [options.bCRF, options.bECN, options.bECNEnsemble, options.bGAT].count(True) == 1  , "You must specify only one learning method."
         
-        if options.bECN: 
-            c = DU_ECN_Task
-        elif options.bECNEnsemble:
-            c = DU_Ensemble_ECN_Task            
-        elif options.bCRF: 
-            c = DU_CRF_Task
-        elif options.bGAT: 
-            c = DU_GAT_Task
+        if cTask is None:
+            if options.bECN: 
+                c = DU_ECN_Task
+            elif options.bECNEnsemble:
+                c = DU_Ensemble_ECN_Task            
+            elif options.bCRF: 
+                c = DU_CRF_Task
+            elif options.bGAT: 
+                c = DU_GAT_Task
+            else:
+                raise Exception("Internal error: no DU_Task class")
+        else:
+            c = cTask
         
         c.getConfiguredGraphClass = fun_getConfiguredGraphClass
 

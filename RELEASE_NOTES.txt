@@ -2,6 +2,15 @@
 		RELEASE NOTES - TranskribusDU
 		-----------------------------
 
+--- Vulnéraire - 2020-08-07
+- added support to evaluate the segmentation (see --eval_.. options)
+- added support for oracle evaluation (--edge_oracle) indicating best achievable quality
+- added support to record experiences in MLFLOW (see in options)
+- fix for constructing graph when objects overlap each other (--g1o option)
+- related to --g1o, better support for constructing object's bounding-box
+- few bug and upgrade fix (e.g. in TestReport class, due to scipy evolution, ...)
+
+
 --- Chrysanthème - 2019-11-21
 - ICDAR19 papers are reproducible
 - major code reorganisation
