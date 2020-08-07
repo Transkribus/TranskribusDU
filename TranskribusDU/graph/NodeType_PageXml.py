@@ -52,12 +52,25 @@ class NodeType_PageXml(NodeType):
 
     nbNoTextWarning = 0
 
-    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun):
+    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun
+                 , bPreserveWidth=False):
+        """
+        if bPreserveWidth is True, the fitted rectangle gets the x1 and x2 of the polygon bounding box
+        """
         NodeType.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther)
         
         self.BBoxDeltaFun = BBoxDeltaFun
-        if  self.BBoxDeltaFun is not None and type(self.BBoxDeltaFun) != types.FunctionType:
-            raise Exception("Error: BBoxDeltaFun must be None or a function (or a lambda)")
+        if  self.BBoxDeltaFun is not None:
+            if type(self.BBoxDeltaFun) is tuple:
+                xFun, yFun = self.BBoxDeltaFun
+                if xFun is not None and type(xFun)!= types.FunctionType:
+                    raise Exception("Error: first element of BBoxDeltaFun tuple must be None or a function (or a lambda)")
+                if yFun is not None and type(yFun)!= types.FunctionType:
+                    raise Exception("Error: second element of BBoxDeltaFun tuple must be None or a function (or a lambda)")
+            else:
+                if type(self.BBoxDeltaFun) != types.FunctionType:
+                    raise Exception("Error: BBoxDeltaFun must be None or a function (or a lambda)")
+        self.bPreserveWidth = bPreserveWidth
 
     def setXpathExpr(self, t_sxpNode_sxpTextual):
         self.sxpNode, self.sxpTextual = t_sxpNode_sxpTextual
@@ -138,7 +151,7 @@ class NodeType_PageXml(NodeType):
             
             plg = Polygon(lXY)
             try:
-                x1,y1, x2,y2 = plg.fitRectangle()
+                x1,y1, x2,y2 = plg.fitRectangle(bPreserveWidth=self.bPreserveWidth)
             except ZeroDivisionError:
 #                 traceln("Warning: ignoring invalid polygon id=%s page=%s"%(ndBlock.prop("id"), page.pnum))
 #                 continue
@@ -156,11 +169,23 @@ class NodeType_PageXml(NodeType):
                 
             #we reduce a bit this rectangle, to ovoid overlap
             if not(self.BBoxDeltaFun is None):
-                w,h = x2-x1, y2-y1
-                dx = self.BBoxDeltaFun(w)
-                dy = self.BBoxDeltaFun(h)
-                x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
+                if type(self.BBoxDeltaFun) is tuple and len(self.BBoxDeltaFun) == 2:
+                    xFun, yFun = self.BBoxDeltaFun
+                    if xFun is not None:
+                        dx = xFun(x2-x1)
+                        x1, x2 = int(round(x1+dx)), int(round(x2-dx))
+                    if yFun is not None:
+                        dy = yFun(y2-y1)
+                        y1, y2 = int(round(y1+dy)), int(round(y2-dy))
+                else:
+                    # historical code
+                    w,h = x2-x1, y2-y1
+                    dx = self.BBoxDeltaFun(w)
+                    dy = self.BBoxDeltaFun(h)
+                    x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
                 
+            # store the rectangle"            
+            ndBlock.set("DU_points", " ".join( ["%d,%d"%(int(x), int(y)) for x,y in [(x1, y1), (x2,y1), (x2,y2), (x1,y2)]] ))
             
             #TODO
             orientation = 0  #no meaning for PageXml
@@ -202,8 +227,9 @@ class NodeType_PageXml_type(NodeType_PageXml):
     
     sLabelAttr = "type"
 
-    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun):
-        NodeType_PageXml.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther, BBoxDeltaFun)
+    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun
+                 , bPreserveWidth=False):
+        NodeType_PageXml.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther, BBoxDeltaFun, bPreserveWidth)
 
     def setLabelAttribute(self, sAttrName="type"):
         """
@@ -211,6 +237,9 @@ class NodeType_PageXml_type(NodeType_PageXml):
         """
         self.sLabelAttr = sAttrName
                     
+    def getLabelAttribute(self):
+        return self.sLabelAttr
+                   
     def parseDocNodeLabel(self, graph_node, defaultCls=None):
         """
         Parse and set the graph node label and return its class index

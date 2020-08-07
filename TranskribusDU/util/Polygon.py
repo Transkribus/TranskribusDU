@@ -101,11 +101,13 @@ class Polygon:
 #         avgYBaseline = sum(lBaselineY) / float(len(lBaselineY))
         
         
-    def fitRectangle(self):
+    def fitRectangle(self, bPreserveWidth=True):
         """
         Fit a rectangle at best to match the polygone (polyline) of an object
         
         The resulting rectangle has same area and center of mass as the polygon
+        
+        If bKeepWidth is True, then only the height is adjusted.
         
         Return x1,y1, x2,y2 of the rectangle   (int values)  (top-left, bottom-right)
         """
@@ -119,7 +121,14 @@ class Polygon:
         w = x2 - x1
         
         #but this width should not lead to go out of the bounding box!
-        fW = min(w, (x2-fXg)*2, (fXg-x1)*2)
+        if bPreserveWidth:
+            fW = float(abs(x2-x1))
+            fH = fA / fW
+            x1,y1, x2,y2 = [ int(round(v)) for v in [  x1, fYg - fH/2
+                                                     , x2, fYg + fH/2 ]]
+        else:
+            #historical code
+            fW = min(w, (x2-fXg)*2, (fXg-x1)*2)
         
         #same area
         fH = fA / fW

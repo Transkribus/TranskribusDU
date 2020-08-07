@@ -33,12 +33,15 @@ class NodeType_jsonOCR(NodeType):
     sCustAttr2_TYPE = "type"
 
 
-    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun):
+    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun
+                 , bPreserveWidth=False
+                 ):
         NodeType.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther)
 
         self.BBoxDeltaFun = BBoxDeltaFun
         if self.BBoxDeltaFun is not None and type(self.BBoxDeltaFun) != types.FunctionType:
             raise Exception("Error: BBoxDeltaFun must be None or a function (or a lambda)")
+        self.bPreserveWidth = bPreserveWidth
 
     def setXpathExpr(self, t_sxpNode_sxpTextual):
         """
@@ -74,6 +77,10 @@ class NodeType_jsonOCR(NodeType):
         set the name of the Xml attribute that contains the label
         """
         self.sLabelAttr = sAttrName
+
+    def getLabelAttribute(self):
+        return self.sLabelAttr
+
     # ---------------------------------------------------------------------------------------------------------
 
 #     def getPageWidthandHeight(self, filename):
@@ -101,11 +108,15 @@ class NodeType_jsonOCR(NodeType):
         """
         # --- XPATH contexts
 
-        lNdBlock = doc['GlynchResults']
+        lNdBlock = doc['GlynchResults']['Areas']
         #page_w, page_h = self.getPageWidthandHeight(sFilename)
         page = Page(1, 1, 1, 1)
         for ndBlock in lNdBlock:
-            sText = ndBlock['label']
+            try:
+                sText = ndBlock['label']
+            except KeyError:
+                sText = ""
+                traceln("WARNING: no 'label' in : %s" % ndBlock)
             if sText == None:
                 sText = ""
                 traceln("Warning: no text in node")
@@ -118,7 +129,7 @@ class NodeType_jsonOCR(NodeType):
 
             plg = Polygon(lXY)
             try:
-                x1, y1, x2, y2 = plg.fitRectangle()
+                x1, y1, x2, y2 = plg.fitRectangle(bPreserveWidth=self.bPreserveWidth)
             except ZeroDivisionError:
                 x1, y1, x2, y2 = plg.getBoundingBox()
             except ValueError:
@@ -126,10 +137,20 @@ class NodeType_jsonOCR(NodeType):
 
             # we reduce a bit this rectangle, to ovoid overlap
             if not (self.BBoxDeltaFun is None):
-                w, h = x2 - x1, y2 - y1
-                dx = self.BBoxDeltaFun(w)
-                dy = self.BBoxDeltaFun(h)
-                x1, y1, x2, y2 = [int(round(v)) for v in [x1 + dx, y1 + dy, x2 - dx, y2 - dy]]
+                if type(self.BBoxDeltaFun) is tuple and len(self.BBoxDeltaFun) == 2:
+                    xFun, yFun = self.BBoxDeltaFun
+                    if xFun is not None:
+                        dx = xFun(x2-x1)
+                        x1, x2 = int(round(x1+dx)), int(round(x2-dx))
+                    if yFun is not None:
+                        dy = yFun(y2-y1)
+                        y1, y2 = int(round(y1+dy)), int(round(y2-dy))
+                else:
+                    # historical code
+                    w, h = x2 - x1, y2 - y1
+                    dx = self.BBoxDeltaFun(w)
+                    dy = self.BBoxDeltaFun(h)
+                    x1, y1, x2, y2 = [int(round(v)) for v in [x1 + dx, y1 + dy, x2 - dx, y2 - dy]]
 
             # TODO
             orientation = 0  # no meaning for PageXml
