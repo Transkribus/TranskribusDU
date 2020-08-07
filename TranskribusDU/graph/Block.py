@@ -355,6 +355,8 @@ class Block:
             fun = cls._findVerticalNeighborEdges_g1
         elif iGraphMode == 2:
             fun = cls._findVerticalNeighborEdges_g2
+        elif iGraphMode == 4:
+            fun = cls._findVerticalNeighborEdges_g1o
         else:
             raise ValueError("Unkown graph mode '%s'")% iGraphMode
             
@@ -479,6 +481,24 @@ class Block:
         return n1, lY1, dBlk_Y1, di1_by_y2
 
     @classmethod
+    def _findVerticalNeighborEdges_init_y1(cls, lBlk, iGrid):
+        """
+        Same as _findVerticalNeighborEdges_init, but ignoring y2
+        """
+        assert type(iGrid) is int, repr(iGrid)
+        
+        #index along the y axis based on y1 and y2
+        dBlk_Y1 = collections.defaultdict(list)     # y1 --> [ list of block having that y1 ]
+        for blk in lBlk:
+            ry1 =  cls.gridRound(blk.y1, iGrid)
+            #OK assert abs(ry1-b.y1) < iGrid
+            dBlk_Y1[ry1].append(blk)
+        
+        #lY1 and lY2 are sorted list of unique values
+        lY1 = list(dBlk_Y1.keys()); lY1.sort(); n1 = len(lY1)
+        return n1, lY1, dBlk_Y1
+
+    @classmethod
     def _findVerticalNeighborEdges_g1(cls, lBlk, EdgeClass, bShortOnly=False, iGrid = None):
         """
         any dimension smaller than 5 is zero, we assume that no block are narrower than this value
@@ -598,6 +618,74 @@ class Block:
         return lVEdge
   
 
+    @classmethod
+    def _findVerticalNeighborEdges_g1o(cls, lBlk, EdgeClass, bShortOnly=False, iGrid = None):
+        """
+        Blocks can overlap
+        return a list of pair of block      
+        """
+        if not lBlk: return []
+        if iGrid is None: iGrid = Block.iGRID
+        
+        #look for vertical neighbors
+        lVEdge = list()
+        
+        n1, lY1, dBlk_Y1 = cls._findVerticalNeighborEdges_init_y1(lBlk, iGrid)
+
+        epsilon = 2*iGrid
+        epsilon = 0  # back to old version for being able to compare results
+        
+        for i1,y1 in enumerate(lY1):
+            #start with the block(s) with lowest y1
+            #  (they should not overlap horizontally and cannot be vertical neighbors to each other)
+            for A in dBlk_Y1[y1]:
+                Ax1,Ay1, Ax2,Ay2 = map(cls.gridRound, A.getBB(), [iGrid, iGrid, iGrid, iGrid])
+                A_height = A.y2 - A.y1   #why were we accessing the DOM?? float(A.node.prop("height"))
+                assert Ay2 >= Ay1
+                lOx1x2 = list() #list of observed overlaps for current block A
+                leftWatermark, rightWatermark = Ax1, Ax2    #optimization to see when block A has been entirely "covered"
+                jstart = i1 + 1                         #index of next y1 
+                for j1 in range(jstart, n1):            #take in turn all Y1 below A.y1
+                    By1 = lY1[j1]
+                    for B in dBlk_Y1[By1]:          #all block starting at that y1
+                        Bx1,By1, Bx2,By2 = map(cls.gridRound, B.getBB(), [iGrid, iGrid, iGrid, iGrid])
+                        #ovABx1, ovABx2 = cls.XXOverlap( (Ax1,Ax2), (Bx1, Bx2) )
+                        ovABx1, ovABx2 = max(Ax1,Bx1), min(Ax2, Bx2)
+                        if ovABx2 - ovABx1 > epsilon: # significantoverlap
+                            #we now check if that B block is not partially hidden by a previous overlapping block
+                            bVisible = True
+                            for ovOx1, ovOx2 in lOx1x2:
+                                #oox1, oox2 = cls.XXOverlap( (ovABx1, ovABx2), (ovOx1, ovOx2) )
+                                oox1, oox2 = max(ovABx1, ovOx1), min(ovABx2, ovOx2)
+                                if oox1 < oox2:
+                                    bVisible = False  
+                                    break
+                            if bVisible: 
+                                # length = abs(B.y1 - A.y2)
+                                length = By1 - Ay2  # in g1o, it can be negative!
+                                if length < 0:
+                                    # let's decide if we create an horizontal or a vertical edge, but not both
+                                    # we decide that by looking at the orientation of the rectangular shape of the overlap
+                                    # if the horizontal overlap is larger than the vertical overlap, we keep as vertical edge
+                                    bVisible = (ovABx2 - ovABx1) > (-length)
+                            if bVisible:
+                                if bShortOnly:
+                                    #we need to measure how far this block is from A
+                                    #we use the height attribute (not changed by the rotation)
+                                    if 0 < length and length < A_height: 
+                                        lVEdge.append( EdgeClass(A, B, length, ovABx2 - ovABx1) )
+                                else:
+                                    lVEdge.append( EdgeClass(A, B, length, ovABx2 - ovABx1) )
+                                
+                            lOx1x2.append( (ovABx1, ovABx2) ) #an hidden object may hide another one
+                            #optimization to see when block A has been entirely "covered"
+                            #(it does not account for all cases, but is fast and covers many common situations)
+                            if Bx1 < Ax1: leftWatermark =  max(leftWatermark, Bx2)
+                            if Ax2 < Bx2: rightWatermark = min(rightWatermark, Bx1)
+                            if leftWatermark >= rightWatermark: break #nothing else below is visible anymore
+                    if leftWatermark >= rightWatermark: break #nothing else below is visible anymore
+                            
+        return lVEdge
 
 class BlockShallowCopy(Block):
     """
