@@ -180,17 +180,21 @@ class TestReport:
             1 5577_007.mpxml [ 0.969  0.952  0.992  1.     0.   ] [ 0.969  0.981  0.969  1.     0.   ] [ 0.969  0.967  0.981  1.     0.   ]
             
         """
-        sReport = "\n Detailed Reporting \n" + "-"*20 +"\n"
+        sReport = "\n Detailed Reporting Precision per label, then Recall, then F1,  per document\n" + "-"*20 +"\n"
         lConfMat = self.getConfusionMatrixByDocument()
         eps=1e-8
         # numpy bug!!
         np.set_printoptions(precision = 3, suppress = True)
+        lDocName = self.getDocNameList()
         for i,conf in enumerate(lConfMat):
             p   = np.diag(conf)/(eps+conf.sum(axis=0))
             r   = np.diag(conf)/(eps+conf.sum(axis=1))
             f1  = 2*p*r/(eps+p+r)
             #sReport += "%d\t%s\t%s %s %s\n"%(i,os.path.basename(self.getDocNameList()[i]),p,r,f1)
-            sReport += "%d\t%s %s %s\t%s\n"%(i, p,r,f1, os.path.basename(self.getDocNameList()[i]))
+            if lDocName:
+                sReport += "%d\t%s %s %s\t%s\n"%(i, p,r,f1, os.path.basename(lDocName[i]))
+            else:
+                sReport += "%d\t%s %s %s\n"%(i, p,r,f1)
             
         return sReport
     # ------------------------------------------------------------------------------------------------------------------
