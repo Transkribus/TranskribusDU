@@ -228,7 +228,7 @@ def eval_oracle(lsRunDir, sClusterLevel
                 except IndexError:continue
                 Y = labelEdges(g,sClusterLevel)
                 g.form_cluster(Y)
-                g.addEdgeToDoc(Y)
+                g.addEdgeToDoc()
                 
                 for nd in PageXml.xpath(ndPage, xpSelector):
                     if bIgnoreHeader and nd.getparent().get("custom") and "table-header" in nd.getparent().get("custom"): continue
@@ -259,7 +259,8 @@ def eval_oracle(lsRunDir, sClusterLevel
 #                     assert ndparent.tag.endswith("TableCell"), "expected TableCell got %s" % nd.getparent().tag
                     
                 for fSimil in lfSimil:
-                    _nOk, _nErr, _nMiss, _lFound, _lErr, _lMissed = evalPartitions(
+                    _nOk, _nErr, _nMiss = evalPartitions(
+#                     _nOk, _nErr, _nMiss, _lFound, _lErr, _lMissed = evalPartitions(
                           list(dRun.values())
                         , list(dGT.values())
                         , fSimil
@@ -267,8 +268,8 @@ def eval_oracle(lsRunDir, sClusterLevel
                     
                     _fP, _fR, _fF = computePRF(_nOk, _nErr, _nMiss)
                     
-                    #traceln("simil:%.2f  P %5.1f  R %5.1f  F1 %5.1f   ok=%6d  err=%6d  miss=%6d" %(
-                    traceln("@simil %.2f   P %5.1f  R %5.1f  F1 %5.1f   ok=%6d  err=%6d  miss=%6d" %(
+                    #traceln("simil:%.2f  P %5.2f  R %5.2f  F1 %5.2f   ok=%6d  err=%6d  miss=%6d" %(
+                    traceln("@simil %.2f   P %5.2f  R %5.2f  F1 %5.2f   ok=%6d  err=%6d  miss=%6d" %(
                           fSimil
                         , _fP, _fR, _fF
                         , _nOk, _nErr, _nMiss
@@ -289,7 +290,7 @@ def eval_oracle(lsRunDir, sClusterLevel
     for fSimil in lfSimil:
         nOk, nErr, nMiss = dOkErrMiss[fSimil]
         fP, fR, fF = computePRF(nOk, nErr, nMiss)
-        traceln("ALL_TABLES  @simil %.2f   P %5.1f  R %5.1f  F1 %5.1f " % (fSimil, fP, fR, fF )
+        traceln("ALL_TABLES  @simil %.2f   P %5.2f  R %5.2f  F1 %5.2f " % (fSimil, fP, fR, fF )
                 , "        "
                 ,"ok=%d  err=%d  miss=%d" %(nOk, nErr, nMiss))
         
@@ -337,7 +338,8 @@ def eval_direct(lCriteria, lsDocDir
                         continue
                     else:
                         val_gt = "-1"
-                if bIgnoreHeader and nd.get("DU_header") != "D": continue
+                #if bIgnoreHeader and nd.get("DU_header") != "D": continue
+                if bIgnoreHeader and nd.getparent().get("custom") and "table-header" in nd.getparent().get("custom"): continue
                 assert nd.getparent().tag.endswith("TableCell"), "expected TableCell got %s" % nd.getparent().tag
                 val    = nd.get("DU_"+crit)
 #                 import random
@@ -365,7 +367,7 @@ def eval_direct(lCriteria, lsDocDir
             
             _fP, _fR, _fF = computePRF(_nOk, _nErr, _nMiss)
             
-            traceln("simil:%.2f  P %5.1f  R %5.1f  F1 %5.1f   ok=%6d  err=%6d  miss=%6d  %s" %(
+            traceln("simil:%.2f  P %5.2f  R %5.2f  F1 %5.2f   ok=%6d  err=%6d  miss=%6d  %s" %(
                   fSimil
                 , _fP, _fR, _fF
                 , _nOk, _nErr, _nMiss
@@ -381,7 +383,7 @@ def eval_direct(lCriteria, lsDocDir
     for fSimil in lfSimil:
         nOk, nErr, nMiss = dOkErrMiss[fSimil]
         fP, fR, fF = computePRF(nOk, nErr, nMiss)
-        traceln("ALL simil:%.2f  P %5.1f  R %5.1f  F1 %5.1f " % (fSimil, fP, fR, fF )
+        traceln("ALL simil:%.2f  P %5.2f  R %5.2f  F1 %5.2f " % (fSimil, fP, fR, fF )
                 , "        "
                 ,"ok=%d  err=%d  miss=%d" %(nOk, nErr, nMiss))
         
@@ -394,15 +396,16 @@ def eval_cluster(lsRunDir, sClusterLevel
                 , lfSimil=[i / 100.0 for i in [66, 80, 100]]
                 , xpSelector=".//pc:TextLine"
                 , sAlgo=None
-                , sGroupByAttr=""):
+                , sGroupByAttr=""
+                ):
     """
     evaluate the cluster quality from a run folder
     
     We assume to have the groundtruth row and col in the files as well as the predicted clusters
     """
     assert lsRunDir
-    dOkErrMiss = { fSimil:(0,0,0) for fSimil in lfSimil }
     traceln(" --- eval_cluster  level=%s"%sClusterLevel)
+    nOk, nErr, nMiss = 0,0,0
     for sRunDir in lsRunDir:
         lsFile = listFiles(sRunDir)
         traceln("-loaded %d files from %s" % (len(lsFile), sRunDir))
@@ -416,98 +419,136 @@ def eval_cluster(lsRunDir, sClusterLevel
         if not sAlgo is None:
             traceln("Loading cluster @algo='%s'"%sAlgo)
             
-        for sFilename in lsFile:
-            doc = etree.parse(os.path.join(sRunDir, sFilename))
-            rootNd = doc.getroot()
-            #assert len(PageXml.xpath(rootNd, "//pc:Page")) == 1, "NOT YET IMPLEMENTED: eval on multi-page files"
-            for iPage, ndPage in enumerate(PageXml.xpath(rootNd, "//pc:Page")):
-                traceln("PAGE %5d  OF FILE    %s" % (iPage+1, sFilename))
-                # cluster  -> [node_id]
-                dGT  = defaultdict(list)
-                dRun = defaultdict(list)
-                for nd in PageXml.xpath(ndPage, xpSelector):
-                    if bIgnoreHeader and nd.get("DU_header") != "D": continue
-                    
-                    ndparent = nd.getparent() 
-                    ndid   = nd.get("id")
-                    
-                    if sClusterLevel == "cell":
-                        val_gt = "%s__%s" % (ndparent.get("row"), ndparent.get("col"))
-                        if val_gt == 'None__None' and bIgnoreOutOfTable: continue
-                    elif sClusterLevel == "col":
-                        val_gt = ndparent.get("col")
-                        if val_gt == None and bIgnoreOutOfTable: continue
-                    elif sClusterLevel == "row":
-                        val_gt = ndparent.get("row")
-                        if val_gt == None and bIgnoreOutOfTable: continue
-                    elif sClusterLevel == 'region':
-                        val_gt = "%s" % (ndparent.get("id"))
-                        if val_gt == 'None' and bIgnoreOutOfTable: continue
-                    else:
-                        raise Exception("Unknown clustering level: %s"%sClusterLevel)
-    
-                    # distinguish each table!
-                    if sClusterLevel != 'region':
-                        val_gt = "%s_%s" % (val_gt, ndparent.getparent().get("id"))
-                    
-                    dGT[val_gt].append(ndid)
-     
-                    val_run = nd.get("DU_cluster")
-                    dRun[val_run].append(ndid)
-                    #assert ndparent.tag.endswith("TableCell"), "expected TableCell got %s" % nd.getparent().tag
-                    
-                if not sAlgo is None:
-                    dRun = defaultdict(list)
-                    lNdCluster = PageXml.xpath(ndPage, ".//pc:Cluster[@algo='%s']"%sAlgo)
-                    # lNdCluster = PageXml.xpath(ndPage, ".//pc:Cluster[@algo='%s' and @rowSpan='1']"%sAlgo)
-                    traceln("Loaded %d cluster @algo='%s'"%(len(lNdCluster), sAlgo))
-                    for iCluster, ndCluster in enumerate(lNdCluster):
-                        sIDs = ndCluster.get("content")
-                        lndid = sIDs.split()
-                        if lndid: 
-                            if sGroupByAttr:
-                                # we group them by the value of an attribute
-                                dRun[ndCluster.get(sGroupByAttr)].extend(lndid)
-                            else:
-                                dRun[str(iCluster)] = lndid
-                
-                for fSimil in lfSimil:
-                    _nOk, _nErr, _nMiss = evalPartitions(
-                          list(dRun.values())
-                        , list(dGT.values())
-                        , fSimil
-                        , jaccard_distance)
-                    
-                    _fP, _fR, _fF = computePRF(_nOk, _nErr, _nMiss)
-                    
-                    #traceln("simil:%.2f  P %5.1f  R %5.1f  F1 %5.1f   ok=%6d  err=%6d  miss=%6d" %(
-                    traceln("@simil %.2f   P %5.1f  R %5.1f  F1 %5.1f   ok=%6d  err=%6d  miss=%6d" %(
-                          fSimil
-                        , _fP, _fR, _fF
-                        , _nOk, _nErr, _nMiss
-                        ))
-    #                     , os.path.basename(sFilename)))
-    #                 sFilename = "" # ;-)
-                    
-                    # global count
-                    nOk, nErr, nMiss = dOkErrMiss[fSimil]
-                    nOk   += _nOk
-                    nErr  += _nErr
-                    nMiss += _nMiss
-                    dOkErrMiss[fSimil] = (nOk, nErr, nMiss)
-                
-            traceln()
-        
-    for fSimil in lfSimil:
-        nOk, nErr, nMiss = dOkErrMiss[fSimil]
-        fP, fR, fF = computePRF(nOk, nErr, nMiss)
-        traceln("ALL_TABLES  @simil %.2f   P %5.1f  R %5.1f  F1 %5.1f " % (fSimil, fP, fR, fF )
-                , "        "
-                ,"ok=%d  err=%d  miss=%d" %(nOk, nErr, nMiss))
+        _nOk, _nErr, _nMiss, sRpt = eval_cluster_of_files([os.path.join(sRunDir, _s) for _s in lsFile], sClusterLevel
+            , bIgnoreHeader=bIgnoreHeader
+            , bIgnoreOutOfTable=bIgnoreOutOfTable
+            , lfSimil=lfSimil
+            , xpSelector=xpSelector
+            , sAlgo=sAlgo
+            , sGroupByAttr=sGroupByAttr)
+        nOk += _nOk
+        nErr += _nErr
+        nMiss += _nMiss
+        traceln(sRpt)
         
     return (nOk, nErr, nMiss)
 
+def eval_cluster_of_files(lsFilename
+                , sClusterLevel  # either "row", "col", "cell", "region", "cluster"
+                , bIgnoreHeader=False
+                , bIgnoreOutOfTable=False
+                , lfSimil=[i / 100.0 for i in [66, 80, 100]]
+                , xpSelector=".//pc:TextLine"
+                , sAlgo=None
+                , sGroupByAttr=""
+                , sClusterGTAttr=None  # used when sClusterLevel=="cluster"
+                ):
+    
+    bTable = sClusterLevel in ["row", "col", "cell"]
+    #if not bTable: assert sClusterLevel in ['region', 'cluster']
+    # sCluelsterLevel can be CLuster or clusterlvl1, 2, ...
+    if not bTable: assert sClusterLevel == 'region' or sClusterLevel.startswith('cluster')  
+    
+    dOkErrMiss = { fSimil:(0,0,0) for fSimil in lfSimil }
+    lsRpt = []
+    for sFilename in lsFilename:
+        doc = etree.parse(sFilename)
+        rootNd = doc.getroot()
+        #assert len(PageXml.xpath(rootNd, "//pc:Page")) == 1, "NOT YET IMPLEMENTED: eval on multi-page files"
+        for iPage, ndPage in enumerate(PageXml.xpath(rootNd, "//pc:Page")):
+            lsRpt.append("PAGE %5d  OF FILE    %s" % (iPage+1, sFilename))
+            # cluster  -> [node_id]
+            dGT  = defaultdict(list)
+            dRun = defaultdict(list)
+            for nd in PageXml.xpath(ndPage, xpSelector):
+                #if bIgnoreHeader and nd.get("DU_header") != "D": continue
+                if bIgnoreHeader and nd.getparent().get("custom") and "table-header" in nd.getparent().get("custom"): continue
+                
+                ndparent = nd.getparent() 
+                ndid   = nd.get("id")
+                val_run = nd.get("DU_cluster")  # ok in most cases
+                if bTable:
+                    if sClusterLevel == "cell":
+                        val_gt = "%s__%s" % (ndparent.get("row"), ndparent.get("col"))
+                        if val_gt == 'None__None' and bIgnoreOutOfTable: continue
+                    else: # "col" or "row"
+                        val_gt = ndparent.get(sClusterLevel)
+                        if val_gt == None and bIgnoreOutOfTable: continue
+                    # distinguish each table!
+                    val_gt = "%s_%s" % (val_gt, ndparent.getparent().get("id"))
+                else:
+                    if sClusterLevel == 'region':
+                        val_gt = ndparent.get("id")
+                        # WHY???  if val_gt == 'None' and bIgnoreOutOfTable: continue
+                    #elif sClusterLevel == 'cluster':
+                    elif sClusterLevel == 'cluster':
+                        val_gt = nd.get(sClusterGTAttr)
+                    elif sClusterLevel.startswith('cluster_lvl'):
+                        val_gt = nd.get(sClusterGTAttr)
+                        val_run = nd.get("DU_"+sClusterLevel)
+                    else:
+                        raise Exception("Unknown clustering level: %s"%sClusterLevel)
+               
+                dGT[val_gt].append(ndid)
+ 
+                dRun[val_run].append(ndid)
+                #assert ndparent.tag.endswith("TableCell"), "expected TableCell got %s" % nd.getparent().tag
+                
+            if not sAlgo is None:
+                dRun = defaultdict(list)
+                lNdCluster = PageXml.xpath(ndPage, ".//pc:Cluster[@algo='%s']"%sAlgo)
+                # lNdCluster = PageXml.xpath(ndPage, ".//pc:Cluster[@algo='%s' and @rowSpan='1']"%sAlgo)
+                traceln("Loaded %d cluster @algo='%s'"%(len(lNdCluster), sAlgo))
+                for iCluster, ndCluster in enumerate(lNdCluster):
+                    sIDs = ndCluster.get("content")
+                    lndid = sIDs.split()
+                    if lndid: 
+                        if sGroupByAttr:
+                            # we group them by the value of an attribute
+                            dRun[ndCluster.get(sGroupByAttr)].extend(lndid)
+                        else:
+                            dRun[str(iCluster)] = lndid
+            
+            for fSimil in lfSimil:
+                _nOk, _nErr, _nMiss = evalPartitions(
+                      list(dRun.values())
+                    , list(dGT.values())
+                    , fSimil
+                    , jaccard_distance)
+                
+                _fP, _fR, _fF = computePRF(_nOk, _nErr, _nMiss)
+                
+                #traceln("simil:%.2f  P %5.2f  R %5.2f  F1 %5.2f   ok=%6d  err=%6d  miss=%6d" %(
+                lsRpt.append("@simil %.2f   P %5.2f  R %5.2f  F1 %5.2f   ok=%6d  err=%6d  miss=%6d" %(
+                      fSimil
+                    , _fP, _fR, _fF
+                    , _nOk, _nErr, _nMiss
+                    ))
+#                     , os.path.basename(sFilename)))
+#                 sFilename = "" # ;-)
+                
+                # global count
+                nOk, nErr, nMiss = dOkErrMiss[fSimil]
+                nOk   += _nOk
+                nErr  += _nErr
+                nMiss += _nMiss
+                dOkErrMiss[fSimil] = (nOk, nErr, nMiss)
 
+    lSummary = []
+    for fSimil in lfSimil:
+        nOk, nErr, nMiss = dOkErrMiss[fSimil]
+        fP, fR, fF = computePRF(nOk, nErr, nMiss)
+        sLine = "ALL_%s  @simil %.2f   P %5.2f  R %5.2f  F1 %5.2f " % (
+                     "TABLES" if bTable else sClusterLevel, fSimil, fP, fR, fF ) \
+                + "        "                                                                    \
+                +"ok=%d  err=%d  miss=%d" %(nOk, nErr, nMiss)
+        lSummary.append(sLine)
+    
+    sRpt = "\n".join(lSummary) + "\n\n" + "\n".join(lsRpt) + "\n\n" + "\n".join(lSummary)
+    
+    return nOk, nErr, nMiss, sRpt
+    
+    
 # ------------------------------------------------------------------
 if __name__ == "__main__":
     usage = """
@@ -528,9 +569,9 @@ if __name__ == "__main__":
     eval_cluster_row  RUN_DIR+     eval the quality of the ROWs  clusters using the GT clusters defined by table@ID+@row
     --group_by_attr <ATTR>  merge cluster according to the value of their ATTR attribute
     
-    oracle_cluster_cell RUN_DIR+     eval the quality of the CELLs clusters using the GT clusters defined by table@ID+@row+@col
-    oracle_cluster_col  RUN_DIR+     eval the quality of the COLs  clusters using the GT clusters defined by table@ID     +@col
-    oracle_cluster_row  RUN_DIR+     eval the quality of the ROWs  clusters using the GT clusters defined by table@ID+@row
+    oracle_cell RUN_DIR+     eval the quality of the CELLs clusters using the GT clusters defined by table@ID+@row+@col
+    oracle_col  RUN_DIR+     eval the quality of the COLs  clusters using the GT clusters defined by table@ID     +@col
+    oracle_row  RUN_DIR+     eval the quality of the ROWs  clusters using the GT clusters defined by table@ID+@row
     if --algo is specified, then the run output is taken from the CLuster definitions
     """
     parser = OptionParser(usage=usage, version="0.1")
