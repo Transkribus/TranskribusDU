@@ -103,7 +103,6 @@ def addRegionToDom(page,ipage,lc,bVerbose):
         
         #update elements
         lTL = lc[dC] 
-        print (lTL)
 #         for id in c.get('content').split():
 #             elt = page.xpath('.//*[@id="%s"]'%id)[0]
 #             elt.getparent().remove(elt)
@@ -155,7 +154,7 @@ if __name__ == "__main__":
     sUsage="""
 Usage: %s <sInputDir>   
     
-""" % (sys.argv[0], 90)
+""" % (sys.argv[0])
 
     parser = OptionParser(usage=sUsage)
     parser.add_option("-v", "--verbose", dest='bVerbose',  action="store_true"
