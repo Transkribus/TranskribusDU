@@ -248,7 +248,7 @@ class Generator(object):
         else:
             self._instance  = []
             structproba = self.getRandomElt(self._structure)
-            print (structproba)
+#             print (structproba)
             struct, proba = structproba[:-1], structproba[-1]
             # terminal textual stuff is not tuple but unicode: the generateProb need to be more efficient
             if type(struct) in [ tuple,list] :
