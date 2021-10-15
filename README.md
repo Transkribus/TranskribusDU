@@ -14,11 +14,12 @@ We recommend installing __anaconda3__ . You can then train using pystruct and/or
  * conda install shapely rtree lxml scipy
  * pip install future scikit-learn pytest --upgrade
  
-To learn with pystruct (using a graph-CRF model):
- * pip install cvxopt ad3 pystruct --upgrade
+~~To learn with pystruct (using a graph-CRF model):~~
+
+~~* pip install cvxopt ad3 pystruct --upgrade~~
 
 To learn with Tensorflow (using an Edge Convolutional Network):
- * conda install -c anaconda tensorflow(-gpu)
+ * conda install tensorflow(-gpu)
 
 ### Usage
  * see use-cases
