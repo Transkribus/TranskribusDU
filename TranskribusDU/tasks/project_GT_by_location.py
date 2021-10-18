@@ -67,19 +67,20 @@ def main(sInputDir, sGTDir, sOutputDir
          , lsRmId
          , bEval
          , bWarm
+         , sExt = ".mpxml"
          , bVerbose=False):
     
     lSkippedFile = []
     
     # filenames without the path
-    lsFilename = [os.path.basename(name) for name in os.listdir(sInputDir) if name.endswith(".mpxml") and not name.endswith("_du.mpxml")]
-    traceln(" - %d .mpxml files to process" % len(lsFilename))
+    lsFilename = [os.path.basename(name) for name in os.listdir(sInputDir) if name.endswith(sExt) and not name.endswith("_du%s"%sExt)]
+    traceln(" - %d %s files to process" % (len(lsFilename), sExt))
     for sMPXml in lsFilename:
-        trace(" - .mpxml FILE : ", sMPXml)
+        trace(" - %s FILE : " % sExt, sMPXml)
         if bVerbose: traceln()
         
         # -- find individual subfiles
-        sSubDir = os.path.join(sInputDir, sMPXml[:-len(".mpxml")])
+        sSubDir = os.path.join(sInputDir, sMPXml[:-len(sExt)])
         if os.path.isdir(sSubDir):
             traceln("  (->  ", sSubDir, ")")
             lsPXml = [os.path.basename(name) for name in os.listdir(sSubDir) if name.endswith(".pxml")]
@@ -87,7 +88,7 @@ def main(sInputDir, sGTDir, sOutputDir
         else:
             sSubDir = sInputDir
             lsPXml = [sMPXml]
-            if bVerbose: traceln("\tprocessing the .mpxml file")
+            if bVerbose: traceln("\tprocessing the %s file"%sExt)
         
         # -- find GT...
         for sInputXml in lsPXml:
@@ -111,7 +112,7 @@ def main(sInputDir, sGTDir, sOutputDir
             # input Xml
             sInFN = os.path.join(sSubDir, sInputXml)
             sOutFN = os.path.join(sOutputDir, sInputXml)
-            
+
             if bWarm and os.path.exists(sOutFN):
                 # check existence and freshness
                 t_in  = os.path.getmtime(sInFN)
@@ -237,11 +238,12 @@ def project_Elt_to_GT(gtdoc, doc
 
     # remove all elements of interest from GT
     # inside TableRegion, we have TextLine, outside we have TextRegion
-    for ndElt in gtroot.xpath(xpElement1, namespaces=dNS):
-        if bEval:
-            for ndElt2 in ndElt.xpath(xpElement2, namespaces=dNS): 
-                dTable[None][None][None].append(ndElt2.get("id")) 
-        ndElt.getparent().remove(ndElt)
+    if xpElement1 != xpArea2:
+        for ndElt in gtroot.xpath(xpElement1, namespaces=dNS):
+            if bEval:
+                for ndElt2 in ndElt.xpath(xpElement2, namespaces=dNS):
+                    dTable[None][None][None].append(ndElt2.get("id"))
+            ndElt.getparent().remove(ndElt)
     for ndElt in gtroot.xpath(xpElement2, namespaces=dNS):
         ndCell = ndElt.getparent()
         if bEval: dTable[ndCell.getparent().get("id")][ndCell.get("row")][ndCell.get("col")].append(ndElt.get("id")) 
@@ -260,18 +262,22 @@ def project_Elt_to_GT(gtdoc, doc
     lNdPageGT =        gtroot.xpath("//pg:Page", namespaces=dNS)
     if len(lNdPage) != len(lNdPageGT):
         raise GTProjectionException("GT and input have different numbers of pages")
-    
+    assert len(lNdPage) > 0, "No page??"
+
     uniqID = 1
     for ndPage, ndPageGT in zip(lNdPage, lNdPageGT):
+        print(xpArea2)
+        import lxml
+        print(lxml.etree.tostring(ndPageGT))
         lNdArea2 = ndPageGT.xpath(xpArea2, namespaces=dNS)
         loArea2 = [ShapeLoader.node_to_Polygon(nd) for nd in lNdArea2]
-        
+
         for ndElt in ndPage.xpath(xpElement2, namespaces=dNS):
             oElt = ShapeLoader.node_to_Polygon(ndElt)
             
             lOvrl = [oElt.intersection(o).area for o in loArea2]
-            iMax = argmax(lOvrl)
-            vMax = lOvrl[iMax]
+            iMax = argmax(lOvrl) if lOvrl else None
+            vMax = -1 if iMax is None else lOvrl[iMax]
             
             # where to add it?
             if vMax > 0 and vMax / oElt.area > fTH:
@@ -412,8 +418,10 @@ Usage: %s <sInputDir> <sGTDir> <sOutputDir>
                       , help="evaluation mode, pass GT as input!!")   
     parser.add_option("--warm", dest='bWarm',  action="store_true"
                       , help="Warm mode: skipped input files with a fresh output already there")   
+    parser.add_option("--pxml", dest='bPXml',  action="store_true"
+                      , help="Look directly for .pxml files")
     parser.add_option("-v", "--verbose", dest='bVerbose',  action="store_true"
-                      , help="Verbose mode")   
+                      , help="Verbose mode")
     (options, args) = parser.parse_args()
     
     try:
@@ -427,8 +435,8 @@ Usage: %s <sInputDir> <sGTDir> <sOutputDir>
     iNorm = options.iNormHeight if bool(options.iNormHeight) else iNORMALIZED_HEIGHT
 
     # ... checking folders
-    if not os.path.normpath(sInputDir).endswith("col")  : sInputDir = os.path.join(sInputDir, "col")
-    if not os.path.normpath(sGTDir).endswith("col")     : sGTDir = os.path.join(sGTDir, "col")
+    #if not os.path.normpath(sInputDir).endswith("col")  : sInputDir = os.path.join(sInputDir, "col")
+    #if not os.path.normpath(sGTDir).endswith("col")     : sGTDir = os.path.join(sGTDir, "col")
     if os.path.isdir(sInputDir) and os.path.isdir(sGTDir):
         # create the output fodlers if required
         if os.path.normpath(sOutputDir).endswith("col") :
@@ -446,7 +454,9 @@ Usage: %s <sInputDir> <sGTDir> <sOutputDir>
         for s in lsDir:
             if not os.path.isdir(s): sys.stderr.write("Not a directory: %s\n"%s)
         sys.exit(2)
-    
+
+    sExt = ".pxml" if options.bPXml else ".mpxml"
+
     # ok, go!
     traceln("Input is : ", os.path.abspath(sInputDir))
     traceln("GT is in : ", os.path.abspath(sGTDir))
@@ -459,7 +469,8 @@ Usage: %s <sInputDir> <sGTDir> <sOutputDir>
     traceln("Normalise to height : ", iNorm)
     traceln("Get separators : ", options.bSep)
     traceln("Remove elements with @id: ", options.lsRmId)
-    
+    traceln("File extension: ", sExt)
+
     if os.listdir(sOutputDir): traceln("WARNING: *** output folder NOT EMPTY ***")
 
     main(sInputDir, sGTDir, sOutputDir
@@ -470,6 +481,7 @@ Usage: %s <sInputDir> <sGTDir> <sOutputDir>
          , options.lsRmId
          , options.bEval
          , options.bWarm
-         , options.bVerbose)
+         , sExt=sExt
+         , bVerbose=options.bVerbose)
     
     traceln("Done.")
