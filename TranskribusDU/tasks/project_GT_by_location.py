@@ -59,6 +59,11 @@ xpBASELINE          = ".//pg:Baseline"
 dNS = {"pg":"http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"}
 # ----------------------------------------------------------------------------
 
+
+class ProjectException(Exception):
+    pass
+
+
 def main(sInputDir, sGTDir, sOutputDir
          , xpElement1, xpElement2
          , xpArea1, xpArea2
@@ -71,10 +76,12 @@ def main(sInputDir, sGTDir, sOutputDir
          , bVerbose=False):
     
     lSkippedFile = []
-    
+    nOK = 0
+
     # filenames without the path
     lsFilename = [os.path.basename(name) for name in os.listdir(sInputDir) if name.endswith(sExt) and not name.endswith("_du%s"%sExt)]
     traceln(" - %d %s files to process" % (len(lsFilename), sExt))
+    lsFilename.sort()
     for sMPXml in lsFilename:
         trace(" - %s FILE : " % sExt, sMPXml)
         if bVerbose: traceln()
@@ -130,32 +137,36 @@ def main(sInputDir, sGTDir, sOutputDir
                 doc = normaliseDocElements(doc, xpElement2, iNorm)
             
             # 2 - project GT
-            if not bNormOnly:
-                gtdoc = etree.parse(sGTFN)
-                if True:
-                    doc = project_Elt_to_GT(gtdoc, doc
-                                            , xpElement1, xpElement2
-                                            , xpArea2, bSep, lsRmId, bEval)
-                else:
-                    doc = project_Areas_to_Input(gtdoc, doc
-                                                 , xpElement1, xpElement2, xpArea1, xpArea2
-                                                 , bSep, lsRmId, bEval)
-            
-            # 3 - save
-            doc.write(sOutFN,
-                      xml_declaration=True,
-                      encoding="utf-8",
-                      pretty_print=True
-                      #compression=0,  #0 to 9
-                      )        
-                
+            try:
+                if not bNormOnly:
+                    gtdoc = etree.parse(sGTFN)
+                    if True:
+                        doc = project_Elt_to_GT(gtdoc, doc
+                                                , xpElement1, xpElement2
+                                                , xpArea2, bSep, lsRmId, bEval)
+                    else:
+                        doc = project_Areas_to_Input(gtdoc, doc
+                                                     , xpElement1, xpElement2, xpArea1, xpArea2
+                                                     , bSep, lsRmId, bEval)
+
+                # 3 - save
+                doc.write(sOutFN,
+                          xml_declaration=True,
+                          encoding="utf-8",
+                          pretty_print=True
+                          #compression=0,  #0 to 9
+                          )
+                nOK += 1
+            except ProjectException as e:
+                traceln("Exception: ", e)
+                lSkippedFile.append(sInputXml)
             # done
             
             del doc
             traceln(" done")
             
     
-    traceln(" - %d .pxml files skipped" % len(lSkippedFile))
+    traceln(" - %d file produced,  %d .pxml files skipped" % (nOK, len(lSkippedFile)))
 
 
 # ---------------------------------------------------------------------------
@@ -265,13 +276,11 @@ def project_Elt_to_GT(gtdoc, doc
     assert len(lNdPage) > 0, "No page??"
 
     uniqID = 1
+    nNdArea2 = 0
     for ndPage, ndPageGT in zip(lNdPage, lNdPageGT):
-        print(xpArea2)
-        import lxml
-        print(lxml.etree.tostring(ndPageGT))
         lNdArea2 = ndPageGT.xpath(xpArea2, namespaces=dNS)
         loArea2 = [ShapeLoader.node_to_Polygon(nd) for nd in lNdArea2]
-
+        nNdArea2 += len(lNdArea2)
         for ndElt in ndPage.xpath(xpElement2, namespaces=dNS):
             oElt = ShapeLoader.node_to_Polygon(ndElt)
             
@@ -321,7 +330,8 @@ def project_Elt_to_GT(gtdoc, doc
     if bEval:
         traceln("-"*40)
         trace(" - evaluation: %d ok out of %d = %.2f%%\n" % (nOk, nTot, 100*nOk / (nTot+0.0001)))
-        
+
+    if nNdArea2 == 0: raise ProjectException("Empty GT")
     return gtdoc
 
 
