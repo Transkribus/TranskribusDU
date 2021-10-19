@@ -248,13 +248,16 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
         
         for docdir in lFolder:
             print( "Document ", docdir)
-            lPageFile = [os.path.basename(name) for name in glob.iglob(os.path.join(sRootDir, docdir, self.sPagePattern)) 
-                                if os.path.isfile(os.path.join(sRootDir, docdir, name))]
+            #lPageFile = [os.path.basename(name) for name in glob.iglob(os.path.join(sRootDir, docdir, self.sPagePattern))
+            lPageFile = [name for name in
+                         glob.iglob(os.path.join(sRootDir, docdir, self.sPagePattern))
+                         if os.path.isfile(os.path.join(sRootDir, docdir, name))]
             lPageFile.sort()
             self.seenDocPageCount(docdir, len(lPageFile))
             for sPageFile in lPageFile: 
                 print( ".",)
-                doc = etree.parse(os.path.join(sRootDir, docdir, sPageFile))
+                #doc = etree.parse(os.path.join(sRootDir, docdir, sPageFile))
+                doc = etree.parse(sPageFile)
                 self.parsePage(doc, doc.getroot(), docdir)
                 doc = None
                 gc.collect()
@@ -264,14 +267,16 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
     def runMultiPageXml(self, sRootDir):
         print( os.path.join(sRootDir, self.sDocPattern))
         print( glob.glob(os.path.join(sRootDir, self.sDocPattern)))
-        lDocFile = [os.path.basename(filename) for filename in glob.iglob(os.path.join(sRootDir, self.sDocPattern)) 
-                                if os.path.isfile(filename)]
+        #lDocFile = [os.path.basename(filename) for filename in glob.iglob(os.path.join(sRootDir, self.sDocPattern))
+        lDocFile = [filename for filename in glob.iglob(os.path.join(sRootDir, self.sDocPattern))
+                    if os.path.isfile(filename)]
         lDocFile.sort()
         print( "Documents: ", lDocFile)
         
         for docFile in lDocFile:
             print( "Document ", docFile)
-            doc = etree.parse(os.path.join(sRootDir, docFile))
+            #doc = etree.parse(os.path.join(sRootDir, docFile))
+            doc = etree.parse(docFile)
             lNdPage = doc.getroot().xpath("//pg:Page",
                                           namespaces=self.dNS)
             self.seenDocPageCount(docFile, len(lNdPage))
@@ -280,6 +285,7 @@ class PageXmlCollectionAnalyzer(CollectionAnalyzer):
                 self.parsePage(doc, ndPage, docFile)
             print()
             sys.stdout.flush()
+        print("%d files" % len(lDocFile))
 
     def parsePage(self, doc, ctxtNd, name):
         for tag in self.lTag:
