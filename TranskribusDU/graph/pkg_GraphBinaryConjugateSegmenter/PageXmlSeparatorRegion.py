@@ -18,7 +18,7 @@ import shapely.geometry as geom
 from shapely.prepared import prep
 from rtree import index
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing.data import QuantileTransformer
+from sklearn.preprocessing import QuantileTransformer
 
 from common.trace import traceln
 from util.Shape import ShapeLoader

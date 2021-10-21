@@ -239,7 +239,10 @@ class NodeType_PageXml_type(NodeType_PageXml):
                     
     def getLabelAttribute(self):
         return self.sLabelAttr
-                   
+
+    def getLabel(self, domnode):
+        return domnode.get(self.sLabelAttr)
+
     def parseDocNodeLabel(self, graph_node, defaultCls=None):
         """
         Parse and set the graph node label and return its class index
@@ -247,7 +250,8 @@ class NodeType_PageXml_type(NodeType_PageXml):
         """
         sLabel = self.sDefaultLabel
         domnode = graph_node.node
-        sXmlLabel = domnode.get(self.sLabelAttr)
+        # sXmlLabel = domnode.get(self.sLabelAttr)
+        sXmlLabel = self.getLabel(domnode)
         try:
             sLabel = self.dXmlLabel2Label[sXmlLabel]
         except KeyError:

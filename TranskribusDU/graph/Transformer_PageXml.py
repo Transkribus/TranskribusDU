@@ -373,7 +373,9 @@ class EdgeTransformerClassShifter(Transformer):
             
         self._nbEdgeFeat = self.nbFEAT * len(lEdgeClass)
         self._dEdgeClassIndexShift = { cls:i*self.nbFEAT for i,cls in enumerate(lEdgeClass) }
-    
+        self.bMirrorPage = bMirrorPage
+        self.bMultiPage  = bMultiPage
+
     @classmethod
     def setDefaultEdgeClass(cls, lEdgeClass):
         """
@@ -457,7 +459,10 @@ class EdgeBooleanFeatures(EdgeTransformerClassShifter):
     left-, top-, right-, bottom- justified  (at epsilon precision)
     """
     nbFEAT = 6
-    
+
+    def __init__(self, bMirrorPage=True):
+        EdgeTransformerClassShifter.__init__(self, bMirrorPage)
+
     def transform(self, lEdge):
         #DISC a = np.zeros( ( len(lEdge), 16 ) , dtype=np.float64)
         a = - np.ones( ( len(lEdge), self._nbEdgeFeat ) , dtype=np.float64)
