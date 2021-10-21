@@ -12,7 +12,7 @@ Updated: 2019-11-20
 We recommend installing __anaconda3__ . You can then train using pystruct and/or tensorflow (both to be installed on top of anaconda).
 
  * conda install shapely rtree lxml scipy
- * pip install future scikit-learn pytest --upgrade
+ * conda install future scikit-learn pytest
  
 ~~To learn with pystruct (using a graph-CRF model):~~
 
