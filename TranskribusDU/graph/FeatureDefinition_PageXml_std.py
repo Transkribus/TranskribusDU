@@ -50,7 +50,7 @@ class FeatureDefinition_PageXml_StandardOnes(FeatureDefinition):
         tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=self.n_tfidf_node
                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
                                                                                   , dtype=np.float64)
-        
+
         node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                     ("text", Pipeline([
                                                        ('selector', NodeTransformerTextEnclosed()),

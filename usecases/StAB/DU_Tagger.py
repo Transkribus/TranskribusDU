@@ -69,9 +69,10 @@ if __name__ == "__main__":
     #parse the command line
     (options, args) = parser.parse_args()
 
-    if True:
+    if False:
         traceln("*** not using text (debugging...) ***")
         cFeatureDefinition = FeatureDefinition_PageXml_StandardOnes_noText
+        dFeatureConfig = {}
     else:
         cFeatureDefinition = FeatureDefinition_PageXml_StandardOnes
         dFeatureConfig = {  'n_tfidf_node':400, 't_ngrams_node':(1,3), 'b_tfidf_node_lc':False
@@ -88,7 +89,7 @@ if __name__ == "__main__":
                                    , options                    = options
                                    , fun_getConfiguredGraphClass= getConfiguredGraphClass
                                    , cFeatureDefinition         = cFeatureDefinition
-                                   , dFeatureConfig             = {}                                           
+                                   , dFeatureConfig             = dFeatureConfig
                                    )
     
     # setting the learner configuration, in a standard way 

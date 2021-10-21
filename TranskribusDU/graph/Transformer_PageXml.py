@@ -328,6 +328,10 @@ class EdgeTransformerByClassIndex(Transformer):
             else:   
                 self._edgeClass = [HorizontalEdge, VerticalEdge][n]
 
+        self.n = n
+        self.bMirrorPage = bMirrorPage
+        self.bMultiPage = bMultiPage
+
 class EdgeTransformerSourceText(EdgeTransformerByClassIndex):
     """
     we will get a list of edges and need to send back what a textual feature extractor (TfidfVectorizer) needs.
@@ -405,7 +409,8 @@ class Edge1HotFeatures(EdgeTransformerClassShifter):
     def __init__(self, pageNumSequenciality, bMirrorPage=True):
         EdgeTransformerClassShifter.__init__(self, bMirrorPage)
         self.sqnc = pageNumSequenciality
-            
+        self.pageNumSequenciality = pageNumSequenciality
+
     def transform(self, lEdge):
         #a = np.zeros( ( len(lEdge), 3 + 17*3 ) , dtype=np.float64)
         a = np.zeros( ( len(lEdge), self._nbEdgeFeat), dtype=np.float64)
