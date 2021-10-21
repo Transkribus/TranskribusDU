@@ -19,7 +19,13 @@ from graph.NodeType_PageXml                         import  NodeType_PageXml_typ
 from graph.FeatureDefinition_PageXml_std_noText  import FeatureDefinition_PageXml_StandardOnes_noText
 
 
-class MyNodeType(NodeType_PageXml_type):
+# =============================================================================
+bTextRegion = False   # do we tag TextRegion? Otherwise we will tag TextLine
+bText       = False  # do we use text?  (set to False for TextRegion)
+# =============================================================================
+
+
+class NodeType_for_TextLine(NodeType_PageXml_type):
     """
     We specialize it because we get the label (of TextLine nodes) from the parent node (TextRegion)
     """
@@ -27,15 +33,15 @@ class MyNodeType(NodeType_PageXml_type):
         return domnode.getparent().get(self.sLabelAttr)
 
 
-def getConfiguredGraphClass(doer):
+def getConfiguredGraphClass_for_TextLine(doer):
     """
-    In this class method, we must return a configured graph class
+    we return a configured graph class for tagging TextLine
     """
     #DU_GRAPH = ConjugateSegmenterGraph_MultiSinglePageXml  # consider each age as if indep from each other
     DU_GRAPH = Graph_MultiSinglePageXml
     
     # ntClass = NodeType_PageXml_type_woText #NodeType_PageXml_type
-    ntClass = MyNodeType
+    ntClass = NodeType_for_TextLine
 
     lLabels        = ['heading', 'paragraph', 'page-number']
     lIgnoredLabels = ['caption', 'marginalia']
@@ -47,9 +53,37 @@ def getConfiguredGraphClass(doer):
                   , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
                   )    
     nt.setLabelAttribute("type")
-    #DU_GRAPH.sEdgeLabelAttribute="TR"
+
     nt.setXpathExpr((".//pc:TextLine"
                       , ".//pc:TextEquiv")       #how to get their text
+                   )
+    DU_GRAPH.addNodeType(nt)
+    
+    return DU_GRAPH
+
+
+def getConfiguredGraphClass_for_TextRegion(doer):
+    """
+    In this class method, we must return a configured graph class
+    """
+    #DU_GRAPH = ConjugateSegmenterGraph_MultiSinglePageXml  # consider each age as if indep from each other
+    DU_GRAPH = Graph_MultiSinglePageXml
+    
+    assert bText == False, "Not implemented because most probably useless: extraction of text of TextRegion."
+    ntClass = NodeType_PageXml_type_woText
+
+    lLabels        = ['heading', 'paragraph', 'page-number']
+    lIgnoredLabels = ['caption', 'marginalia']
+
+    nt = ntClass("TR_tag"                   #some short prefix because labels below are prefixed with it
+                  , lLabels                   # in conjugate, we accept all labels, andNone becomes "none"
+                  , lIgnoredLabels
+                  , True                # unused
+                  , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
+                  )    
+    nt.setLabelAttribute("type")
+    nt.setXpathExpr((".//pc:TextRegion"
+                      , "")
                    )
     DU_GRAPH.addNodeType(nt)
     
@@ -69,15 +103,24 @@ if __name__ == "__main__":
     #parse the command line
     (options, args) = parser.parse_args()
 
-    if False:
-        traceln("*** not using text (debugging...) ***")
+    if not bText:
         cFeatureDefinition = FeatureDefinition_PageXml_StandardOnes_noText
         dFeatureConfig = {}
     else:
         cFeatureDefinition = FeatureDefinition_PageXml_StandardOnes
-        dFeatureConfig = {  'n_tfidf_node':400, 't_ngrams_node':(1,3), 'b_tfidf_node_lc':False
-                          , 'n_tfidf_edge':400, 't_ngrams_edge':(1,3), 'b_tfidf_edge_lc':False
-        }
+        if True:
+            # this is the best configuration when using the text
+            dFeatureConfig = {  'n_tfidf_node':400, 't_ngrams_node':(1,1), 'b_tfidf_node_lc':False
+                            , 'n_tfidf_edge':400, 't_ngrams_edge':(1,1), 'b_tfidf_edge_lc':False
+            }
+        elif False:
+            dFeatureConfig = {  'n_tfidf_node':1024, 't_ngrams_node':(1,2), 'b_tfidf_node_lc':False
+                            , 'n_tfidf_edge':1024, 't_ngrams_edge':(1,2), 'b_tfidf_edge_lc':False
+            }
+        else:
+            dFeatureConfig = {  'n_tfidf_node':400, 't_ngrams_node':(1,3), 'b_tfidf_node_lc':False
+                            , 'n_tfidf_edge':400, 't_ngrams_edge':(1,3), 'b_tfidf_edge_lc':False
+            }
 
     try:
         sModelDir, sModelName = args
@@ -87,7 +130,7 @@ if __name__ == "__main__":
 
     doer = DU_Task_Factory.getDoer(sModelDir, sModelName
                                    , options                    = options
-                                   , fun_getConfiguredGraphClass= getConfiguredGraphClass
+                                   , fun_getConfiguredGraphClass= getConfiguredGraphClass_for_TextRegion if bTextRegion else getConfiguredGraphClass_for_TextLine
                                    , cFeatureDefinition         = cFeatureDefinition
                                    , dFeatureConfig             = dFeatureConfig
                                    )
