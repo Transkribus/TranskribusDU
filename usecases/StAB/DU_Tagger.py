@@ -13,15 +13,17 @@ import TranskribusDU_version  # if import error, updade the PYTHONPATH environme
 from common.trace import traceln
 from tasks.DU_Task_Factory                          import DU_Task_Factory
 from graph.Graph_Multi_SinglePageXml                import Graph_MultiSinglePageXml
-from graph.NodeType_PageXml                         import   NodeType_PageXml_type
+from graph.NodeType_PageXml                         import NodeType_PageXml_type
+from graph.NodeType_PageXml                         import NodeType_PageXml_type_woText
 from graph.FeatureDefinition_PageXml_std            import FeatureDefinition_PageXml_StandardOnes
-from graph.NodeType_PageXml                         import  NodeType_PageXml_type_woText, NodeType_PageXml_type
-from graph.FeatureDefinition_PageXml_std_noText  import FeatureDefinition_PageXml_StandardOnes_noText
-
+from graph.FeatureDefinition_PageXml_std_noText     import FeatureDefinition_PageXml_StandardOnes_noText
+from graph.FeatureDefinition_Generic                import FeatureDefinition_Generic
+from graph.FeatureDefinition_Generic_noText         import FeatureDefinition_Generic_noText
 
 # =============================================================================
-bTextRegion = False   # do we tag TextRegion? Otherwise we will tag TextLine
-bText       = False  # do we use text?  (set to False for TextRegion)
+bTextRegion = False         # do we tag TextRegion? Otherwise we will tag TextLine
+bText       = False         # do we use text?  (set to False for TextRegion)
+bGenericFeature = False      # do not use page width and height
 # =============================================================================
 
 
@@ -104,10 +106,10 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
 
     if not bText:
-        cFeatureDefinition = FeatureDefinition_PageXml_StandardOnes_noText
+        cFeatureDefinition = FeatureDefinition_Generic_noText if bGenericFeature else FeatureDefinition_PageXml_StandardOnes_noText
         dFeatureConfig = {}
     else:
-        cFeatureDefinition = FeatureDefinition_PageXml_StandardOnes
+        cFeatureDefinition = FeatureDefinition_Generic if bGenericFeature else FeatureDefinition_PageXml_StandardOnes
         if True:
             # this is the best configuration when using the text
             dFeatureConfig = {  'n_tfidf_node':400, 't_ngrams_node':(1,1), 'b_tfidf_node_lc':False
