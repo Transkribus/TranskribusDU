@@ -288,6 +288,71 @@ def variance(lA):
 def stddev(lA):
     return np.sqrt(variance(lA))
 
+def evalAdjustedRandScore(lX, lY):
+    """
+    compute the adjusted Rand index https://en.wikipedia.org/wiki/Rand_index
+    
+    assumes that objects in cluster are hashable
+    """
+    # list of all objects
+    lOx = [o for X in lX for o in X]
+    lOy = [o for Y in lY for o in Y]
+    slOx, slOy = set(lOx), set(lOy)
+    assert len(slOx) == len(lOx), "multiple occurence of same object in clusters of lX"    # unicity check
+    assert len(slOy) == len(lOy), "multiple occurence of same object in clusters of lY"
+    assert slOx == slOy         , "clusters lX and lY do not contains the exact same set of objects"
+
+    # cluster index in lX, per object, for all objects
+    lCx = [i for i,X in enumerate(lX)   for _o in X] 
+    # dictionary object -> cluster index in lY, for all objects
+    dCy = {o:i for i,Y in enumerate(lY) for o in Y}
+
+    score = adjusted_rand_score([dCy[o] for o in lOx]    # ref
+                              , lCx)
+    return score
+
+
+def test_rand_index():
+    
+    #     adjusted_rand_score([0, 0, 1, 2], [0, 0, 1, 1])
+    #     0.5714285714285715
+    import pytest
+    
+    lref = [ [0, 1], [2], [3] ]
+    l    = [ [0, 1], [2, 3] ]
+
+    ref = 0.5714285714285715
+    assert abs(evalAdjustedRandScore(l, lref) - ref) < 1e-3
+    assert abs(evalAdjustedRandScore(lref, l) - ref) < 1e-3
+
+    # objects should not matter
+    lref = [ [0, 11], [2], [333] ]
+    l    = [ [0, 11], [2, 333] ]
+    assert abs(evalAdjustedRandScore(l, lref) - ref) < 1e-3
+    assert abs(evalAdjustedRandScore(lref, l) - ref) < 1e-3
+
+    # order should not matter    
+    lref = [ [3], [1, 0], [2] ]
+    l    = [ [0, 1], [2, 3] ]
+    assert abs(evalAdjustedRandScore(l, lref) - ref) < 1e-3
+    assert abs(evalAdjustedRandScore(lref, l) - ref) < 1e-3
+   
+    # objects and order should not matter    
+    lref = [ [3333], [1, 0], [22] ]
+    l    = [ [0, 1], [22, 3333] ]
+    assert abs(evalAdjustedRandScore(l, lref) - ref) < 1e-3
+    assert abs(evalAdjustedRandScore(lref, l) - ref) < 1e-3
+
+    # both must be partition of the same set
+    lref = [ [3], [1, 0], [2], [99]]
+    l    = [ [0, 1], [2, 3] ]
+    with pytest.raises(AssertionError): evalAdjustedRandScore(l, lref)
+    with pytest.raises(AssertionError): evalAdjustedRandScore(lref, l)
+    l    = [ [0, 1], [2, 3, 2] ]
+    with pytest.raises(AssertionError): evalAdjustedRandScore(l, lref)
+    with pytest.raises(AssertionError): evalAdjustedRandScore(lref, l)
+
+
 if __name__ == "__main__":
     from sklearn.metrics import confusion_matrix
     y_true = [0, 1, 2, 2, 2]
