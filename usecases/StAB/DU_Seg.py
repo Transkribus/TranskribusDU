@@ -25,27 +25,130 @@ from graph.NodeType_PageXml                         import defaultBBoxDeltaFun
 from graph.pkg_GraphBinaryConjugateSegmenter.MultiSinglePageXml  \
             import MultiSinglePageXml as ConjugateSegmenterGraph_MultiSinglePageXml 
 
-from graph.FeatureDefinition_PageXml_std_noText  import FeatureDefinition_PageXml_StandardOnes_noText
 from graph.FeatureDefinition_PageXml_std            import FeatureDefinition_PageXml_StandardOnes
+from graph.FeatureDefinition_PageXml_std_noText     import FeatureDefinition_PageXml_StandardOnes_noText
+from graph.FeatureDefinition_Generic                import FeatureDefinition_Generic
+from graph.FeatureDefinition_Generic_noText         import FeatureDefinition_Generic_noText
 
+from xml_formats.PageXml                            import PageXml, PageXmlException
+from util.Shape                                     import ShapeLoader
 
 #from funsd import parserAddSharedOptions, getDataToPickle, selectFeatureStuff
+
+# =============================================================================
+bText       = True         # do we use text?  (set to False for TextRegion)
+bGenericFeature = True      # do not use page width and height
+bBB2        = False          # slightly different way to normalize bounding boxes
+# =============================================================================
 
 
 # ----------------------------------------------------------------------------
 class My_ConjugateSegmenterGraph_MultiSinglePageXml(ConjugateSegmenterGraph_MultiSinglePageXml):
     """
-    HACK to add a @line_id attribute to words, since we did not add it when creating the XML
+    #HACK to add a @line_id attribute to words, since we did not add it when creating the XML
     """
     def __init__(self):
         super(My_ConjugateSegmenterGraph_MultiSinglePageXml, self).__init__()
     
-    def isEmpty(self):
-        traceln("\tHACK to create a @line_id on nodes")
-        for nd in self.lNode:
-            nd.node.set("line_id", nd.node.getparent().get("id"))
-        return super(My_ConjugateSegmenterGraph_MultiSinglePageXml, self).isEmpty()
+    # def isEmpty(self):
+    #     traceln("\tHACK to create a @line_id on nodes")
+    #     for nd in self.lNode:
+    #         nd.node.set("line_id", nd.node.getparent().get("id"))
+    #     return super(My_ConjugateSegmenterGraph_MultiSinglePageXml, self).isEmpty()
 
+    def form_cluster(self, Y_proba, fThres=0.5, bAgglo=True):
+        """
+        We specialize this method because we want to preserve the page reading order.
+        So, whenever a cluster does not respect the reading order, we split it in sub-clusters
+        """
+        lCluster = super(My_ConjugateSegmenterGraph_MultiSinglePageXml, self).form_cluster(Y_proba, fThres=fThres, bAgglo=bAgglo)
+
+        # lCLuster is a partition of the graph nodes
+        # let's create a reverse mapping node_index --> cluster_index
+        dN2C = {}
+        # make sure we have a list, not a Set, to have an index
+        lCLuster = list(lCluster)
+        for ic, c in enumerate(lCLuster):
+            for ind in c:
+                dN2C[ind] = ic
+
+        # Now re-create the clusters
+        # note: self.lnode does respect the document order
+        lNewCluster = list()
+        cur_ic, cur_c = -1, None
+        for ind, nd in enumerate(self.lNode):
+            ic = dN2C[ind]
+            if ic != cur_ic:   # need to create a new cluster
+                cur_ic, cur_c = ic, [ind]
+                lNewCluster.append(cur_c)
+            else:
+                cur_c.append(ind)  # add node at end of the cluster being fed
+        
+        # now we have cluster and cluster's content in same order as document
+        return lNewCluster
+ 
+    def addClusterToDom(self, lCluster, sAlgo=""):
+        """
+        From the predicted clusters, we create new TextRegions.
+        The original TextRegion, if any, are either removed or renamed TextRegion_GT 
+        """
+        if hasattr(options, "bEvalRegion") and options.bEvalRegion:
+            # in order to evaluate, we must keep the original TextRegion and the Cluster elements that are produced
+            return super(My_ConjugateSegmenterGraph_MultiSinglePageXml, self).addClusterToDom(lCluster, sAlgo=sAlgo)
+        
+        lNdCluster = []
+        dNS = {"pc":"http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"}
+
+        # enumerate TextAreas to remove
+        lNdOldTextRegion = self.doc.xpath("//pc:TextRegion", namespaces=dNS)
+
+        pageNode = self.doc.xpath("//pc:Page", namespaces=dNS)[0]
+
+        # replace the ReadingOrder section by a new one
+        ndReadingOrder = pageNode.xpath("//pc:ReadingOrder", namespaces=dNS)[0]
+        pageNode.remove(ndReadingOrder)
+        ndReadingOrder = PageXml.createPageXmlNode('ReadingOrder')  
+        ndOrderedGroup = PageXml.createPageXmlNode('OrderedGroup')
+        ndOrderedGroup.set("id", "ro_1")
+        ndOrderedGroup.set("caption", "Regions reading order")
+        ndReadingOrder.append(ndOrderedGroup)
+        pageNode.append(ndReadingOrder)
+
+        # loop over clusters
+        for ic, c in enumerate(lCluster):
+            ndCluster = PageXml.createPageXmlNode('TextRegion')  
+            scid = "cluster_%d" % (ic+1)
+            ndCluster.set("id", scid)  
+            ndCluster.set("custom", "readingOrder {index:%d;}" % ic)  
+
+            # TextRegion bounding box
+            coords = PageXml.createPageXmlNode('Coords')        
+            ndCluster.append(coords)
+            spoints = ShapeLoader.minimum_rotated_rectangle([self.lNode[_i].node for _i in c])
+            coords.set('points',spoints)   
+
+            #TextLine: move the DOM node of the content to the cluster
+            for _i in c:                               
+                ndCluster.append(self.lNode[_i].node)
+            
+            pageNode.append(ndCluster)
+            ndCluster.tail = "\n"
+            lNdCluster.append(ndCluster)
+
+            ndRegionRefIndexed = PageXml.createPageXmlNode('RegionRefIndexed')
+            ndRegionRefIndexed.set("index", str(ic))
+            ndRegionRefIndexed.set("regionRef", scid)
+            ndRegionRefIndexed.tail = "\n"
+            ndOrderedGroup.append(ndRegionRefIndexed)
+
+        # remove or rename the old TextRegion
+        for nd in lNdOldTextRegion: 
+            if True:
+                nd.tag = "TextRegion_GT"
+            else:
+                pageNode.remove(nd)        
+            
+        return lNdCluster
 
 # ----------------------------------------------------------------------------
 class My_ConjugateNodeType(NodeType_PageXml_type):
@@ -72,7 +175,9 @@ def getConfiguredGraphClass(doer):
     """
     In this class method, we must return a configured graph class
     """
-    DU_GRAPH = ConjugateSegmenterGraph_MultiSinglePageXml #My_ConjugateSegmenterGraph_MultiSinglePageXml
+    #DU_GRAPH = ConjugateSegmenterGraph_MultiSinglePageXml
+    DU_GRAPH = My_ConjugateSegmenterGraph_MultiSinglePageXml
+
     ntClass = My_ConjugateNodeType
 
     nt = ntClass("region"            #some short prefix because labels below are prefixed with it
@@ -80,8 +185,8 @@ def getConfiguredGraphClass(doer):
                   , []
                   , False                # unused
                   #, BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
-                  , BBoxDeltaFun=None if options.bBB2 else lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
-                  , bPreserveWidth=True if options.bBB2 else False
+                  , BBoxDeltaFun=None if bBB2 else lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
+                  , bPreserveWidth=True if bBB2 else False
                   )    
     nt.setLabelAttribute("id")
     
@@ -104,21 +209,19 @@ if __name__ == "__main__":
     #parserAddSharedOptions(parser)
     
     (options, args) = parser.parse_args()
-    options.bBB2=True 
     #cFeatureDefinition, dFeatureConfig = selectFeatureStuff(options)
 
-    bText=True
     if not bText:
-        cFeatureDefinition = FeatureDefinition_PageXml_StandardOnes_noText
+        cFeatureDefinition = FeatureDefinition_Generic_noText if bGenericFeature else FeatureDefinition_PageXml_StandardOnes_noText
         dFeatureConfig = {}
     else:
-        cFeatureDefinition = FeatureDefinition_PageXml_StandardOnes
-        if False:
+        cFeatureDefinition = FeatureDefinition_Generic if bGenericFeature else FeatureDefinition_PageXml_StandardOnes
+        if True:
             # this is the best configuration when using the text
             dFeatureConfig = {  'n_tfidf_node':400, 't_ngrams_node':(1,1), 'b_tfidf_node_lc':False
                             , 'n_tfidf_edge':400, 't_ngrams_edge':(1,1), 'b_tfidf_edge_lc':False
             }
-        elif True:
+        elif False:
             dFeatureConfig = {  'n_tfidf_node':512, 't_ngrams_node':(1,2), 'b_tfidf_node_lc':False
                             , 'n_tfidf_edge':512, 't_ngrams_edge':(1,2), 'b_tfidf_edge_lc':False
             }
@@ -126,6 +229,8 @@ if __name__ == "__main__":
             dFeatureConfig = {  'n_tfidf_node':1024, 't_ngrams_node':(1,3), 'b_tfidf_node_lc':False
                             , 'n_tfidf_edge':1024, 't_ngrams_edge':(1,3), 'b_tfidf_edge_lc':False
             }
+        if bGenericFeature: 
+            for _s in ['n_tfidf_edge', 't_ngrams_edge', 'b_tfidf_edge_lc']: del dFeatureConfig[_s]
 
 
     try:
