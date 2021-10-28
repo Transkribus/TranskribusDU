@@ -284,8 +284,9 @@ class NodeType_PageXml_type_woText(NodeType_PageXml_type):
     """
             for document wo HTR: no text
     """
-    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun):
-        NodeType_PageXml_type.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther, BBoxDeltaFun)
+    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun
+                 , bPreserveWidth=False):
+        NodeType_PageXml_type.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther, BBoxDeltaFun, bPreserveWidth)
 
     def _get_GraphNodeText(self, doc, domNdPage, ndBlock, ctxt=None):
         return u""

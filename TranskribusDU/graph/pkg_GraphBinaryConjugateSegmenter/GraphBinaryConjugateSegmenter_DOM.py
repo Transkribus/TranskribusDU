@@ -47,7 +47,7 @@ class GraphBinaryConjugateSegmenter_DOM(GraphBinaryConjugateSegmenter, Graph_DOM
                 node = self.lNode[ndIdx]
                 node.node.set(self.sOutputAttribute, "%d"%num)
 
-        self.addClusterToDom(lCluster, sAlgo=lCluster.sAlgo)            
+        self.addClusterToDom(lCluster, sAlgo=lCluster.sAlgo if hasattr(lCluster, "sAlgo") else "")            
         return
 
     def addEdgeToDoc(self, Y_proba):
