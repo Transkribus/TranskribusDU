@@ -21,10 +21,12 @@ from graph.FeatureDefinition_Generic                import FeatureDefinition_Gen
 from graph.FeatureDefinition_Generic_noText         import FeatureDefinition_Generic_noText
 
 # =============================================================================
-bTextRegion = False         # do we tag TextRegion? Otherwise we will tag TextLine
+bTextRegion = True         # do we tag TextRegion? Otherwise we will tag TextLine
 bText       = False         # do we use text?  (set to False for TextRegion)
-bGenericFeature = False      # do not use page width and height
+bGenericFeature = True      # do not use page width and height
+bBB2        = False          # slightly different way to normalize bounding boxes
 # =============================================================================
+print(bTextRegion, bText, bGenericFeature, bBB2)
 
 
 class NodeType_for_TextLine(NodeType_PageXml_type):
@@ -68,7 +70,6 @@ def getConfiguredGraphClass_for_TextRegion(doer):
     """
     In this class method, we must return a configured graph class
     """
-    #DU_GRAPH = ConjugateSegmenterGraph_MultiSinglePageXml  # consider each age as if indep from each other
     DU_GRAPH = Graph_MultiSinglePageXml
     
     assert bText == False, "Not implemented because most probably useless: extraction of text of TextRegion."
@@ -81,8 +82,9 @@ def getConfiguredGraphClass_for_TextRegion(doer):
                   , lLabels                   # in conjugate, we accept all labels, andNone becomes "none"
                   , lIgnoredLabels
                   , True                # unused
-                  , BBoxDeltaFun=lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
-                  )    
+                  , BBoxDeltaFun=None if bBB2 else lambda v: max(v * 0.066, min(5, v/3))  #we reduce overlap in this way
+                  , bPreserveWidth=True if bBB2 else False
+                 )    
     nt.setLabelAttribute("type")
     nt.setXpathExpr((".//pc:TextRegion"
                       , "")
@@ -123,6 +125,8 @@ if __name__ == "__main__":
             dFeatureConfig = {  'n_tfidf_node':400, 't_ngrams_node':(1,3), 'b_tfidf_node_lc':False
                             , 'n_tfidf_edge':400, 't_ngrams_edge':(1,3), 'b_tfidf_edge_lc':False
             }
+        if bGenericFeature: 
+            for _s in ['n_tfidf_edge', 't_ngrams_edge', 'b_tfidf_edge_lc']: del dFeatureConfig[_s]
 
     try:
         sModelDir, sModelName = args
