@@ -102,10 +102,16 @@ class My_ConjugateSegmenterGraph_MultiSinglePageXml(ConjugateSegmenterGraph_Mult
         # enumerate TextAreas to remove
         lNdOldTextRegion = self.doc.xpath("//pc:TextRegion", namespaces=dNS)
 
+        # we copy the type attribute to the inner TextLine, to preserve the GT info, if any
+        for ndTR in lNdOldTextRegion:
+            sType = str(ndTR.get("type"))
+            for ndTL in ndTR.xpath(".//pc:TextLine", namespaces=dNS):
+                    ndTL.set("type_gt", sType)
+
         pageNode = self.doc.xpath("//pc:Page", namespaces=dNS)[0]
 
         # replace the ReadingOrder section by a new one
-        ndReadingOrder = pageNode.xpath("//pc:ReadingOrder", namespaces=dNS)[0]
+        ndReadingOrder = pageNode.xpath(".//pc:ReadingOrder", namespaces=dNS)[0]
         pageNode.remove(ndReadingOrder)
         ndReadingOrder = PageXml.createPageXmlNode('ReadingOrder')  
         ndOrderedGroup = PageXml.createPageXmlNode('OrderedGroup')
@@ -164,7 +170,8 @@ class My_ConjugateNodeType(NodeType_PageXml_type):
         raise a ValueError if the label is missing while bOther was not True, or if the label is neither a valid one nor an ignored one
         """
         domnode = graph_node.node
-        sLabel = domnode.getparent().get(self.sLabelAttr)
+        sLabel = domnode.getparent().get(self.sLabelAttr)  # this is an XML id, infact!
+
         return str(sLabel)
 
     def setDocNodeLabel(self, graph_node, sLabel):
