@@ -213,7 +213,6 @@ if __name__ == "__main__":
     # standard command line options for CRF- ECN- GAT-based methods
     usage, parser = DU_Task_Factory.getStandardOptionsParser(sys.argv[0])
     
-    #parserAddSharedOptions(parser)
     
     (options, args) = parser.parse_args()
     #cFeatureDefinition, dFeatureConfig = selectFeatureStuff(options)

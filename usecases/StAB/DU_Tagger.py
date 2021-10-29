@@ -21,12 +21,11 @@ from graph.FeatureDefinition_Generic                import FeatureDefinition_Gen
 from graph.FeatureDefinition_Generic_noText         import FeatureDefinition_Generic_noText
 
 # =============================================================================
-bTextRegion = True         # do we tag TextRegion? Otherwise we will tag TextLine
-bText       = False         # do we use text?  (set to False for TextRegion)
+bTextRegion = False         # do we tag TextRegion? Otherwise we will tag TextLine
+bText       = True         # do we use text?  (set to False for TextRegion)
 bGenericFeature = True      # do not use page width and height
 bBB2        = False          # slightly different way to normalize bounding boxes
 # =============================================================================
-print(bTextRegion, bText, bGenericFeature, bBB2)
 
 
 class NodeType_for_TextLine(NodeType_PageXml_type):
@@ -48,12 +47,11 @@ class NodeType_for_TextRegion(NodeType_PageXml_type_woText  ):
         super(NodeType_for_TextRegion, self).setDocNodeLabel(graph_node, sLabel)  # tagging the TextRegion with @type
 
         # tagging inner TextLine
+        sLabel = str(graph_node.node.get(self.sLabelAttr))
         dNS = {"pc":"http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"}
         lNd = graph_node.node.xpath(".//pc:TextLine", namespaces=dNS)
         for nd in lNd:
-            # mimicing what super.setDocNodeLabel does
-            if sLabel != self.sDefaultLabel:
-                nd.set(self.sLabelAttr, self.dLabel2XmlLabel[sLabel])
+            nd.set(self.sLabelAttr, sLabel)
 
         return sLabel
 
@@ -121,11 +119,19 @@ if __name__ == "__main__":
     # standard command line options for CRF- ECN- GAT-based methods
     usage, parser = DU_Task_Factory.getStandardOptionsParser(sys.argv[0])
 
+    parser.add_option("--TextRegion"     , dest='bTextRegion' , action="store_true"
+                        , default=False, help="Tag TextRegion, instead of TextLine") 
+    parser.add_option("--no_text"     , dest='bNoText'   , action="store_true"
+                        , default=False, help="Do not use text, otherwise use utext unigrams") 
+
     traceln("VERSION: %s" % DU_Task_Factory.getVersion())
 
     # --- 
     #parse the command line
     (options, args) = parser.parse_args()
+    bTextRegion = options.bTextRegion
+    bText       = not(options.bNoText)
+    traceln("bTextRegion=%s  bText=%s" % (bTextRegion, bText))
 
     if not bText:
         cFeatureDefinition = FeatureDefinition_Generic_noText if bGenericFeature else FeatureDefinition_PageXml_StandardOnes_noText

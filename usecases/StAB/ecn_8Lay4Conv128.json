@@ -1,0 +1,20 @@
+{
+    "ecn_learner_config":
+      {
+     "name":"8Lay4Conv128",
+         "dropout_rate_edge": 0.2,
+         "dropout_rate_edge_feat": 0.2,
+         "dropout_rate_node": 0.2,
+         "lr": 0.0005,
+         "mu": 0.0001,
+         "nb_iter": 250,
+         "nconv_edge": 4,
+         "node_indim": 128,
+         "num_layers": 8,
+         "ratio_train_val": 0.2,
+         "patience":25,
+         "activation_name":"relu",
+         "stack_convolutions": true
+     }
+ }
+ 
