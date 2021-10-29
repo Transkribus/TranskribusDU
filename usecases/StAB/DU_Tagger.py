@@ -37,11 +37,31 @@ class NodeType_for_TextLine(NodeType_PageXml_type):
         return domnode.getparent().get(self.sLabelAttr)
 
 
+class NodeType_for_TextRegion(NodeType_PageXml_type_woText  ):
+    """
+    We specialize it, because we want to tag also the inner TextLine
+    """
+    def setDocNodeLabel(self, graph_node, sLabel):
+        """
+        Set the DOM node label in the format-dependent way
+        """
+        super(NodeType_for_TextRegion, self).setDocNodeLabel(graph_node, sLabel)  # tagging the TextRegion with @type
+
+        # tagging inner TextLine
+        dNS = {"pc":"http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"}
+        lNd = graph_node.node.xpath(".//pc:TextLine", namespaces=dNS)
+        for nd in lNd:
+            # mimicing what super.setDocNodeLabel does
+            if sLabel != self.sDefaultLabel:
+                nd.set(self.sLabelAttr, self.dLabel2XmlLabel[sLabel])
+
+        return sLabel
+
+
 def getConfiguredGraphClass_for_TextLine(doer):
     """
     we return a configured graph class for tagging TextLine
     """
-    #DU_GRAPH = ConjugateSegmenterGraph_MultiSinglePageXml  # consider each age as if indep from each other
     DU_GRAPH = Graph_MultiSinglePageXml
     
     # ntClass = NodeType_PageXml_type_woText #NodeType_PageXml_type
@@ -73,7 +93,7 @@ def getConfiguredGraphClass_for_TextRegion(doer):
     DU_GRAPH = Graph_MultiSinglePageXml
     
     assert bText == False, "Not implemented because most probably useless: extraction of text of TextRegion."
-    ntClass = NodeType_PageXml_type_woText
+    ntClass = NodeType_for_TextRegion  #  NodeType_PageXml_type_woText
 
     lLabels        = ['heading', 'paragraph', 'page-number']
     lIgnoredLabels = ['caption', 'marginalia']
