@@ -9,14 +9,12 @@ Copyright NAVER LABS Europe 2019
 @author: Hervé Déjean
 """
 
-import sys, os, glob
+import sys, os
 from optparse import OptionParser
-from copy import deepcopy
 from collections import Counter
 from collections import defaultdict
 
 from lxml import etree
-import numpy as np
 from shapely.ops import cascaded_union        
 
 
@@ -30,7 +28,9 @@ TranskribusDU_version
 from common.trace import traceln, trace
 from xml_formats.PageXml import PageXml
 from util.Shape import ShapeLoader
-dNS = {"pg":"http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"}
+#dNS = {"pc":"http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"}
+sNS = {"pc":PageXml.NS_PAGE_XML }
+
 # ----------------------------------------------------------------------------
 
 
@@ -55,22 +55,25 @@ def deleteRegionsinDOM(page,lRegionsNd):
     [page.remove(c) for c in lRegionsNd]
   
 def main(sInputDir 
-         , bVerbose=False):
+         , options):
     
-    lSkippedFile = []
     
     # filenames without the path
     lsFilename = [os.path.basename(name) for name in os.listdir(sInputDir) if name.endswith("_du.mpxml")]
-    traceln(" - %d .mpxml files to process" % len(lsFilename))
+    traceln("- %d .mpxml files to process" % len(lsFilename))
     for sMPXml in lsFilename:
-        trace(" - .mpxml FILE : ", sMPXml)
-        if bVerbose: traceln()
+        trace(".du_mpxml FILE : ", sMPXml)
+        if options.bVerbose: traceln()
         
         # 0 - load input file
         doc = etree.parse(os.path.join(sInputDir,sMPXml))
-        cluster2Region(doc,bVerbose)
-        
-        doc.write(os.path.join(sInputDir,sMPXml),
+        cluster2Region(doc,options.bVerbose)
+        if options.bOverwrite:
+            outfilename = sMPXml
+        else: 
+            outfilename = sMPXml[:-len('_du.mpxml')]+"." + options.outext
+        traceln(" written in %s"%(os.path.join(sInputDir,outfilename)))
+        doc.write(os.path.join(sInputDir,outfilename),
                   xml_declaration = True,
                   encoding="utf-8",
                   pretty_print=True
@@ -83,7 +86,7 @@ def propagateTypeToRegion(ndRegion):
         compute the most frequent type in the Textlines and assigns it to the new region
     """
     dType=Counter()
-    for t in ndRegion:
+    for t in ndRegion.findall(".//pc:TextLine",namespaces=sNS):
         dType[t.get('type')]+=1
     mc = dType.most_common(1)
     if mc :
@@ -91,6 +94,7 @@ def propagateTypeToRegion(ndRegion):
         #  structure {type:page-number;}
         # custom="structure {type:page-number;}"
         if mc[0][0]:ndRegion.set('custom',"structure {type:%s;}"%mc[0][0])
+    else:print(dType,mc)
         
     
 def addRegionToDom(page,ipage,lc,bVerbose):
@@ -102,24 +106,26 @@ def addRegionToDom(page,ipage,lc,bVerbose):
         ndRegion = PageXml.createPageXmlNode('TextRegion')     
         
         #update elements
-        lTL = lc[dC] 
-        print (lTL)
 #         for id in c.get('content').split():
 #             elt = page.xpath('.//*[@id="%s"]'%id)[0]
 #             elt.getparent().remove(elt)
 #             ndRegion.append(elt)
 #             lTL.append((elt))
+        lTL = lc[dC] 
         ndRegion.set('id',"p%d_r%d"%(ipage,ic))
         coords = PageXml.createPageXmlNode('Coords')        
         ndRegion.append(coords)
         coords.set('points',getClusterCoords(lTL))   
+        for tl in lTL:
+            tl.getparent().remove(tl)
+            ndRegion.append(tl)
+            #print (f"{tl.get('id')} added to {ndRegion.get('id')}")
         propagateTypeToRegion(ndRegion)
-
         page.append(ndRegion)
              
 def getCLusters(ndPage):
     dCluster=defaultdict(list)
-    lTL= ndPage.xpath(".//*[@DU_cluster]", namespaces=dNS)
+    lTL= ndPage.xpath(".//*[@DU_cluster]", namespaces=sNS)
     for x in lTL:dCluster[x.get('DU_cluster')].append(x)
     return dCluster
                  
@@ -129,20 +135,25 @@ def cluster2Region(doc, fTH=0.5,bVerbose=True):
     """
     root = doc.getroot()
     
-    # no use @DU_CLuster:
-    xpCluster   = ".//pg:Cluster"
-    xpTextRegions     = ".//pg:TextRegion"
+    xpTextRegions     = ".//pc:TextRegion"
     
     # get pages
     for iPage, ndPage in enumerate(PageXml.xpath(root, "//pc:Page")): 
         # get cluster    
         dClusters= getCLusters(ndPage) #ndPage.xpath(xpCluster, namespaces=dNS)
-        lRegionsNd  =  ndPage.xpath(xpTextRegions, namespaces=dNS)
-        if bVerbose:traceln("\n%d clusters and %d regions found" %(len(dClusters),len(lRegionsNd)))
+        lRegionsNd  =  ndPage.xpath(xpTextRegions, namespaces=sNS)
+        if bVerbose:traceln(" %d clusters and %d regions found" %(len(dClusters),len(lRegionsNd)))
         
         addRegionToDom(ndPage,iPage+1,dClusters,bVerbose)
-        if bVerbose:traceln("%d regions created" %(len(dClusters)))            
+        if bVerbose:traceln(" %d regions created" %(len(dClusters)))            
         deleteRegionsinDOM(ndPage, lRegionsNd)
+        
+        #
+        lEdgesNd  =  ndPage.xpath(".//pc:Edge", namespaces=sNS)
+        deleteRegionsinDOM(ndPage, lEdgesNd)
+
+        lClustersNd  =  ndPage.xpath(".//pc:Cluster", namespaces=sNS)
+        deleteRegionsinDOM(ndPage, lClustersNd)
 
     return doc
 
@@ -155,11 +166,15 @@ if __name__ == "__main__":
     sUsage="""
 Usage: %s <sInputDir>   
     
-""" % (sys.argv[0], 90)
+""" % (sys.argv[0])
 
     parser = OptionParser(usage=sUsage)
     parser.add_option("-v", "--verbose", dest='bVerbose',  action="store_true"
                       , help="Verbose mode")     
+    parser.add_option("--outputextension", dest='outext',  action="store", type='string'
+                      , help="add extention to the input file name")  
+    parser.add_option("--overwite", dest='bOverwrite',  action="store_true", default=False
+                      , help="overwrite input file") 
     (options, args) = parser.parse_args()
     
     try:
@@ -169,7 +184,7 @@ Usage: %s <sInputDir>
         sys.exit(1)
     
     # ... checking folders
-    if not os.path.normpath(sInputDir).endswith("col")  : sInputDir = os.path.join(sInputDir, "col")
+    #if not os.path.normpath(sInputDir).endswith("col")  : sInputDir = os.path.join(sInputDir, "col")
     # all must be ok by now
     lsDir = [sInputDir]
     if not all(os.path.isdir(s) for s in lsDir):
@@ -177,6 +192,7 @@ Usage: %s <sInputDir>
             if not os.path.isdir(s): sys.stderr.write("Not a directory: %s\n"%s)
         sys.exit(2)
     
-    main(sInputDir, bVerbose=options.bVerbose)
+    main(sInputDir, options)
     
     traceln("Done.")
+    
