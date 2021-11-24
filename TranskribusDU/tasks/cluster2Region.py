@@ -28,9 +28,7 @@ TranskribusDU_version
 from common.trace import traceln, trace
 from xml_formats.PageXml import PageXml
 from util.Shape import ShapeLoader
-#dNS = {"pc":"http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"}
-sNS = {"pc":PageXml.NS_PAGE_XML }
-
+dNS = {"pg":"http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"}
 # ----------------------------------------------------------------------------
 
 
@@ -86,7 +84,7 @@ def propagateTypeToRegion(ndRegion):
         compute the most frequent type in the Textlines and assigns it to the new region
     """
     dType=Counter()
-    for t in ndRegion.findall(".//pc:TextLine",namespaces=sNS):
+    for t in ndRegion:
         dType[t.get('type')]+=1
     mc = dType.most_common(1)
     if mc :
@@ -94,7 +92,6 @@ def propagateTypeToRegion(ndRegion):
         #  structure {type:page-number;}
         # custom="structure {type:page-number;}"
         if mc[0][0]:ndRegion.set('custom',"structure {type:%s;}"%mc[0][0])
-    else:print(dType,mc)
         
     
 def addRegionToDom(page,ipage,lc,bVerbose):
@@ -116,16 +113,16 @@ def addRegionToDom(page,ipage,lc,bVerbose):
         coords = PageXml.createPageXmlNode('Coords')        
         ndRegion.append(coords)
         coords.set('points',getClusterCoords(lTL))   
+#         propagateTypeToRegion(ndRegion)
         for tl in lTL:
             tl.getparent().remove(tl)
             ndRegion.append(tl)
             #print (f"{tl.get('id')} added to {ndRegion.get('id')}")
-        propagateTypeToRegion(ndRegion)
         page.append(ndRegion)
              
 def getCLusters(ndPage):
     dCluster=defaultdict(list)
-    lTL= ndPage.xpath(".//*[@DU_cluster]", namespaces=sNS)
+    lTL= ndPage.xpath(".//*[@DU_cluster]", namespaces=dNS)
     for x in lTL:dCluster[x.get('DU_cluster')].append(x)
     return dCluster
                  
@@ -135,13 +132,13 @@ def cluster2Region(doc, fTH=0.5,bVerbose=True):
     """
     root = doc.getroot()
     
-    xpTextRegions     = ".//pc:TextRegion"
+    xpTextRegions     = ".//pg:TextRegion"
     
     # get pages
     for iPage, ndPage in enumerate(PageXml.xpath(root, "//pc:Page")): 
         # get cluster    
         dClusters= getCLusters(ndPage) #ndPage.xpath(xpCluster, namespaces=dNS)
-        lRegionsNd  =  ndPage.xpath(xpTextRegions, namespaces=sNS)
+        lRegionsNd  =  ndPage.xpath(xpTextRegions, namespaces=dNS)
         if bVerbose:traceln(" %d clusters and %d regions found" %(len(dClusters),len(lRegionsNd)))
         
         addRegionToDom(ndPage,iPage+1,dClusters,bVerbose)
@@ -149,10 +146,10 @@ def cluster2Region(doc, fTH=0.5,bVerbose=True):
         deleteRegionsinDOM(ndPage, lRegionsNd)
         
         #
-        lEdgesNd  =  ndPage.xpath(".//pc:Edge", namespaces=sNS)
+        lEdgesNd  =  ndPage.xpath(".//pg:Edge", namespaces=dNS)
         deleteRegionsinDOM(ndPage, lEdgesNd)
 
-        lClustersNd  =  ndPage.xpath(".//pc:Cluster", namespaces=sNS)
+        lClustersNd  =  ndPage.xpath(".//pg:Cluster", namespaces=dNS)
         deleteRegionsinDOM(ndPage, lClustersNd)
 
     return doc
