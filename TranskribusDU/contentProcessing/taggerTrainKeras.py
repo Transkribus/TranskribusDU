@@ -725,8 +725,8 @@ class DeepTagger():
         for mysent in lsent :
     #         print self.tag_vector
             if len(mysent.split())> self.max_sentence_len:
-                print ('Textcut! max sent length: %s'%self.max_sentence_len)
-                mysent=mysent[:22]
+                print ('max sent length: %s'%self.max_sentence_len)
+                continue
             allwords= self.node_transformer.transform(mysent.split())
 #             print mysent.split()
 #             n=len(mysent.split())
@@ -755,7 +755,7 @@ class DeepTagger():
                             #print self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]
                             pred_tags.append((self.tag_vector[tuple(class_vec.tolist())],class_prs[np.argmax(class_prs)]))
                     l_multi_type_results.append(pred_tags[:len(allwords)])
-#                     print(l_multi_type_results) 
+                    print(l_multi_type_results) 
                 lRes.append(self.prepareOutput_multitype(mysent.split(),l_multi_type_results))
 
         return lRes

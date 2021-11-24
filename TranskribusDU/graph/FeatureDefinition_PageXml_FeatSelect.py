@@ -26,6 +26,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import chi2
 
+from .FeatureDType        import dtype as Feat_dtype
 from .Transformer_PageXml import NodeTransformerTextLen
 from .Transformer_PageXml import NodeTransformerXYWH
 from .Transformer_PageXml import NodeTransformerXYWH_v2
@@ -103,7 +104,7 @@ class FeatureDefinition_PageXml_FeatSelect(FeatureDefinition):
         else:
             tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=self.n_tfidf_node
                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
-                                                                                  , dtype=np.float64)
+                                                                                  , dtype=Feat_dtype)
             text_pipeline= Pipeline([('selector', NodeTransformerTextEnclosed()),
                                                ('tf', tdifNodeTextVectorizer),
                                                #('todense', SparseToDense()) #Here we don't need to convert to Dense anymore

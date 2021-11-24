@@ -32,7 +32,17 @@ class LabelBinarizer2(LabelBinarizer):
         if sparse_output=True then the returned array from transform is in sparse CSR format.
         """
         super(LabelBinarizer2, self).__init__(sparse_output=sparse_output)
+        self.bToBeFitted = True
         
+    def fit(self, y):
+        """
+        fit works only once
+        so that if we have multiple trainset, we fit on first one, assuming trainset are compatible!
+        """
+        if self.bToBeFitted:
+            super(LabelBinarizer2, self).fit(y)
+            self.bToBeFitted = False
+
     def transform(self, y):
         Y = super(LabelBinarizer2, self).transform(y)
         if self.y_type_ == 'binary':

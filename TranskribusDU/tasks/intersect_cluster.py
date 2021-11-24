@@ -66,13 +66,17 @@ class Cluster:
         return i
             
     @classmethod
-    def load(cls, ndPage, sAlgo, bNode=False):
+    def load(cls, ndPage, sAlgo, bNode=False, sLvl=None):
         """
         Given an algo, load all its cluster from the page.
         Compute their shape, if not provided in the XML, as a minimum rotated rectangle
         """
         l = []
-        for nd in ndPage.xpath(xpCluster+"[@%s='%s']"%(sAlgoAttr, sAlgo)
+        if sLvl is None:
+            xpath = xpCluster+"[@%s='%s']"%(sAlgoAttr, sAlgo)
+        else:
+            xpath = xpCluster+"[@%s='%s' and @level='%s']"%(sAlgoAttr, sAlgo,sLvl) 
+        for nd in ndPage.xpath(xpath
                                                     , namespaces=dNS):
             c = cls.loadClusterNode(ndPage, nd, sAlgo)
             if not c is None: 

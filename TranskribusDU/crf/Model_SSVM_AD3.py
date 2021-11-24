@@ -36,6 +36,7 @@ except ImportError:
 
 from common.chrono import chronoOn, chronoOff
 from common.TestReport import TestReport
+import util.Tracking as Tracking
 from graph.GraphModel import GraphModel, GraphModelNoEdgeException
 from graph.Graph import Graph
 from crf.OneSlackSSVM import OneSlackSSVM
@@ -220,7 +221,6 @@ class Model_SSVM_AD3(GraphModel):
         traceln("\t\t solver parameters:"
                     , " inference_cache=",self.inference_cache
                     , " C=",self.C, " tol=",self.tol, " n_jobs=",self.njobs)
-        
         if not self.ssvm:
             traceln("\t- creating a new SSVM-trained CRF model")
             
@@ -230,7 +230,8 @@ class Model_SSVM_AD3(GraphModel):
                 self.setBalancedWeights()
             clsWeights = self.computeClassWeight(lY)
             traceln("\t\t\t --> %s" % clsWeights)
-
+            Tracking.log_param('crf.cls_weights', clsWeights)
+            
             #clsWeights = np.array([1, 4.5])
             # These weights are tuned for best performance of LR and SVM and hence consistently used here
             crf = self._getCRFModel(clsWeights)
@@ -242,7 +243,6 @@ class Model_SSVM_AD3(GraphModel):
                                 , show_loss_every=10, verbose=verbose)
             bWarmStart = False
         
-
         if lGraph_vld:
             self.ssvm.fit_with_valid(lX, lY, lX_vld, lY_vld, warm_start=bWarmStart
                                      , valid_every=self.save_every)
@@ -251,6 +251,9 @@ class Model_SSVM_AD3(GraphModel):
             self.ssvm.fit(lX, lY, warm_start=bWarmStart)
         traceln("\t [%.1fs] done (graph-CRF model is trained) \n"%chronoOff("train"))
         
+        for i, loss in enumerate(self.ssvm.loss_curve_):
+            Tracking.log_metric("loss", loss, i)
+
         #traceln(self.getModelInfo())
         
         #cleaning useless data that takes MB on disk
@@ -542,7 +545,7 @@ class Model_SSVM_AD3(GraphModel):
             # do like if we return some proba. 0 or 1 actually...
             # similar to 1-hot encoding
             n = Y.shape[0]
-            Y_proba = np.zeros((n,2), dtype=Y.dtype)
+            Y_proba = np.zeros((n,self._nbClass), dtype=Y.dtype)
             Y_proba[np.arange(n), Y] = 1.0
             return Y_proba
         else:

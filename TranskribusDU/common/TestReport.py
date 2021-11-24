@@ -13,19 +13,17 @@
     under grant agreement No 674943.
     
 """
-
-
-
-
 import time
 import os
 from functools import reduce
+import collections
+import traceback
 
 import numpy as np
-
-
 from sklearn.metrics import confusion_matrix
-from util.metrics import confusion_classification_report, confusion_list_classification_report, confusion_accuracy_score
+
+from common.trace import traceln
+from util.metrics import confusion_classification_report, confusion_list_classification_report, confusion_accuracy_score, prf_support
 
 
 class TestReport:
@@ -124,6 +122,7 @@ class TestReport:
         
         return fScore, sClassificationReport
 
+
     @classmethod
     def compareReport(cls,r1,r2,bDisplay=False):
         """    
@@ -197,6 +196,47 @@ class TestReport:
                 sReport += "%d\t%s %s %s\n"%(i, p,r,f1)
             
         return sReport
+    
+    def getPythonicSummary(self, iDecimals=4):
+        """
+        return a dictionary:
+        { 
+          "report"      : textual report, human readable
+        , "n"           : <int>          # number of predictions
+        , "classes"     : [...]          # class names: either None, or a list of string
+        , "accuracy"    : <float>        # in [0, 1]
+        , "confumat"    : <numpy.array>.tolist()  # confusion matrix
+        , "p"           : <numpy.array>.tolist()  # vector of precision, per class, in [0,1]
+        , "r"           : <numpy.array>.tolist()  # vector of recall   , per class, in [0,1]
+        , "f1"          : <numpy.array>.tolist()  # vector of f1 score , per class, in [0,1]
+        , "s"           : <numpy.array>.tolist()  # vector of support  , per class
+        }
+        
+        accuracy,p,r,f1 are rounded to iDecimals number of decimals
+        """
+        # d = dict()
+        d = collections.OrderedDict() # to keep consistent order, cosmetic
+        d["report"]     = self.toString(False, False)
+        #TypeError: Object of type 'int64' is not JSON serializable
+        d["classes"]    = list(self.lsClassName) if self.lsClassName else None
+
+        try:        
+            aConfuMat   = self.getConfusionMatrix()
+            p, r, f1, s = prf_support(aConfuMat)
+            
+            d["n"]          = int(         aConfuMat.sum() ) 
+            d["accuracy"]   = round(float( confusion_accuracy_score(aConfuMat) ), iDecimals)
+            d["confumat"]   = aConfuMat.tolist()
+            d["p"]          = p .round(iDecimals).tolist()
+            d["r"]          = r .round(iDecimals).tolist()
+            d["f1"]         = f1.round(iDecimals).tolist()
+            d["s"]          = s.tolist()
+        except ValueError:
+            traceln(traceback.format_exc())
+            d["error"]      = str(traceback.format_exc())
+
+        return d
+        
     # ------------------------------------------------------------------------------------------------------------------
     def toString(self, bShowBaseline=True, bBaseline=False):
         """

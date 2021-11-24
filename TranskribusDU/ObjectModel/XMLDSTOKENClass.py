@@ -3,7 +3,7 @@
 
     XML object class 
     
-    Hervé Déjean
+    HervÃ© DÃ©jean
     cpy Xerox 2009
     
     a class for object from a XMLDocument

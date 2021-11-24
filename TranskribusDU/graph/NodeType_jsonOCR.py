@@ -1,4 +1,6 @@
 import types
+
+import numpy as np
 import shapely.geometry as geom
 
 
@@ -66,11 +68,23 @@ class NodeType_jsonOCR(NodeType):
         """
         Set the DOM node label in the format-dependent way
         """
+        if sLabel != self.sDefaultLabel:
+            graph_node.node[self.sLabelAttr] = self.dLabel2XmlLabel[sLabel]
+        return sLabel
 #         print("setDocNodeLabel "
 #               , "%s '%s'" %(graph_node.getShape(), graph_node.text)
 #               , " ", sLabel)
-        pass
+#         pass
         # raise Exception("Not yet implemented")
+
+    @classmethod
+    def setDocNodeY(cls, graph_node, Y):
+        """
+        Y is a probability distribution over the labels
+        
+        to load it use: np.array(ast.literal_eval(s), dtype=np.float)
+        """
+        graph_node.node["DU_Y"] = str(list(np.around(Y, decimals=3)))
 
     def setLabelAttribute(self, sAttrName="type"):
         """
@@ -108,9 +122,27 @@ class NodeType_jsonOCR(NodeType):
         """
         # --- XPATH contexts
 
-        lNdBlock = doc['GlynchResults']['Areas']
+        # ---- storing island information
+        # dict word_id -> island
+        dIsland={}
+        try:             lislands = doc['GlynchResults']["DocumentStructure"]['Islands']
+        except KeyError: lislands = {}
+    
+        for i,island in enumerate(lislands):
+            word_list = island["Words"]
+            for w in word_list:
+                dIsland[w['WordId']] = i
+
         #page_w, page_h = self.getPageWidthandHeight(sFilename)
-        page = Page(1, 1, 1, 1)
+        try:
+            sWxH = doc["JobProperties"]["ImageSize"]  # e.g. "2481x3508"
+            w, h = map(int, sWxH.split("x"))
+        except KeyError:  # old json???
+            w, h = 0,0
+        page = Page(1, 1, w, h) # pnum, pagecnt, w, h
+
+        # reading words
+        lNdBlock = doc['GlynchResults']['Areas']
         for ndBlock in lNdBlock:
             try:
                 sText = ndBlock['label']
@@ -151,13 +183,19 @@ class NodeType_jsonOCR(NodeType):
                     dx = self.BBoxDeltaFun(w)
                     dy = self.BBoxDeltaFun(h)
                     x1, y1, x2, y2 = [int(round(v)) for v in [x1 + dx, y1 + dy, x2 - dx, y2 - dy]]
-
             # TODO
             orientation = 0  # no meaning for PageXml
             classIndex = 0  # is computed later on
             # and create a Block
             blk = Block(page, (x1, y1, x2 - x1, y2 - y1), sText, orientation, classIndex, self, ndBlock, domid=None)
             blk.setShape(geom.Polygon(lXY))
+            
+            # also store the island, if any
+            try:
+                blk.island = dIsland(ndBlock.get('word-id'))
+            except:
+                blk.island = -1
+                
             yield blk
 
         return

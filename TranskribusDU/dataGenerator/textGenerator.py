@@ -116,7 +116,7 @@ class textGenerator(Generator):
         
         #randomly split word 
         # th value in the profile
-        probaTH = 10
+        probaTH = 80
         lTokens=[]
         lLabels=[]
         # how many splits

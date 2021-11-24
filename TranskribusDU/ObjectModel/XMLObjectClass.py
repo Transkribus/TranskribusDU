@@ -3,7 +3,7 @@
 
     XML object class 
     
-    Hervé Déjean
+    HervÃ© DÃ©jean
     cpy Xerox 2009
     
     a class for object from a XMLDocument
@@ -72,9 +72,7 @@ class  XMLObjectClass(objectClass):
         """
              create a dom elt and add it to the doc
         """
-        if sLabel is None:
-            newNode = etree.Element(self.getName())
-        else: newNode = etree.Element(sLabel)
+        newNode = etree.Element(self.tagName)
         
         newNode.set('x',str(self.getX()))
         newNode.set('y',str(self.getY()))

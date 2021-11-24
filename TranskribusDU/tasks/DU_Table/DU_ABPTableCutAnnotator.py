@@ -43,7 +43,7 @@ from util.Shape import ShapeLoader, PolygonPartition
 
 from tasks.DU_Table.DU_ABPTableSkewed_CutAnnotator import _isBaselineNotO, _isBaselineInTable,\
     computePRF
-from tasks.DU_Table.DU_ABPTableRCAnnotation import computeMaxRowSpan
+import tasks.DU_Table.DU_ABPTableRCAnnotation
 from util.partitionEvaluation import evalPartitions
 from util.jaccard import jaccard_distance
 
@@ -377,7 +377,7 @@ class CutAnnotator:
         lOrphanBaselineShape = []
         
         lCells = MultiPageXml.getChildByName(ndPage, "TableCell")
-        maxHeaderRowSpan = computeMaxRowSpan(lCells)
+        maxHeaderRowSpan = tasks.DU_Table.DU_ABPTableRCAnnotation.computeMaxRowSpan(lCells)
         traceln("   - maxHeaderRowSpan=", maxHeaderRowSpan)
         for ndCell in lCells:
             row, col = int(ndCell.get("row")), int(ndCell.get("col"))

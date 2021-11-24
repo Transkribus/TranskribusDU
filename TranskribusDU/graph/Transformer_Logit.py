@@ -26,8 +26,9 @@ from sklearn.model_selection import GridSearchCV  #0.18.1 REQUIRES NUMPY 1.12.1 
     
 from common.trace import traceln
     
-from .Transformer import Transformer
-from .Transformer_PageXml import  NodeTransformerTextEnclosed
+from .FeatureDType          import dtype as Feat_dtype
+from .Transformer           import Transformer
+from .Transformer_PageXml   import  NodeTransformerTextEnclosed
 
 dGridSearch_CONF = {'C':[0.1, 0.5, 1.0, 2.0] }  #Grid search parameters for Logit training
 dGridSearch_CONF = {'C':[0.01, 0.1, 1.0, 2.0] }  #Grid search parameters for Logit training
@@ -122,7 +123,7 @@ class NodeTransformerLogit(Transformer):
         """
         return the 2 logit scores
         """
-        a = np.zeros( ( len(lNode), 3*self.nbClass ), dtype=np.float64)     #for each class: is_of_class? is_neighbor_of_class on same page or accross page?
+        a = np.zeros( ( len(lNode), 3*self.nbClass ), dtype=Feat_dtype)     #for each class: is_of_class? is_neighbor_of_class on same page or accross page?
         
         x = self.text_pipeline.transform(lNode)
 

@@ -23,8 +23,9 @@ from  lxml import etree
 
 from common.trace import traceln
 
-from ..Graph_MultiPageXml import Graph_MultiPageXml
-from ..Edge import Edge
+from ..Graph_MultiPageXml   import Graph_MultiPageXml
+from ..Edge                 import Edge
+from ..FeatureDType         import dtype as Feat_dtype
 
 from .FactorialGraph import FactorialGraph
 
@@ -180,9 +181,9 @@ class FactorialGraph_MultiPageXml(Graph_MultiPageXml, FactorialGraph):
         lE = []
         lEF = []
         E_empty  = np.empty( (0, 2) , dtype=np.int)
-        EF_empty = np.empty( (0, 1) , dtype=np.float64)
+        EF_empty = np.empty( (0, 1) , dtype=Feat_dtype)
         E_replicas = np.array( [ [i, i] for i in range(nbNode)] , dtype=np.int)
-        EF_ones_replicas = np.array( [ [1.0] for i in range(nbNode)] , dtype=np.float64)
+        EF_ones_replicas = np.array( [ [1.0] for i in range(nbNode)] , dtype=Feat_dtype)
         for typ1 in range(nbType):
             #bottom-left part if empty
             for i in range(typ1): 

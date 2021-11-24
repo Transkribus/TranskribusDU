@@ -74,7 +74,8 @@ class DU_ECN_Task(DU_Task):
 
         return usage, parser
 
-    def getStandardLearnerConfig(self, options):
+    @classmethod
+    def getStandardLearnerConfig(cls, options):
         """
         Once the command line has been parsed, you can get the standard learner
         configuration dictionary from here.
@@ -154,7 +155,8 @@ class DU_Ensemble_ECN_Task(DU_Task):
                           , help="The config file for the Ensemble ECN Model")
         return usage, parser
 
-    def getStandardLearnerConfig(self, options):
+    @classmethod
+    def getStandardLearnerConfig(cls, options):
         """
         Once the command line has been parsed, you can get the standard learner
         configuration dictionary from here.

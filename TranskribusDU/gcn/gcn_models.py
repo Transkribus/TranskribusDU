@@ -9,17 +9,12 @@ import random
 import warnings
 
 import numpy as np
-import tensorflow as tf
+#import tensorflow as tf
+import sklearn.metrics
 try:
-    tf.train.AdamOptimizer
-except AttributeError:
     import tensorflow.compat.v1 as tf
     tf.disable_v2_behavior()
-import sklearn.metrics
-#TODO Clean this
-# Animesh commented this line out from gcn.gcn_datasets import GCNDataset
-
-#  from gcn.gcn_datasets import GCNDataset
+except ModuleNotFoundError:import tensorflow as tf
 
 try:
     from . import gcn_datasets
@@ -27,6 +22,7 @@ except ImportError:
     import gcn_datasets
     
 from common.trace import traceln
+import util.Tracking as Tracking
 
 def init_glorot(shape, name=None):
     """Glorot & Bengio (AISTATS 2010) init."""
@@ -65,13 +61,15 @@ class MultiGraphNN(object):
         acc_tp = np.float64(0.0)
         nb_node_total = np.float64(0.0)
         mean_acc_test = []
-
+        loss = 0
         for g in gcn_graph_test:
-            acc = self.test(session, g, verbose=False)
+            gloss,acc = self.test(session, g, verbose=False)
+            loss += gloss
             mean_acc_test.append(acc)
             nb_node_total += g.X.shape[0]
             acc_tp += acc * g.X.shape[0]
-
+        
+        loss /= len(gcn_graph_test)
         g_acc = np.mean(mean_acc_test)
         node_acc = acc_tp / nb_node_total
 
@@ -79,7 +77,7 @@ class MultiGraphNN(object):
             traceln('\t -- Mean Graph Accuracy', '%.4f' % g_acc)
             traceln('\t -- Mean Node  Accuracy', '%.4f' % node_acc)
 
-        return g_acc,node_acc
+        return g_acc,node_acc,loss
 
     def predict_lG(self,session,gcn_graph_predict,verbose=True):
         '''
@@ -126,7 +124,13 @@ class MultiGraphNN(object):
             total_parameters += variable_parameters
         return total_parameters
 
-    def train_with_validation_set(self,session,graph_train,graph_val,max_iter,eval_iter=10,patience=7,graph_test=None,save_model_path=None):
+    def train_with_validation_set(self, session
+                                  , graph_train, graph_val
+                                  , max_iter, eval_iter=10, patience=7
+                                  , graph_test=None
+                                  , save_model_path=None
+                                  , bTrnAcc=True            # compute accuracy on trainset
+                                  ):
         '''
         Implements training with a validation set
         The model is trained and accuracy is measure on a validation sets
@@ -152,20 +156,32 @@ class MultiGraphNN(object):
         conf_mat=[]
 
         start_monitoring_val_acc=False
-
+        loss = -1
         for i in range(max_iter):
             if stop_training:
                 break
 
             if i % eval_iter == 0:
                 traceln('\n -- Epoch ', i,' Patience ', wait)
-                _, tr_acc = self.test_lG(session, graph_train, verbose=False)
-                traceln(' Train Acc ', '%.4f' % tr_acc)
-                train_accuracies.append(tr_acc)
+                if bTrnAcc:
+                    tr_avg_acc, tr_acc,_ = self.test_lG(session, graph_train, verbose=False)
+                    traceln(' Train Acc ', '%.4f' % tr_acc)
+                    train_accuracies.append(tr_acc)
+                else:
+                    tr_avg_acc, tr_acc = -1, -1
 
-                _, node_acc = self.test_lG(session, graph_val, verbose=False)
-                traceln(' --  Valid Acc ', '%.4f' % node_acc)
+                val_avg_acc, node_acc,valloss = self.test_lG(session, graph_val, verbose=False)
+                traceln(' --  Valid Acc ', '%.4f  \t Valid loss: %.4f' %(node_acc,valloss))
                 validation_accuracies.append(node_acc)
+
+                Tracking.log_metrics({"avg_trn_loss":loss
+                                      , "trn_micro_acc"   : tr_acc
+                                      , "vld_micro_acc"   : node_acc
+                                      , "trn_avg_acc"   : tr_avg_acc
+                                      , "vld_avg_acc"   : val_avg_acc
+                                      , "vld_loss": valloss
+                                      }
+                                      , i)
 
                 if save_model_path:
                     save_path = self.saver.save(session, save_model_path, global_step=i)
@@ -185,15 +201,18 @@ class MultiGraphNN(object):
                     wait += 1
             else:
                 random.shuffle(graph_train)
+                loss = 0
                 for g in graph_train:
-                    self.train(session, g, n_iter=1)
+                    loss += self.train(session, g, n_iter=1)
+                loss = loss / len(graph_train) # let's report the average loss
         #Final Save
         traceln(' -- Stopped Model Training after : ',stopped_iter)
         traceln(' -- Validation Accuracies : ',['%.4f' % (100*sx) for sx in validation_accuracies])
 
         #traceln('Final Training Accuracy')
-        _,node_train_acc = self.test_lG(session, graph_train)
-        traceln(' -- Final Training Accuracy','%.4f' % node_train_acc)
+        if bTrnAcc:
+            _,node_train_acc,_ = self.test_lG(session, graph_train)
+            traceln(' -- Final Training Accuracy','%.4f' % node_train_acc)
 
         traceln(' -- Final Valid Acc')
         self.test_lG(session, graph_val)
@@ -294,149 +313,6 @@ class EnsembleGraphNN(MultiGraphNN):
                                   graph_test=None, save_model_path=None):
         raise NotImplementedError
 
-class Logit(MultiGraphNN):
-    '''
-    Logistic Regression for MultiGraph
-    '''
-    def __init__(self,node_dim,nb_classes,learning_rate=0.1,mu=0.1,node_indim=-1):
-        self.node_dim=node_dim
-        self.n_classes=nb_classes
-        self.learning_rate=learning_rate
-        self.activation=tf.nn.relu
-        self.mu=mu
-        self.optalg = tf.train.AdamOptimizer(self.learning_rate)
-        self.stack_instead_add=False
-        self.train_Wn0=True
-
-        if node_indim==-1:
-            self.node_indim=self.node_dim
-        else:
-            self.node_indim=node_indim
-
-    def create_model(self):
-        '''
-        Create the tensorflow graph for the model
-        :return:
-        '''
-        self.nb_node    = tf.placeholder(tf.int32,(), name='nb_node')
-        self.node_input = tf.placeholder(tf.float32, [None, self.node_dim], name='X_')
-        self.y_input    = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
-
-
-        self.Wnode_layers=[]
-        self.Bnode_layers=[]
-
-
-        self.W_classif = tf.Variable(tf.random_uniform((self.node_indim, self.n_classes),
-                                                           -1.0 / math.sqrt(self.node_dim),
-                                                           1.0 / math.sqrt(self.node_dim)),
-                                        name="W_classif",dtype=np.float32)
-        self.B_classif = tf.Variable(tf.zeros([self.n_classes]), name='B_classif',dtype=np.float32)
-
-
-        self.logits =tf.add(tf.matmul(self.node_input,self.W_classif),self.B_classif)
-        cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
-
-        # Global L2 Regulization
-        self.loss = tf.reduce_mean(cross_entropy_source)  + self.mu * tf.nn.l2_loss(self.W_classif)
-
-
-        self.pred = tf.argmax(tf.nn.softmax(self.logits), 1)
-        self.correct_prediction = tf.equal(self.pred, tf.argmax(self.y_input, 1))
-        self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
-
-
-        self.grads_and_vars = self.optalg.compute_gradients(self.loss)
-
-        self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
-
-
-        # Add ops to save and restore all the variables.
-        self.init = tf.global_variables_initializer()
-        self.saver= tf.train.Saver(max_to_keep=5)
-
-        traceln(' -- Number of Params: ', self.get_nb_params())
-
-
-    def save_model(self, session, model_filename):
-        traceln(" -- Saving Model")
-        save_path = self.saver.save(session, model_filename)
-
-    def restore_model(self, session, model_filename):
-        self.saver.restore(session, model_filename)
-        traceln(" -- Model restored.")
-
-
-    def train(self,session,graph,verbose=False,n_iter=1):
-        '''
-        Apply a train operation, ie sgd step for a single graph
-        :param session:
-        :param graph: a graph from GCN_Dataset
-        :param verbose:
-        :param n_iter: (default 1) number of steps to perform sgd for this graph
-        :return:
-        '''
-        #TrainEvalSet Here
-        for i in range(n_iter):
-            #traceln('Train',X.shape,EA.shape)
-
-            feed_batch = {
-
-                self.nb_node: graph.X.shape[0],
-                self.node_input: graph.X,
-                self.y_input: graph.Y,
-            }
-
-            Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
-            if verbose:
-                traceln(' -- Training Loss',Ops[1])
-
-
-
-    def test(self,session,graph,verbose=True):
-        '''
-        Test return the loss and accuracy for the graph passed as argument
-        :param session:
-        :param graph:
-        :param verbose:
-        :return:
-        '''
-
-        feed_batch = {
-
-            self.nb_node: graph.X.shape[0],
-            self.node_input: graph.X,
-            self.y_input: graph.Y,
-        }
-
-        Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
-        if verbose:
-            traceln(' -- Test Loss',Ops[0],' Test Accuracy:',Ops[1])
-        return Ops[1]
-
-
-    def predict(self,session,graph,verbose=True):
-        '''
-        Does the prediction
-        :param session:
-        :param graph:
-        :param verbose:
-        :return:
-        '''
-        feed_batch = {
-            self.nb_node: graph.X.shape[0],
-            self.node_input: graph.X,
-        }
-        Ops = session.run([self.pred], feed_dict=feed_batch)
-        if verbose:
-            traceln(' -- Got Prediction for:',Ops[0].shape)
-        return Ops[0]
-
-
-
-
-
-
 class EdgeConvNet(MultiGraphNN):
     '''
     Edge-GCN Model for a graph list
@@ -463,11 +339,8 @@ class EdgeConvNet(MultiGraphNN):
         self.optalg = tf.train.AdamOptimizer(self.learning_rate)
         self.stack_instead_add=False
         self.nconv_edge=nconv_edge
-        self.residual_connection=False#deprecated
-        self.shared_We = False#deprecated
-        self.optim_mode=0 #deprecated
+        self.residual_connection=False
         self.init_fixed=False #ignore --for test purpose
-        self.logit_convolve=False#ignore --for test purpose
         self.train_Wn0=True #ignore --for test purpose
 
         self.dropout_rate_edge_feat= 0.0
@@ -485,6 +358,7 @@ class EdgeConvNet(MultiGraphNN):
         else:
             self.node_indim=node_indim
 
+        
     def set_learning_options(self,dict_model_config):
         """
         Set all learning options that not directly accessible from the constructor
@@ -606,36 +480,22 @@ class EdgeConvNet(MultiGraphNN):
             #traceln('p_add_n',P.get_shape())
         return P
 
-    @staticmethod
-    def logitconvolve_fixed(pY,Yt,A_indegree):
-        '''
-        Tentative Implement of a fixed logit convolve without taking into account edge features
-        '''
-
-        #warning we should test that Yt is column normalized
-        pY_Yt = tf.matmul(pY,Yt,transpose_b=True)
-
-        #TODO A is dense but shoudl be sparse ....
-        P =tf.matmul(A_indegree,pY_Yt)
-        return P
-
-
     def create_model_stack_convolutions(self):
         #Create All the Variables
         for i in range(self.num_layers - 1):
             if i == 0:
                 Wnli = tf.Variable(
-                    tf.random_uniform((self.node_dim * self.nconv_edge + self.node_dim, self.node_indim),
-                                      -1.0 / math.sqrt(self.node_indim),
-                                      1.0 / math.sqrt(self.node_indim)), name='Wnl', dtype=tf.float32)
+                    tf.random_uniform((self.node_dim * self.nconv_edge + self.node_dim, self.l_node_indim[i]),
+                                      -1.0 / math.sqrt(self.l_node_indim[i]),
+                                      1.0 / math.sqrt(self.l_node_indim[i])), name='Wnl', dtype=tf.float32)
             else:
-
                 Wnli = tf.Variable(
-                    tf.random_uniform((self.node_indim * self.nconv_edge + self.node_indim, self.node_indim),
-                                          -1.0 / math.sqrt(self.node_indim),
-                                      1.0 / math.sqrt(self.node_indim)), name='Wnl', dtype=tf.float32)
+                    # tf.random_uniform(((1 if self.l_node_indim[i-1]==4 else 2) * self.l_node_indim[i] * self.nconv_edge + self.l_node_indim[i], self.l_node_indim[i])
+                    tf.random_uniform((self.l_node_indim[i-1] * self.nconv_edge + self.l_node_indim[i-1], self.l_node_indim[i]),
+                                          -1.0 / math.sqrt(self.l_node_indim[i]),
+                                      1.0 / math.sqrt(self.l_node_indim[i])), name='Wnl', dtype=tf.float32)
             traceln(' -- Wnli shape', Wnli.get_shape())
-            Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl' + str(i), dtype=tf.float32)
+            Bnli = tf.Variable(tf.zeros([self.l_node_indim[i]]), name='Bnl' + str(i), dtype=tf.float32)
 
             Weli = init_glorot([int(self.nconv_edge), int(self.edge_dim)], name='Wel_')
             # Weli = tf.Variable(tf.random_normal([int(self.nconv_edge), int(self.edge_dim)], mean=0.0, stddev=1.0),
@@ -653,7 +513,7 @@ class EdgeConvNet(MultiGraphNN):
         self.Hnode_layers = []
 
         self.W_classif = tf.Variable(
-                tf.random_uniform((self.node_indim * self.nconv_edge + self.node_indim, self.n_classes),
+                tf.random_uniform((self.l_node_indim[i] * self.nconv_edge + self.l_node_indim[i], self.n_classes),
                                   -1.0 / math.sqrt(self.node_dim),
                                   1.0 / math.sqrt(self.node_dim)),
                 name="W_classif", dtype=np.float32)
@@ -717,7 +577,6 @@ class EdgeConvNet(MultiGraphNN):
                                         1 - self.dropout_p_H)
                 else:
                     Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i]) + self.Bnode_layers[i]
-
                 if self.residual_connection:
                     Hi_ = tf.add(Hi_, self.Hnode_layers[-1])
 
@@ -742,17 +601,17 @@ class EdgeConvNet(MultiGraphNN):
 
             if i==0:
                 # Animesh's code 
-                Wnli = tf.Variable(tf.random_uniform((2 * self.node_dim, self.node_indim),
+                Wnli = tf.Variable(tf.random_uniform((2 * self.node_dim, self.l_node_indim[i]),
                 #Wnli = tf.Variable(tf.random_uniform((2 * self.node_indim, self.node_indim),
-                                                     -1.0 / math.sqrt(self.node_indim),
-                                                     1.0 / math.sqrt(self.node_indim)), name='Wnl',
+                                                     -1.0 / math.sqrt(self.l_node_indim[i]),
+                                                     1.0 / math.sqrt(self.l_node_indim[i])), name='Wnl',
                                    dtype=tf.float32)
             else:
-                Wnli =tf.Variable(tf.random_uniform( (2*self.node_indim, self.node_indim),
-                                                               -1.0 / math.sqrt(self.node_indim),
-                                                               1.0 / math.sqrt(self.node_indim)),name='Wnl',dtype=tf.float32)
+                Wnli =tf.Variable(tf.random_uniform( (2*self.l_node_indim[i-1], self.l_node_indim[i]),
+                                                               -1.0 / math.sqrt(self.l_node_indim[i]),
+                                                               1.0 / math.sqrt(self.l_node_indim[i])),name='Wnl',dtype=tf.float32)
 
-            Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
+            Bnli = tf.Variable(tf.zeros([self.l_node_indim[i]]), name='Bnl'+str(i),dtype=tf.float32)
 
             Weli= init_glorot([int(self.nconv_edge), int(self.edge_dim)], name='Wel_')
             #Weli = tf.Variable(tf.random_normal([int(self.nconv_edge), int(self.edge_dim)], mean=0.0, stddev=1.0),
@@ -772,7 +631,7 @@ class EdgeConvNet(MultiGraphNN):
 
 
 
-        self.W_classif = tf.Variable(tf.random_uniform((2*self.node_indim, self.n_classes),
+        self.W_classif = tf.Variable(tf.random_uniform((2*self.l_node_indim[i], self.n_classes),
                                                            -1.0 / math.sqrt(self.node_dim),
                                                            1.0 / math.sqrt(self.node_dim)),
                                         name="W_classif",dtype=np.float32)
@@ -839,9 +698,6 @@ class EdgeConvNet(MultiGraphNN):
 
                 self.Hnode_layers.append(Hi_)
 
-                #traceln('Hi_shape',Hi_.get_shape())
-                # traceln('Hi prevous shape',self.hidden_layers[-1].get_shape())
-
                 P = self.fastconvolve(self.Wed_layers[i],self.Bed_layers[i], self.F, self.Ssparse, self.Tsparse, Hi_, self.nconv_edge,self.Sshape, self.nb_edge,
                                       self.dropout_p_edge,self.dropout_p_edge_feat, stack=self.stack_instead_add, use_dropout=edge_dropout
                                       )
@@ -855,6 +711,19 @@ class EdgeConvNet(MultiGraphNN):
         Create the tensorflow graph for the model
         :return:
         '''
+        
+        # Pyramid or not?
+        if hasattr(self, "pyramid_ratio"):
+            self.l_node_indim = [max(self.n_classes, int(self.node_indim/math.pow(self.pyramid_ratio, i))) for i in range(self.num_layers)]
+        elif hasattr(self, "pyramid"):
+            # we expect a list of integer values of length self.num_layers
+            assert len(self.pyramid) == self.num_layers, "Invalid list of layer widths: length must match num_layers"
+            self.l_node_indim = self.pyramid
+        else:
+            # usual code: constant indim
+            self.l_node_indim = [self.node_indim for _i in range(self.num_layers)]
+        traceln("Hidden layer indim:", self.l_node_indim)
+
         self.nb_node = tf.placeholder(tf.int32, (), name='nb_node')
         self.nb_edge = tf.placeholder(tf.int32, (), name='nb_edge')
         self.node_input = tf.placeholder(tf.float32, [None, self.node_dim], name='X_')
@@ -872,8 +741,6 @@ class EdgeConvNet(MultiGraphNN):
 
         self.F = tf.placeholder(tf.float32, [None, None], name='F')
 
-
-        std_dev_in = float(1.0 / float(self.node_dim))
 
         self.Wnode_layers = []
         self.Bnode_layers = []
@@ -933,315 +800,6 @@ class EdgeConvNet(MultiGraphNN):
 
         traceln(' -- Number of Params: ', self.get_nb_params())
 
-    def create_model_old(self):
-        '''
-        Create the tensorflow graph for the model
-        :return:
-        '''
-        self.nb_node    = tf.placeholder(tf.int32,(), name='nb_node')
-        self.nb_edge = tf.placeholder(tf.int32, (), name='nb_edge')
-        self.node_input = tf.placeholder(tf.float32, [None, self.node_dim], name='X_')
-        self.y_input    = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
-        #self.EA_input   = tf.placeholder(tf.float32, name='EA_input')
-        #self.NA_input   = tf.placeholder(tf.float32, name='NA_input')
-        self.dropout_p_H    = tf.placeholder(tf.float32,(), name='dropout_prob_H')
-        self.dropout_p_node = tf.placeholder(tf.float32, (), name='dropout_prob_N')
-        self.dropout_p_edge = tf.placeholder(tf.float32, (), name='dropout_prob_edges')
-        self.dropout_p_edge_feat = tf.placeholder(tf.float32, (), name='dropout_prob_edgefeat')
-        self.S          = tf.placeholder(tf.float32, name='S')
-        self.Ssparse    = tf.placeholder(tf.int64, name='Ssparse') #indices
-        self.Sshape     = tf.placeholder(tf.int64, name='Sshape') #indices
- 
-        self.T          = tf.placeholder(tf.float32,[None,None], name='T')
-        self.Tsparse    = tf.placeholder(tf.int64, name='Tsparse')
- 
-        #self.S_indice = tf.placeholder(tf.in, [None, None], name='S')
- 
-        self.F          = tf.placeholder(tf.float32,[None,None], name='F')
- 
- 
-        #self.NA_indegree = tf.placeholder(tf.float32, name='NA_indegree')
- 
- 
-        std_dev_in=float(1.0/ float(self.node_dim))
- 
-        self.Wnode_layers=[]
-        self.Bnode_layers=[]
-        self.Wed_layers=[]
-        self.Bed_layers=[]
-        #REFACT1 self.zed_layers = []
- 
-        #REFACT1 self.Wedge_mlp_layers=[]
-        #Should Project edge as well ...
-        self.train_var=[]
- 
-        #if self.node_indim!=self.node_dim:
-        #    Wnl0 = tf.Variable(tf.random_uniform((self.node_dim, self.node_indim),
-        #                                                           -1.0 / math.sqrt(self.node_dim),
-        #                                                           1.0 / math.sqrt(self.node_dim)),name='Wnl0',dtype=tf.float32)
-        #else:
-        self.Wnl0 = tf.Variable(tf.eye(self.node_dim),name='Wnl0',dtype=tf.float32,trainable=self.train_Wn0)
- 
-        self.Bnl0 = tf.Variable(tf.zeros([self.node_dim]), name='Bnl0',dtype=tf.float32)
- 
- 
-        #self.Wel0 =tf.Variable(tf.random_normal([int(self.nconv_edge),int(self.edge_dim)],mean=0.0,stddev=1.0), dtype=np.float32, name='Wel0')
-        if self.init_fixed:
-            self.Wel0 = tf.Variable(100*tf.ones([int(self.nconv_edge),int(self.edge_dim)]), name='Wel0',dtype=tf.float32)
- 
-        elif self.use_edge_mlp:
-            self.Wel0 = init_glorot([int(self.nconv_edge), int(self.edge_mlp_dim)], name='Wel0')
-        else:
-            self.Wel0 = init_glorot([int(self.nconv_edge),int(self.edge_dim)],name='Wel0')
- 
-        self.Bel0 = tf.Variable(0.01*tf.ones([self.nconv_edge]), name='Bel0' , dtype=tf.float32)
- 
-        #RF self.zel0 = tf.Variable(tf.ones([self.nconv_edge]), name='zel0' , dtype=tf.float32)
-        #RF self.zH = tf.Variable(tf.ones([self.num_layers]),name='zH',dtype=tf.float32)
- 
-        traceln(' -- Wel0',self.Wel0.get_shape())
-        self.train_var.extend([self.Wnl0,self.Bnl0])
-        self.train_var.append(self.Wel0)
- 
-        #Parameter for convolving the logits
-        ''' REFACT1
-        if self.logit_convolve:
-            #self.Wel_logits = init_glorot([int(self.nconv_edge),int(self.edge_dim)],name='Wel_logit')
-            #self.Belg = tf.Variable(tf.zeros( [int(self.nconv_edge)]), name='Belogit' , dtype=tf.float32)
-            self.Wel_logits = tf.Variable(tf.zeros([int(1),int(self.edge_dim)]), name='Wlogit0',dtype=tf.float32,trainable=False)
-            self.Belg = tf.Variable(tf.ones( [int(1)]), name='Belogit' , dtype=tf.float32)
-            #self.logits_Transition = 1.0*tf.Variable(tf.ones([int(self.n_classes) , int(self.n_classes)]), name='logit_Transition')
-            self.logits_Transition=init_glorot([int(self.n_classes), int(self.n_classes)], name='Wel_')
- 
-        self.Wmlp_edge_0= init_glorot([int(self.edge_dim), int(self.edge_mlp_dim)], name='Wedge_mlp')
-        self.Bmlp_edge_0= tf.Variable(tf.ones([self.edge_mlp_dim]),name='Wedge_mlp',dtype=tf.float32)
-        '''
- 
-        #self.Wed_layers.append(Wel0)
-        for i in range(self.num_layers-1):
-            if self.stack_instead_add:
-                if i==0:
-                    Wnli = tf.Variable(
-                        tf.random_uniform((self.node_dim * self.nconv_edge + self.node_dim, self.node_indim),
-                                          -1.0 / math.sqrt(self.node_indim),
-                                          1.0 / math.sqrt(self.node_indim)), name='Wnl', dtype=tf.float32)
-                else:
- 
-                    Wnli =tf.Variable(tf.random_uniform( (self.node_indim*self.nconv_edge+self.node_indim, self.node_indim),
-                                                               -1.0 / math.sqrt(self.node_indim),
-                                                               1.0 / math.sqrt(self.node_indim)),name='Wnl',dtype=tf.float32)
-                traceln(' -- Wnli shape',Wnli.get_shape())
- 
-            elif self.use_conv_weighted_avg:
-                Wnli = tf.Variable(
-                    tf.random_uniform((self.node_indim, self.node_indim),
-                                      -1.0 / math.sqrt(self.node_indim),
-                                      1.0 / math.sqrt(self.node_indim)), name='Wnl', dtype=tf.float32)
- 
-                #Wnli = tf.eye(self.node_dim,dtype=tf.float32)
- 
-                traceln(' -- Wnli shape', Wnli.get_shape())
- 
- 
-            else:
-                if i==0:
-                    Wnli = tf.Variable(tf.random_uniform((2 * self.node_indim, self.node_indim),
-                                                         -1.0 / math.sqrt(self.node_indim),
-                                                         1.0 / math.sqrt(self.node_indim)), name='Wnl',
-                                       dtype=tf.float32)
-                else:
-                    Wnli =tf.Variable(tf.random_uniform( (2*self.node_indim, self.node_indim),
-                                                                   -1.0 / math.sqrt(self.node_indim),
-                                                                   1.0 / math.sqrt(self.node_indim)),name='Wnl',dtype=tf.float32)
- 
-            Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
- 
-            #Weli = tf.Variable(tf.ones([int(self.nconv_edge),int(self.edge_dim)],dtype=tf.float32))
- 
-            if self.use_edge_mlp:
-                #self.Wel0 = init_glorot([int(self.nconv_edge), int(self.edge_mlp_dim)], name='Wel0')
-                Weli = init_glorot([int(self.nconv_edge), int(self.edge_mlp_dim)], name='Wel_')
-                Beli = tf.Variable(0.01 * tf.ones([self.nconv_edge]), name='Bel' + str(i), dtype=tf.float32)
- 
-                #RF Wmlp_edge_i = init_glorot([int(self.edge_dim), int(self.edge_mlp_dim)], name='Wedge_mlp'+str(i))
-                #RF Bmlp_edge_i = tf.Variable(tf.ones([self.edge_mlp_dim]), name='Bedge_mlp'+str(i), dtype=tf.float32)
-                #RF self.Wedge_mlp_layers.append(Wmlp_edge_i)
- 
-            else:
-                Weli= init_glorot([int(self.nconv_edge), int(self.edge_dim)], name='Wel_')
-                #Weli = tf.Variable(tf.random_normal([int(self.nconv_edge), int(self.edge_dim)], mean=0.0, stddev=1.0),
-                #                   dtype=np.float32, name='Wel_')
-                Beli = tf.Variable(0.01*tf.ones([self.nconv_edge]), name='Bel'+str(i),dtype=tf.float32)
- 
-                #RF Wmlp_edge_i = init_glorot([int(self.edge_dim), int(self.edge_mlp_dim)], name='Wedge_mlp' + str(i))
-                #RF Bmlp_edge_i = tf.Variable(tf.ones([self.edge_mlp_dim]), name='Bedge_mlp' + str(i), dtype=tf.float32)
-                #RF self.Wedge_mlp_layers.append(Wmlp_edge_i)
- 
-            #zeli = tf.Variable(tf.ones([self.nconv_edge]),name='zel'+str(i),dtype=tf.float32)
- 
- 
-            self.Wnode_layers.append(Wnli)
-            self.Bnode_layers.append(Bnli)
-            self.Wed_layers.append  (Weli)
-            self.Bed_layers.append(Beli)
-            #self.zed_layers.append(zeli)
- 
-        self.train_var.extend((self.Wnode_layers))
-        self.train_var.extend((self.Wed_layers))
- 
-        self.Hnode_layers=[]
- 
- 
- 
-        #TODO Do we project the firt layer or not ?
-        # Initialize the weights and biases for a simple one full connected network
-        if self.stack_instead_add:
-            self.W_classif = tf.Variable(tf.random_uniform((self.node_indim*self.nconv_edge+self.node_indim, self.n_classes),
-                                                           -1.0 / math.sqrt(self.node_dim),
-                                                           1.0 / math.sqrt(self.node_dim)),
-                                        name="W_classif",dtype=np.float32)
- 
-        elif self.use_conv_weighted_avg:
-            self.W_classif = tf.Variable(tf.random_uniform((self.node_indim, self.n_classes),
-                                                           -1.0 / math.sqrt(self.node_dim),
-                                                           1.0 / math.sqrt(self.node_dim)),
-                                         name="W_classif", dtype=np.float32)
-        else:
-            self.W_classif = tf.Variable(tf.random_uniform((2*self.node_indim, self.n_classes),
-                                                           -1.0 / math.sqrt(self.node_dim),
-                                                           1.0 / math.sqrt(self.node_dim)),
-                                        name="W_classif",dtype=np.float32)
-        self.B_classif = tf.Variable(tf.zeros([self.n_classes]), name='B_classif',dtype=np.float32)
- 
-        self.train_var.append((self.W_classif))
-        self.train_var.append((self.B_classif))
- 
- 
-        #Use for true add
-        #I = tf.eye(self.nb_node)
- 
-        self.node_dropout_ind = tf.nn.dropout(tf.ones([self.nb_node], dtype=tf.float32), 1 - self.dropout_p_node)
-        self.ND = tf.diag(self.node_dropout_ind)
- 
-        edge_dropout = self.dropout_rate_edge> 0.0 or self.dropout_rate_edge_feat > 0.0
-        traceln(' -- Edge Dropout',edge_dropout, self.dropout_rate_edge,self.dropout_rate_edge_feat)
-        if self.num_layers==1:
-            self.H = self.activation(tf.add(tf.matmul(self.node_input, self.Wnl0), self.Bnl0))
-            self.hidden_layers = [self.H]
-            traceln("H shape",self.H.get_shape())
- 
- 
-            P = self.fastconvolve(self.Wel0,self.Bel0,self.F,self.Ssparse,self.Tsparse,self.H,self.nconv_edge,self.Sshape,self.nb_edge,
-                                  self.dropout_p_edge,self.dropout_p_edge_feat,stack=self.stack_instead_add,use_dropout=edge_dropout)
- 
-            Hp = tf.concat([self.H, P], 1)
-            #Hp= P+self.H
- 
-            Hi=self.activation(Hp)
-            #Hi_shape = Hi.get_shape()
-            #traceln(Hi_shape)
-            self.hidden_layers.append(Hi)
- 
-        elif self.num_layers>1:
- 
-            if self.dropout_rate_node>0.0:
-                H0 = self.activation(tf.matmul(self.ND,tf.add(tf.matmul(self.node_input, self.Wnl0), self.Bnl0)))
-            else:
-                H0 = self.activation(tf.add(tf.matmul(self.node_input,self.Wnl0),self.Bnl0))
- 
-            self.Hnode_layers.append(H0)
- 
-            #TODO Default to fast convolve but we change update configs, train and test flags
-            P = self.fastconvolve(self.Wel0,self.Bel0, self.F, self.Ssparse, self.Tsparse, H0, self.nconv_edge, self.Sshape,self.nb_edge,
-                                  self.dropout_p_edge,self.dropout_p_edge_feat, stack=self.stack_instead_add, use_dropout=edge_dropout,
-                                  )
-                                  #RF zwe=self.zel0,
-                                  #RF use_weighted_average=self.use_conv_weighted_avg,
-                                  #RF use_edge_mlp=self.use_edge_mlp,
-                                  #RFWedge_mlp=self.Wmlp_edge_0,
-                                  #RF Bedge_mlp=self.Bmlp_edge_0)
- 
-            if self.use_conv_weighted_avg:
-                Hp = self.zH[0] * H0 + P
-            else:
-                Hp = tf.concat([H0, P], 1)
- 
-            #TODO add activation Here.
-            #self.hidden_layers = [self.activation(Hp)]
-            self.hidden_layers = [Hp]
- 
- 
-            for i in range(self.num_layers-1):
- 
-                if self.dropout_rate_H > 0.0:
-                    Hi_ = tf.nn.dropout(tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i]) + self.Bnode_layers[i], 1-self.dropout_p_H)
-                else:
-                    Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i]) + self.Bnode_layers[i]
- 
-                if self.residual_connection:
-                    Hi_= tf.add(Hi_,self.Hnode_layers[-1])
- 
-                self.Hnode_layers.append(Hi_)
- 
-                # traceln(' -- Hi_shape',Hi_.get_shape())
-                # traceln(' -- Hi prevous shape',self.hidden_layers[-1].get_shape())
- 
-                P = self.fastconvolve(self.Wed_layers[i],self.Bed_layers[i], self.F, self.Ssparse, self.Tsparse, Hi_, self.nconv_edge,self.Sshape, self.nb_edge,
-                                      self.dropout_p_edge,self.dropout_p_edge_feat, stack=self.stack_instead_add, use_dropout=edge_dropout,
-                                      )
-                                      # zwe=self.zed_layers[i],
-                                      # use_weighted_average=self.use_conv_weighted_avg,
-                                      # use_edge_mlp=self.use_edge_mlp,
-                                      # Wedge_mlp=self.Wedge_mlp_layers[i],
-                                      #RF Bedge_mlp=self.Bmlp_edge_0)
- 
- 
-                if self.use_conv_weighted_avg:
-                    Hp = self.zH[i+1]* Hi_ + P
- 
-                else:
-                    Hp = tf.concat([Hi_, P], 1)
- 
-                Hi = self.activation(Hp)
- 
-                self.hidden_layers.append(Hi)
- 
- 
- 
-        self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
-        cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
-        # Global L2 Regulization
-        self.loss = tf.reduce_mean(cross_entropy_source)  + self.mu * tf.nn.l2_loss(self.W_classif)
- 
- 
-        self.pred = tf.argmax(tf.nn.softmax(self.logits), 1)
-        self.predict_proba = tf.nn.softmax(self.logits)
-        self.correct_prediction = tf.equal(self.pred, tf.argmax(self.y_input, 1))
-        self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
- 
- 
-        self.grads_and_vars = self.optalg.compute_gradients(self.loss)
- 
-        self.gv_Gn=[]
-        #TODO Experiment with gradient noise
-        #if self.stack_instead_add:
-        #    for grad, var in self.grads_and_vars:
-        #        traceln(grad,var)
-        #        if grad is not None:
-        #            self.gv_Gn.append( ( tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)),var)    )
- 
-        #self.gv_Gn = [(tf.add(grad, tf.random_normal(tf.shape(grad), stddev=0.00001)), val) for grad, val in self.grads_and_vars if  is not None]
- 
-        self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
- 
- 
-        # Add ops to save and restore all the variables.
-        self.init = tf.global_variables_initializer()
-        self.saver= tf.train.Saver(max_to_keep=0)
- 
-        traceln(' -- Number of Params: ', self.get_nb_params())
-
-
     def save_model(self, session, model_filename):
         traceln("Saving Model")
         save_path = self.saver.save(session, model_filename)
@@ -1279,6 +837,7 @@ class EdgeConvNet(MultiGraphNN):
         :param n_iter: (default 1) number of steps to perform sgd for this graph
         :return:
         '''
+        loss = -1
         #TrainEvalSet Here
         for i in range(n_iter):
             #traceln(' -- Train',X.shape,EA.shape)
@@ -1301,8 +860,10 @@ class EdgeConvNet(MultiGraphNN):
             }
 
             Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
+            loss = Ops[1]
             if verbose:
-                traceln(' -- Training Loss',Ops[1])
+                traceln(' -- Training Loss', loss)
+        return loss
 
 
 
@@ -1337,7 +898,7 @@ class EdgeConvNet(MultiGraphNN):
         Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
         if verbose:
             traceln(' -- Test Loss',Ops[0],' Test Accuracy:',Ops[1])
-        return Ops[1]
+        return Ops[0],Ops[1]
 
 
     def predict(self,session,graph,verbose=True):
@@ -1440,19 +1001,19 @@ class EdgeConvNet(MultiGraphNN):
 
             if i % eval_iter == 0:
                 traceln('\n -- Epoch', i)
-                _, tr_acc = self.test_lG(session, graph_train, verbose=False)
+                _, tr_acc,_ = self.test_lG(session, graph_train, verbose=False)
                 traceln(' --  Train Acc', '%.4f' % tr_acc)
                 train_accuracies.append(tr_acc)
 
-                _, node_acc = self.test_lG(session, graph_val, verbose=False)
-                traceln(' --  Valid Acc', '%.4f' % node_acc)
+                _, node_acc,valloss = self.test_lG(session, graph_val, verbose=False)
+                traceln(' --  Valid Acc', '%.4f \tValid loss  %.4f '% (node_acc,valloss))
                 validation_accuracies.append(node_acc)
 
                 if save_model_path:
                     save_path = self.saver.save(session, save_model_path, global_step=i)
 
                 if graph_test:
-                    _, test_acc = self.test_lG(session, graph_test, verbose=False)
+                    _, test_acc,_ = self.test_lG(session, graph_test, verbose=False)
                     traceln(' --   Test Acc', '%.4f' % test_acc)
                     test_accuracies.append(test_acc)
 
@@ -1491,7 +1052,7 @@ class EdgeConvNet(MultiGraphNN):
         traceln(' -- Val Accuracies ', validation_accuracies)
 
         traceln(' -- Final Training Accuracy')
-        _, node_train_acc = self.test_lG(session, graph_train)
+        _, node_train_acc,_ = self.test_lG(session, graph_train)
         traceln(' -- Train Mean Accuracy', '%.4f' % node_train_acc)
 
         traceln(' -- Final Valid Acc')
@@ -1505,271 +1066,13 @@ class EdgeConvNet(MultiGraphNN):
         R['confusion_matrix'] = conf_mat
         # R['W_edge'] =self.get_Wedge(session)
         if graph_test:
-            _, final_test_acc = self.test_lG(session, graph_test)
+            _, final_test_acc,_ = self.test_lG(session, graph_test)
             traceln(' -- Final Test Acc', '%.4f' % final_test_acc)
             R['final_test_acc'] = final_test_acc
 
         return R
 
 
-
-
-class GraphConvNet(MultiGraphNN):
-    '''
-    A Deep Standard GCN model for a graph list
-    '''
-    def __init__(self,node_dim,nb_classes,num_layers=1,learning_rate=0.1,mu=0.1,node_indim=-1,
-                 dropout_rate=0.0,dropout_mode=0):
-        self.node_dim=node_dim
-        self.n_classes=nb_classes
-        self.num_layers=num_layers
-        self.learning_rate=learning_rate
-        self.activation=tf.nn.relu
-        self.mu=mu
-        self.optalg = tf.train.AdamOptimizer(self.learning_rate)
-        self.convolve_last=False
-        self.dropout_rate=dropout_rate
-        #0 No dropout 1, Node Dropout at input 2 Standard dropout for layer
-        # check logit layer
-        self.dropout_mode=dropout_mode
-
-        if node_indim==-1:
-            self.node_indim=self.node_dim
-        else:
-            self.node_indim=node_indim
-
-    def create_model(self):
-        self.nb_node    = tf.placeholder(tf.int32,(), name='nb_node')
-        self.node_input = tf.placeholder(tf.float32, [None, self.node_dim], name='X_')
-        self.y_input    = tf.placeholder(tf.float32, [None, self.n_classes], name='Y')
-        self.NA_input   = tf.placeholder(tf.float32, name='NA_input') #Normalized Adjacency Matrix Here
-        self.dropout_p  = tf.placeholder(tf.float32,(), name='dropout_prob')
-
-
-        #std_dev_in=float(1.0/ float(self.node_dim))
-        self.Wnode_layers=[]
-        self.Bnode_layers=[]
-
-
-        std_dev_input=float(1.0/ float(self.node_dim))
-        std_dev_indim=float(1.0/ float(self.node_indim))
-
-
-        if self.node_indim!=self.node_dim:
-            self.Wnode = init_glorot((self.node_dim,self.node_indim),name='Wn0')
-            #self.Wnode = init_normal((self.node_dim, self.node_indim),std_dev_input,name='Wn0')
-        else:
-            self.Wnode = tf.Variable(tf.eye(self.node_dim),name='Wn0',dtype=tf.float32)
-
-        self.Bnode = tf.Variable(tf.zeros([self.node_indim]), name='Bnode',dtype=tf.float32)
-
-
-        for i in range(self.num_layers-1):
-            Wnli =init_glorot((2*self.node_indim, self.node_indim),name='Wnl'+str(i))
-            #Wnli = init_normal((self.node_indim, self.node_indim),std_dev_indim, name='Wnl' + str(i))
-            self.Wnode_layers.append(Wnli)
-            #The GCN do not seem to use a bias term
-            #Bnli = tf.Variable(tf.zeros([self.node_indim]), name='Bnl'+str(i),dtype=tf.float32)
-            #self.Bnode_layers.append(Bnli)
-
-        self.W_classif = init_glorot((2*self.node_indim, self.n_classes),name="W_classif")
-        self.B_classif = tf.Variable(tf.zeros([self.n_classes]), name='B_classif',dtype=np.float32)
-
-
-        #Input Layer
-        #Check the self-loop . Is included in the normalized adjacency matrix
-        #Check Residual Connections as weel for deeper models
-
-        #add dropout_placeholder ... to differentiate train and test
-        #x = tf.nn.dropout(x, 1 - self.dropout)
-
-
-        #Dropout some nodes at the input of the graph ?
-        #Should I dropout in upper layers as well ?
-        #This way this forces the net to infer the node labels from its neighbors only
-        #Here I dropout the features, but node the edges ..
-
-        self.node_dropout_ind =  tf.nn.dropout(tf.ones([self.nb_node],dtype=tf.float32),1-self.dropout_p)
-        self.ND = tf.diag(self.node_dropout_ind)
-
-
-
-        if self.dropout_mode==1:
-            #self.H = self.activation(tf.matmul(self.ND,tf.add(tf.matmul(self.node_input, self.Wnode), self.Bnode)))
-            P0 = self.activation(tf.matmul(self.ND, tf.add(tf.matmul(self.node_input, self.Wnode), self.Bnode)))
-            self.hidden_layers = [self.H]
-        else:
-            H0 =tf.add(tf.matmul(self.node_input, self.Wnode), self.Bnode)
-            P0 =tf.matmul(self.NA_input, H0)  # we should forget the self loop
-            H0_ = self.activation(tf.concat([H0, P0], 1))
-            self.hidden_layers=[H0_]
-            #self.H = self.activation(tf.add(tf.matmul(self.node_input, self.Wnode), self.Bnode))
-            #self.hidden_layers = [self.H]
-
-
-
-        for i in range(self.num_layers-1):
-            if self.dropout_mode==2:
-                Hp = tf.nn.dropout(self.hidden_layers[-1],1-self.dropout_p)
-                Hi_ = tf.matmul(Hp, self.Wnode_layers[i])
-            else:
-                Hi_ = tf.matmul(self.hidden_layers[-1], self.Wnode_layers[i])
-            P =tf.matmul(self.NA_input, Hi_) #we should forget the self loop
-            #Hp = tf.concat([H0, P], 1)
-            Hi = self.activation(tf.concat([Hi_,P],1))
-            self.hidden_layers.append(Hi)
-
-
-        #This dropout the logits as in GCN
-        if self.dropout_mode==2:
-            Hp = tf.nn.dropout(self.hidden_layers[-1], 1 - self.dropout_p)
-            self.hidden_layers.append(Hp)
-
-        if self.convolve_last is True:
-            logit_0     = tf.add(tf.matmul(self.hidden_layers[-1], self.W_classif), self.B_classif)
-            self.logits =  tf.matmul(self.NA_input,logit_0) #No activation function here
-        else:
-            self.logits =tf.add(tf.matmul(self.hidden_layers[-1],self.W_classif),self.B_classif)
-
-        cross_entropy_source = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_input)
-
-        #Global L2 Regulization
-        self.loss = tf.reduce_mean(cross_entropy_source) + self.mu * tf.nn.l2_loss(self.W_classif)
-
-        self.correct_prediction = tf.equal(tf.argmax(tf.nn.softmax(self.logits), 1), tf.argmax(self.y_input, 1))
-        self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
-
-        self.grads_and_vars = self.optalg.compute_gradients(self.loss)
-        self.train_step = self.optalg.apply_gradients(self.grads_and_vars)
-
-
-        traceln(' -- Number of Params: ', self.get_nb_params())
-        # Add ops to save and restore all the variables.
-        self.init = tf.global_variables_initializer()
-
-        self.saver = tf.train.Saver()
-
-    def train(self,session,g,n_iter=1,verbose=False):
-        #TrainEvalSet Here
-        for i in range(n_iter):
-            feed_batch={
-                        self.nb_node:g.X.shape[0],
-                        self.node_input:g.X,
-                        self.y_input:g.Y,
-                        self.NA_input:g.NA,
-                        self.dropout_p:self.dropout_rate
-            }
-            Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
-            if verbose:
-                traceln(' -- Training Loss',Ops[1])
-
-
-
-    def test(self,session,g,verbose=True):
-        #TrainEvalSet Here
-        feed_batch={
-                        self.nb_node:g.X.shape[0],
-                        self.node_input:g.X,
-                        self.y_input:g.Y,
-                        self.NA_input:g.NA,
-                        self.dropout_p: 0.0
-        }
-        Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
-        if verbose:
-            traceln(' -- Test Loss',Ops[0],' Test Accuracy:',Ops[1])
-        return Ops[1]
-
-
-class EdgeLogit(Logit):
-    '''
-    Logistic Regression for MultiGraph
-    '''
-
-    def train(self,session,graph,verbose=False,n_iter=1):
-        '''
-        Apply a train operation, ie sgd step for a single graph
-        :param session:
-        :param graph: a graph from GCN_Dataset
-        :param verbose:
-        :param n_iter: (default 1) number of steps to perform sgd for this graph
-        :return:
-        '''
-        #TrainEvalSet Here
-        for i in range(n_iter):
-            #traceln(' -- Train',X.shape,EA.shape)
-
-            nb_edge =graph.E.shape[0]
-            half_edge  =nb_edge/2
-            feed_batch = {
-
-                self.nb_node: graph.EC.shape[0], #here we pass the number of edges
-                self.node_input: graph.EC,
-                self.y_input: graph.Yedge,
-
-                #self.nb_node: half_edge, #here we pass the number of edges
-                #self.node_input: graph.F[:half_edge],
-                #self.y_input: graph.Yedge[:half_edge],
-            }
-
-            Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
-            if verbose:
-                traceln(' -- Training Loss',Ops[1])
-
-
-
-    def test(self,session,graph,verbose=True):
-        '''
-        Test return the loss and accuracy for the graph passed as argument
-        :param session:
-        :param graph:
-        :param verbose:
-        :return:
-        '''
-
-        nb_edge = graph.E.shape[0]
-        half_edge = nb_edge / 2
-
-        feed_batch = {
-
-            self.nb_node: graph.EC.shape[0],
-            self.node_input: graph.EC,
-            self.y_input: graph.Yedge,
-
-            #self.nb_node: half_edge,  # here we pass the number of edges
-            #self.node_input: graph.F[:half_edge],
-            #self.y_input: graph.Yedge[:half_edge],
-        }
-
-        Ops =session.run([self.loss,self.accuracy], feed_dict=feed_batch)
-        if verbose:
-            traceln(' -- Test Loss',Ops[0],' Test Accuracy:',Ops[1])
-        return Ops[1]
-
-
-    def predict(self,session,graph,verbose=True):
-        '''
-        Does the prediction
-        :param session:
-        :param graph:
-        :param verbose:
-        :return:
-        '''
-
-        nb_edge = graph.E.shape[0]
-        half_edge = nb_edge / 2
-
-        feed_batch = {
-            self.nb_node: graph.EC.shape[0],
-            self.node_input: graph.EC,
-
-            #self.nb_node: half_edge,  # here we pass the number of edges
-            #self.node_input: graph.F[:half_edge],
-            #self.y_input: graph.Yedge[:, half_edge],
-        }
-        Ops = session.run([self.pred], feed_dict=feed_batch)
-        if verbose:
-            traceln(' -- Got Prediction for:',Ops[0].shape)
-        return Ops[0]
 
 
 
@@ -1853,7 +1156,7 @@ class GraphAttNet(MultiGraphNN):
                 self.stack_instead_add=val
             if attrname not in self._setter_variables:
                 try:
-                    traceln(' -- set',attrname,val)
+                    traceln(' -- set ',attrname,val)
                     setattr(self,attrname,val)
                 except AttributeError:
                     warnings.warn("Ignored options for ECN"+attrname+':'+val)
@@ -2309,6 +1612,7 @@ class GraphAttNet(MultiGraphNN):
         :param n_iter: (default 1) number of steps to perform sgd for this graph
         :return:
         '''
+        loss = -1
         #TrainEvalSet Here
         for i in range(n_iter):
             #traceln(' -- Train',X.shape,EA.shape)
@@ -2331,10 +1635,10 @@ class GraphAttNet(MultiGraphNN):
             }
 
             Ops =session.run([self.train_step,self.loss], feed_dict=feed_batch)
+            loss = Ops[1]
             if verbose:
-                traceln(' -- Training Loss',Ops[1])
-
-
+                traceln(' -- Training Loss', loss)
+        return loss
 
     def test(self,session,graph,verbose=True):
         '''
@@ -2467,11 +1771,11 @@ class GraphAttNet(MultiGraphNN):
 
             if i % eval_iter == 0:
                 traceln('\n -- Epoch', i)
-                _, tr_acc = self.test_lG(session, graph_train, verbose=False)
+                _, tr_acc,_ = self.test_lG(session, graph_train, verbose=False)
                 traceln(' --  Train Acc', '%.4f' % tr_acc)
                 train_accuracies.append(tr_acc)
 
-                _, node_acc = self.test_lG(session, graph_val, verbose=False)
+                _, node_acc,_= self.test_lG(session, graph_val, verbose=False)
                 traceln(' --  Valid Acc', '%.4f' % node_acc)
                 validation_accuracies.append(node_acc)
 

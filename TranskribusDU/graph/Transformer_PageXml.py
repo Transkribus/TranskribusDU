@@ -21,8 +21,10 @@
 
 import numpy as np
 
-from .Transformer import Transformer
-from .Edge import HorizontalEdge, VerticalEdge, SamePageEdge, CrossPageEdge, CrossMirrorPageEdge
+from .FeatureDType  import dtype as Feat_dtype
+from .Transformer   import Transformer
+from .Edge          import HorizontalEdge, VerticalEdge, SamePageEdge, CrossPageEdge, CrossMirrorPageEdge, CelticEdge
+from graph.FeatureDefinition_Standard import getDefaultEdgeClassList
 
 fEPSILON = 10
 
@@ -70,7 +72,7 @@ class NodeTransformerTextLen(Transformer):
     So we return a numpy array  
     """
     def transform(self, lNode):
-        a = np.empty( ( len(lNode), 2 ) , dtype=np.float64)             #--- FEAT #1  text length
+        a = np.empty( ( len(lNode), 2 ) , dtype=Feat_dtype)             #--- FEAT #1  text length
         #for i, blk in enumerate(lNode): a[i] = len(blk.text)
         for i, blk in enumerate(lNode):
             a[i,:] = len(blk.text), blk.text.count(' ')
@@ -84,9 +86,9 @@ class NodeTransformerXYWH(Transformer):
     So we return a numpy array  
     """
     def transform(self, lNode):
-#         a = np.empty( ( len(lNode), 5 ) , dtype=np.float64)
+#         a = np.empty( ( len(lNode), 5 ) , dtype=Feat_dtype)
 #         for i, blk in enumerate(lNode): a[i, :] = [blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1, blk.fontsize]        #--- 2 3 4 5 6 
-        a = np.empty( ( len(lNode), 2+4+4 ) , dtype=np.float64)
+        a = np.empty( ( len(lNode), 2+4+4 ) , dtype=Feat_dtype)
         for i, blk in enumerate(lNode): 
             page = blk.page
             x1,y1,x2,y2 = blk.x1, blk.y1, blk.x2, blk.y2
@@ -116,9 +118,9 @@ class NodeTransformerXYWH_NoPage(Transformer):
     So we return a numpy array
     """
     def transform(self, lNode):
-#         a = np.empty( ( len(lNode), 5 ) , dtype=np.float64)
+#         a = np.empty( ( len(lNode), 5 ) , dtype=Feat_dtype)
 #         for i, blk in enumerate(lNode): a[i, :] = [blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1, blk.fontsize]        #--- 2 3 4 5 6
-        a = np.empty( ( len(lNode), 4+4+4 ) , dtype=np.float64)
+        a = np.empty( ( len(lNode), 4+4+4 ) , dtype=Feat_dtype)
 
         try:
             max_x  = max(o.x2 for o in lNode)
@@ -146,9 +148,9 @@ class NodeTransformerNeighbors(Transformer):
     Characterising the neighborough
     """
     def transform(self, lNode):
-#         a = np.empty( ( len(lNode), 5 ) , dtype=np.float64)
+#         a = np.empty( ( len(lNode), 5 ) , dtype=Feat_dtype)
 #         for i, blk in enumerate(lNode): a[i, :] = [blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1, blk.fontsize]        #--- 2 3 4 5 6 
-        a = np.empty( ( len(lNode), 3+3 ) , dtype=np.float64)
+        a = np.empty( ( len(lNode), 3+3 ) , dtype=Feat_dtype)
         for i, blk in enumerate(lNode): 
             ax1, ay1, apnum = blk.x1, blk.y1, blk.pnum
             #number of horizontal/vertical/crosspage neighbors
@@ -196,8 +198,8 @@ class Node1HotFeatures(Transformer):
     """
     def transform(self, lNode):
         #We allocate TWO more columns to store in it the tfidf and idf computed at document level.
-        #a = np.zeros( ( len(lNode), 10 ) , dtype=np.float64)  # 4 possible orientations: 0, 1, 2, 3
-        a = np.zeros( ( len(lNode), 7+3+3 ) , dtype=np.float64)  # 4 possible orientations: 0, 1, 2, 3
+        #a = np.zeros( ( len(lNode), 10 ) , dtype=Feat_dtype)  # 4 possible orientations: 0, 1, 2, 3
+        a = np.zeros( ( len(lNode), 7+3+3 ) , dtype=Feat_dtype)  # 4 possible orientations: 0, 1, 2, 3
         for i, blk in enumerate(lNode): 
             s = blk.text
             a[i,0:7] = ( s.isalnum(),
@@ -224,8 +226,8 @@ class Node1HotFeatures_noText(Transformer):
     """
     def transform(self, lNode):
         #We allocate TWO more columns to store in it the tfidf and idf computed at document level.
-        #a = np.zeros( ( len(lNode), 10 ) , dtype=np.float64)  # 4 possible orientations: 0, 1, 2, 3
-        a = np.zeros( ( len(lNode), 7 ) , dtype=np.float64)  # 4 possible orientations: 0, 1, 2, 3
+        #a = np.zeros( ( len(lNode), 10 ) , dtype=Feat_dtype)  # 4 possible orientations: 0, 1, 2, 3
+        a = np.zeros( ( len(lNode), 7 ) , dtype=Feat_dtype)  # 4 possible orientations: 0, 1, 2, 3
         
         for i, blk in enumerate(lNode): 
             a[i,0] = int(blk.pnum%2 == 0)
@@ -269,7 +271,7 @@ class NodeSemanticLabels(Transformer):
         return aa
     
     def transform(self, lNode):
-        aa = np.zeros( ( len(lNode), len(self.lLlabel) ) , dtype=np.float64)  
+        aa = np.zeros( ( len(lNode), len(self.lLlabel) ) , dtype=Feat_dtype)  
 
         return self.labelFun(self.lLabel, lNode, aa)
 
@@ -277,7 +279,7 @@ class NodeSemanticLabels(Transformer):
 #     def transform(self, lNode):
 #         labels = [ 'resolution-marginalia', 'resolution-number', 'resolution-paragraph',
 #                    'page-number',  'heading', 'header', 'other', 'IGNORE']
-#         aa = np.zeros( ( len(lNode), len(labels) ) , dtype=np.float64)  
+#         aa = np.zeros( ( len(lNode), len(labels) ) , dtype=Feat_dtype)  
 # 
 #         for i, blk in enumerate(lNode):
 #             try:
@@ -294,7 +296,7 @@ class Node1ConstantFeature(Transformer):
     we generate one constant feature per node. (1.0)
     """
     def transform(self, lNode):
-        return np.ones( ( len(lNode), 1 ) , dtype=np.float64)
+        return np.ones( ( len(lNode), 1 ) , dtype=Feat_dtype)
 
 # #------------------------------------------------------------------------------------------------------
 # class NodePNumFeatures(Transformer):
@@ -302,7 +304,7 @@ class Node1ConstantFeature(Transformer):
 #     does it look like following a plan number pattern after normalization??
 #     """
 #     def transform(self, lNode):
-#         a = np.zeros( ( len(lNode), len(lCRE) ) , dtype=np.float64)
+#         a = np.zeros( ( len(lNode), len(lCRE) ) , dtype=Feat_dtype)
 #         
 #         for i, blk in enumerate(lNode): 
 #             s, sconf = normalizeNumber(blk.text, blk.sconf)
@@ -327,10 +329,6 @@ class EdgeTransformerByClassIndex(Transformer):
                 self._edgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge][n]
             else:   
                 self._edgeClass = [HorizontalEdge, VerticalEdge][n]
-
-        self.n = n
-        self.bMirrorPage = bMirrorPage
-        self.bMultiPage = bMultiPage
 
 class EdgeTransformerSourceText(EdgeTransformerByClassIndex):
     """
@@ -359,33 +357,29 @@ class EdgeTransformerClassShifter(Transformer):
     """
     We assign one range of feature per Edge class
     """
-    
+    lDefaultEdgeClass = [HorizontalEdge, VerticalEdge, SamePageEdge]
     nbFEAT = None   #must be specialized!!!
     
-    lDefaultEdgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge]
-    
-    def __init__(self, bMirrorPage=True, bMultiPage=True):
-        Transformer.__init__(self)
-        if bMirrorPage:
-            lEdgeClass = self.lDefaultEdgeClass + [CrossMirrorPageEdge] #this makes a copy
-        else:
-            if bMultiPage:
-                lEdgeClass = list(self.lDefaultEdgeClass)
-            else:
-                lEdgeClass = list(self.lDefaultEdgeClass[0:2])
+    # lDefaultEdgeClass = [HorizontalEdge, VerticalEdge, CelticEdge, CrossPageEdge]
+    #lDefaultEdgeClass = [HorizontalEdge, VerticalEdge, CelticEdge]
 
-            
+    def __init__(self, bMirrorPage=False, bMultiPage=False):
+        Transformer.__init__(self)
+        lEdgeClass = list(getDefaultEdgeClassList())
+        if bMultiPage: 
+            lEdgeClass.append(CrossPageEdge)
+            if bMirrorPage:
+                lEdgeClass.append(CrossMirrorPageEdge)
         self._nbEdgeFeat = self.nbFEAT * len(lEdgeClass)
         self._dEdgeClassIndexShift = { cls:i*self.nbFEAT for i,cls in enumerate(lEdgeClass) }
-        self.bMirrorPage = bMirrorPage
-        self.bMultiPage  = bMultiPage
-
-    @classmethod
-    def setDefaultEdgeClass(cls, lEdgeClass):
-        """
-        to set the list of edge classes the feature extractor will see
-        """
-        cls.lDefaultEdgeClass = lEdgeClass
+    
+#     @classmethod
+#     def setDefaultEdgeClass(cls, lEdgeClass):
+#     SEE setDefaultEdgeClassList in FeatureDefinition_Standard
+#         """
+#         to set the list of edge classes the feature extractor will see
+#         """
+#         cls.lDefaultEdgeClass = lEdgeClass
         
     def fit(self, x, y=None):
         return self
@@ -409,11 +403,10 @@ class Edge1HotFeatures(EdgeTransformerClassShifter):
     def __init__(self, pageNumSequenciality, bMirrorPage=True):
         EdgeTransformerClassShifter.__init__(self, bMirrorPage)
         self.sqnc = pageNumSequenciality
-        self.pageNumSequenciality = pageNumSequenciality
-
+            
     def transform(self, lEdge):
-        #a = np.zeros( ( len(lEdge), 3 + 17*3 ) , dtype=np.float64)
-        a = np.zeros( ( len(lEdge), self._nbEdgeFeat), dtype=np.float64)
+        #a = np.zeros( ( len(lEdge), 3 + 17*3 ) , dtype=Feat_dtype)
+        a = np.zeros( ( len(lEdge), self._nbEdgeFeat), dtype=Feat_dtype)
         for i, edge in enumerate(lEdge):
             #-- vertical / horizontal / virtual / cross-page / not-neighbor
             z = self._dEdgeClassIndexShift[edge.__class__]
@@ -464,13 +457,10 @@ class EdgeBooleanFeatures(EdgeTransformerClassShifter):
     left-, top-, right-, bottom- justified  (at epsilon precision)
     """
     nbFEAT = 6
-
-    def __init__(self, bMirrorPage=True):
-        EdgeTransformerClassShifter.__init__(self, bMirrorPage)
-
+    
     def transform(self, lEdge):
-        #DISC a = np.zeros( ( len(lEdge), 16 ) , dtype=np.float64)
-        a = - np.ones( ( len(lEdge), self._nbEdgeFeat ) , dtype=np.float64)
+        #DISC a = np.zeros( ( len(lEdge), 16 ) , dtype=Feat_dtype)
+        a = - np.ones( ( len(lEdge), self._nbEdgeFeat ) , dtype=Feat_dtype)
         for i, edge in enumerate(lEdge):
             z = self._dEdgeClassIndexShift[edge.__class__]
             
@@ -493,13 +483,14 @@ class EdgeNumericalSelector(EdgeTransformerClassShifter):
     """
     getting rid of the hand-crafted thresholds
     JLM Nov 2019: simpler and better (normalization must not change with direction for the 2 removed any direction features)
+    JLM July 2020: adding x1,y1,x2,y2 of each node
     """
-    nbFEAT = 6
+    nbFEAT = 6+8
     
     def transform(self, lEdge):
-        #no font size a = np.zeros( ( len(lEdge), 5 ) , dtype=np.float64)
-#         a = np.zeros( ( len(lEdge), 7 ) , dtype=np.float64)
-        a = np.zeros( ( len(lEdge), self._nbEdgeFeat ) , dtype=np.float64)
+        #no font size a = np.zeros( ( len(lEdge), 5 ) , dtype=Feat_dtype)
+#         a = np.zeros( ( len(lEdge), 7 ) , dtype=Feat_dtype)
+        a = np.zeros( ( len(lEdge), self._nbEdgeFeat ) , dtype=Feat_dtype)
         for i, edge in enumerate(lEdge):
             z = self._dEdgeClassIndexShift[edge.__class__]
             A,B = edge.A, edge.B        
@@ -530,6 +521,9 @@ class EdgeNumericalSelector(EdgeTransformerClassShifter):
                     norm_length = edge.length / float(edge.A.page.w)
                     norm_length2 = norm_length * norm_length
                     a[i,z+2:z+6] = (norm_length, 0.0           , norm_length2 , 0.0         )
+            
+            a[i,z+6:z+6+8] = ( A.x1,A.x2, A.y1,A.y2
+                             , B.x1,B.x2, B.y1,B.y2 )
                     
         return a  
 
@@ -538,7 +532,7 @@ class EdgeNumericalSelector_noText(EdgeTransformerClassShifter):
     nbFEAT = 5
     
     def transform(self, lEdge):
-        a = np.zeros( ( len(lEdge), self._nbEdgeFeat ) , dtype=np.float64)
+        a = np.zeros( ( len(lEdge), self._nbEdgeFeat ) , dtype=Feat_dtype)
         for i, edge in enumerate(lEdge):
             z = self._dEdgeClassIndexShift[edge.__class__]
             A,B = edge.A, edge.B        
@@ -572,7 +566,7 @@ class EdgeTypeFeature_HV(Transformer):
     Only tells the type of edge: Horizontal or Vertical
     """
     def transform(self, lEdge):
-        a = np.zeros( (len(lEdge), 2), dtype=np.float64)
+        a = np.zeros( (len(lEdge), 2), dtype=Feat_dtype)
         for i, edge in enumerate(lEdge):
             #-- vertical / horizontal
             if edge.__class__ == HorizontalEdge:

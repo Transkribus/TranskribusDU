@@ -29,6 +29,8 @@ from graph.Graph import Graph
 from tasks.DU_CRF_Task import DU_CRF_Task
 from tasks.DU_ECN_Task import DU_ECN_Task, DU_Ensemble_ECN_Task
 from tasks.DU_GAT_Task import DU_GAT_Task
+from tasks.DU_Task_Features import addInterCentroidEdgeType
+from graph.Edge             import Edge
 
 
 class DU_Task_Factory:
@@ -44,8 +46,11 @@ class DU_Task_Factory:
         usage = """"%s <model-folder> <model-name> [--rm] [--trn <col-dir> [--warm] [--vld <col-dir>]+]+ [--tst <col-dir>]+ [--run <col-dir> [--graph]]+
 or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish] [--fold <col-dir>]+
 [--pkl]
-[--g1|--g1o|--g2]
+[--g1|--g2|--g1o|--g2o|--celtic_edge N|--delaunay_edge|--gknn]
+[--edge_oracle]
+[--eval_row|--eval_col|--eval_cell|--eval_cluster|--eval_cluster_level]
 [--server <PORT>]
+[--mlflow [<URI>]
 
         For the named MODEL using the given FOLDER for storage:
         --rm  : remove all model data from the folder
@@ -69,17 +74,23 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
         --g1          : default mode (historical): edges created only to closest overlapping block (downward and rightward)
         --g2          : implements the line-of-sight edges (when in line of sight, then link by an edge)
         --g1o         : same as g1 but tolerating box overlap
+        --g2o         : same as g2 but tolerating box overlap
+        --gknn        : link each block to its k nearest neighbors
         --server port : run in server mode, offering a predict method
         --server-debug: run the server in debug
-        --outxml port : output PageXML files, whatever th einput format is.
+        --outxml port : output PageXML files, whatever the input format is.
         --mlflow      : record results using MLflow at default URI
         --mlflow_uri  : record results using MLflow at that URI
         --mlflow_expe : record results using MLflow under that specific experience name
         --mlflow_run  : record results using MLflow under that specific run name
+        --celtic_edge : compute Celtic edges (with at most N edge per sector)"
+        --delaunay_edge: edge are the edges of the Delaunay triangle, vertices being the blocks centroids.
         --edge_oracle : binary segmentation done based on edge label computed from groundtruth
         --eval_row, --eval_col, --eval_cell : compute clustering metrics in run mode only
+        --eval_region                       :     compute clustering metrics in run mode only 
         --eval_cluster <DOM_attribute>      : compute clustering metrics in run mode only
         --eval_cluster_level                : compute clustering metrics in run mode only
+        --cluster_threshold                 : Threshold on edge probabilities used for clusterings
         """%sys_argv0
 
         #prepare for the parsing of the command line
@@ -105,6 +116,8 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
                           , help="To make warm-startable model and warm-start if a model exist already.")   
         parser.add_option("--pkl", dest='bPkl', action="store_true"
                           , help="GZip and pickle PyStruct data as (lX, lY) on disk.")    
+        parser.add_option("--lpkl", dest='blPkl', action="store_true"
+                          , help="GZip and pickle PyStruct data as [(X, Y)] on disk. (A series of 1 file per graph)")    
         parser.add_option("--graph", dest='bGraph',  action="store_true"
                           , help="Store the graph in the XML for displaying it") 
         parser.add_option("--rm", dest='rm',  action="store_true"
@@ -121,6 +134,10 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
                           , help="Like g1, but tolerating overlapping blocks")   
         parser.add_option("--g2", dest='bG2',  action="store_true"
                           , help="implements the line-of-sight edges (when in line of sight, then link the nodes by an edge) (Overlaps prevent edge creation)")   
+        parser.add_option("--g2o", dest='bG2o',  action="store_true"
+                          , help="Like g2, but tolerating overlapping blocks") 
+        parser.add_option("--gknn", dest="bGKNN", action="store", type="int"
+                          , help="Link each block to its k nearest neighbors")  
         parser.add_option("--ext", dest='sExt',  action="store", type="string"
                           , help="Expected extension of the data files, e.g. '.pxml'")    
         parser.add_option("--server", dest='iServer',  action="store", type="int"
@@ -149,10 +166,14 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
                       , help="Evaluate cluster quality. Give the attribute that contains the GT cluster id.")
         parser.add_option("--eval_cluster_level", dest='bEvalClusterLevel', action="store_true"
                       , help="Evaluate cluster level quality.")
+        parser.add_option("--celtic_edge", "--celtic", dest='iCelticEdge', action="store", type="int", default=0
+                      , help="Include Celtic edges, with given maximum number of edge per sector.")
+        parser.add_option("--delaunay_edge", dest='bDelaunayEdge', action="store_true"
+                      , help="Edge computed as the Delaunay triangle edges, vertices being block centroids..")
         parser.add_option("--edge_oracle", dest='bEdgeOracle', action="store_true"
                       , help="An oracle predict the edge label (continue or break).")
-
-            
+        parser.add_option("--cluster_threshold", dest='iClusterTH', action="store", type='int',default=50
+                      , help="Threshold on edge probabilities used for clustering.")
         # consolidate...
         for c in cls.l_CHILDREN_CLASS:
             c_usage, parser = c.updateStandardOptionsParser(parser)
@@ -177,7 +198,7 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
                 , fun_getConfiguredGraphClass   = None
                 , sComment                      = None
                 , cFeatureDefinition            = None
-                , dFeatureConfig                = {}       
+                , dFeatureConfig                = {}      
                 , cTask                         = None # to specify a specific Task class
                 ):
         """
@@ -187,17 +208,31 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
         assert not cFeatureDefinition           is None, "You must provide a cFeatureDefinition class"
 
         # Graph mode for computing edges
-        assert not(options.bG1 and options.bG2), "Specify graph mode either 1 or 2 not both"
         iGraphMode = 1
         assert [options.bG1
                 , options.bG2
+                , options.bDelaunayEdge
                 , options.bG1o
+                , options.bG2o
+                , bool(options.bGKNN)
                 ].count(True) <= 1, "Specify at most one graph mode (default is mode %d)"%iGraphMode
         if options.bG1: iGraphMode = 1
         if options.bG2: iGraphMode = 2
+        if options.bDelaunayEdge: 
+            iGraphMode = 3
+            addInterCentroidEdgeType()
         if options.bG1o: iGraphMode = 4
+        if options.bG2o: iGraphMode = 5
+        if bool(options.bGKNN): 
+            iGraphMode = 6
+            assert int(options.bGKNN) >= 1
+            Edge.iGKNN = int(options.bGKNN)
+            from graph.FeatureDefinition_Standard import setDefaultEdgeClassList
+            from graph.Edge import SamePageEdge
+            setDefaultEdgeClassList([SamePageEdge])
+            
         Graph.setGraphMode(iGraphMode)
-
+        
 #         bCRF = bCRF or (not(options is None) and options.bCRF)
 #         bECN = bECN or (not(options is None) and options.bECN)
 #         bECNEnsemble = bECNEnsemble or (not(options is None) and options.bECN)
@@ -225,6 +260,7 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
         
         c.getConfiguredGraphClass = fun_getConfiguredGraphClass
 
+        
         doer = c(sModelName, sModelDir
                  , sComment             = sComment
                  , cFeatureDefinition   = cFeatureDefinition
@@ -241,5 +277,5 @@ or for a cross-validation [--fold-init <N>] [--fold-run <n> [-w]] [--fold-finish
             traceln("SETUP: Randomizer initialized by your seed (%d)"%options.seed)
             
         traceln("SETUP: doer : class=%s  version=%s" % (doer.__class__.__qualname__, doer.getVersion()))
-        
+
         return doer

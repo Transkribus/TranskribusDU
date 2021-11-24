@@ -8,6 +8,12 @@ from collections import defaultdict
 import glob
 import logging
 import random
+
+# for fetching images from teh network
+import shutil
+import tempfile
+import urllib2
+
 from lxml import etree
 #import cStringIO
 import wx
@@ -417,6 +423,14 @@ class DecoImage(DecoBBXYWH):
     def __init__(self, cfg, sSurname, xpCtxt):
         DecoBBXYWH.__init__(self, cfg, sSurname, xpCtxt)
         self.xpHRef  = cfg.get(sSurname, "xpath_href")
+        self.image_server        = cfg.get("General", "image_server")
+        self.image_server_cached = cfg.get("General", "image_server_cached").lower() in ["1", "true"]
+        self.cache_dir = os.path.join(tempfile.gettempdir(), "wxvisu")
+        self.image_server_last404 = ""  # to avoid asking again and again and getting 404
+        try:
+            os.mkdir(self.cache_dir)
+        except:
+            pass
         
     def __str__(self):
         s = "%s="%self.__class__
@@ -432,8 +446,8 @@ class DecoImage(DecoBBXYWH):
         #add the image itself
         x,y,w,h,inc = self.runXYWHI(node)
         sFilePath = self.xpathToStr(node, self.xpHRef, "")
-        if sFilePath:
-            if self.sImageFolder:
+        if sFilePath:               
+            if not os.path.exists(sFilePath) and self.sImageFolder:
                 sCandidate = os.path.join(self.sImageFolder, sFilePath)
                 if os.path.exists(sCandidate):
                     sFilePath = sCandidate
@@ -447,6 +461,28 @@ class DecoImage(DecoBBXYWH):
                             sFilePath = sCandidate
                     except ValueError:
                         pass
+            # try over the network
+            if not os.path.exists(sFilePath) and self.image_server and self.image_server_last404 != sFilePath:
+                sFile = os.path.join(self.cache_dir, sFilePath) # where to store
+                if bool(self.image_server_cached) and os.path.exists(sFile) and os.path.isfile(sFile):
+                    sFilePath = sFile # done!
+                    self.warning("In cache: %s" % sFilePath)
+                else:
+                    # try fetching 
+                    try:
+                        response = urllib2.urlopen(self.image_server +"?name=" + sFilePath)
+                        resp = response.read()
+                        self.warning("Fetched %s" %sFilePath)
+                    except urllib2.HTTPError:
+                        resp = None
+                        self.image_server_last404 = sFilePath
+                    if not resp is None:
+                        fd = open(sFile, "wb")
+                        fd.write(resp)
+                        fd.close()
+                        sFilePath = sFile
+                    
+                        
             if not os.path.exists(sFilePath): 
                 #maybe the image is in a folder with same name as XML file? (Transkribus style)
                 sUrl = node.getroottree().docinfo.URL.decode('utf-8') # py2 ...

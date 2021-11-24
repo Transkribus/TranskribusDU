@@ -41,6 +41,15 @@ def test_ClusterList():
     cl.sort()
     assert cl == [0, 1, 23, 99]
     
+def test_ClusterList2():
+    cl = ClusterList()
+    assert cl == []
+
+    cl = ClusterList([[1, 99, 23], [1,2,3], [55]], "bibi")
+    assert cl == [[1, 99, 23], [1,2,3], [55]]
+    assert cl[1] == [1,2,3]
+    
+    assert cl.sAlgo == "bibi"
             
 def test_Cluster():
     c = Cluster()

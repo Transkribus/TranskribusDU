@@ -13,12 +13,9 @@
     under grant agreement No 674943.
     
 """
-
-
-
-
 import types
 from lxml import etree
+import numpy as np
 
 from common.trace import traceln
 from xml_formats.PageXml import PageXml, PageXmlException
@@ -49,7 +46,7 @@ class NodeType_PageXml(NodeType):
 
     #Namespace, of PageXml, at least
     dNS = {"pc":PageXml.NS_PAGE_XML}
-
+    
     nbNoTextWarning = 0
 
     def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun
@@ -139,7 +136,7 @@ class NodeType_PageXml(NodeType):
                 sText = ""
                 NodeType_PageXml.nbNoTextWarning += 1
                 if NodeType_PageXml.nbNoTextWarning < 33:
-                    traceln("Warning: no text in node %s"%domid) 
+                    traceln("Warning: no text in node %s"%domid)
                 elif NodeType_PageXml.nbNoTextWarning == 33:
                     traceln("Warning: no text in node %s  - *** %d repetition : I STOP WARNING ***" % (domid, NodeType_PageXml.nbNoTextWarning))
                 #raise ValueError, "No text in node: %s"%ndBlock 
@@ -183,7 +180,7 @@ class NodeType_PageXml(NodeType):
                     dx = self.BBoxDeltaFun(w)
                     dy = self.BBoxDeltaFun(h)
                     x1,y1, x2,y2 = [ int(round(v)) for v in [x1+dx,y1+dy, x2-dx,y2-dy] ]
-                
+
             # store the rectangle"            
             ndBlock.set("DU_points", " ".join( ["%d,%d"%(int(x), int(y)) for x,y in [(x1, y1), (x2,y1), (x2,y2), (x1,y2)]] ))
             
@@ -236,13 +233,10 @@ class NodeType_PageXml_type(NodeType_PageXml):
         set the name of the Xml attribute that contains the label
         """
         self.sLabelAttr = sAttrName
-                    
+    
     def getLabelAttribute(self):
         return self.sLabelAttr
-
-    def getLabel(self, domnode):
-        return domnode.get(self.sLabelAttr)
-
+                   
     def parseDocNodeLabel(self, graph_node, defaultCls=None):
         """
         Parse and set the graph node label and return its class index
@@ -250,8 +244,7 @@ class NodeType_PageXml_type(NodeType_PageXml):
         """
         sLabel = self.sDefaultLabel
         domnode = graph_node.node
-        # sXmlLabel = domnode.get(self.sLabelAttr)
-        sXmlLabel = self.getLabel(domnode)
+        sXmlLabel = domnode.get(self.sLabelAttr)
         try:
             sLabel = self.dXmlLabel2Label[sXmlLabel]
         except KeyError:
@@ -280,13 +273,25 @@ class NodeType_PageXml_type(NodeType_PageXml):
             graph_node.node.set(self.sLabelAttr, self.dLabel2XmlLabel[sLabel])
         return sLabel
 
+    @classmethod
+    def setDocNodeY(cls, graph_node, Y):
+        """
+        Y is a probability distribution over the labels
+        
+        to load it use: np.array(ast.literal_eval(s), dtype=np.float)
+        """
+#         if len(Y) == 2:
+#             graph_node.node.set("DU_Proba", str(Y[0]))  #proba of continue
+#         else:
+        graph_node.node.set("DU_Y"    , str(list(np.around(Y, decimals=3))))
+
+
 class NodeType_PageXml_type_woText(NodeType_PageXml_type):
     """
             for document wo HTR: no text
     """
-    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun
-                 , bPreserveWidth=False):
-        NodeType_PageXml_type.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther, BBoxDeltaFun, bPreserveWidth)
+    def __init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel=None, bOther=True, BBoxDeltaFun=defaultBBoxDeltaFun):
+        NodeType_PageXml_type.__init__(self, sNodeTypeName, lsLabel, lsIgnoredLabel, bOther, BBoxDeltaFun)
 
     def _get_GraphNodeText(self, doc, domNdPage, ndBlock, ctxt=None):
         return u""

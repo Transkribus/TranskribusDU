@@ -7,7 +7,11 @@
 """
 import numpy as np
 
-from graph.Graph import Graph
+from graph.Graph import Graph, GraphException
+
+
+class GraphConjugateException(GraphException): pass
+
 
 class GraphConjugate(Graph):
     
@@ -23,7 +27,7 @@ class GraphConjugate(Graph):
         """
         return cls.getEdgeLabelNameList()
 
-    def setDocLabels(self, Y):
+    def setDocLabels(self, Y,TH=0.5):
         """
         Set the labels of the graph nodes from the Y matrix
         Is this used anywhere???
@@ -68,8 +72,9 @@ class GraphConjugate(Graph):
         if self._bMultitype:
             raise "Not yet implemented: conjugate of multitype graph"
         (nf, edge, ef) = X
-
+        if nf.shape[0] == 0: raise GraphConjugateException("Graph without node: no edge in conjugate graph!")
         nb_edge = edge.shape[0]
+        if nb_edge == 0: raise GraphConjugateException("Graph without edge: empty conjugate graph!")
         
         all_edges = []      # all edges created so far
 
@@ -93,6 +98,7 @@ class GraphConjugate(Graph):
                     ef_dual.append(shared_node_nf)
                     edge_dual.append([i, j])
 
+        if len(edge_dual) == 0: raise GraphConjugateException("Conjugate graph without edge!")
         nf_dual     = np.array(nf_dual)
         edge_dual   = np.array(edge_dual)
         ef_dual     = np.array(ef_dual)

@@ -21,12 +21,36 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 from common.trace import traceln
 
+from shapely.geometry.polygon import Polygon
+from util.Shape import ShapeLoader 
+from shapely.prepared import prep
+
+ 
+from .FeatureDType      import dtype as Feat_dtype
 from .Transformer       import Pipeline, FeatureUnion
 from .Transformer       import EmptySafe_QuantileTransformer as QuantileTransformer
 from .Transformer       import Transformer
 from .Transformer       import SparseToDense
 
 from .Edge import HorizontalEdge, VerticalEdge, SamePageEdge, CrossPageEdge, CrossMirrorPageEdge
+
+lDEFAULT_EDGE_CLASS = [HorizontalEdge, VerticalEdge]
+# lDEFAULT_EDGE_CLASS = [HorizontalEdge, VerticalEdge, CrossPageEdge, CrossMirrorPageEdge]
+ 
+def getDefaultEdgeClassList():
+    global lDEFAULT_EDGE_CLASS
+    return lDEFAULT_EDGE_CLASS
+
+def appendDefaultEdgeClassList(cls):
+    global lDEFAULT_EDGE_CLASS
+    lDEFAULT_EDGE_CLASS.append(cls)
+    return lDEFAULT_EDGE_CLASS
+
+def setDefaultEdgeClassList(l):
+    global lDEFAULT_EDGE_CLASS
+    lDEFAULT_EDGE_CLASS = l
+    return lDEFAULT_EDGE_CLASS
+
 
 
 #------------------------------------------------------------------------------------------------------
@@ -39,7 +63,7 @@ class Node_Geometry(Pipeline):
     class Selector(Transformer):
         N = 10
         def transform(self, lNode):
-            a = np.empty( ( len(lNode), self.N ) , dtype=np.float64)
+            a = np.empty( ( len(lNode), self.N ) , dtype=Feat_dtype)
             for i, blk in enumerate(lNode): 
                 x1,y1,x2,y2 = blk.x1, blk.y1, blk.x2, blk.y2
                 page = blk.page
@@ -89,7 +113,7 @@ class Node_Text_NGram(Pipeline):
                                                       , max_features = n_tfidf
                                                       , analyzer     = analyzer
                                                       , ngram_range  = t_ngrams #(2,6)
-                                                      , dtype        = np.float64)
+                                                      , dtype        = Feat_dtype)
         
         Pipeline.__init__(self, [
                                ('selector'    , Node_Text_NGram.Selector())
@@ -120,7 +144,7 @@ class Node_Neighbour_Count(Pipeline):
         """
         N = 3+3
         def transform(self, lNode):
-            a = np.empty( ( len(lNode), self.N ) , dtype=np.float64)
+            a = np.empty( ( len(lNode), self.N ) , dtype=Feat_dtype)
             for i, blk in enumerate(lNode): 
                 ax1, ay1, apnum = blk.x1, blk.y1, blk.pnum
                 #number of horizontal/vertical/crosspage neighbors
@@ -152,7 +176,7 @@ class Edge_1(Transformer):
     
     """
     def transform(self, lEdge):
-        return np.ones( ( len(lEdge), 1), dtype=np.float64)
+        return np.ones( ( len(lEdge), 1), dtype=Feat_dtype)
 
     def __str__(self):
         return "- Constant 1 %s" % (self.__class__)
@@ -162,19 +186,17 @@ class Edge_Type_1Hot(Transformer):
     """
     a 1-hot encoding of the edge type
     """
-    lDefaultEdgeClass = [HorizontalEdge, VerticalEdge]
-    # lDefaultEdgeClass = [HorizontalEdge, VerticalEdge, CrossPageEdge, CrossMirrorPageEdge]
-    
     def __init__(self, lEdgeClass=None):
+        global lDEFAULT_EDGE_CLASS
         Transformer.__init__(self)
         if lEdgeClass is None: 
-            lEdgeClass = self.lDefaultEdgeClass
+            lEdgeClass = lDEFAULT_EDGE_CLASS
         self.nbClass = len(lEdgeClass)
         self._d        = {cls:i for i,cls in enumerate(lEdgeClass)}
             
     def transform(self, lEdge):
         nb_edge = len(lEdge)
-        a = np.zeros((nb_edge, self.nbClass), dtype=np.float64)
+        a = np.zeros((nb_edge, self.nbClass), dtype=Feat_dtype)
         a[np.arange(nb_edge), [self._d[e.__class__] for e in lEdge]] = 1
         return a
 
@@ -241,7 +263,7 @@ class Edge_Geometry(Pipeline):
         """    
         N = 21
         def transform(self, lEdge):
-            a = np.zeros( ( len(lEdge), self.N ) , dtype=np.float64)
+            a = np.zeros( ( len(lEdge), self.N ) , dtype=Feat_dtype)
             for i, edge in enumerate(lEdge):
                 A,B = edge.A, edge.B        
     
@@ -255,7 +277,7 @@ class Edge_Geometry(Pipeline):
                 # overlap ignoring masking
                 # ovrl_max = edge.computeOverlap()                # new 9/8/19
                 ovrl_max, pA, pB = edge.computeOverlapPosition()  # new 8/8/19
-                r_ovrl = (ovrl+0.001) / (0.001+ovrl_max) # avoid zero div.
+                r_ovrl = ovrl / (0.001+ovrl_max) # avoid zero div.
                 
                 # IoU
                 iou = edge.iou
@@ -291,6 +313,71 @@ class Edge_Geometry(Pipeline):
 
 
 # -----------------------------------------------------------------------------
+class Edge_BB(Pipeline):
+    """
+    Edge BB  feature quantiled
+    intersection between BB(edge.A,edlge.B) and other nodes
+    """
+    nQUANTILE = 32
+
+    class Selector(Transformer):
+        """
+        features about the geometry of the edge, or of the area between the two blocks.
+        
+        a range of features is dedicated for each class of edges (depends on bMultiPage).
+        (Vertical, horizontal, cross-page, ...)
+        """    
+        N = 1
+        def transform(self, lEdge):
+            # get nodes
+            lpNodes=[]
+            salready=set()
+            ## no time to find a better way right now!
+            for e in lEdge:
+                for A in [e.A, e.B]:
+                    if A not in salready:  
+                        # might fail...  (e.g. in 2021, on cTDaR trn data for GLD2021)
+                        # lpNodes.append(ShapeLoader.node_to_Polygon(e.A.node) )
+                        # Safer, simpler:
+                        x1, y1, x2, y2 = A.x1, A.y1, A.x2, A.y2
+                        lpNodes.append(Polygon([(x1, y1), (x2, y1), (x2, y2), (x1, y2)]))
+                        salready.add(A)
+            a = np.zeros( ( len(lEdge), self.N ) , dtype=Feat_dtype)
+            for i, edge in enumerate(lEdge):
+                A,B = edge.A, edge.B        
+    
+                x, y, w, h = edge.computeBB()
+#                 print (x,y,h,w)
+                bbploy = Polygon([[x,y],[x+w,y],[x+w,y+h],[x,y+h],[x,y]])
+#                 print ("A",A.getBB())
+#                 print ("B",B.getBB())
+                #print (A.x1,A.y1,A.x2,A.y2, B.x1,B.y1,B.x2,B.y2)
+#                 print ([x,y],[x+w,y],[x+w,y+h],[x,y+h])
+                bbploy=prep(bbploy)
+                nbCuts = 0
+                for i,p in enumerate(lpNodes): 
+                    if bbploy.intersects(p):
+                        nbCuts+=1 
+#                         print ('\t',lfoo[i].text,p,lfoo[i].x1,lfoo[i].x2,lfoo[i].y1,lfoo[i].y2)
+                a[i, :] = (nbCuts-2 # A and B are included!
+                           )
+#                 print(f'{A.text} {B.text}   {A.node.get("id")}, {B.node.get("id")},{nbCuts}')
+
+                              
+            return a  
+
+    def __init__(self, nQuantile=None):
+        self.nQuantile = Edge_BB.nQUANTILE if nQuantile is None else nQuantile
+        Pipeline.__init__(self, [
+                             ('BB' , Edge_BB.Selector()),
+                             ('quantiled', QuantileTransformer(n_quantiles=self.nQuantile, copy=False))  #use in-place scaling
+                         ])
+
+    def __str__(self):
+        return "- Geometry %s (#%d, quantile=%d)" % (self.__class__, Edge_BB.Selector.N, self.nQuantile)
+
+
+# -----------------------------------------------------------------------------
 class Edge_Source_Text_NGram(Pipeline):
     """
     Edge source and target text
@@ -315,7 +402,7 @@ class Edge_Source_Text_NGram(Pipeline):
                                               , max_features = n_tfidf
                                               , analyzer     = analyzer
                                               , ngram_range  = t_ngrams #(2,6)
-                                              , dtype        = np.float64)
+                                              , dtype        = Feat_dtype)
 
         Pipeline.__init__(self, [
                      ('src'       , Edge_Source_Text_NGram.Selector())
@@ -359,7 +446,7 @@ class Edge_Target_Text_NGram(Pipeline):
                                               , max_features = n_tfidf
                                               , analyzer     = analyzer
                                               , ngram_range  = t_ngrams #(2,6)
-                                              , dtype        = np.float64)
+                                              , dtype        = Feat_dtype)
 
         Pipeline.__init__(self, [
                      ('tgt'       , Edge_Target_Text_NGram.Selector())

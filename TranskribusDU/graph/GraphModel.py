@@ -18,12 +18,10 @@
 
 import os
 import sys
-import gzip, json
+import time
+import json
 from io import open
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+
     
 import numpy as np
 from sklearn.utils.class_weight import compute_class_weight
@@ -32,6 +30,7 @@ import scipy.sparse as sp
 from common.trace import  traceln
 from common.chrono import chronoOn, chronoOff
 from common.TestReport import TestReport, TestReportConfusion
+from util.gzip_pkl import gzip_pickle_dump, gzip_pickle_load
 
 
 class GraphModelException(Exception):
@@ -71,6 +70,7 @@ class GraphModel:
         self.bTrainEdgeBaseline  = False
         
         self._nbClass = None
+        self.sRunPklDir = None  # just to know where this instance does run data pickling
         
     def configureLearner(self, **kwargs):
         """
@@ -78,6 +78,8 @@ class GraphModel:
         """
         raise Exception("Method must be overridden")
 
+    def getName(self):
+        return self.sName
     def setName(self, sName):
         self.sName = sName
         
@@ -97,8 +99,45 @@ class GraphModel:
         return os.path.join(self.sDir, self.sName+'._.'+self.sSurname+".config.json")
     def getBaselineFilename(self):
         return os.path.join(self.sDir, self.sName+'._.'+self.sSurname+".baselines.pkl")
-    def getTrainDataFilename(self, name):
-        return os.path.join(self.sDir, self.sName+'._.'+self.sSurname+".tlXlY_%s.pkl"%name)
+    
+    # --- where to store trn/vld/tst pickled data
+    def getTrainDataFilename(self, name, nature="tlXlY"):
+        return os.path.join(self.sDir, self.sName+'._.'+self.sSurname+".%s.%s.pkl"%(name, nature))
+    def getAdditionalTrainDataFilename(self, name, nature="node"):
+        assert nature not in ["tlXlY"], "Name not allowed for user data pickling"
+        return self.getTrainDataFilename(name, nature)
+    # --- where to store trn/vld/tst pickled data in mode 1 file per graph
+    def getTrainDataDirname(self, name):
+        return os.path.join(self.sDir, self.sName+'._.'+self.sSurname + "." + name)
+    
+    # --- where to store run pickled data
+    def getRunDataFilename(self, sRunFilename, name="lX"):
+        """
+        We create a subdirectory in the data folder to contain the pickle of this model
+        We also store some info about the model in a side file
+        """
+        # sDir = os.path.join(self.sDir                  , self.sName+'._.'+self.sSurname+".run_pkl") 
+        if self.sRunPklDir is None:
+            sDir = os.path.join(os.path.dirname(sRunFilename), self.sName+'._.'+self.sSurname+".run_pkl")
+            if os.path.exists(sDir):
+                # try to find a new folder
+                for i in range(1, 99):
+                    sNewDir = sDir + ".%d"%i
+                    if not os.path.exists(sNewDir): 
+                        sDir = sNewDir
+                        break
+                assert not os.path.exists(sDir)
+            try: 
+                os.mkdir(sDir)
+                with open(sDir+".info.txt", "a", encoding="utf-8") as fd:
+                    fd.write(time.ctime() + "    " + os.path.abspath(self.getModelFilename()) +"\n")
+            except FileExistsError: 
+                assert os.path.isdir(sDir)
+            self.sRunPklDir = sDir
+        return os.path.join(self.sRunPklDir, os.path.basename(sRunFilename) + ".%s.pkl"%name)
+    def getAdditionalRunDataFilename(self, sRunFilename, name="node"):
+        assert name not in ["lX"], "Name not allowed for your data pickling"
+        return self.getRunDataFilename(sRunFilename, name)
         
     @classmethod
     def _getParamsFilename(cls, sDir, sName):
@@ -109,6 +148,12 @@ class GraphModel:
         in multitype case we get a list of class number (one per type)
         """
         self._nbClass = lNbClass
+
+    def getNbClass(self):
+        """
+        in multitype case we get a list of class number (one per type)
+        """
+        return self._nbClass
 
     def _getNbFeatureAsText(self):
         """
@@ -163,8 +208,9 @@ class GraphModel:
         dat = None
         if os.path.exists(sFilename):
             traceln("\t\t file found on disk: %s"%sFilename)
-            if expiration_timestamp is None or os.path.getmtime(sFilename) > expiration_timestamp:
-                #OK, it is fresh
+            if expiration_timestamp is None:
+                dat = loadFun(sFilename)
+            elif os.path.getmtime(sFilename) > expiration_timestamp:
                 traceln("\t\t file is fresh")
                 dat = loadFun(sFilename)
             else:
@@ -175,15 +221,12 @@ class GraphModel:
             raise GraphModelException("File %s not found."%sFilename)
         return dat
     
-    def gzip_cPickle_dump(cls, sFilename, dat):
-        with gzip.open(sFilename, "wb") as zfd:
-                pickle.dump( dat, zfd, protocol=2)
-    gzip_cPickle_dump = classmethod(gzip_cPickle_dump)
+    # ascendant compatibility
+    @classmethod
+    def gzip_cPickle_dump(cls, sFilename, dat): return gzip_pickle_dump(sFilename, dat)
 
-    def gzip_cPickle_load(cls, sFilename):
-        with gzip.open(sFilename, "rb") as zfd:
-                return pickle.load(zfd)        
-    gzip_cPickle_load = classmethod(gzip_cPickle_load)
+    @classmethod
+    def gzip_cPickle_load(cls, sFilename):      return gzip_pickle_load(sFilename)
     
     # --- TRANSFORMERS ---------------------------------------------------
     def setTranformers(self, t_node_transformer_edge_transformer):
@@ -211,7 +254,7 @@ class GraphModel:
         self.gzip_cPickle_dump(sTransfFile, (self._node_transformer, self._edge_transformer))
         return sTransfFile
         
-    def loadTransformers(self, expiration_timestamp=0):
+    def loadTransformers(self, expiration_timestamp=None):
         """
         Look on disk for some already fitted transformers, and load them 
         If a timestamp is given, ignore any disk data older than it and raises an exception
@@ -252,7 +295,32 @@ class GraphModel:
         """
         return [g.getY() for g in lGraph]
 
+    @classmethod
+    def get_lX_size(cls, lX):
+        """
+        return the size in bytes of lX
+        """
+        return sum(sum(_b.size*_b.itemsize for _b in _a) for _a in lX)
 
+    @classmethod
+    def get_lY_size(cls, lY):
+        """
+        return the size in bytes of lY
+        """
+        return sum(_a.size*_a.itemsize for _a in lY)
+    
+    @classmethod
+    def format_size(cls, n):
+        """
+        return a number and its unit
+        up to TB
+        """
+        for i, s in [(1, "B"), (2, "KB"), (3, "MB"), (4, "GB"), (5, "TB")]:
+            if n < 1024**i: return (n/1024.0**(i-1), s)
+        return (n/1024.0**4 , "TB")
+        
+            
+        
     def saveConfiguration(self, config_data):
         """
         Save the configuration on disk

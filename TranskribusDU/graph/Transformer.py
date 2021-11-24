@@ -15,9 +15,9 @@
     
 """
 
+import warnings
 
-
-
+import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import StandardScaler, QuantileTransformer
 import sklearn.pipeline
@@ -152,3 +152,65 @@ class EmptySafe_QuantileTransformer(QuantileTransformer):
         some transformers benefit from being cleaned before saved on disk...
         """
         pass   
+
+# ----------------------------------------------------------------------------
+class CorrelatedQuantileTransformer(EmptySafe_QuantileTransformer):
+    """
+    preserves the correlation between features by computing the quantiles 
+    globally accross features.
+    
+    Limitation: does not support sparse data yet
+    
+    JL Meunier 9/9/2020
+    """
+    
+    def _dense_fit(self, X, random_state):
+        """Compute percentiles for dense matrices.
+        
+        Same as parent apart that the quantiles are computed globally
+
+        Parameters
+        ----------
+        X : ndarray, shape (n_samples, n_features)
+            The data used to scale along the features axis.
+        """
+        if self.ignore_implicit_zeros:
+            warnings.warn("'ignore_implicit_zeros' takes effect only with"
+                          " sparse matrix. This parameter has no effect.")
+
+        n_samples, n_features = X.shape
+        references = self.references_ * 100
+
+        self.quantiles_ = []
+# numpy original code (1.18.5)
+#         for col in X.T:
+#             if self.subsample < n_samples:
+#                 subsample_idx = random_state.choice(n_samples,
+#                                                     size=self.subsample,
+#                                                     replace=False)
+#                 col = col.take(subsample_idx, mode='clip')
+#             self.quantiles_.append(np.nanpercentile(col, references))
+        if self.subsample < n_samples:
+            # TODO
+            subsample_idx = random_state.choice(n_samples,
+                                                    size=self.subsample,
+                                                    replace=False)
+            _X = X.take(subsample_idx, axis=0, mode='clip')
+            quantiles_ = np.nanpercentile(_X, references)
+        else:
+            quantiles_ = np.nanpercentile( X, references)
+            # e.g. array([ 1., 15., 77.])
+            
+        self.quantiles_ = np.transpose([quantiles_] * n_features)
+        # Due to floating-point precision error in `np.nanpercentile`,
+        # make sure that quantiles are monotonically increasing.
+        # Upstream issue in numpy:
+        # https://github.com/numpy/numpy/issues/14685
+        self.quantiles_ = np.maximum.accumulate(self.quantiles_)
+
+    def _sparse_fit(self, X, random_state):
+        raise Exception("Not yet implemented for sparse data.")    
+
+
+if __name__ == "__main__":
+    print(np.__version__)

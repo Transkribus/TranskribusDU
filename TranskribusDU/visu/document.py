@@ -112,7 +112,8 @@ class Document:
  
     def xpathEval(self, xpExpr, node=None):
         """evaluate an xpath in the context of this document or this node"""
-        n = node or self.root_dom
+        # n = node or self.root_dom
+        n = self.root_dom if node is None else node
         self.ctxt.setContextNode(n)
         return self.ctxt.xpathEval(xpExpr)
 

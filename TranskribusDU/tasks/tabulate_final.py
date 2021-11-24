@@ -27,7 +27,8 @@ from collections import defaultdict
 from lxml import etree
 
 from shapely.ops import cascaded_union        
-
+from shapely.geometry import Polygon
+from util.XYcut import mergeSegments
 try: #to ease the use without proper Python installation
     import TranskribusDU_version
 except ImportError:
@@ -50,10 +51,14 @@ def processRegions(ndPage,bVerbose=False):
     """
         Delete empty regions
         resize no empty regions
+        delete TextEquiv
     """
     lDel=[]
     lndRegions =  ndPage.xpath(".//pg:TextRegion", namespaces=dNS)
     for ndRegion in lndRegions:
+
+        [ndRegion.remove(te) for te in ndRegion.xpath("./pg:TextEquiv", namespaces=dNS) ]
+
         lTL=  ndRegion.xpath(".//pg:TextLine", namespaces=dNS)
         if lTL == []:
             # to be deleted
@@ -93,12 +98,19 @@ class TableRegion:
         lRow.sort()
         lCol = list(set(_col for _row, _col in lK))
         lCol.sort()
+        if lCol == [] or lRow == []:  return None
         
         ndTable = PageXml.createPageXmlNode("TableRegion")
         ndTable.set("id", "p%s_%s" % (self.pagenum, self.tablenum))
         ndTable.tail = "\n"
         lCellShape = []
         lNdCell = []
+        
+        self.nbCol = max(lCol)+1
+        self.nbRow = max(lRow)+1
+        self.lRows=[[] for i in range(max(lRow)+1)]
+        self.lCols=[[] for i in range(max(lCol)+1)]
+        #print (lRow,lCol)
         for row in lRow:
             for col in lCol:
                 lNdText = self._dCellNd[(row, col)]
@@ -111,6 +123,7 @@ class TableRegion:
 
                     # shape of the cell
                     oHull = ShapeLoader.convex_hull(lNdText, bShapelyObject=True)
+                    #oHull = ShapeLoader.contourObject(lNdText)
                     lCellShape.append(oHull)  # keep those to compute table contour
 
                     # Coords sub-element                    
@@ -134,6 +147,8 @@ class TableRegion:
                     for nd in lNdText: ndCell.append(nd)
                     
                     lNdCell.append(ndCell)
+                    self.lRows[row].append(ndCell)
+                    self.lCols[col].append(ndCell)
         
         # Table geometry
         ndCoords = PageXml.createPageXmlNode("Coords")
@@ -148,7 +163,71 @@ class TableRegion:
             
         return ndTable
 
+    def addEmptyCell(self,ndTable,i,j):
+        """
+            the web tool requires all cells (even empty) for a better display
+            
+            get all cells of row i 
+            get all cells of col j
+            get ymin,ymax of row i and xmin,xmax of col j: intersection  -> cell zone
+            (do it for all cells?)  
+        """
+        rowPol= ShapeLoader.contourObject(self.lRows[i])
+        colPol= ShapeLoader.contourObject(self.lCols[j])
+        if colPol.is_empty  or rowPol.is_empty: return
+#         print (colPol)
+        r= Polygon( [ [0,rowPol.bounds[1]],[10000,rowPol.bounds[1]],[10000,rowPol.bounds[3]],[0,rowPol.bounds[3]]] )
+        c= Polygon( [ [colPol.bounds[0],0],[colPol.bounds[0],10000],[colPol.bounds[2],10000],[colPol.bounds[2],0]] )
+        oHull=r.intersection(c)
+#         print ("hull",oHull)
+        ndCell = PageXml.createPageXmlNode("TableCell") 
+        ndCell.set("id", "p%s_t%s_r%s_c%s"%(self.pagenum, self.tablenum, i, j))
 
+        # Coords sub-element                    
+        ndCoords = PageXml.createPageXmlNode("Coords")
+        ndCoords.set("points", ShapeLoader.getCoordsString(oHull, bFailSafe=True))
+        ndCoords.tail = "\n"
+        ndCell.append(ndCoords)
+        
+        # row="0" col="0" rowSpan="1" colSpan="1" leftBorderVisible="false" rightBorderVisible="false" topBorderVisible="false" bottomBorderVisible="false"
+        ndCell.set("row"    , str(i))
+        ndCell.set("rowSpan", "1")
+        ndCell.set("col"    , str(j))
+        ndCell.set("colSpan", "1")
+        ndCell.tail = "\n"
+#         print (i,j,ndCell)
+        ndTable.append(ndCell)
+        
+        
+                        
+        
+        
+    def  orderCell(self,ndTable):
+        """
+            Ycut on the textlines of each cell
+            
+            detach TL from cell
+            order them
+            add them to the cell  
+        """
+        for row in range(self.nbRow):
+            for col in range(self.nbCol):
+                lNdText= self._dCellNd[(row,col)]
+                if lNdText == []:
+                    #self.addEmptyCell(ndTable,row, col) ##add empty cell
+                    continue
+                cellNd= lNdText[0].getparent()
+                for nd in  lNdText:cellNd.remove(nd)
+                lmapping = [ ShapeLoader.node_to_Polygon(x) for i,x in enumerate(lNdText)]
+                lSegment = [(o.bounds[1], o.bounds[3], lNdText[i]) for i,o in enumerate(lmapping)]
+                lLines,_,_ = mergeSegments(lSegment, 2)
+#                 [ cellNd.append(tl)  for _,_,ltl in lLines for tl in ltl]
+                for _,_,ltl in lLines:
+                    ltl = list(ltl)
+                    ltl.sort(key=lambda x:ShapeLoader.node_to_Polygon(x).bounds[0])
+                    [cellNd.append(tl) for tl in ltl]
+                    
+        
 def main(sInputDir, bForce=False, bVerbose=False):
     
     # filenames without the path
@@ -159,7 +238,6 @@ def main(sInputDir, bForce=False, bVerbose=False):
     for sFilename in lsFilename:
         sFullFilename = os.path.join(sInputDir, sFilename)
         traceln(" -------- FILE : ", sFullFilename)
-        cnt = 0
         doc = etree.parse(sFullFilename)
         
         for iPage, ndPage in enumerate(doc.getroot().xpath(xpPage, namespaces=dNS)):
@@ -192,15 +270,17 @@ def main(sInputDir, bForce=False, bVerbose=False):
                 table.addToCell(  int(ndText.get("row"))
                                 , int(ndText.get("col"))
                                 , ndText)
-                
             # make the <TableRegion> !
             ndTable = table.makeTableNode()
-            # add it to the page
-            ndPage.append(ndTable)
+            if ndTable is not None:
+                # reorder cell content
+                table.orderCell(ndTable)
+                # add it to the page
+                ndPage.append(ndTable)
             
             processRegions(ndPage,bVerbose)
         
-        doc.write(sFullFilename,
+        doc.write(sFullFilename+'.f',
           xml_declaration=True,
           encoding="utf-8",
           pretty_print=True

@@ -130,11 +130,11 @@ class Polygon:
             #historical code
             fW = min(w, (x2-fXg)*2, (fXg-x1)*2)
         
-        #same area
-        fH = fA / fW
-        
-        x1,y1, x2,y2 = [ int(round(v)) for v in [  fXg - fW/2.0, fYg - fH/2
-                                                 , fXg + fW/2.0, fYg + fH/2 ]]
+            #same area
+            fH = fA / fW
+            
+            x1,y1, x2,y2 = [ int(round(v)) for v in [  fXg - fW/2.0, fYg - fH/2
+                                                     , fXg + fW/2.0, fYg + fH/2 ]]
         
         return x1,y1, x2,y2
         

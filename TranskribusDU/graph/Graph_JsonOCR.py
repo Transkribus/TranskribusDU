@@ -12,6 +12,7 @@ from common.trace import traceln
 
 from .Graph import Graph
 from . import Edge
+from .Page import Page
 
 
 class Graph_JsonOCR(Graph):
@@ -40,20 +41,18 @@ class Graph_JsonOCR(Graph):
                    , bDetach=False
                    , bLabelled=False
                    , iVerbose=0
-                   , attachEdge=False     # all incident edges for each node
                    ):
         """
         Load one graph per file, and detach its DOM
         return the list of loaded graphs
         """
         lGraph = []
-        for sFilename in lsFilename:
-            if iVerbose: traceln("\t%s" % sFilename)
+        for n, sFilename in enumerate(lsFilename):
+            if iVerbose: traceln("\t%d - %s" % (n+1, sFilename))
             [g] = cls.getSinglePages(cGraphClass, sFilename, bNeighbourhood, bDetach, bLabelled,
                                                          iVerbose)
             g._index()
             if not g.isEmpty():
-                if attachEdge and bNeighbourhood: g.collectNeighbors(attachEdge=attachEdge)
                 if bNeighbourhood: g.collectNeighbors()
                 if bLabelled: g.parseDocLabels()
                 if bDetach: g.detachFromDoc()
@@ -92,6 +91,11 @@ class Graph_JsonOCR(Graph):
         g.lNode = [nd for nodeType in g.getNodeTypeList() for nd in nodeType._iter_GraphNode(g.doc, sFilename) ]
         g.lEdge = Edge.Edge.computeEdges(None, g.lNode, g.iGraphMode)
 
+        # create a fake page object (for GLB2021 features in particular)
+        # pg = Page(pnum, pagecnt, w, h)
+        pg = Page(1, 1, 0, 0)
+        for nd in g.lNode: nd.page = pg
+            
         if iVerbose >= 2: traceln("\tPage %5d    %6d nodes    %7d edges" % (1, len(g.lNode), len(g.lEdge)))
 
         return [g]

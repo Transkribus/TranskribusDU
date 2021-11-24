@@ -55,9 +55,6 @@ class FeatureDefinition_PageXml_LogitExtractor_v3(FeatureDefinition):
         self.n_feat_node, self.t_ngrams_node, self.b_node_lc = n_feat_node, t_ngrams_node, b_node_lc
         self.n_feat_edge, self.t_ngrams_edge, self.b_edge_lc = n_feat_edge, t_ngrams_edge, b_edge_lc
         
-#         tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_node_lc, max_features=self.n_feat_node
-#                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
-#                                                                                   , dtype=np.float64)
         """
         - loading pre-computed data from: CV_5/model_A_fold_1_transf.pkl
                  no such file : CV_5/model_A_fold_1_transf.pkl

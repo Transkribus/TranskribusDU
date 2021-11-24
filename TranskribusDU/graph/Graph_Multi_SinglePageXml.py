@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#-*- coding: utf-8 -*-
 
 """
     Computing the graph for a "Multi-singlePage-PageXml" document
@@ -19,9 +19,8 @@
     under grant agreement No 674943.
     
 """
-
-
-
+from collections import Counter
+import json
 
 from lxml import etree
 
@@ -31,6 +30,8 @@ from xml_formats.PageXml import PageXml
 from .Graph_MultiPageXml import Graph_MultiPageXml
 from . import Edge
 from .Page import Page
+
+from common.TestReport import TestReport
 
 
 class Graph_MultiSinglePageXml(Graph_MultiPageXml):
@@ -67,9 +68,13 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
         return the list of loaded graphs
         """
         lGraph = []
-        for sFilename in lsFilename:
-            if iVerbose: traceln("\t%s"%sFilename)
-            lG= Graph_MultiSinglePageXml.getSinglePages(cGraphClass, sFilename, bNeighbourhood,bDetach,bLabelled, iVerbose)
+        for n, sFilename in enumerate(lsFilename):
+            if iVerbose: traceln("\t%d - %s" % (n+1, sFilename))
+            # JLM Jan 2020 Why this ???
+            # I need to change for DU_Table_Reified_Edge.py
+            # lG = Graph_MultiSinglePageXml.getSinglePages(cGraphClass, sFilename, bNeighbourhood,bDetach,bLabelled, iVerbose)
+            lG = cls.getSinglePages(cGraphClass, sFilename, bNeighbourhood,bDetach,bLabelled, iVerbose)
+            
             for g in lG: g._index()
             lGraph.extend(lG)
         return lGraph
@@ -101,6 +106,8 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
 
             llPageNodeByType = [ [nd for nd in nodeType._iter_GraphNode(doc, domNdPage, page) ] for nodeType in g.getNodeTypeList()]
             for iType1, lNodeType1 in enumerate(llPageNodeByType):
+                #sort nodes  (for pointerNet exp: GT order is too good!)
+                #lNodeType1.sort(key=lambda x:x.x1+x.y1)
                 lEdge = Edge.Edge.computeEdges(None, lNodeType1, g.iGraphMode)
                 traceln("\tType %d - %d    %d nodes            %d edges"%(iType1, iType1, len(lNodeType1), len(lEdge)))
                 g.lEdge.extend(lEdge)
@@ -108,17 +115,24 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
                 
                 for iType2 in range(iType1+1, len(llPageNodeByType)):
                 #for lNodeType2 in llPageNodeByType[iType1:]:
+                    #sort nodes  (for pointerNet exp: GT order is too good!)
                     lNodeType2 = llPageNodeByType[iType2]
-                    #lPageEdge = Edge.Edge.computeEdges(lPrevPageNode, lPageNode, g.iGraphMode)
+                    #lNodeType2.sort(key=lambda x:x.x1+x.y1)
                     lEdge = Edge.Edge.computeEdges(None, lNodeType1+lNodeType2, g.iGraphMode)
                     traceln("\tType %d - %d    %d nodes, %d nodes  %d edges"%(iType1, iType2, len(lNodeType1), len(lNodeType2), len(lEdge)))
                     g.lEdge.extend(lEdge)
 
-            #lPageNode = [nd for nodeType in g.getNodeTypeList() for nd in nodeType._iter_GraphNode(doc, domNdPage, page) ]
 
+            #lPageNode = [nd for nodeType in g.getNodeTypeList() for nd in nodeType._iter_GraphNode(doc, domNdPage, page) ]
             #check that each node appears once
             setPageNdDomId = set([nd.domid for nd in g.lNode])
-            assert len(setPageNdDomId) == len(g.lNode), "ERROR: some nodes fit with multiple NodeTypes"
+            if len(setPageNdDomId) != len(g.lNode):
+                cnt = Counter([nd.domid for nd in g.lNode])
+                for sID, n in cnt.most_common():
+                    if n <= 1: break
+                    traceln(" Error: %6d occurences of %s" % (n, sID))
+                raise Exception("ERROR: duplicated IDs. It might indicate that some nodes belongs to many types.")
+#             assert len(setPageNdDomId) == len(g.lNode), "ERROR: some nodes fit with multiple NodeTypes"
             
             if iVerbose>=2: traceln("\tPage %5d    %6d nodes    %7d edges"%(pnum, len(g.lNode), len(g.lEdge)))
             
@@ -155,4 +169,40 @@ class Graph_MultiSinglePageXml(Graph_MultiPageXml):
             
         return        
                
+    @classmethod
+    def computeMetric(cls, ig, g, Y, Ygt):
+        """
+        compute the relevant metric and store them in g.doc
+        ig is the index og g in some list of graph (starting at 0)
+        NOTE: Ygt might be None
+        """
+        l = cls.getNodeTypeList()
+        assert len(l) == 1, "Cannot compute cluster quality with multiple node types"
+        nt = l[0]  #unique node type
+        lLabelName = nt.getLabelNameList()
+
+        tstRpt = TestReport(cls.__name__, [Y], [Ygt], lLabelName)
         
+        # store this in a ClassifMetric element
+        lNdPage = g.doc.xpath(Graph_MultiSinglePageXml.sxpPage, namespaces=Graph_MultiSinglePageXml.dNS)   #all pages
+        ndPage = lNdPage[ig]
+        
+        ndMetric = PageXml.createPageXmlNode('Metric')  
+        ndMetric.set("name", g.__class__.__name__)
+        ndMetric.set("type", "classification")
+        ndMetric.text = json.dumps(tstRpt.getPythonicSummary())   
+        
+        ndPage.append(ndMetric)
+        ndMetric.tail = "\n"   
+        
+
+
+
+
+
+
+
+
+
+
+

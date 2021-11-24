@@ -30,4 +30,7 @@ if __name__ == "__main__":
     #     import better_exceptions
     #     better_exceptions.MAX_LENGTH = None
 
-    main(sys.argv[0], "row")
+    main(sys.argv[0], "row", experiment_name="DU.Tbl_RowEdge"
+                  , xpNodeSelector=".//pc:TableCell//pc:TextLine")
+                  # to ignore out-of-table elements
+                  # , xpNodeSelector=".//pc:TextLine[./ancestor::pc:TableCell]")

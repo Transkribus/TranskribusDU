@@ -9,15 +9,17 @@
     
     
     Developed  for the EU project READ. The READ project has received funding 
-    from the European Union�s Horizon 2020 research and innovation programme 
+    from the European Union?s Horizon 2020 research and innovation programme 
     under grant agreement No 674943.
     
 """
 import sys, os, glob, datetime
+import gc
 import json
 from importlib import import_module
 from io import StringIO
 import traceback
+import tempfile
 import lxml.etree as etree
 
 import numpy as np
@@ -38,19 +40,57 @@ from common.chrono import chronoOn, chronoOff, pretty_time_delta
 from common.TestReport import TestReportConfusion
 import util.Tracking as Tracking
 import util.metrics as metrics
+from util.gzip_pkl import gzip_pickle_dump, gzip_pickle_load
 from xml_formats.PageXml import MultiPageXml
 
 from graph.GraphModel import GraphModel, GraphModelException, GraphModelNoEdgeException
+from graph.GraphConjugate import GraphConjugateException
 from graph.Graph import GraphException
 from graph.Graph_JsonOCR import Graph_JsonOCR
 from graph.Graph_DOM import Graph_DOM
+from graph.Edge import CelticEdge
 import graph.FeatureDefinition
 from tasks import _checkFindColDir
 
 from .DU_Table.DU_Table_Evaluator import eval_cluster_of_files, computePRF
 
+import tasks.DU_Task_Features   as DU_TaskFeatures
+
+
 # to activate the use of an oracle for predicting continue or break
 bORACLE_EDGE_BREAK_CONTINUE = False
+
+
+def getDataToPickle(doer, mdl, lGraph):
+    """
+    Generic pickler, widely used
+    
+    data that is specific to this task, which we want to pickle when --pkl is used
+    for each node of each graph, we want to store the node text + geometry + label
+    
+    ( (text, (x1, y1, x2, y2), label )
+    
+    
+    return [ 
+            [ 
+                (text, (x1, y1, x2, y2), label )  
+                ...  (per block)
+             ]
+           ... (per graph)
+           ]
+    """
+    lDataByGraph = []
+    for g in lGraph:
+        lNodeData = []
+        for nd in g.lNode:
+            data = (nd.text
+                      , (nd.x1, nd.y1, nd.x2, nd.y2)
+                      , nd.cls
+                      )
+            lNodeData.append(data)
+        lDataByGraph.append(lNodeData)
+    return lDataByGraph
+
 
 class DU_Task:
     """
@@ -167,6 +207,10 @@ See DU_StAZH_b.py
         self.config_learner_kwargs = None   # to be set
         self.cModelClass = None             # to be specialized
 
+        self._additional_data_fun = None
+
+        self.fClusterTH = 0.5
+
     #---  DOER --------------------------------------------------------------------
     @classmethod
     def getVersion(cls):
@@ -179,13 +223,16 @@ See DU_StAZH_b.py
         return None
         """
         global bORACLE_EDGE_BREAK_CONTINUE
-
+        
         Tracking.set_no_tracking()
         
+        # use as TH for clustering
+        self.fClusterTH = options.iClusterTH / 100
+            
         if options.bEdgeOracle: 
             traceln("*** EDGE ORACLE: predict 'break' or 'continue' label from the groundtruth ***")
             bORACLE_EDGE_BREAK_CONTINUE = True
-
+            
         if bool(options.iServer):
             assert not bORACLE_EDGE_BREAK_CONTINUE
             self.load()
@@ -197,6 +244,16 @@ See DU_StAZH_b.py
             assert not bORACLE_EDGE_BREAK_CONTINUE
             self.rm()
             return
+
+        if options.iCelticEdge > 0:
+            traceln(" - celtic edges included (max per sector = %d)"%options.iCelticEdge)
+            CelticEdge.setViewRange  (9e99)
+            CelticEdge.setMaxBySector(options.iCelticEdge)
+            # we must account for CelticEdge type
+            DU_TaskFeatures.addCelticEdgeType()
+        else:
+            traceln(" - no celtic edge included")
+            
     
         lTrn, lTst, lRun, lFold = [_checkFindColDir(lsDir) for lsDir in [options.lTrn, options.lTst, options.lRun, options.lFold]]
         
@@ -208,7 +265,6 @@ See DU_StAZH_b.py
         except:
             ratio_train_val = None
             lVld            = _checkFindColDir(options.lVld)
-                
         #traceln("- classes: ", doer.getGraphClass().getLabelNameList())
     
         ## use. a_mpxml files
@@ -225,6 +281,7 @@ See DU_StAZH_b.py
                 """
                 Run one fold
                 """
+                if options.blPkl: raise ValueError("option lpkl not compatible with fold run")
                 oReport = self._nfold_RunFoldFromDisk(options.iFoldRunNum, options.warm, options.bPkl)
                 traceln(oReport)
             elif options.bFoldFinish:
@@ -238,6 +295,7 @@ See DU_StAZH_b.py
     
         if lFold:
             assert not bORACLE_EDGE_BREAK_CONTINUE
+            if options.blPkl: raise ValueError("option lpkl not compatible with folds")
             loTstRpt = self.nfold_Eval(lFold, 3, .25, None, options.bPkl)
             sReportPickleFilename = os.path.join(self.sModelDir, self.sModelName + "__report.txt")
             traceln("Results are in %s"%sReportPickleFilename)
@@ -295,7 +353,8 @@ See DU_StAZH_b.py
             if lTrn:
                 assert not bORACLE_EDGE_BREAK_CONTINUE
                 tstReport = self.train_save_test(lTrn, lTst, lVld, options.warm, options.bPkl
-                                                 , ratio_train_val=ratio_train_val)
+                                                 , ratio_train_val=ratio_train_val
+                                                 , blPickleXY=options.blPkl)
                 try:    traceln("Baseline best estimator: %s"%self.bsln_mdl.best_params_)   #for GridSearch
                 except: pass
                 traceln(self.getModel().getModelInfo())
@@ -335,15 +394,17 @@ See DU_StAZH_b.py
 #                     except: pass    #we only need the transformer
 #                     lsOutputFilename = self.runForExternalMLMethod(lRun, options.storeX, options.applyY, options.bRevertEdges)
 #                 else:
-                self.load()
-                lsOutputFilename = self.predict(lRun, bGraph=options.bGraph,bOutXML=options.bOutXML)
+                if options.blPkl: raise ValueError("option lpkl not compatible with run")
+                if not bORACLE_EDGE_BREAK_CONTINUE: self.load(bPickle=options.bPkl)
+                lsOutputFilename = self.predict(lRun, bGraph=options.bGraph,bOutXML=options.bOutXML
+                                                , bPickle= options.bPkl)
                 if options.bEvalRow or options.bEvalCol or options.bEvalCell or options.bEvalRegion or options.sEvalCluster:
                     if  options.sEvalCluster:
                         sLevel = options.sEvalCluster # only used for display n this case
                         l = self.getGraphClass().getNodeTypeList()
                         assert len(l) == 1, "Cannot compute cluster quality with multiple node types"
                         xpSelector = l[0].getXpathExpr()[0]  # node selector, text selector
-                        nOk, nErr, nMiss, sRpt = eval_cluster_of_files(lsOutputFilename
+                        nOk, nErr, nMiss, sRpt, _ = eval_cluster_of_files(lsOutputFilename
                                               , "cluster"
                                               , bIgnoreHeader=False
                                               , bIgnoreOutOfTable=True
@@ -356,10 +417,14 @@ See DU_StAZH_b.py
                         elif options.bEvalCell:     sLevel = "cell"
                         elif options.bEvalRegion:     sLevel = "region"
                         else: raise ValueError()
-                        nOk, nErr, nMiss, sRpt = eval_cluster_of_files(lsOutputFilename
+                        l = self.getGraphClass().getNodeTypeList()
+                        assert len(l) == 1, "Cannot compute cluster quality with multiple node types"
+                        xpSelector = l[0].getXpathExpr()[0]  # node selector, text selector                        
+                        nOk, nErr, nMiss, sRpt, _ = eval_cluster_of_files(lsOutputFilename
                                               , sLevel
                                               , bIgnoreHeader=False
                                               , bIgnoreOutOfTable=True
+                                              , xpSelector=xpSelector
                                              )
                     fP, fR, fF = computePRF(nOk, nErr, nMiss)
                     traceln(sRpt)
@@ -373,7 +438,7 @@ See DU_StAZH_b.py
                     nt = l[0]  #unique node type
                     xpSelector = nt.getXpathExpr()[0]  # node selector, text selector
                     for lvl in range(self.getGraphClass().getHierarchyDepth()):
-                        nOk, nErr, nMiss, sRpt = eval_cluster_of_files(lsOutputFilename
+                        nOk, nErr, nMiss, sRpt, _ = eval_cluster_of_files(lsOutputFilename
                                               , "cluster_lvl%d"%lvl
                                               , bIgnoreHeader=False
                                               , bIgnoreOutOfTable=False
@@ -386,11 +451,12 @@ See DU_StAZH_b.py
                         Tracking.log_metrics({  ('lvl%d_P' %lvl):fP
                                               , ('lvl%d_R' %lvl):fR
                                               , ('lvl%d_F1'%lvl):fF}, ndigits=2)
-        
+                        
+                        
                 traceln("Done, see in:\n  %s"%lsOutputFilename)
         else:
             traceln("No action specified in command line. Doing nothing... :)")
-            
+        
         Tracking.end_run("FINISHED")
         return
 
@@ -409,7 +475,7 @@ See DU_StAZH_b.py
         self._lBaselineModel = None
         self.cFeatureDefinition = None
         self.cModelClass = None
-    
+        
     #---  SERVER MODE ---------------------------------------------------------
     def serve_forever(self, iPort, bDebug=False, options={}):
         self.sTime_start = datetime.datetime.now().isoformat()
@@ -431,7 +497,6 @@ See DU_StAZH_b.py
         from flask import redirect, url_for      #, send_from_directory, send_file
         from flask import Response
         
-        
         # Create Flask app load app.config
         app = Flask(self.__class__.__name__)
 
@@ -450,8 +515,24 @@ See DU_StAZH_b.py
 <p>Provide some {{ input_format }} data and get PageXml output:
 <form action="/predict" method="post">
   <textarea name="data" id="data" required rows="25" cols="80"></textarea>
+  <input type="text" name="name" id="name" placeholder="form_cluster" size="30"/>
+  <input type="text" name="nhyp" id="nhyp" placeholder="2"/>
   <input type="submit" value="predict"/>
 </form>
+<p>
+If applicable: the name of the clustering method is one of: 
+form_cluster   (the default one)
+        
+        HypothesisClusterer
+        LocalHypothesisClusterer
+        HierarchicalHypothesisClusterer
+        LocalHierarchicalHypothesisClusterer
+
+        HypothesisClustererBB
+        LocalHypothesisClustererBB
+        HierarchicalHypothesisClustererBB
+        LocalHierarchicalHypothesisClustererBB
+<p>Apart from "form_cluster", the number of hypothesis can be given. (Default to 2)
 <p>
 This server runs with those options: {{ sOptions }}
 """
@@ -466,14 +547,23 @@ This server runs with those options: {{ sOptions }}
         @app.route('/predict', methods = ['POST'])
         def predict():
             try:    
+                if hasattr(self, "http_init__predict_file"):
+                    # to allow for customization of the service
+                    self.http_init__predict_file(request)
+                    
                 sData = request.form['data']
                 if sData.startswith("<?xml"):
                     # horrible hack....
                     # lxml rejects the XML declaration, want bytes, but reject bytes...
                     # did not find a good way to get raw value of the posted data
-                    sData = sData[sData.index("?>")+2:]
-
-                doc, lg = self._predict_file(self.getGraphClass(), [], StringIO(sData), bGraph=options.bGraph)
+                    # sData = sData[sData.index("?>")+2:]
+                    fd, sFullPath = tempfile.mkstemp(suffix=".xml", prefix="DU_Task_")
+                    os.write(fd, sData.encode('utf-8'))
+                    os.close(fd)
+                    doc, lg = self._predict_file(self.getGraphClass(), [], sFullPath, bGraph=options.bGraph)
+                    os.unlink(sFullPath)
+                else:
+                    doc, lg = self._predict_file(self.getGraphClass(), [], StringIO(sData), bGraph=options.bGraph)
                 
                 # if nothing to do, the method returns None...
                 if doc is None:
@@ -501,7 +591,7 @@ This server runs with those options: {{ sOptions }}
             self.save_self.load(bForce=True)
             self.sTime_load = datetime.datetime.now().isoformat()
             return redirect(url_for('home_page'))
-        
+               
         @app.route('/stop')
         def stop():
             """
@@ -617,18 +707,22 @@ This server runs with those options: {{ sOptions }}
         if self.bVerbose: traceln(*kwargs)
         
     #----------------------------------------------------------------------------------------------------------    
-    def load(self, bForce=False):
+    def load(self, bForce=False, bPickle=False):
         """
         Load the model from the disk
         if bForce == True, force the load, even if the model is already loaded in memory
         """
         if bForce or not self._mdl:
-            self.traceln("- loading a %s model"%self.cModelClass)
+            traceln("- loading a %s model"%self.cModelClass)
             self._mdl = self.cModelClass(self.sModelName, self.sModelDir)
-            self._mdl.load()
-            self.traceln(" done")
+            if bPickle:
+                # loading the model a minima, only to get the feature extractors
+                GraphModel.load(self._mdl)
+            else:
+                self._mdl.load()
+            traceln(" done")
         else:
-            self.traceln("- %s model already loaded"%self.cModelClass)
+            traceln("- %s model already loaded"%self.cModelClass)
             
         return
     
@@ -652,7 +746,8 @@ This server runs with those options: {{ sOptions }}
         return 
     
     def train_save_test(self, lsTrnColDir, lsTstColDir, lsVldColDir, bWarm=False, bPickleXY=False
-                        , ratio_train_val=None):
+                        , ratio_train_val=None
+                        , blPickleXY=False):
         """
         - Train a model on the tTRN collections, if not empty.
         - Test the trained model using the lTST collections, if not empty.
@@ -677,7 +772,8 @@ This server runs with those options: {{ sOptions }}
         
         self.traceln("- creating a %s model"%self.cModelClass)
         oReport = self._train_save_test(self.sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst, lFilename_vld, bPickleXY
-                                        , ratio_train_val=ratio_train_val)
+                                        , ratio_train_val=ratio_train_val
+                                        , blPickleXY=blPickleXY)
 
 
         return oReport
@@ -709,7 +805,7 @@ This server runs with those options: {{ sOptions }}
         return oReport
 
 
-    def predict(self, lsColDir, docid=None, bGraph=False, bOutXML=True):
+    def predict(self, lsColDir, docid=None, bGraph=False, bOutXML=True, bPickle=False):
         """
         Return the list of produced files
         """
@@ -742,12 +838,14 @@ This server runs with those options: {{ sOptions }}
             if DU_GraphClass.isOutputFilename(sFilename):
                 traceln(" - ignoring '%s' because of its extension" % sFilename) 
                 continue 
-            try:
-                doc, lg = self._predict_file(DU_GraphClass, lPageConstraint, sFilename, bGraph=bGraph)
-            except GraphException as e:
-                doc = None
-                traceln(str(e))
-                chronoOff("predict_1") # not nice, I know....
+            
+            #try:
+            doc, lg = self._predict_file(DU_GraphClass, lPageConstraint, sFilename, bGraph=bGraph
+                                         , bPickle=bPickle)
+            #except GraphException as e:
+            #    doc = None
+            #    traceln(str(e))
+            #    chronoOff("predict_1") # not nice, I know....
             
             if doc is None:
                 self.traceln("\t- no prediction to do for: %s"%sFilename)
@@ -779,7 +877,8 @@ This server runs with those options: {{ sOptions }}
         self.traceln(" done [%.2fs]"%chronoOff("predict"))
         return lsOutputFilename
 
-    def _predict_file(self, DU_GraphClass, lPageConstraint, sFilename, bGraph=False):
+    def _predict_file(self, DU_GraphClass, lPageConstraint, sFilename, bGraph=False
+                      , bPickle=False):
         """
         Return the doc (a DOM?, a JSON?, another ?), the list of graphs
             Note: the doc can be None is no graph
@@ -791,38 +890,50 @@ This server runs with those options: {{ sOptions }}
                                       , bLabelled=bORACLE_EDGE_BREAK_CONTINUE
                                       , iVerbose=1)
 
-        #normally, we get one graph per file, but in case we load one graph per page, for instance, we have a list
-        for i, g in enumerate(lg):
-            if not g.lNode: continue  # no node...
-            doc = g.doc
-            if lPageConstraint:
-                #self.traceln("\t- prediction with logical constraints: %s"%sFilename)
-                self.traceln("\t- page constraints IGNORED!!")
-            self.traceln("\t- prediction : %s"%sFilename)
-
-            self._predict_graph(g, lPageConstraint=lPageConstraint, bGraph=bGraph)
+        if bPickle:
+            self._pickleRunData(self._mdl, lg, sFilename)
+        else:
+            #normally, we get one graph per file, but in case we load one graph per page, for instance, we have a list
+            for i,g in enumerate(lg):
+                if not g.lNode: continue  # no node...
+                    
+                doc = g.doc
+                if lPageConstraint:
+                    #self.traceln("\t- prediction with logical constraints: %s"%sFilename)
+                    self.traceln("\t- page constraints IGNORED!!")
+                self.traceln("%d\t- prediction : %s"%(i,sFilename))
+    
+                try: self._predict_graph(i, g, lPageConstraint=lPageConstraint, bGraph=bGraph)
+                except GraphConjugateException:pass
         self.traceln("\t done [%.2fs]"%chronoOff("predict_1"))
         return doc, lg
 
-    def _predict_graph(self, g, lPageConstraint=None, bGraph=False):
+    def _predict_graph(self, ig, g, lPageConstraint=None, bGraph=False, bMetric=False):
         """
         predict for a graph
         side effect on the graph g
         return the graph
         """
         try:
+            if bMetric: 
+                try:    [Ygt] = self._mdl.get_lY([g])
+                except:  
+                    Ygt  = None
             if bORACLE_EDGE_BREAK_CONTINUE:
                 Y = np.zeros((len(g.lEdge), 2), dtype=np.float)
                 for i, e in enumerate(g.lEdge):
                     Y[i, 1-int(e.A.cls == e.B.cls)] = 1.0
             else:
-                Y = self._mdl.predict(g, bProba=g.bConjugate)
-            g.setDocLabels(Y)
-            if bGraph and not Y is None:
-                if g.bConjugate: 
-                    g.addEdgeToDoc(Y)
-                else:
-                    g.addEdgeToDoc()
+                Y = self._mdl.predict(g, bProba=True)
+            if self.bConjugate:
+                g.setDocLabels(Y,self.fClusterTH)
+            else:  
+                g.setDocLabels(Y)
+
+            if bMetric: 
+                g.computeMetric(ig, g, np.argmax(Y, axis=1) if Y.ndim == 2 else Y, Ygt)
+            
+            if bGraph: g.addEdgeToDoc()
             del Y
         except GraphModelNoEdgeException:
             traceln("*** ERROR *** cannot predict due to absence of edge in graph")
@@ -1022,56 +1133,166 @@ This server runs with those options: {{ sOptions }}
         return loTstRpt
 
     #----------------------------------------------------------------------------------------------------------    
-    def _pickleData(self, mdl, lGraph, name):
-        self.traceln("- Computing data structure of all graphs and features...")
+    def _pickleData(self, mdl, lGraph, name
+                    , blPickleXY=False):
+        """
+        Pickling train or valid or test data
+        if blPickleXY is True, we proceed graph by graph (to reduce memory footprint!)
+        """
         #for GCN
         bGCN_revert = False
         if bGCN_revert:
             for g in lGraph: g.revertEdges()
-        lX, lY = mdl.get_lX_lY(lGraph)
-        sFilename = mdl.getTrainDataFilename(name)
-        if bGCN_revert:
-            sFilename = sFilename.replace("_tlXlY_", "_tlXrlY_")
-        self.traceln("- storing (lX, lY) into %s"%sFilename)
-        mdl.gzip_cPickle_dump(sFilename, (lX, lY))
+        if blPickleXY:
+            sDir = mdl.getTrainDataDirname(name) + ("_tXrY" if bGCN_revert else "_tXY")
+            if not os.path.isdir(sDir): os.mkdir(sDir)
+            # data
+            nGraph, nf = 0, None
+            for n, g in enumerate(lGraph):
+                try:
+                    [X], [Y] = mdl.get_lX_lY([g])
+                except:
+                    traceln("-----  SKIPPED graph index = %d   get_lX_lY exception -------------------------" % n)
+                    traceln(traceback.format_exc())
+                    continue
+                if nf is None: nf, ef = X[0].shape[1], X[2].shape[1] 
+                mdl.gzip_cPickle_dump( os.path.join(sDir, "%06d.pkl" % (n+1))
+                                        , (X, Y))
+                del X, Y
+                if (n % 10) == 9: gc.collect()
+                nGraph += 1
+
+            if lGraph:
+                # model characteristics
+                mdl.gzip_cPickle_dump(os.path.join(sDir, "model_def.pkl")
+                                      , (  mdl.getNbClass()
+                                         , nf    # node #feat
+                                         , ef    # edge #feat
+                                         , nGraph
+                                         , self.config_extractor_kwargs
+                                         ))
+                traceln("%d classes  |  %d node features  | %d edge features  |  %d graphs" % (  mdl.getNbClass()
+                                                                                               , nf, ef
+                                                                                               , nGraph))
+            if nGraph < len(lGraph): traceln("SKIPPED %d graphs" % (len(lGraph)-nGraph))
+            traceln(" --> gzipped pickle files in %s  (%d tXY files)" % ( os.path.abspath(sDir)
+                                                                        , nGraph))
+        else:
+            lX, lY = mdl.get_lX_lY(lGraph)
+            sFilename = mdl.getTrainDataFilename(name)
+            if bGCN_revert:
+                sFilename = sFilename.replace("_tlXlY_", "_tlXrlY_")
+            mdl.gzip_cPickle_dump(sFilename, (lX, lY))
+            traceln(" --> gzipped pickle file: ", os.path.abspath(sFilename))
+        
+        if self._additional_data_fun:
+            # application specific data to be pickled
+            lData = (self._additional_data_fun)(self, mdl, lGraph)
+            sFilename = mdl.getAdditionalTrainDataFilename(name)
+            mdl.gzip_cPickle_dump(sFilename, lData)
+            traceln(" -->            see also: ", os.path.abspath(sFilename))
         return
-                    
+
+    def _pickleRunData(self, mdl, lGraph, sInputFilename):
+        """
+        Pickling run data  (so only the X)
+        """
+        #for GCN
+        bGCN_revert = False
+        if bGCN_revert:
+            for g in lGraph: g.revertEdges()
+        lX = mdl.get_lX(lGraph)
+        sFilename = mdl.getRunDataFilename(sInputFilename)
+        if bGCN_revert:
+            sFilename = sFilename.replace("_tlX_", "_tlXr_")
+        mdl.gzip_cPickle_dump(sFilename, lX)
+        traceln(" --> gzipped pickle file: ", os.path.abspath(sFilename))
+        
+        if self._additional_data_fun:
+            # application specific data to be pickled
+            lData = (self._additional_data_fun)(self, mdl, lGraph)
+            sFilename = mdl.getAdditionalRunDataFilename(sInputFilename, "node")
+            mdl.gzip_cPickle_dump(sFilename, lData)
+            traceln(" -->            see also: ", os.path.abspath(sFilename))
+        return
+    
+    @classmethod
+    def getPickledDef(cls, sDir):
+        """
+        return nbClass, nbNodeFeat, nbEdgeFeat, nbGraph
+        """
+        return gzip_pickle_load(os.path.join(sDir, "model_def.pkl"))
+
+    @classmethod
+    def getPickledXY(cls, sFilepath, blPickleXY=False):
+        """
+        return an iterator over the XYs
+        """
+        if blPickleXY:
+            traceln(" ...loading gzipped pickle files from %s" % os.path.abspath(sFilepath))
+            # arbitrary order!
+            return (gzip_pickle_load(fn) for fn in glob.iglob(os.path.join(sFilepath, "[0-9]*[0-9].pkl")))           
+        else:
+            traceln(" ...loading from zipped pickle file: ", os.path.abspath(sFilepath))
+            (lX, lY) = gzip_pickle_load(sFilepath)
+            return zip(lX, lY)
+        
+    def setAdditionalDataProvider(self, fun):
+        """
+        register a callback for generating specific additional data to be pickled
+        the fun must have this prototype:
+            fun(doer, mdl, lGraph) -> [data, ...]
+            
+            it returns one data per graph... which is pickled in a .data gzipped file
+        """
+        self._additional_data_fun = fun
+        traceln("SETUP: Registering an additional data provider for pickling: ", fun)
+        
+    #----------------------------------------------------------------------------------------------------------    
     def _train_save_test(self, sModelName, bWarm, lFilename_trn, ts_trn, lFilename_tst, lFilename_vld, bPickleXY
-                         , ratio_train_val=None):
+                         , ratio_train_val=None
+                         , blPickleXY=False):
         """
         used both by train_save_test and _nfold_runFold
         if provided, try using lFilename_vld as validation set to make best model.
         """
         mdl = self.cModelClass(sModelName, self.sModelDir)
-        
-        if os.path.exists(mdl.getModelFilename()) and not bWarm: 
-            raise GraphModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
+        if blPickleXY:
+            # let's do it immediately, to spot any use error ASAP
+            self.traceln("- retrieving feature extractors...")
+            mdl.loadTransformers() # note: we do not check if fresh, because some data can be fresher (e.g. TWY experiment in MENUs)
+        else:
+            if os.path.exists(mdl.getModelFilename()) and not bWarm: 
+                raise GraphModelException("Model exists on disk already (%s), either remove it first or warm-start the training."%mdl.getModelFilename())
             
         mdl.configureLearner(**self.config_learner_kwargs)
         mdl.setBaselineModelList(self._lBaselineModel)
-        mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
+        if not blPickleXY: mdl.saveConfiguration( (self.config_extractor_kwargs, self.config_learner_kwargs) )
         self.traceln("\t - configuration: ", self.config_learner_kwargs )
 
         self.traceln("- loading training graphs")
         lGraph_trn = self.cGraphClass.loadGraphs(self.cGraphClass, lFilename_trn, bDetach=True, bLabelled=True, iVerbose=1)
-        self.traceln(" %d training graphs loaded"%len(lGraph_trn))
+        self.traceln(" --- %d training graphs loaded"%len(lGraph_trn))
+        if len(lGraph_trn) == 0 and not (bPickleXY or blPickleXY): 
+            raise ValueError("No training graph loaded!")
 
         if lFilename_vld:
             self.traceln("- loading validation graphs")
             lGraph_vld = self.cGraphClass.loadGraphs(self.cGraphClass, lFilename_vld, bDetach=True, bLabelled=True, iVerbose=1)
-            self.traceln(" %d validation graphs loaded"%len(lGraph_vld))
+            self.traceln(" --- %d validation graphs loaded"%len(lGraph_vld))
         else:
             lGraph_vld = []
-            if ratio_train_val is None:
-                self.traceln("- no validation graphs")
-            else:
-                lG = [g for g in lGraph_trn]
-                split_idx = int(ratio_train_val * len(lG))
-                lGraph_vld = lG[:split_idx ]
-                lGraph_trn = lG[ split_idx:]
-                del lG
-                self.traceln("- extracted %d validation graphs, got %d training graphs (ratio=%.3f)" 
-                             % (len(lGraph_vld), len(lGraph_trn), ratio_train_val))
+            if not (bPickleXY or blPickleXY):
+                if ratio_train_val is None:
+                    self.traceln("- no validation graphs")
+                else:
+                    lG = [g for g in lGraph_trn]
+                    split_idx = int(ratio_train_val * len(lG))
+                    lGraph_vld = lG[:split_idx ]
+                    lGraph_trn = lG[ split_idx:]
+                    del lG
+                    self.traceln("- extracted %d validation graphs, got %d training graphs (ratio=%.3f)" 
+                                 % (len(lGraph_vld), len(lGraph_trn), ratio_train_val))
 
         #for this check, we load the Y once...
         if self.bConjugate:
@@ -1084,60 +1305,69 @@ This server runs with those options: {{ sOptions }}
                 mdl.setNbClass(self.nbClass)
             else:
                 mdl.setNbClass(self.lNbClass)
-            self.checkLabelCoverage(mdl.get_lY(lGraph_trn)) #NOTE that Y are in bad order if multiptypes. Not a pb here
             
-        self.traceln("- retrieving or creating feature extractors...")
-        chronoOn("FeatExtract")
-        try:
-            mdl.loadTransformers(ts_trn)
-        except GraphModelException:
+            if (bPickleXY or blPickleXY) and not(lGraph_trn):
+                # probably only pickling a tst folder...
+                pass
+            else:
+                self.checkLabelCoverage(mdl.get_lY(lGraph_trn)) #NOTE that Y are in bad order if multiptypes. Not a pb here
+            
+        if not blPickleXY:
+            chronoOn("FeatExtract")
+            self.traceln("- retrieving or creating feature extractors...")
             try:
-                fe = self.cFeatureDefinition(**self.config_extractor_kwargs)         
-            except Exception as e:
-                traceln("ERROR: could not instantiate feature definition class: ", str(self.cFeatureDefinition))
-                raise e        
-            fe.fitTranformers(lGraph_trn)
-            fe.cleanTransformers()
-            mdl.setTranformers(fe.getTransformers())
-            mdl.saveTransformers()
+                mdl.loadTransformers(ts_trn)
+            except GraphModelException:
+                try:
+                    fe = self.cFeatureDefinition(**self.config_extractor_kwargs)
+                except Exception as e:
+                    traceln("ERROR: could not instantiate feature definition class: ", str(self.cFeatureDefinition))
+                    raise e        
+                fe.fitTranformers(lGraph_trn)
+                fe.cleanTransformers()
+                mdl.setTranformers(fe.getTransformers())
+                mdl.saveTransformers()
+            self.traceln(" done [%.1fs]"%chronoOff("FeatExtract"))
         
         # pretty print of features extractors
-        self.traceln("""--- Features ---
+        sPrettyFeat = """--- Features ---
 --- NODES : %s
 
 --- EDGES : %s
 --- -------- ---
-""" % mdl.getTransformers())
+""" % mdl.getTransformers()
+        self.traceln(sPrettyFeat)
+        Tracking.log_artifact_string("Features", sPrettyFeat)
         
-        self.traceln(" done [%.1fs]"%chronoOff("FeatExtract"))
+        if bPickleXY or blPickleXY:
+            if lGraph_trn: self._pickleData(mdl, lGraph_trn, "trn", blPickleXY=blPickleXY)
+            if lGraph_vld: self._pickleData(mdl, lGraph_vld, "vld", blPickleXY=blPickleXY)
+        else:
+            self.traceln("- training model...")
+            chronoOn("MdlTrn")
+            mdl.train(lGraph_trn, lGraph_vld, True, ts_trn, verbose=1 if self.bVerbose else 0)
+            mdl.save()
+            tTrn = chronoOff("MdlTrn")
+            self.traceln(" training done [%.1f s]  (%s)" % (tTrn, pretty_time_delta(tTrn)))
         
-        if bPickleXY:
-            self._pickleData(mdl, lGraph_trn, "trn")
-
-        self.traceln("- training model...")
-        chronoOn("MdlTrn")
-        mdl.train(lGraph_trn, lGraph_vld, True, ts_trn, verbose=1 if self.bVerbose else 0)
-        mdl.save()
-        tTrn = chronoOff("MdlTrn")
-        self.traceln(" training done [%.1f s]  (%s)" % (tTrn, pretty_time_delta(tTrn)))
-        
-        # OK!!
-        self._mdl = mdl
+            # OK!!
+            self._mdl = mdl
         
         if lFilename_tst:
             self.traceln("- loading test graphs")
             lGraph_tst = self.cGraphClass.loadGraphs(self.cGraphClass, lFilename_tst, bDetach=True, bLabelled=True, iVerbose=1)
             if self.bConjugate:
                 for _g in lGraph_tst: _g.computeEdgeLabels()
-            self.traceln(" %d graphs loaded"%len(lGraph_tst))
-            if bPickleXY:
-                self._pickleData(mdl, lGraph_tst, "tst")
+            self.traceln(" --- %d graphs loaded"%len(lGraph_tst))
+            if bPickleXY or blPickleXY:
+                self._pickleData(mdl, lGraph_tst, "tst", blPickleXY=blPickleXY)
+                oReport = None
             else:
-                oReport = mdl.test(lGraph_tst)
+                oReport = mdl.test(lGraph_tst) # bug due to MPXML , lsDocName=lFilename_tst)
         else:
             oReport = None
 
-        if bPickleXY:
+        if bPickleXY or blPickleXY:
             self.traceln("- pickle done, exiting")
             exit(0)
         

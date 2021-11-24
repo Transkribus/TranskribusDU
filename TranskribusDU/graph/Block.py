@@ -10,10 +10,7 @@ March 3rd, 2016
 Copyright Xerox 2016
 
 '''
-
-
-
-
+import math
 
 from past.builtins import cmp
 
@@ -21,10 +18,12 @@ import collections
 
 from . import Edge
 # from Edge import CrossPageEdge, HorizontalEdge, VerticalEdge
-from util.masking import applyMask, applyMask2
+from util.masking   import applyMask, applyMask2
+from common.kNNList import kNNList
 
 DEBUG=0
 DEBUG=1
+
 
 """
 We have 2 ways for computing edges: simplified and g2
@@ -120,7 +119,7 @@ class Block:
         """return the (x,y) of the geometric center of the image"""
         return (self.x1+self.x2)/2, (self.y1+self.y2)/2
     def area(self):
-        return(self.x2-self.x1) * (self.y2-self.y1)
+        return abs((self.x2-self.x1) * (self.y2-self.y1))
 
     def scale(self, scale_h, scale_v):
         dx = (self.x2-self.x1) * (1-scale_h) / 2
@@ -225,11 +224,9 @@ class Block:
             if h > 0:
                 #ok, overlap or inclusion of one text box into the other
                 ovArea = h * w
-                aArea = (a.x2-a.x1) * (a.y2-a.y1)
-                bArea = (b.x2-b.x1) * (b.y2-b.y1)
+                aArea = abs((a.x2-a.x1) * (a.y2-a.y1))
+                bArea = abs((b.x2-b.x1) * (b.y2-b.y1))
                 unionArea = aArea + bArea - ovArea
-#                 if self.text == "S2.0":
-#                     print self.text, b.text, float(ovArea)/unionArea 
                 ovr = float(ovArea)/unionArea
             else:
                 return 0.0
@@ -276,6 +273,43 @@ class Block:
             return ovr
         else:
             return 0.0       
+
+
+    def manhattanDistance(self, b):
+        """
+        manhattan distance between A and B
+        """
+        w = max(self.x1, b.x1) - min(self.x2, b.x2) # negative if horiz overlap , positive otherwise
+        h = max(self.y1, b.y1) - min(self.y2, b.y2) 
+        return float(max(0, w)), float(max(0, h))
+    
+    def nearestPointDistance(self, b):
+        """
+        Based on above Manhattant distance
+        full overlap => 0
+        """ 
+        w, h = self.manhattanDistance(b)
+        return math.sqrt(w*w+h*h)
+    
+    def interSpaceSignedArea(self, b):
+        """
+        "signed" area of the "interspace" between A and B
+        0 if the blocks overlap each other (on both axis)
+        negative if overlap    of blocks projections on one axis
+        positive if no overlap of blocks projections on any axis
+        """
+        w = max(self.x1, b.x1) - min(self.x2, b.x2) # negative if horiz overlap , positive otherwise
+        h = max(self.y1, b.y1) - min(self.y2, b.y2) 
+        return float(w*h) if w > 0 or h > 0 else 0  # 0 because both negative, so total overlap
+
+    def outerSpaceArea(self, b):
+        """
+        are of the bounding box of A and B
+        """
+        w = max(self.x2, b.x2) - min(self.x1, b.x1)
+        h = max(self.y2, b.y2) - min(self.y1, b.y1)
+        return float(w*h)
+
 
     def fitIn(self, t_x1_y1_x2_y2):
         """
@@ -357,6 +391,8 @@ class Block:
             fun = cls._findVerticalNeighborEdges_g2
         elif iGraphMode == 4:
             fun = cls._findVerticalNeighborEdges_g1o
+        elif iGraphMode == 5:
+            fun = cls._findVerticalNeighborEdges_g2o
         else:
             raise ValueError("Unkown graph mode '%s'")% iGraphMode
             
@@ -370,6 +406,38 @@ class Block:
         
         return lHEdge, lVEdge
     
+    @classmethod
+    def findKNNEdges(cls, lPageBlk, iGKNN):
+        """
+        build the edges reflecting the k nearest neighbors relationship
+        return the list of edges
+        """
+        lEdge = []
+        for blk in lPageBlk: 
+            blk.lkNN = kNNList(iGKNN)
+        
+        for i, A in enumerate(lPageBlk):
+            for B in lPageBlk[i+1:]:
+                d = A.nearestPointDistance(B)
+                A.lkNN.append(B, d)
+                B.lkNN.append(A, d)
+        
+        setEdgeT = set()  # set of tuple (A,B) to avoid duplicating edges
+        for A in lPageBlk:
+            idA = id(A)
+            for B, dst in A.lkNN.zipOD():
+                _A, _B = (A, B) if id(B) > idA else (B, A) # order normalization
+                if ((_A, _B) not in setEdgeT):
+                    setEdgeT.add( (_A, _B) )
+                    e = Edge.SamePageEdge(A, B
+                                     , dst  # edge length
+                                     , 0    # overlap: not useful here
+                                     )
+                    lEdge.append(e)
+        del setEdgeT
+        
+        return lEdge
+                       
     # ---- Internal stuff ---
     def findConsecPageOverlapEdges(cls, lPrevPageEdgeBlk, lPageBlk, bMirror=True, epsilon = 1):
         """
@@ -687,6 +755,62 @@ class Block:
                             
         return lVEdge
 
+    @classmethod
+    def _findVerticalNeighborEdges_g2o(cls, lBlk, EdgeClass, bShortOnly=False, iGrid = None):
+        """
+        the masking is done properly.
+        
+        Block can overlap
+        
+        return a list of pair of block
+        """
+        if not lBlk: return []
+        if iGrid is None: iGrid = Block.iGRID
+        
+        #look for vertical neighbors
+        lVEdge = list()
+
+        n1, lY1, dBlk_Y1 = cls._findVerticalNeighborEdges_init_y1(lBlk, iGrid)
+        
+        for i1,y1 in enumerate(lY1):
+            #start with the block(s) with lowest y1
+            #  (they should not overlap horizontally and cannot be vertical neighbors to each other)
+            for A in dBlk_Y1[y1]:
+                Ax1,Ay1, Ax2,Ay2 = map(cls.gridRound, A.getBB(), [iGrid, iGrid, iGrid, iGrid])
+                A_height = A.y2 - A.y1   #why were we accessing the DOM?? float(A.node.prop("height"))
+                lViewA = [(Ax1, Ax2)]   # what A can view (or what it covers horizontally)
+                assert Ay2 >= Ay1
+                jstart = i1 + 1   # consider all block slightly below the current one
+                for j1 in range(jstart, n1):            #take in turn all Y1 below A
+                    By1 = lY1[j1]
+                    for B in dBlk_Y1[By1]:          #all block starting at that y1
+                        Bx1,By1, Bx2,_ = map(cls.gridRound, B.getBB(), [iGrid, iGrid, iGrid, iGrid])
+                        
+                        lNewViewA, ovrl = applyMask2(lViewA, [(Bx1, Bx2)]) # what remains of A views...
+                        if ovrl != 0:
+                            # B is visible
+                            length = B.y1 - A.y2
+                            if length < 0:
+                                # do we keep it??
+                                if (min(Ax2, Bx2) - max(Ax1, Bx1)) <= (-length): 
+                                    ovrl = 0 # no, this deserves to become an horizontal edge
+                        # if lNewViewA == lViewA:
+                        if ovrl == 0:  # faster test
+                            # no overlap between what A can still view and B
+                            pass
+                        else:
+                            if bShortOnly:
+                                #we need to measure how far this block is from A
+                                #we use the height attribute (not changed by the rotation)
+                                if length < A_height: 
+                                    lVEdge.append( EdgeClass(A, B, length, ovrl) )
+                            else:
+                                lVEdge.append( EdgeClass(A, B, length, ovrl) )
+                            lViewA = lNewViewA    
+                    if not lViewA: break
+                            
+        return lVEdge
+
 class BlockShallowCopy(Block):
     """
     A shallow copy of a block
@@ -717,8 +841,6 @@ class BlockShallowCopy(Block):
         
     def getOrigBlock(self): return self._blk
     
-
-
 
 def test_scale():
     class Page:

@@ -17,11 +17,13 @@ import math
 
 from lxml import etree
 import shapely.geometry as geom
+import json
 
 from common.trace import traceln
 from util import XYcut
 from .Graph import Graph
 from . import Edge
+from . import Page
 from xml_formats.PageXml import PageXml, MultiPageXml
 
 
@@ -80,23 +82,42 @@ class Graph_DOM(Graph):
         
         return self
 
-    def addEdgeToDoc(self, Y=None, ndPage=None):
+    def addEdgeToDoc(self, ndPage=None):
         """
         To display the graph conveniently we add new Edge elements
         """
-        assert Y == None
         if self.lNode:
             ndPage = self.lNode[0].page.node if ndPage is None else ndPage    
             ndPage.append(etree.Comment("Edges added to the XML for convenience"))
             for edge in self.lEdge:
                 A, B = edge.A , edge.B   #shape.centroid, edge.B.shape.centroid
                 ndEdge = PageXml.createPageXmlNode("Edge")
-                ndEdge.set("src", edge.A.node.get("id"))
-                ndEdge.set("tgt", edge.B.node.get("id"))
+                if bool(edge.A.domid):
+                    # edge between reified edges  do not have a domid
+                    ndEdge.set("src", edge.A.domid)
+                    ndEdge.set("tgt", edge.B.domid)
                 ndEdge.set("type", edge.__class__.__name__)
+
+                # in case the edge has a predicted label
+                if hasattr(edge, "cls"):
+                    if len(edge.cls) > 1:
+                        cls = edge.cls.argmax()
+                        ndEdge.set("proba", "%.3f" % edge.cls[cls])
+                        ndEdge.set("distr", str(edge.cls.tolist()))
+                    else:
+                        cls = edge.cls
+                    # ndEdge.set("label", self.lEdgeLabel[cls])
+                    ndEdge.set("label", self.getLabelNameList()[cls])
+                    ndEdge.set("label_cls", str(cls))
+
                 ndEdge.tail = "\n"
                 ndPage.append(ndEdge)
-                PageXml.setPoints(ndEdge, [(A.x1, A.y1), (B.x1, B.y1)]) 
+#                 PageXml.setPoints(ndEdge, [(A.x1, A.y1), (B.x1, B.y1)])
+                o = edge.getCoords()
+                if o is not None:
+                    x1, y1, x2, y2 = o
+                    PageXml.setPoints(ndEdge, [(x1, y1), (x2, y2)]) 
+ 
         
         return         
 
@@ -131,74 +152,143 @@ class Graph_DOM(Graph):
         """
             export a set of graph as (Multi)PageXml
         """
+        
+        #get image size if possible
+        try:
+            page = lg[0].lNode[0].page
+            pageW, pageH = page.w, page.h
+        except IndexError:
+            page = None
+            pageW, pageH = 0,0
+        bEstimatePageSize = (pageW == 0) or (pageH == 0)
         #create document
-        pageDoc,pageNode = PageXml.createPageXmlDocument('graph2DOM', filename="",imgW=0, imgH=0)
-        pageW, pageH = 0,0
+        pageDoc,pageNode = PageXml.createPageXmlDocument('graph2DOM', filename="",imgW=pageW, imgH=pageH)
+
+        if page is None:        
+            # fake page  h and w update later on
+            page = Page.Page(0, 0, h=pageH, w=pageW, domnode=pageNode)
+        else:
+            page.node=pageNode  # associate the DOM node to the page object
+
         for iG,g in enumerate(lg):
+            g.doc = pageDoc 
             if iG > 0:
+                # new page
                 pageNode = PageXml.createPageXmlNode("Page")
                 pageDoc.getroot().append(pageNode)
-                
+                g.doc = pageDoc 
+                try:
+                    page = g.lNode[0].page
+                    page.node = pageNode
+                    pageW, pageH = page.w, page.h
+                except IndexError:
+                    # fake page  h and w update later on
+                    pageW, pageH = 0, 0
+                    page = Page.Page(iG,iG,h=pageH,w=pageW,domnode=pageNode)
+                bEstimatePageSize = (pageW == 0) or (pageH == 0)
+
+            for n in g.lNode: n.page=page
 #             lRegions = g.lCluster
 #             for region in lRegions:
 #                 lNodes = [g.lNode[idx] for idx in region]
-                
+
+            lNodesAlreadyCovered=[]
             if g.lCluster:
-                lRegionNodes = [ [g.lNode[idx] for idx in region] for region in g.lCluster ]
+                lRegionNodes = [ [ [g.lNode[idx]  for idx in region  ] for region in clustertype  ] for clustertype in g.lCluster ]
             else:
-                lRegionNodes = [ g.lNode ]
-            for iR, lNodes in enumerate(lRegionNodes):
-                #regionType = region.type
-                regionNode = PageXml.createPageXmlNode("TextRegion")
-                regionNode.set("id", "R%d"%iR)
-                pageNode.append(regionNode)
-                
-                #regionNode.set("type",str(regionType))
-                # Region geometry
-                mp = geom.MultiPolygon(b.getShape() for b in lNodes)
-                xmin, ymin, xmax, ymax = geom.MultiPolygon(b.getShape() for b in lNodes).bounds
-                coordsNode = PageXml.createPageXmlNode('Coords')
-                regionNode.append(coordsNode)
-                PageXml.setPoints(coordsNode,[(xmin,ymin),(xmax,ymin),(xmax,ymax),(xmin,ymax)])
-                
-                # update page dimension
-                pageW = max(pageW, xmax)
-                pageH = max(pageH, ymax)
-
-                lSegment = [(o.y1, o.y2, o) for o in lNodes]
-                lLines,_,_ = XYcut.mergeSegments(lSegment, 2)
-                for iL, (ymin,ymax,lw) in enumerate(lLines):
-                    xmin, ymin, xmax, ymax = geom.MultiPolygon(b.getShape() for b in lw).bounds
-                    textLineNode = PageXml.createPageXmlNode('TextLine')
-                    textLineNode.set("id", "R%d_L%d" % (iR, iL))
-
-                    coordsNode = PageXml.createPageXmlNode('Coords')
-                    textLineNode.append(coordsNode)
-                    PageXml.setPoints(coordsNode,[(xmin,ymin),(xmax,ymin),(xmax,ymax),(xmin,ymax)])
-                    regionNode.append(textLineNode)
+                lRegionNodes = [[ g.lNode ]]
+            for ic, lRegionType in enumerate(lRegionNodes): 
+                sAlgo = g.lCluster[ic].sAlgo if g.lCluster else None
+                for iR, lNodes in enumerate(lRegionType):
+                    #regionType = region.type
+                    regionNode = PageXml.createPageXmlNode("TextRegion")
+                    # regionNode.set("id", "R%d"%iR)
+                    # if g.lCluster[ic].sAlgo is not None:regionNode.set('type',g.lCluster[ic].sAlgo)
+                    if sAlgo is None:
+                        if len(lRegionNodes) > 1:   # need unique ID!!
+                            regionNode.set("id", "R%d_%d"%(ic,iR))
+                        else:
+                            regionNode.set("id", "R%d"%iR)
+                    else:
+                        regionNode.set('type', sAlgo)
+                        regionNode.set("id", "R_%s_%d"%(sAlgo,iR))  # assuming the sAlgo differ...
+                    pageNode.append(regionNode)
                     
-                    for iW, w in enumerate(lw):
-                        wordNode = PageXml.createPageXmlNode('Word')
-                        # standard Block attributes for DOM objects, so that addEdgeTODoc wan work
-                        w.node = wordNode
-                        w.domid = "R%d_L%d_W%d" % (iR, iL, iW)
-                        wordNode.set("id", w.domid)
-                        textLineNode.append(wordNode)
+                    #regionNode.set("type",str(regionType))
+                    # Region geometry
+                    mp = geom.MultiPolygon(b.getShape() for b in lNodes)
+                    xmin, ymin, xmax, ymax = geom.MultiPolygon(b.getShape() for b in lNodes).bounds
+                    coordsNode = PageXml.createPageXmlNode('Coords')
+                    regionNode.append(coordsNode)
+                    PageXml.setPoints(coordsNode,[(xmin,ymin),(xmax,ymin),(xmax,ymax),(xmin,ymax)])
+                    
+                    if bEstimatePageSize:
+                        # update page dimension
+                        pageW = max(pageW, xmax)
+                        pageH = max(pageH, ymax)
+                    
+                    # Test if nodes already in a TextRegion:
+                    # We assume the lower levels are first applied 
+                    if lNodes[0] in lNodesAlreadyCovered:
+                        continue
+                    lNodesAlreadyCovered.extend(lNodes)
+                    lSegment = [(o.y1, o.y2, o) for o in lNodes]
+                    lLines,_,_ = XYcut.mergeSegments(lSegment, 2)
+                    for iL, (ymin,ymax,lw) in enumerate(lLines):
+                        # lw is a list of graph nodes in interval ymin, ymax
+                        xmin, ymin, xmax, ymax = geom.MultiPolygon(b.getShape() for b in lw).bounds
+                        textLineNode = PageXml.createPageXmlNode('TextLine')
+                        textLineNode.set("id", "R%d_L%d" % (iR, iL))
+    
                         coordsNode = PageXml.createPageXmlNode('Coords')
-                        wordNode.append(coordsNode)
-                        PageXml.setPoints(coordsNode,w.shape.exterior.coords)
+                        textLineNode.append(coordsNode)
+                        PageXml.setPoints(coordsNode,[(xmin,ymin),(xmax,ymin),(xmax,ymax),(xmin,ymax)])
+                        regionNode.append(textLineNode)
                         
-                        textEquiv=  PageXml.createPageXmlNode('TextEquiv')
-                        wordNode.append(textEquiv)
-                        unicode =   PageXml.createPageXmlNode('Unicode')
-                        textEquiv.append(unicode)
-                        unicode.text=w.text
+                        # let's sort horizontally
+                        lw = sorted(lw, key=lambda o: o.x1) # making lw a sorted list, was a tuple, despite the name...
+                        
+                        for iW, w in enumerate(lw):
+                            wordNode = PageXml.createPageXmlNode('Word')
+
+                            domnode = w.node # in JSON mode it can be a dict...
+                            
+                            # standard Block attributes for DOM objects, so that addEdgeTODoc wan work
+                            w.node = wordNode
+                            w.domid = "R%d_L%d_W%d" % (iR, iL, iW)
+                            wordNode.set("id", w.domid)
+                            
+                            # do we have font color and x-height?
+#                             _s = domnode.get('colors')
+#                             if bool(_s): wordNode.set('colors'  , _s)
+#                             _s = domnode.get('x-height')
+#                             if bool(_s): wordNode.set('x-height', str(_s))
+ 
+                            for _sAttr in ["type", "DU_Y", 'colors', 'x-height']:
+                                try:
+                                    _s = domnode.get(_sAttr)
+                                    if bool(_s): wordNode.set(_sAttr, str(_s))
+                                except KeyError:
+                                    pass
+                            
+                            textLineNode.append(wordNode)
+                            coordsNode = PageXml.createPageXmlNode('Coords')
+                            wordNode.append(coordsNode)
+                            PageXml.setPoints(coordsNode,w.shape.exterior.coords)
+                            
+                            textEquiv=  PageXml.createPageXmlNode('TextEquiv')
+                            wordNode.append(textEquiv)
+                            unicode =   PageXml.createPageXmlNode('Unicode')
+                            textEquiv.append(unicode)
+                            unicode.text=w.text
             # end of page
+            page.w=pageW
+            page.h=pageH
             pageNode.set('imageWidth' , str(math.ceil(pageW)))
             pageNode.set('imageHeight', str(math.ceil(pageH)))
             pageW, pageH = 0,0
             
             if bGraph:
-                g.addEdgeToDoc(g, ndPage=pageNode)
+                g.addEdgeToDoc(ndPage=pageNode)
                     
         return pageDoc   

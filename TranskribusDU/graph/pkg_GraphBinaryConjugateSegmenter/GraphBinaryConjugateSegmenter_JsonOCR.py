@@ -37,7 +37,7 @@ class GraphBinaryConjugateSegmenter_jsonOCR(GraphBinaryConjugateSegmenter, Graph
         GraphBinaryConjugateSegmenter.__init__(self, sOuputXmlAttribute=sOuputXmlAttribute)
         Graph_JsonOCR.__init__(self, lNode, lEdge)
    
-    def addClusterToDoc(self, dCluster):
+    def addClusterToDoc(self, dCluster, sAlgo=None):
         """
         JSON OCR version
         """
@@ -48,7 +48,7 @@ class GraphBinaryConjugateSegmenter_jsonOCR(GraphBinaryConjugateSegmenter, Graph
         return
 
         
-    def addEdgeToDoc(self, Y_proba):
+    def addEdgeToDoc(self):
         """
         JSON OCR version
         """

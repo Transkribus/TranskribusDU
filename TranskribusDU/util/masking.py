@@ -63,7 +63,8 @@ def applyMask2(lView, lViewMask):
     Assumes the input views do not overlap each other
     Garanties that the output view do not overlap each other
     """
-    for a,b in lView: assert a <= b, "invalid view: %s, %s" %(a,b)
+    # ok , we know it works!
+    # for a,b in lView: assert a <= b, "invalid view: %s, %s" %(a,b)
 
     ovrl = 0  # total overlap with the masks    
     # apply each mask in turn

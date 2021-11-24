@@ -22,7 +22,6 @@ from common.trace import traceln
 
 from . import Edge
 
-
 class GraphException(Exception): pass
 
 
@@ -39,7 +38,8 @@ class Graph:
 
     iGraphMode       = 1        # how to compute edges 1=historical 2=dealing properly with line-of-sight
     
-    bConjugate = False
+    bConjugate = False  # do classification on dual graph
+    bSeparator = False  # exploit graphical separators
     
     sIN_FORMAT  = "undefined"   # tell here which input format is expected, subclasses must specialise this
     sDU         = "_du"
@@ -53,7 +53,7 @@ class Graph:
         self.lEdge = lEdge
         self.doc   = None   # the document object (can be a DOM, or a JSON, or...)
         
-        self.lCluster = None # list of clusters (resulting from a segmentation task)
+        self.lCluster = [] #None # list of ClusterList (resulting from a segmentation task)
         
         self.aNeighborClassMask = None   #did we compute the neighbor class mask already?
         
@@ -108,7 +108,8 @@ class Graph:
         return cls.iGraphMode
     @classmethod
     def setGraphMode(cls, iGraphMode):
-        assert iGraphMode in (1,2,4)
+        assert iGraphMode in (1,2,3,4,5,6)
+        # 1=g1    2=g2    3=Delaunay    4=g1o    5=g2o
         cls.iGraphMode = iGraphMode
         return cls.iGraphMode
     
@@ -208,7 +209,7 @@ class Graph:
             try:
                 cls = self._dClsByLabel[sLabel]  #Here, if a node is not labelled, and no default label is set, then KeyError!!!
             except KeyError:
-                raise ValueError("Page %d, unknown label '%s' in %s (Known labels are %s)"%(nd.pnum, sLabel, str(nd.node), self._dClsByLabel))
+                raise ValueError("Page %d, unknown label '%s' in %s (id=%s) (Known labels are %s)"%(nd.pnum, sLabel, str(nd.node), nd.node.get("id"), self._dClsByLabel))
             nd.cls = cls
             setSeensLabels.add(cls)
         return setSeensLabels    
@@ -217,9 +218,17 @@ class Graph:
         """
         Set the labels of the graph nodes from the Y matrix
         """
-        for i,nd in enumerate(self.lNode):
-            sLabel = self._dLabelByCls[ Y[i] ]
-            nd.type.setDocNodeLabel(nd, sLabel)
+        if isinstance(Y, np.ndarray) and Y.ndim > 1:
+            # this a probability array
+            Ylbl = Y.argmax(axis=1)
+            for i,nd in enumerate(self.lNode):
+                sLabel = self._dLabelByCls[ Ylbl[i] ]
+                nd.type.setDocNodeLabel(nd, sLabel)
+                nd.type.setDocNodeY    (nd, Y[i])
+        else:
+            for i,nd in enumerate(self.lNode):
+                sLabel = self._dLabelByCls[ Y[i] ]
+                nd.type.setDocNodeLabel(nd, sLabel)
         return
     
     # --- Constraints -----------------------------------------------------------
@@ -271,20 +280,18 @@ class Graph:
                    , bDetach=False        # keep or free the source data
                    , bLabelled=False      # do we read node labels?
                    , iVerbose=0 
-                   , attachEdge=False     # all incident edges for each node
                    ):
         """
         Load one graph per file, and detach its DOM
         return the list of loaded graphs
         """
         lGraph = []
-        for sFilename in lsFilename:
-            if iVerbose: traceln("\t%s"%sFilename)
+        for n, sFilename in enumerate(lsFilename):
+            if iVerbose: traceln("\t%d - %s" % (n+1, sFilename))
             g = cGraphClass()
             g.parseDocFile(sFilename, iVerbose)
             g._index()
             if not g.isEmpty():
-                if attachEdge and bNeighbourhood: g.collectNeighbors(attachEdge=attachEdge)
                 if bNeighbourhood: g.collectNeighbors()
                 if bLabelled: g.parseDocLabels()
                 if bDetach: g.detachFromDoc()
@@ -306,7 +313,7 @@ class Graph:
         for g in lGraph:
             new_g = cGraphClass()
             new_g.doc   = g.doc
-
+            new_g.lCluster = g.lCluster
             new_g.lNode = g.lNode
             # we need to change the node type of all nodes...
             # I always knew it was bad to have one type attribute on each node in signle-type graphs...
@@ -329,7 +336,7 @@ class Graph:
     def isEmpty(self): 
         return self.lNode == []
 
-    def collectNeighbors(self,attachEdge=False):
+    def collectNeighbors(self):
         """
         record the lists of hotizontal-, vertical- and cross-page neighbours for each node
         """
@@ -337,8 +344,6 @@ class Graph:
             blk.lHNeighbor = list()
             blk.lVNeighbor = list()
             blk.lCPNeighbor = list()
-            if attachEdge:
-                blk.edgeList=list()
 
         for edge in self.lEdge:
             a, b = edge.A, edge.B
@@ -356,12 +361,6 @@ class Graph:
                 else:
                     a.lCMPNeighbor.append(b)
                     b.lCMPNeighbor.append(a)
-        if attachEdge:
-            for edge in self.lEdge:
-                a, b = edge.A, edge.B
-                #Can I get all the correct function from a.lCPNeighbor etc ...
-                a.edgeList.append(edge)
-                b.edgeList.append(edge)
 
 
     def getNeighborClassMask(self):
@@ -403,8 +402,12 @@ class Graph:
         self._index()
         if self._bMultitype:
             X = self._buildNodeEdgeLabelMatrices_T(node_transformer, edge_transformer, bY=False)
+            #TODO check emptyness
         else:
             X = self._buildNodeEdgeMatrices_S(node_transformer, edge_transformer)
+            (_nf, _e, _ef) = X
+            if _nf.shape[0] == 0: raise GraphException("Graph without node!")
+            if _e.shape[0]  == 0: raise GraphException("Graph without edge!")
         return X
 
     def getY(self):

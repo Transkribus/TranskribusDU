@@ -285,8 +285,9 @@ class PageXml:
         NO! (JLM 2018)return None if no textual node found
         
         return empty string if no text node found
+        
         """
-        return " ".join(nd.itertext())
+        return " ".join(nd.itertext()).strip()
     makeText = classmethod(makeText)
 
 

@@ -32,6 +32,10 @@ from graph.Graph_Multi_SinglePageXml                import Graph_MultiSinglePage
 from graph.NodeType_PageXml                         import defaultBBoxDeltaFun
 from graph.NodeType_PageXml                         import NodeType_PageXml_type_woText
 from graph.FeatureDefinition_PageXml_std_noText  import FeatureDefinition_PageXml_StandardOnes_noText
+from tasks.DU_Task_Features     import Features_June19_Full_Separator
+from graph.FeatureDefinition_Generic                import FeatureDefinition_Generic
+from tasks.DU_Task_Features     import Features_June19_Full_Separator
+
 
 # ----------------------------------------------------------------------------
 
@@ -156,6 +160,7 @@ def getConfiguredGraphClass(doer):
 
     # ntClass = NodeType_PageXml_type
     ntClass = My_NodeType
+    ntClass.sLabelAttr=sATTRIBUTE
 
     nt = ntClass(sATTRIBUTE              # some short prefix because labels below are prefixed with it
                   , [str(n) for n in range(int(iMIN), int(iMAX)+1)]
@@ -191,6 +196,27 @@ if __name__ == "__main__":
                       , help="Ignore TextLine ouside the table region, using the GT")    
     parser.add_option("--noother", dest='bNoOther'  ,  action="store_true"
                       , help="No 'OTHER' label")    
+    parser.add_option("--sep", dest='sep'  ,  action="store_true"
+                      , help="use separators")    
+ 
+    # --- 
+    #parse the command line
+    (options, args) = parser.parse_args()
+    
+    if args and args[0] == "split-by-max":
+        assert len(args) == 3, 'expected: split-by-max row|col <FOLDER>'
+        split_by_max(args[1], args[2])
+        exit(0)
+        
+        
+    # standard arguments
+    try:
+        sModelDir, sModelName = args
+    except Exception as e:
+        traceln("Specify a model folder and a model name!")
+        DU_Task_Factory.exit(usage, 1, e)
+
+    # specific options
  
     # --- 
     #parse the command line
@@ -220,34 +246,40 @@ if __name__ == "__main__":
         sATTRIBUTE, 0, iMAX, sXPATH
         , "With label 'OTHER'" if bOTHER else "Without label 'OTHER'" ))
     
+    if options.sep: 
+        cFeatureDefinition = FeatureDefinition_Generic
+        cFeatureDefinition.bSeparator = True
+    else:cFeatureDefinition = FeatureDefinition_Generic
     # standard options        
+    dFeatureConfig = { 'n_tfidf_node':3, 't_ngrams_node':(1,3), 'b_tfidf_node_lc':True}
     doer = DU_Task_Factory.getDoer(sModelDir, sModelName
                                    , options                    = options
                                    , fun_getConfiguredGraphClass= getConfiguredGraphClass
-                                   , cFeatureDefinition         = FeatureDefinition_PageXml_StandardOnes_noText
-                                   , dFeatureConfig             = {}                                           
+                                   , cFeatureDefinition         = cFeatureDefinition 
+                                   , dFeatureConfig             = dFeatureConfig
                                    )
     
     # setting the learner configuration, in a standard way 
     # (from command line options, or from a JSON configuration file)
-    # dLearnerConfig = doer.getStandardLearnerConfig(options)
+    #dLearnerConfig = doer.getStandardLearnerConfig(options)
     if options.bECN:
-        dLearnerConfig = {
-                "name"                  :"default_8Lay1Conv",
-                "dropout_rate_edge"     : 0.2,
-                "dropout_rate_edge_feat": 0.2,
-                "dropout_rate_node"     : 0.2,
-                "lr"                    : 0.0001,
-                "mu"                    : 0.0001,
-                "nb_iter"               : 3000,
-                "nconv_edge"            : 1,
-                "node_indim"            : -1,
-                "num_layers"            : 8,
-                "ratio_train_val"       : 0.1,
-                "patience"              : 100,
-                "activation_name"       :"relu",
-                "stack_convolutions"    : False
-                }
+        dLearnerConfig = doer.getStandardLearnerConfig(options)
+        #dLearnerConfig = {
+        #        "name"                  :"default_8Lay1Conv",
+        #        "dropout_rate_edge"     : 0.2,
+        #        "dropout_rate_edge_feat": 0.2,
+        #        "dropout_rate_node"     : 0.2,
+        #        "lr"                    : 0.0001,
+        #        "mu"                    : 0.0001,
+        #        "nb_iter"               : 100,
+        #        "nconv_edge"            : 6,
+        #        "node_indim"            : 256,
+        #        "num_layers"            : 8,
+        #        "ratio_train_val"       : 0.1,
+        #        "patience"              : 100,
+        #        "activation_name"       :"relu",
+        #        "stack_convolutions"    : True
+        #        }
     elif options.bCRF:
         dLearnerConfig = doer.getStandardLearnerConfig(options)
     else:

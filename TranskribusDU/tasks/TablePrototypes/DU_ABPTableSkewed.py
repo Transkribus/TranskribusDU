@@ -181,7 +181,7 @@ class GraphSkewedCut(Graph_MultiPageXml):
         for nd in self.lNode:
             nd.type.setDocNodeLabel(nd, self._dLabelByCls[ nd.cls ])
         
-    def addEdgeToDoc(self, Y=None):
+    def addEdgeToDoc(self):
         """
         To display the grpah conveniently we add new Edge elements
         """

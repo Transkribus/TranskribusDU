@@ -60,7 +60,8 @@ The folders are named after the DIR folder by adding suffix_part_<1 to N>
         _fnl = _fn.lower()
         if _fnl.endswith("_du.mpxml") or _fnl.endswith("_du.pxml"):
             continue
-        if not(_fnl.endswith(".mpxml") or _fnl.endswith(".pxml")):
+        # if not(_fnl.endswith(".mpxml") or _fnl.endswith(".pxml")):
+        if not _fnl.endswith("xml"):
             continue
         lsFile.append(_fn)
 

@@ -71,6 +71,18 @@ class NodeType:
             self.dIgnoredXmlLabel = {}
 
         self.nCls = len(self.lsLabel)        
+        
+        # atribute corresponding to a node class 
+        self.sSemAttribute=None
+        self.lSemAttribute=[]
+
+
+    
+    def setSemAttribute(self,sLabel): self.sSemAttr = sLabel
+    def setSemAttributeList(self,lLabel): self.lSemAttribute = lLabel
+
+    def getSemAttribute(self): return self.sSemAttr
+    def getSemAttributeList(self): return self.lSemAttribute
 
     def getDefaultLabel(self):
         return "%s_%s"%(self.name, self._sOTHER_LABEL)
@@ -120,6 +132,13 @@ class NodeType:
         """
         raise Exception("Method must be overridden")
 
+    @classmethod
+    def setDocNodeY(cls, graph_node, Y):
+        """
+        Y is a probability distribution over the labels
+        """
+        pass
+    
     def _iter_GraphNode(self, doc, domNdPage, page):
         """
         Parse a DOM page

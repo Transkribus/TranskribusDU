@@ -30,5 +30,5 @@ if __name__ == "__main__":
     #     import better_exceptions
     #     better_exceptions.MAX_LENGTH = None
 
-    main(sys.argv[0], "col")
+    main(sys.argv[0], "col", experiment_name="DU.Tbl_ColEdge")
     

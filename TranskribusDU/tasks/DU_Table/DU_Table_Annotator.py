@@ -54,6 +54,11 @@ import tasks.DU_Table.DU_ABPTableRCAnnotation
 
 if __name__ == "__main__":
     try:
+        if sys.argv[1] == '--nosep':
+            bSep = False
+            sys.argv = sys.argv[0:1] + sys.argv[2:]  # moche...
+        else:
+            bSep = True
         #we expect a folder 
         sInputDir = sys.argv[1]
         if not os.path.isdir(sInputDir): raise Exception()
@@ -82,4 +87,4 @@ if __name__ == "__main__":
     traceln(lsFilename)
     traceln("%d files to be processed" % len(lsFilename))
 
-    tasks.DU_Table.DU_ABPTableRCAnnotation.main(lsInFilename, lsOutFilename)
+    tasks.DU_Table.DU_ABPTableRCAnnotation.main(lsInFilename, lsOutFilename, bSep)

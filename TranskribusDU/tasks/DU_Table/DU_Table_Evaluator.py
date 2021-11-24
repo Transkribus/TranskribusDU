@@ -30,6 +30,7 @@ except ImportError:
     import TranskribusDU_version
 
 from common.trace import traceln
+from util.metrics import evalAdjustedRandScore, average, stddev
 from xml_formats.PageXml import PageXml
 from tasks.DU_Table.DU_ABPTableSkewed_CutAnnotator import op_cut, op_eval_row, op_gt_recall
 from tasks.DU_Table.DU_ABPTableCutAnnotator import CutAnnotator, op_eval_col
@@ -419,7 +420,7 @@ def eval_cluster(lsRunDir, sClusterLevel
         if not sAlgo is None:
             traceln("Loading cluster @algo='%s'"%sAlgo)
             
-        _nOk, _nErr, _nMiss, sRpt = eval_cluster_of_files([os.path.join(sRunDir, _s) for _s in lsFile], sClusterLevel
+        _nOk, _nErr, _nMiss, sRpt, _ = eval_cluster_of_files([os.path.join(sRunDir, _s) for _s in lsFile], sClusterLevel
             , bIgnoreHeader=bIgnoreHeader
             , bIgnoreOutOfTable=bIgnoreOutOfTable
             , lfSimil=lfSimil
@@ -442,17 +443,23 @@ def eval_cluster_of_files(lsFilename
                 , sAlgo=None
                 , sGroupByAttr=""
                 , sClusterGTAttr=None  # used when sClusterLevel=="cluster"
+                , bVerbose=False
+                , bParseFile=True   # set to false if you directly pass the DOM
                 ):
-    
+    """
+    return nOk, nErr, nMiss, sRpt, dOkErrMiss
+        where nOk, nErr, nMiss relate to the last value of lfSimil, yeah...
+    """
     bTable = sClusterLevel in ["row", "col", "cell"]
     #if not bTable: assert sClusterLevel in ['region', 'cluster']
     # sCluelsterLevel can be CLuster or clusterlvl1, 2, ...
     if not bTable: assert sClusterLevel == 'region' or sClusterLevel.startswith('cluster')  
     
     dOkErrMiss = { fSimil:(0,0,0) for fSimil in lfSimil }
+    dlfARI     = { fSimil:list()  for fSimil in lfSimil }
     lsRpt = []
     for sFilename in lsFilename:
-        doc = etree.parse(sFilename)
+        doc = etree.parse(sFilename) if bParseFile else sFilename
         rootNd = doc.getroot()
         #assert len(PageXml.xpath(rootNd, "//pc:Page")) == 1, "NOT YET IMPLEMENTED: eval on multi-page files"
         for iPage, ndPage in enumerate(PageXml.xpath(rootNd, "//pc:Page")):
@@ -493,7 +500,7 @@ def eval_cluster_of_files(lsFilename
  
                 dRun[val_run].append(ndid)
                 #assert ndparent.tag.endswith("TableCell"), "expected TableCell got %s" % nd.getparent().tag
-                
+            
             if not sAlgo is None:
                 dRun = defaultdict(list)
                 lNdCluster = PageXml.xpath(ndPage, ".//pc:Cluster[@algo='%s']"%sAlgo)
@@ -509,20 +516,27 @@ def eval_cluster_of_files(lsFilename
                         else:
                             dRun[str(iCluster)] = lndid
             
+            if bVerbose:
+                lkGT  = sorted(list(dGT.keys()))
+                for k in lkGT: print("GT  CLuster", k, dGT[k])
+                lkRun = sorted(list(dRun.keys()))
+                for k in lkRun: print("RUN CLuster", k, dRun[k])
+                
             for fSimil in lfSimil:
-                _nOk, _nErr, _nMiss = evalPartitions(
-                      list(dRun.values())
-                    , list(dGT.values())
-                    , fSimil
-                    , jaccard_distance)
+                lCluster_run = list(dRun.values())
+                lCluster_gt  = list(dGT.values())
+                _nOk, _nErr, _nMiss = evalPartitions(lCluster_run, lCluster_gt
+                                                     , fSimil
+                                                     , jaccard_distance)
                 
                 _fP, _fR, _fF = computePRF(_nOk, _nErr, _nMiss)
-                
+                _fARI = evalAdjustedRandScore(lCluster_run, lCluster_gt)
                 #traceln("simil:%.2f  P %5.2f  R %5.2f  F1 %5.2f   ok=%6d  err=%6d  miss=%6d" %(
-                lsRpt.append("@simil %.2f   P %5.2f  R %5.2f  F1 %5.2f   ok=%6d  err=%6d  miss=%6d" %(
+                lsRpt.append("@simil %.2f   P %5.2f  R %5.2f  F1 %5.2f   ok=%6d  err=%6d  miss=%6d  ARI=%.3f" %(
                       fSimil
                     , _fP, _fR, _fF
                     , _nOk, _nErr, _nMiss
+                    , _fARI
                     ))
 #                     , os.path.basename(sFilename)))
 #                 sFilename = "" # ;-)
@@ -533,20 +547,25 @@ def eval_cluster_of_files(lsFilename
                 nErr  += _nErr
                 nMiss += _nMiss
                 dOkErrMiss[fSimil] = (nOk, nErr, nMiss)
+                dlfARI[fSimil].append(_fARI)
 
+        if bParseFile: del doc  #better memory management
+        
     lSummary = []
     for fSimil in lfSimil:
         nOk, nErr, nMiss = dOkErrMiss[fSimil]
         fP, fR, fF = computePRF(nOk, nErr, nMiss)
-        sLine = "ALL_%s  @simil %.2f   P %5.2f  R %5.2f  F1 %5.2f " % (
-                     "TABLES" if bTable else sClusterLevel, fSimil, fP, fR, fF ) \
+        try:        fARI_avg, fARI_sdv = average(dlfARI[fSimil]), stddev(dlfARI[fSimil]) 
+        except:     fARI_avg, fARI_sdv = -1, -1
+        sLine = "ALL_%s  @simil %.2f   P %5.2f  R %5.2f  F1 %5.2f    ARI %.3f (sdv %.3f)" % (
+                     "TABLES" if bTable else sClusterLevel, fSimil, fP, fR, fF, fARI_avg, fARI_sdv) \
                 + "        "                                                                    \
                 +"ok=%d  err=%d  miss=%d" %(nOk, nErr, nMiss)
         lSummary.append(sLine)
     
-    sRpt = "\n".join(lSummary) + "\n\n" + "\n".join(lsRpt) + "\n\n" + "\n".join(lSummary)
+    sRpt = "\n".join(lsRpt) + "\n\n" + "\n".join(lSummary)
     
-    return nOk, nErr, nMiss, sRpt
+    return nOk, nErr, nMiss, sRpt, dOkErrMiss
     
     
 # ------------------------------------------------------------------

@@ -253,7 +253,7 @@ class ShapeLoader:
         returns a shape of given class
         """
         # line = LineString([(0, 0), (1, 1)])
-        return ShapeClass(tuple(float(_v) for _v in _sPair.split(','))
+        return ShapeClass(tuple(int(_v) for _v in _sPair.split(','))
                             for _sPair in sPoints.split(' '))
                                 
 

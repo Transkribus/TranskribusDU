@@ -41,7 +41,7 @@ from xml_formats.PageXml import MultiPageXml
 from util.Polygon import Polygon
 from common.trace import traceln
 
-from tasks.DU_Table.DU_Table_CellBorder import getCellsSeparators
+import tasks.DU_Table.DU_Table_CellBorder
 
 lLabelsBIESO_R  = ['B', 'I', 'E', 'S', 'O']  #O?
 lLabelsSM_C     = ['M', 'S', 'O']   # single cell, multicells
@@ -138,7 +138,7 @@ def addSeparator(root, lCells):
     Add separator that correspond to cell boundaries
     modify the XML DOM
     """
-    dRow, dCol = getCellsSeparators(lCells)
+    dRow, dCol = tasks.DU_Table.DU_Table_CellBorder.getCellsSeparators(lCells)
     
     try:
         ndTR = MultiPageXml.getChildByName(root,'TableRegion')[0]
@@ -199,7 +199,7 @@ def computeMaxRowSpan(lCells):
         return 1
 
 # ------------------------------------------------------------------
-def main(lsFilename, lsOutFilename):
+def main(lsFilename, lsOutFilename, bSep):
     #for the pretty printer to format better...
     parser = etree.XMLParser(remove_blank_text=True)
     for sFilename, sOutFilename in zip(lsFilename, lsOutFilename):
@@ -248,8 +248,9 @@ def main(lsFilename, lsOutFilename):
         tag_DU_row_col_header(root, lCells, maxRowSpan)
         
         try:
-            removeSeparator(root)
-            addSeparator(root, lCells)
+            if bSep:
+                removeSeparator(root)
+                addSeparator(root, lCells)
             doc.write(sOutFilename, encoding='utf-8',pretty_print=True,xml_declaration=True)
             traceln('annotation done for %s  --> %s' % (sFilename, sOutFilename))
         except TableAnnotationException:
@@ -260,6 +261,11 @@ def main(lsFilename, lsOutFilename):
 
 if __name__ == "__main__":
     try:
+        if sys.argv[1] == '--nosep':
+            bSep = False
+            sys.argv = sys.argv[0:1] + sys.argv[2:]  # moche...
+        else:
+            bSep = True
         if len(sys.argv) == 3: 
             # COMPATIBILITY MODE
             #load mpxml 
@@ -280,13 +286,13 @@ if __name__ == "__main__":
                 traceln("%s is not a folder"%sys.argv[1])
                 raise IndexError()
     except IndexError:
-        traceln("Usage: %s ( input-file output-file | folder )" % sys.argv[0])
+        traceln("Usage: %s [--nosep] ( input-file output-file | folder )" % sys.argv[0])
         exit(1)
             
     traceln(lsFilename)
     traceln("%d files to be processed" % len(lsFilename))
     traceln(lsOutFilename)
 
-    main(lsFilename, lsOutFilename)
+    main(lsFilename, lsOutFilename, bSep)
 
 

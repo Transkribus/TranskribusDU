@@ -17,6 +17,8 @@
 from functools import reduce
 
 import numpy as np
+from sklearn.metrics.cluster import adjusted_rand_score
+
 
 def confusion_classification_report(confumat, labels=None, target_names=None, digits=3):
     """Build a text report showing the main classification metrics
@@ -84,17 +86,8 @@ def confusion_classification_report(confumat, labels=None, target_names=None, di
     report = fmt % tuple(headers)
     report += '\n'
 
-#     p, r, f1, s = precision_recall_fscore_support(y_true, y_pred,
-#                                                   labels=labels,
-#                                                   average=None,
-#                                                   sample_weight=sample_weight)
-    eps=1e-8
-    confumat = np.asarray(confumat)
-    p   = np.diag(confumat)/(eps+confumat.sum(axis=0))
-    r   = np.diag(confumat)/(eps+confumat.sum(axis=1))
-    f1  = 2*p*r/(eps+p+r)
-    s   = confumat.sum(axis=1)
-        
+    p, r, f1, s = prf_support(confumat)
+    
     for i, label in enumerate(labels):
         values = [target_names[i]]
         for v in (p[i], r[i], f1[i]):
@@ -226,6 +219,18 @@ def confusion_accuracy_score(aConfuMat):
     eps= 1e-8
     return np.sum(np.diag(aConfuMat)) / (eps+np.sum(aConfuMat)) 
 
+def prf_support(confumat):
+    """
+    compute P,R,F1,support by class
+    """
+    eps=1e-8
+    confumat = np.asarray(confumat)
+    p   = np.diag(confumat)/(eps+confumat.sum(axis=0))
+    r   = np.diag(confumat)/(eps+confumat.sum(axis=1))
+    f1  = 2*p*r/(eps+p+r)
+    s   = confumat.sum(axis=1)
+    return p, r, f1, s
+
 def confusion_PRFAS(cm):
     """
     return the avgP, avgR, avgF1, Accuracy, Support of the confusion matrix
@@ -287,6 +292,7 @@ def variance(lA):
 
 def stddev(lA):
     return np.sqrt(variance(lA))
+
 
 def evalAdjustedRandScore(lX, lY):
     """

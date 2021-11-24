@@ -36,14 +36,7 @@ class FeatureDefinition_PageXml_NoNodeFeat_v3(FeatureDefinition):
     
     def __init__(self): 
         FeatureDefinition.__init__(self)
-        
-#         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
-#         self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc = n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc
-
-#         tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=self.n_tfidf_node
-#                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
-#                                                                                   , dtype=np.float64)
-        
+                
         node_transformer = Node1ConstantFeature()  # feature vector per node = [1.0]
     
         lEdgeFeature = [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
@@ -78,13 +71,6 @@ class FeatureDefinition_PageXml_StandardOnes_noText_noEdgeFeat_v3(FeatureDefinit
     def __init__(self): 
         FeatureDefinition.__init__(self)
         
-#         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
-#         self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc = n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc
-
-#         tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=self.n_tfidf_node
-#                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
-#                                                                                   , dtype=np.float64)
-        
         node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                     ("xywh", Pipeline([
                                                          ('selector', NodeTransformerXYWH_v2()),
@@ -118,14 +104,7 @@ class FeatureDefinition_PageXml_StandardOnes_noText_noEdge2Feat_v3(FeatureDefini
     
     def __init__(self): 
         FeatureDefinition.__init__(self)
-        
-#         self.n_tfidf_node, self.t_ngrams_node, self.b_tfidf_node_lc = n_tfidf_node, t_ngrams_node, b_tfidf_node_lc
-#         self.n_tfidf_edge, self.t_ngrams_edge, self.b_tfidf_edge_lc = n_tfidf_edge, t_ngrams_edge, b_tfidf_edge_lc
-
-#         tdifNodeTextVectorizer = TfidfVectorizer(lowercase=self.b_tfidf_node_lc, max_features=self.n_tfidf_node
-#                                                                                   , analyzer = 'char', ngram_range=self.t_ngrams_node #(2,6)
-#                                                                                   , dtype=np.float64)
-        
+                
         node_transformer = FeatureUnion( [  #CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
                                     ("xywh", Pipeline([
                                                          ('selector', NodeTransformerXYWH_v2()),

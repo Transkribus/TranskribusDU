@@ -21,9 +21,9 @@ from common.trace import traceln
 
 from util.Polygon import Polygon
 from xml_formats.PageXml import MultiPageXml, PageXml
-from graph.pkg_GraphBinaryConjugateSegmenter.GraphBinaryConjugateSegmenter import GraphBinaryConjugateSegmenter
+from graph.pkg_GraphBinaryConjugateSegmenter.GraphBinaryConjugateSegmenter_DOM import GraphBinaryConjugateSegmenter_DOM
 from tasks.DU_Table.DU_ABPTableCutAnnotator import CutAnnotator
-
+from graph.Cluster import ClusterList, Cluster
 
 def main(lsFilename
          , fRatio, fMinHLen
@@ -86,7 +86,7 @@ def add_cluster_to_dom(root, llX):
         # cluster of objects on
         imax = len(lX)
         dCluster = { i:list() for i in range(imax) }
-        
+        lCluster = ClusterList([], "cut")  
         #Histogram of projections
         lndTextline = MultiPageXml.getChildByName(ndPage, 'TextLine')
         
@@ -95,7 +95,7 @@ def add_cluster_to_dom(root, llX):
             def __init__(self, nd):
                 self.node = nd
                 
-        o = GraphBinaryConjugateSegmenter()
+        o = GraphBinaryConjugateSegmenter_DOM()
         o.lNode = []
         for nd in lndTextline:
             o.lNode.append(MyBlock(nd))
@@ -122,7 +122,8 @@ def add_cluster_to_dom(root, llX):
                 pass    
     
         # add clusters
-        lNdCluster = o.addClusterToDom(dCluster, bMoveContent=False, sAlgo="cut", pageNode=ndPage)
+        [ lCluster.append(Cluster(v)) for v in dCluster.values()]
+        lNdCluster = o.addClusterToDom(lCluster, bMoveContent=False, sAlgo="cut", pageNode=ndPage)
         
         # add a cut_X attribute to the clusters
         for ndCluster in lNdCluster:
