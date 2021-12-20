@@ -9,6 +9,7 @@
 """
  
 import sys, os
+from collections import Counter
 
 try: #to ease the use without proper Python installation
     import TranskribusDU_version
@@ -18,6 +19,7 @@ except ImportError:
 TranskribusDU_version
 
 from common.trace import traceln
+from xml_formats.PageXml import PageXml
 
 from tasks.DU_Task_Factory                          import DU_Task_Factory
 from graph.NodeType_PageXml                         import NodeType_PageXml_type
@@ -99,8 +101,13 @@ class My_ConjugateSegmenterGraph_MultiSinglePageXml(ConjugateSegmenterGraph_Mult
         lNdCluster = []
         dNS = {"pc":"http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"}
 
+        # the graph has been constructed for a certain page
+        pageNode = self.lNode[0].page.node
+        # guess its position to create unique XML ID
+        pageNum = 1 + len( pageNode.xpath(".//preceding::pc:Page", namespaces=dNS) )
+        traceln(" Page: ",pageNum)
         # enumerate TextAreas to remove
-        lNdOldTextRegion = self.doc.xpath("//pc:TextRegion", namespaces=dNS)
+        lNdOldTextRegion = pageNode.xpath(".//pc:TextRegion", namespaces=dNS)
 
         # we copy the type attribute to the inner TextLine, to preserve the GT info, if any
         for ndTR in lNdOldTextRegion:
@@ -108,7 +115,6 @@ class My_ConjugateSegmenterGraph_MultiSinglePageXml(ConjugateSegmenterGraph_Mult
             for ndTL in ndTR.xpath(".//pc:TextLine", namespaces=dNS):
                     ndTL.set("type_gt", sType)
 
-        pageNode = self.doc.xpath("//pc:Page", namespaces=dNS)[0]
 
         # replace the ReadingOrder section by a new one
         ndReadingOrder = pageNode.xpath(".//pc:ReadingOrder", namespaces=dNS)[0]
@@ -123,7 +129,7 @@ class My_ConjugateSegmenterGraph_MultiSinglePageXml(ConjugateSegmenterGraph_Mult
         # loop over clusters
         for ic, c in enumerate(lCluster):
             ndCluster = PageXml.createPageXmlNode('TextRegion')  
-            scid = "cluster_%d" % (ic+1)
+            scid = "cluster_p%d_%d" % (pageNum, ic+1)
             ndCluster.set("id", scid)  
             ndCluster.set("custom", "readingOrder {index:%d;}" % ic)  
 
@@ -132,6 +138,15 @@ class My_ConjugateSegmenterGraph_MultiSinglePageXml(ConjugateSegmenterGraph_Mult
             ndCluster.append(coords)
             spoints = ShapeLoader.minimum_rotated_rectangle([self.lNode[_i].node for _i in c])
             coords.set('points',spoints)   
+
+            # if the inner TextLine are tagged, let's do a vote to tag the Cluster
+            lsType = [self.lNode[_i].node.get('type') for _i in c]
+            dType = Counter([o for o in lsType if o is not None])
+            mc = dType.most_common(1)
+            if mc:
+                sXmlLabel = mc[0][0]
+                ndCluster.set("type", sXmlLabel)
+                PageXml.setCustomAttr(ndCluster, "structure", "type", sXmlLabel)
 
             #TextLine: move the DOM node of the content to the cluster
             for _i in c:                               
@@ -149,11 +164,12 @@ class My_ConjugateSegmenterGraph_MultiSinglePageXml(ConjugateSegmenterGraph_Mult
 
         # remove or rename the old TextRegion
         for nd in lNdOldTextRegion: 
-            if True:
+            if False:
                 nd.tag = "TextRegion_GT"
             else:
-                pageNode.remove(nd)        
-            
+                #pageNode.remove(nd)        
+                nd.getparent().remove(nd)
+                
         return lNdCluster
 
 # ----------------------------------------------------------------------------
