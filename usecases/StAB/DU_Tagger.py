@@ -11,6 +11,7 @@ import sys, os
 import TranskribusDU_version  # if import error, updade the PYTHONPATH environment variable
 
 from common.trace import traceln
+from xml_formats.PageXml import PageXml
 from tasks.DU_Task_Factory                          import DU_Task_Factory
 from graph.Graph_Multi_SinglePageXml                import Graph_MultiSinglePageXml
 from graph.NodeType_PageXml                         import NodeType_PageXml_type
@@ -35,6 +36,18 @@ class NodeType_for_TextLine(NodeType_PageXml_type):
     def getLabel(self, domnode):
         return domnode.getparent().get(self.sLabelAttr)
 
+    def setDocNodeLabel(self, graph_node, sLabel):
+        """
+        Set the DOM node label in the format-dependent way
+        """
+        try:
+            sXmlLabel = self.dLabel2XmlLabel[sLabel]
+        except KeyError:
+            sXmlLabel = "other"
+        graph_node.node.set(self.sLabelAttr, sXmlLabel)        
+        # tagging using the custem XML attribute
+        PageXml.setCustomAttr(graph_node.node, "structure", "type", sXmlLabel)
+
 
 class NodeType_for_TextRegion(NodeType_PageXml_type_woText  ):
     """
@@ -52,6 +65,7 @@ class NodeType_for_TextRegion(NodeType_PageXml_type_woText  ):
         lNd = graph_node.node.xpath(".//pc:TextLine", namespaces=dNS)
         for nd in lNd:
             nd.set(self.sLabelAttr, sLabel)
+            PageXml.setCustomAttr(nd, "structure", "type", sLabel)
 
         return sLabel
 
