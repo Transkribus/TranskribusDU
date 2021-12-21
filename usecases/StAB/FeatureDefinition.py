@@ -35,9 +35,9 @@ from graph.Transformer_Generic import NodeTransformerXYWH
 from graph.Transformer_Generic import NodeTransformerNeighbors
 from graph.Transformer_Generic import EdgeBooleanAlignmentFeatures
 from graph.Transformer_Generic import EdgeNumericalSelector_noText
-from graph.Transformer_Generic import NNodeTransformerTWY
+from graph.Transformer_Generic import NodeTransformerTWY
 
-class FeatureDefinition_Generic(FeatureDefinition):
+class FeatureDefinition_Generic_TWY(FeatureDefinition):
     n_QUANTILES = 64
 
     def __init__(self

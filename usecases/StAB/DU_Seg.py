@@ -29,7 +29,7 @@ from graph.pkg_GraphBinaryConjugateSegmenter.MultiSinglePageXml  \
 
 from graph.FeatureDefinition_PageXml_std            import FeatureDefinition_PageXml_StandardOnes
 from graph.FeatureDefinition_PageXml_std_noText     import FeatureDefinition_PageXml_StandardOnes_noText
-from graph.FeatureDefinition_Generic                import FeatureDefinition_Generic
+from FeatureDefinition                              import FeatureDefinition_Generic_TWY
 from graph.FeatureDefinition_Generic_noText         import FeatureDefinition_Generic_noText
 
 from xml_formats.PageXml                            import PageXml, PageXmlException
@@ -238,7 +238,7 @@ if __name__ == "__main__":
         cFeatureDefinition = FeatureDefinition_Generic_noText if bGenericFeature else FeatureDefinition_PageXml_StandardOnes_noText
         dFeatureConfig = {}
     else:
-        cFeatureDefinition = FeatureDefinition_Generic if bGenericFeature else FeatureDefinition_PageXml_StandardOnes
+        cFeatureDefinition = FeatureDefinition_Generic_TWY if bGenericFeature else FeatureDefinition_PageXml_StandardOnes
         if True:
             # this is the best configuration when using the text
             dFeatureConfig = {  'n_tfidf_node':400, 't_ngrams_node':(1,1), 'b_tfidf_node_lc':False

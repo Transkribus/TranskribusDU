@@ -158,7 +158,7 @@ class NodeTransformerTWY(Transformer):
         assert len(lNode) > 0
 
         # get nb classes
-        NY = len(lNode[0].node.get("DU_Y"))
+        NY = len(ast.literal_eval(lNode[0].node.get("DU_Y")))
         X = np.empty((len(lNode), NY), dtype=np.float64)
 
         for i, nd in enumerate(lNode):
