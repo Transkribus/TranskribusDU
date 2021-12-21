@@ -120,6 +120,13 @@ class NodeType:
         """
         raise Exception("Method must be overridden")
 
+    @classmethod
+    def setDocNodeY(cls, graph_node, Y):
+        """
+        Y is a probability distribution over the labels
+        """
+        pass
+
     def _iter_GraphNode(self, doc, domNdPage, page):
         """
         Parse a DOM page

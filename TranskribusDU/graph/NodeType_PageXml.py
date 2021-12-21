@@ -280,6 +280,20 @@ class NodeType_PageXml_type(NodeType_PageXml):
             graph_node.node.set(self.sLabelAttr, self.dLabel2XmlLabel[sLabel])
         return sLabel
 
+
+    @classmethod
+    def setDocNodeY(cls, graph_node, Y):
+        """
+        Y is a probability distribution over the labels
+
+        to load it use: np.array(ast.literal_eval(s), dtype=np.float)
+        """
+        #         if len(Y) == 2:
+        #             graph_node.node.set("DU_Proba", str(Y[0]))  #proba of continue
+        #         else:
+        graph_node.node.set("DU_Y", str(list(np.around(Y, decimals=3))))
+
+
 class NodeType_PageXml_type_woText(NodeType_PageXml_type):
     """
             for document wo HTR: no text

@@ -211,7 +211,24 @@ class Graph:
                 raise ValueError("Page %d, unknown label '%s' in %s (Known labels are %s)"%(nd.pnum, sLabel, str(nd.node), self._dClsByLabel))
             nd.cls = cls
             setSeensLabels.add(cls)
-        return setSeensLabels    
+        return setSeensLabels
+
+    def setDocLabels(self, Y):
+        """
+        Set the labels of the graph nodes from the Y matrix
+        """
+        if isinstance(Y, np.ndarray) and Y.ndim > 1:
+            # this a probability array
+            Ylbl = Y.argmax(axis=1)
+            for i, nd in enumerate(self.lNode):
+                sLabel = self._dLabelByCls[Ylbl[i]]
+                nd.type.setDocNodeLabel(nd, sLabel)
+                nd.type.setDocNodeY(nd, Y[i])
+        else:
+            for i, nd in enumerate(self.lNode):
+                sLabel = self._dLabelByCls[Y[i]]
+                nd.type.setDocNodeLabel(nd, sLabel)
+        return
 
     def setDocLabels(self, Y):
         """
