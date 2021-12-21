@@ -230,14 +230,6 @@ class Graph:
                 nd.type.setDocNodeLabel(nd, sLabel)
         return
 
-    def setDocLabels(self, Y):
-        """
-        Set the labels of the graph nodes from the Y matrix
-        """
-        for i,nd in enumerate(self.lNode):
-            sLabel = self._dLabelByCls[ Y[i] ]
-            nd.type.setDocNodeLabel(nd, sLabel)
-        return
     
     # --- Constraints -----------------------------------------------------------
     def setPageConstraint(cls, lPageConstraintDef):

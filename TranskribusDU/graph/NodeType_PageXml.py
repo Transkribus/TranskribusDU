@@ -20,6 +20,7 @@
 import types
 from lxml import etree
 
+import numpy as np
 from common.trace import traceln
 from xml_formats.PageXml import PageXml, PageXmlException
 from util.Polygon import Polygon
