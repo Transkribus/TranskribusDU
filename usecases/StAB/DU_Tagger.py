@@ -91,7 +91,7 @@ def getConfiguredGraphClass_for_TextLine(doer):
     nt.setLabelAttribute("type")
 
     nt.setXpathExpr((".//pc:TextLine"
-                      , ".//pc:TextEquiv")       #how to get their text
+                      , "./pc:TextEquiv")       #how to get their text
                    )
     DU_GRAPH.addNodeType(nt)
     
