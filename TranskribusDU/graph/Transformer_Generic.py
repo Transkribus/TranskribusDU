@@ -22,7 +22,7 @@
 
 
 
-
+import ast
 import numpy as np
 
 from .Transformer import Transformer
@@ -146,6 +146,28 @@ class Node1ConstantFeature(Transformer):
     """
     def transform(self, lNode):
         return np.ones( ( len(lNode), 1 ) , dtype=np.float64)
+
+class NodeTransformerTWY(Transformer):
+    """
+    adding the proba distro
+    """
+
+    def transform(self, lNode):
+        #         a = np.empty( ( len(lNode), 5 ) , dtype=Feat_dtype)
+        #         for i, blk in enumerate(lNode): a[i, :] = [blk.x1, blk.y2, blk.x2-blk.x1, blk.y2-blk.y1, blk.fontsize]        #--- 2 3 4 5 6
+        assert len(lNode) > 0
+
+        # get nb classes
+        NY = len(lNode[0].node.get("DU_Y"))
+        X = np.empty((len(lNode), NY), dtype=np.float64)
+
+        for i, nd in enumerate(lNode):
+            s = nd.node.get("DU_Y")
+            assert s != None, "This SW needs tagged words, with a @DU_Y and %d values" % self.NY
+            Y = np.array(ast.literal_eval(s), dtype=np.float)
+            X[i] = Y
+
+        return X
 
 
 #------------------------------------------------------------------------------------------------------
@@ -272,11 +294,11 @@ class EdgeNumericalSelector_noText(EdgeTransformerClassShifter):
             #new in READ: the length of a same-page edge
             if isinstance(edge, SamePageEdge):
                 if isinstance(edge, VerticalEdge):
-                    norm_length = edge.length / mean_length
+                    norm_length = edge.length / ( mean_length + 1e-8)
                     #                Horiz.       Vert.         Horiz.                  Vert.
                     a[i,z+1:z+7] = (0.0, edge.length, 0.0        , norm_length   , 0.0                    , norm_length*norm_length)
                 else:
-                    norm_length = edge.length / mean_length
+                    norm_length = edge.length / (mean_length + 1e-8)
                     a[i,z+1:z+7] = (edge.length, 0.0, norm_length, 0.0           , norm_length*norm_length , 0.0)
                     
         return a  
