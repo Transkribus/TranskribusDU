@@ -816,7 +816,7 @@ This server runs with those options: {{ sOptions }}
                 for i, e in enumerate(g.lEdge):
                     Y[i, 1-int(e.A.cls == e.B.cls)] = 1.0
             else:
-                Y = self._mdl.predict(g, bProba=g.bConjugate)
+                Y = self._mdl.predict(g, bProba=True)
             g.setDocLabels(Y)
             if bGraph and not Y is None:
                 if g.bConjugate: 
