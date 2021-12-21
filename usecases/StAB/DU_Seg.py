@@ -104,11 +104,11 @@ class My_ConjugateSegmenterGraph_MultiSinglePageXml(ConjugateSegmenterGraph_Mult
         # the graph has been constructed for a certain page
         pageNode = self.lNode[0].page.node
         # guess its position to create unique XML ID
-        pageNum = 1 + len( pageNode.xpath(".//preceding::pc:Page", namespaces=dNS) )
-        traceln(" Page: ",pageNum)
+        #pageNum = 1 #+ len( pageNode.xpath(".//preceding::pc:Page", namespaces=dNS) )
+        #traceln(" Page: ",pageNum)
         # enumerate TextAreas to remove
         lNdOldTextRegion = pageNode.xpath(".//pc:TextRegion", namespaces=dNS)
-
+        
         # we copy the type attribute to the inner TextLine, to preserve the GT info, if any
         for ndTR in lNdOldTextRegion:
             sType = str(ndTR.get("type"))
@@ -129,7 +129,8 @@ class My_ConjugateSegmenterGraph_MultiSinglePageXml(ConjugateSegmenterGraph_Mult
         # loop over clusters
         for ic, c in enumerate(lCluster):
             ndCluster = PageXml.createPageXmlNode('TextRegion')  
-            scid = "cluster_p%d_%d" % (pageNum, ic+1)
+            #scid = "cluster_p%d_%d" % (pageNum, ic+1)
+            scid = "cluster_%d" % (ic+1)
             ndCluster.set("id", scid)  
             ndCluster.set("custom", "readingOrder {index:%d;}" % ic)  
 
@@ -216,7 +217,7 @@ def getConfiguredGraphClass(doer):
     ## HD added 23/01/2020: needed for output generation
     DU_GRAPH.clusterType='region'
     nt.setXpathExpr((  ".//pc:TextLine"
-                     , ".//pc:TextEquiv")       #how to get their text
+                     , "./pc:TextEquiv")       #how to get their text
                      )
     DU_GRAPH.addNodeType(nt)
     
