@@ -170,4 +170,3 @@ class FeatureDefinition_Generic_noText_TWY(FeatureDefinition):
         self.tfidfNodeTextVectorizer = None  # tdifNodeTextVectorizer
 
 
-c
