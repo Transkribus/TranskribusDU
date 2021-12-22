@@ -123,6 +123,51 @@ class FeatureDefinition_Generic_TWY(FeatureDefinition):
         return self._node_transformer, self._edge_transformer
 
 
+class FeatureDefinition_Generic_noText_TWY(FeatureDefinition):
+    n_QUANTILES = 16
+
+    def __init__(self):
+        FeatureDefinition.__init__(self)
+
+        node_transformer = FeatureUnion([  # CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
+            ("xywh", Pipeline([
+                ('selector', NodeTransformerXYWH()),
+                # v1 ('xywh', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                ('xywh', QuantileTransformer(n_quantiles=self.n_QUANTILES, copy=False))  # use in-place scaling
+            ])
+             )
+            , ("neighbors", Pipeline([
+                ('selector', NodeTransformerNeighbors()),
+                # v1 ('neighbors', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                ('neighbors', QuantileTransformer(n_quantiles=self.n_QUANTILES, copy=False))  # use in-place scaling
+            ])
+               )
+            , ("twy", Pipeline([
+                ('selector', NodeTransformerTWY()),
+                ('twy', QuantileTransformer(n_quantiles=16, copy=False))  # use in-place scaling
+            ])
+               )
+        ])
+
+        lEdgeFeature = [  # CAREFUL IF YOU CHANGE THIS - see cleanTransformers method!!!!
+            ("boolean", Pipeline([
+                ('boolean', EdgeBooleanAlignmentFeatures())
+            ])
+             )
+            , ("numerical", Pipeline([
+                ('selector', EdgeNumericalSelector_noText()),
+                # v1 ('numerical', StandardScaler(copy=False, with_mean=True, with_std=True))  #use in-place scaling
+                ('numerical', QuantileTransformer(n_quantiles=self.n_QUANTILES, copy=False))  # use in-place scaling
+            ])
+               )
+        ]
+
+        edge_transformer = FeatureUnion(lEdgeFeature)
+
+        # return _node_transformer, _edge_transformer, tdifNodeTextVectorizer
+        self._node_transformer = node_transformer
+        self._edge_transformer = edge_transformer
+        self.tfidfNodeTextVectorizer = None  # tdifNodeTextVectorizer
 
 
-
+c
